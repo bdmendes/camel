@@ -248,7 +248,13 @@ mod tests {
 
         let board_view = position.to_string();
         let expected_board_view = vec![
-            "rnbqkbnr", "pppppppp", "        ", "        ", "        ", "        ", "PPPPPPPP",
+            "rnbqkbnr", //
+            "pppppppp", //
+            "        ", //
+            "        ", //
+            "        ", //
+            "        ", //
+            "PPPPPPPP", //
             "RNBQKBNR",
         ]
         .join("\n");
@@ -263,7 +269,13 @@ mod tests {
 
         let board_view = position.to_string();
         let expected_board_view = vec![
-            "r    rk ", "pp q ppp", "  n  b  ", "   Q    ", "        ", "  N     ", "PPP  PPP",
+            "r    rk ", //
+            "pp q ppp", //
+            "  n  b  ", //
+            "   Q    ", //
+            "        ", //
+            "  N     ", //
+            "PPP  PPP", //
             "R   K NR",
         ]
         .join("\n");
