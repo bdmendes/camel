@@ -1,4 +1,5 @@
 mod board;
+mod moves;
 mod uci;
 
 fn uci_loop() {

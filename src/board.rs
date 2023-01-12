@@ -1,41 +1,98 @@
 pub const START_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Color {
     White,
     Black,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Piece {
-    Pawn(Color),
-    Rook(Color),
-    Knight(Color),
-    Bishop(Color),
-    Queen(Color),
-    King(Color),
+    Pawn,
+    Rook,
+    Knight,
+    Bishop,
+    Queen,
+    King,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Square {
-    pub row: u8,
-    pub col: u8,
-}
-
-pub enum CastlingRights {
-    WhiteKingSide,
-    WhiteQueenSide,
-    BlackKingSide,
-    BlackQueenSide,
+    pub row: usize,
+    pub col: usize,
 }
 
 pub struct Position {
-    pub board: [[Option<Piece>; 8]; 8],
+    pub board: [[Option<(Piece, Color)>; 8]; 8],
     pub next_to_move: Color,
-    pub castling_rights: Vec<CastlingRights>,
+    pub white_can_castle_kingside: bool,
+    pub white_can_castle_queenside: bool,
+    pub black_can_castle_kingside: bool,
+    pub black_can_castle_queenside: bool,
     pub en_passant_square: Option<Square>,
-    pub half_move_clock: u8,
+    pub half_move_number: u8,
     pub full_move_number: u16,
+}
+
+impl Color {
+    pub fn opposing_color(&self) -> Color {
+        match self {
+            Color::White => Color::Black,
+            Color::Black => Color::White,
+        }
+    }
+}
+
+impl Square {
+    pub fn to_algebraic(&self) -> String {
+        let mut algebraic = String::new();
+        algebraic.push((('a' as u8) + self.col as u8) as char);
+        algebraic.push((('8' as u8) - self.row as u8) as char);
+        algebraic
+    }
+
+    pub fn from_algebraic(algebraic: &str) -> Square {
+        let mut chars = algebraic.chars();
+        let col = chars.next().unwrap() as u8 - ('a' as u8);
+        let row = ('8' as u8) - chars.next().unwrap() as u8;
+        Square {
+            row: row as usize,
+            col: col as usize,
+        }
+    }
+}
+
+impl Piece {
+    pub fn from_char(c: char) -> Piece {
+        match c {
+            'p' => Piece::Pawn,
+            'r' => Piece::Rook,
+            'n' => Piece::Knight,
+            'b' => Piece::Bishop,
+            'q' => Piece::Queen,
+            'k' => Piece::King,
+            _ => panic!("Invalid piece"),
+        }
+    }
+
+    pub fn to_char(&self) -> char {
+        match self {
+            Piece::Pawn => 'p',
+            Piece::Rook => 'r',
+            Piece::Knight => 'n',
+            Piece::Bishop => 'b',
+            Piece::Queen => 'q',
+            Piece::King => 'k',
+        }
+    }
+
+    pub fn to_char_with_color(&self, color: Color) -> char {
+        let c = self.to_char();
+        match color {
+            Color::White => c.to_uppercase().next().unwrap(),
+            Color::Black => c,
+        }
+    }
 }
 
 impl Position {
@@ -43,9 +100,12 @@ impl Position {
         let mut position = Position {
             board: [[Option::None; 8]; 8],
             next_to_move: Color::White,
-            castling_rights: Vec::with_capacity(4),
+            white_can_castle_kingside: false,
+            white_can_castle_queenside: false,
+            black_can_castle_kingside: false,
+            black_can_castle_queenside: false,
             en_passant_square: None,
-            half_move_clock: 0,
+            half_move_number: 0,
             full_move_number: 0,
         };
 
@@ -54,7 +114,7 @@ impl Position {
         let next_to_move = fen_iter.next().unwrap();
         let castling_rights = fen_iter.next().unwrap();
         let en_passant_square = fen_iter.next().unwrap();
-        let half_move_clock = fen_iter.next().unwrap();
+        let half_move_number = fen_iter.next().unwrap();
         let full_move_number = fen_iter.next().unwrap();
 
         let mut row: usize = 0;
@@ -74,15 +134,8 @@ impl Position {
                     } else {
                         Color::White
                     };
-                    position.board[row][col] = match c.to_lowercase().next().unwrap() {
-                        'p' => Some(Piece::Pawn(color)),
-                        'r' => Some(Piece::Rook(color)),
-                        'n' => Some(Piece::Knight(color)),
-                        'b' => Some(Piece::Bishop(color)),
-                        'q' => Some(Piece::Queen(color)),
-                        'k' => Some(Piece::King(color)),
-                        _ => panic!("Invalid piece"),
-                    };
+                    let piece = Piece::from_char(c.to_lowercase().next().unwrap());
+                    position.board[row][col] = Some((piece, color));
                     col += 1;
                 }
             }
@@ -96,14 +149,10 @@ impl Position {
 
         for c in castling_rights.chars() {
             match c {
-                'K' => position.castling_rights.push(CastlingRights::WhiteKingSide),
-                'Q' => position
-                    .castling_rights
-                    .push(CastlingRights::WhiteQueenSide),
-                'k' => position.castling_rights.push(CastlingRights::BlackKingSide),
-                'q' => position
-                    .castling_rights
-                    .push(CastlingRights::BlackQueenSide),
+                'K' => position.white_can_castle_kingside = true,
+                'Q' => position.white_can_castle_queenside = true,
+                'k' => position.black_can_castle_kingside = true,
+                'q' => position.black_can_castle_queenside = true,
                 '-' => break,
                 _ => panic!("Invalid castling rights"),
             }
@@ -114,7 +163,7 @@ impl Position {
             _ => Some(Square::from_algebraic(en_passant_square)),
         };
 
-        position.half_move_clock = half_move_clock.parse().unwrap();
+        position.half_move_number = half_move_number.parse().unwrap();
 
         position.full_move_number = full_move_number.parse().unwrap();
 
@@ -129,23 +178,12 @@ impl Position {
             for col in 0..8 {
                 match self.board[row][col] {
                     None => empty += 1,
-                    Some(piece) => {
+                    Some((piece, color)) => {
                         if empty > 0 {
                             fen.push((empty + ('0' as u8)) as char);
                             empty = 0;
                         }
-                        let (piece_char, color) = match piece {
-                            Piece::Pawn(color) => ('p', color),
-                            Piece::Rook(color) => ('r', color),
-                            Piece::Knight(color) => ('n', color),
-                            Piece::Bishop(color) => ('b', color),
-                            Piece::Queen(color) => ('q', color),
-                            Piece::King(color) => ('k', color),
-                        };
-                        fen.push(match color {
-                            Color::White => piece_char.to_uppercase().next().unwrap(),
-                            Color::Black => piece_char,
-                        });
+                        fen.push(piece.to_char_with_color(color));
                     }
                 }
             }
@@ -164,14 +202,23 @@ impl Position {
         });
 
         fen.push(' ');
-        for castling_right in self.castling_rights.iter() {
-            fen.push(match castling_right {
-                CastlingRights::WhiteKingSide => 'K',
-                CastlingRights::WhiteQueenSide => 'Q',
-                CastlingRights::BlackKingSide => 'k',
-                CastlingRights::BlackQueenSide => 'q',
-            });
+        let mut castling_rights = String::new();
+        if self.white_can_castle_kingside {
+            castling_rights.push('K');
         }
+        if self.white_can_castle_queenside {
+            castling_rights.push('Q');
+        }
+        if self.black_can_castle_kingside {
+            castling_rights.push('k');
+        }
+        if self.black_can_castle_queenside {
+            castling_rights.push('q');
+        }
+        if castling_rights.is_empty() {
+            castling_rights.push('-');
+        }
+        fen.push_str(castling_rights.as_str());
 
         fen.push(' ');
         match self.en_passant_square {
@@ -180,7 +227,7 @@ impl Position {
         }
 
         fen.push(' ');
-        fen.push_str(self.half_move_clock.to_string().as_str());
+        fen.push_str(self.half_move_number.to_string().as_str());
 
         fen.push(' ');
         fen.push_str(&self.full_move_number.to_string());
@@ -195,20 +242,8 @@ impl Position {
             for col in 0..8 {
                 match self.board[row][col] {
                     None => string.push(' '),
-                    Some(piece) => {
-                        let (piece_char, color) = match piece {
-                            Piece::Pawn(color) => ('p', color),
-                            Piece::Rook(color) => ('r', color),
-                            Piece::Knight(color) => ('n', color),
-                            Piece::Bishop(color) => ('b', color),
-                            Piece::Queen(color) => ('q', color),
-                            Piece::King(color) => ('k', color),
-                        };
-                        let colored_piece_char = match color {
-                            Color::White => piece_char.to_uppercase().next().unwrap(),
-                            Color::Black => piece_char,
-                        };
-                        string.push(colored_piece_char);
+                    Some((piece, color)) => {
+                        string.push(piece.to_char_with_color(color));
                     }
                 }
             }
@@ -218,22 +253,6 @@ impl Position {
         }
 
         string
-    }
-}
-
-impl Square {
-    pub fn to_algebraic(&self) -> String {
-        let mut algebraic = String::new();
-        algebraic.push((('a' as u8) + self.col) as char);
-        algebraic.push((('8' as u8) - self.row) as char);
-        algebraic
-    }
-
-    pub fn from_algebraic(algebraic: &str) -> Square {
-        let mut chars = algebraic.chars();
-        let col = chars.next().unwrap() as u8 - ('a' as u8);
-        let row = ('8' as u8) - chars.next().unwrap() as u8;
-        Square { row, col }
     }
 }
 
