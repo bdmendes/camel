@@ -1,6 +1,6 @@
 use std::process::exit;
 
-use crate::board::{Position, START_FEN};
+use crate::position::Position;
 
 pub enum UCICommand {
     UCI,
@@ -17,7 +17,7 @@ pub enum UCICommand {
 }
 
 pub struct EngineState {
-    position: Position,
+    _position: Position,
 }
 
 impl UCICommand {
@@ -61,7 +61,7 @@ impl UCICommand {
 impl EngineState {
     pub fn new() -> Self {
         Self {
-            position: Position::from_fen(START_FEN),
+            _position: Position::new(),
         }
     }
 
@@ -91,15 +91,15 @@ impl EngineState {
         println!("readyok");
     }
 
-    fn handle_debug(value: bool) {
+    fn handle_debug(_value: bool) {
         todo!();
     }
 
-    fn handle_setoption(name: &str, value: &str) {
+    fn handle_setoption(_name: &str, _value: &str) {
         todo!();
     }
 
-    fn handle_register(code: &str) {
+    fn handle_register(_code: &str) {
         todo!();
     }
 
@@ -107,11 +107,11 @@ impl EngineState {
         todo!();
     }
 
-    fn handle_position(position: &str, moves: Vec<String>) {
+    fn handle_position(_position: &str, _moves: Vec<String>) {
         todo!();
     }
 
-    fn handle_go(search: &str) {
+    fn handle_go(_search: &str) {
         todo!();
     }
 

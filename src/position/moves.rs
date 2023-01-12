@@ -1,15 +1,30 @@
-use crate::board::{Color, Piece, Position, Square};
+use crate::position::{Color, Piece, Position, Square};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Move {
     pub from: Square,
     pub to: Square,
+    pub is_capture: bool,
+    pub is_enpassant: bool,
+    pub is_castle: bool,
+    pub promoted_to: Option<Piece>,
 }
 
 impl Move {
+    fn new(from: Square, to: Square, is_capture: bool) -> Move {
+        Move {
+            from,
+            to,
+            is_capture,
+            is_enpassant: false,
+            is_castle: false,
+            promoted_to: None,
+        }
+    }
+
     fn unchecked_directions(piece: &Piece) -> Vec<(i8, i8)> {
         match piece {
-            Piece::Pawn => panic!(),
+            Piece::Pawn => vec![],
             Piece::Rook => vec![(-1, 0), (1, 0), (0, -1), (0, 1)],
             Piece::Knight => {
                 vec![
@@ -44,45 +59,39 @@ impl Move {
         from: &Square,
         crawl: bool,
     ) -> Vec<Move> {
-        let (piece, color) = position.board[from.row][from.col].unwrap();
+        let (piece, color) = position.at(from).unwrap();
         let mut moves = Vec::new();
         for (row, col) in Move::unchecked_directions(&piece) {
             let mut to = Square {
-                row: (from.row as i8 + row) as usize,
-                col: (from.col as i8 + col) as usize,
+                row: (from.row as i8 + row) as u8,
+                col: (from.col as i8 + col) as u8,
             };
             while to.row < 8 && to.col < 8 {
-                if position.board[to.row][to.col].is_none() {
-                    moves.push(Move {
-                        from: from.to_owned(),
-                        to,
-                    });
+                if position.at(&to).is_none() {
+                    moves.push(Move::new(from.to_owned(), to, false));
                 } else {
-                    let (_, to_color) = position.board[to.row][to.col].unwrap();
+                    let (_, to_color) = position.at(&to).unwrap();
                     if to_color != color {
-                        moves.push(Move {
-                            from: from.to_owned(),
-                            to,
-                        });
+                        moves.push(Move::new(from.to_owned(), to, true));
                     }
                     break;
                 }
                 if !crawl {
                     break;
                 }
-                to.row = (to.row as i8 + row) as usize;
-                to.col = (to.col as i8 + col) as usize;
+                to.row = (to.row as i8 + row) as u8;
+                to.col = (to.col as i8 + col) as u8;
             }
         }
         moves
     }
 
     fn pseudo_moves_from_square(position: &Position, from: &Square) -> Vec<Move> {
-        if position.board[from.row][from.col].is_none() {
+        if position.at(from).is_none() {
             return vec![];
         }
 
-        let (piece, color) = position.board[from.row][from.col].unwrap();
+        let (piece, color) = position.at(from).unwrap();
         if color != position.next_to_move {
             return vec![];
         }
@@ -96,7 +105,7 @@ impl Move {
                 let mut moves = Move::pseudo_moves_per_square_regular(position, from, false);
                 match color {
                     Color::White => {
-                        if position.black_can_castle_kingside
+                        if position.castling_rights.white_kingside
                             && position.board[0][5].is_none()
                             && position.board[0][6].is_none()
                         {
@@ -104,10 +113,14 @@ impl Move {
                                 moves.push(Move {
                                     from: from.to_owned(),
                                     to: Square { row: 0, col: 6 },
+                                    is_capture: false,
+                                    is_enpassant: false,
+                                    is_castle: true,
+                                    promoted_to: None,
                                 });
                             }
                         }
-                        if position.black_can_castle_queenside
+                        if position.castling_rights.white_queenside
                             && position.board[0][3].is_none()
                             && position.board[0][2].is_none()
                             && position.board[0][1].is_none()
@@ -116,12 +129,16 @@ impl Move {
                                 moves.push(Move {
                                     from: from.to_owned(),
                                     to: Square { row: 0, col: 2 },
+                                    is_capture: false,
+                                    is_enpassant: false,
+                                    is_castle: true,
+                                    promoted_to: None,
                                 });
                             }
                         }
                     }
                     Color::Black => {
-                        if position.white_can_castle_kingside
+                        if position.castling_rights.black_kingside
                             && position.board[7][5].is_none()
                             && position.board[7][6].is_none()
                         {
@@ -129,10 +146,14 @@ impl Move {
                                 moves.push(Move {
                                     from: from.to_owned(),
                                     to: Square { row: 7, col: 6 },
+                                    is_capture: false,
+                                    is_enpassant: false,
+                                    is_castle: true,
+                                    promoted_to: None,
                                 });
                             }
                         }
-                        if position.white_can_castle_queenside
+                        if position.castling_rights.black_queenside
                             && position.board[7][3].is_none()
                             && position.board[7][2].is_none()
                             && position.board[7][1].is_none()
@@ -141,6 +162,10 @@ impl Move {
                                 moves.push(Move {
                                     from: from.to_owned(),
                                     to: Square { row: 7, col: 2 },
+                                    is_capture: false,
+                                    is_enpassant: false,
+                                    is_castle: true,
+                                    promoted_to: None,
                                 });
                             }
                         }
@@ -150,36 +175,39 @@ impl Move {
             }
             Piece::Pawn => {
                 let front_direction = match color {
-                    Color::White => (-1, 0),
-                    Color::Black => (1, 0),
+                    Color::White => (1, 0),
+                    Color::Black => (-1, 0),
                 };
-                let mut moves = vec![Move {
-                    from: from.to_owned(),
-                    to: Square {
-                        row: (from.row as i8 + front_direction.0) as usize,
+                let mut moves = vec![Move::new(
+                    from.to_owned(),
+                    Square {
+                        row: (from.row as i8 + front_direction.0) as u8,
                         col: from.col,
                     },
-                }];
+                    false,
+                )];
 
-                if from.row == 6 && color == Color::White {
-                    if position.board[4][from.col].is_none() {
-                        moves.push(Move {
-                            from: from.to_owned(),
-                            to: Square {
-                                row: 4,
-                                col: moves[0].to.col,
-                            },
-                        });
-                    }
-                } else if from.row == 1 && color == Color::Black {
-                    if position.board[3][from.col].is_none() {
-                        moves.push(Move {
-                            from: from.to_owned(),
-                            to: Square {
+                if from.row == 1 && color == Color::White {
+                    if position.board[3][from.col as usize].is_none() {
+                        moves.push(Move::new(
+                            from.to_owned(),
+                            Square {
                                 row: 3,
                                 col: moves[0].to.col,
                             },
-                        });
+                            false,
+                        ));
+                    }
+                } else if from.row == 6 && color == Color::Black {
+                    if position.board[4][from.col as usize].is_none() {
+                        moves.push(Move::new(
+                            from.to_owned(),
+                            Square {
+                                row: 4,
+                                col: moves[0].to.col,
+                            },
+                            false,
+                        ));
                     }
                 }
 
@@ -189,25 +217,19 @@ impl Move {
                 ];
                 for (row, col) in capture_squares {
                     let to = Square {
-                        row: (from.row as i8 + row as i8) as usize,
-                        col: (from.col as i8 + col as i8) as usize,
+                        row: (from.row as i8 + row as i8) as u8,
+                        col: (from.col as i8 + col as i8) as u8,
                     };
                     if to.row < 8 && to.col < 8 {
-                        if position.board[to.row][to.col].is_some() {
-                            let (_, to_color) = position.board[to.row][to.col].unwrap();
+                        if position.at(&to).is_some() {
+                            let (_, to_color) = position.at(&to).unwrap();
                             if to_color != color {
-                                moves.push(Move {
-                                    from: from.to_owned(),
-                                    to,
-                                });
+                                moves.push(Move::new(from.to_owned(), to, false));
                             }
                         } else if position.en_passant_square.is_some()
                             && to == position.en_passant_square.unwrap()
                         {
-                            moves.push(Move {
-                                from: from.to_owned(),
-                                to,
-                            });
+                            moves.push(Move::new(from.to_owned(), to, false));
                         }
                     }
                 }
@@ -230,11 +252,11 @@ impl Move {
     }
 
     pub fn make(&self, position: &Position) -> Position {
-        let (piece, color) = position.board[self.from.row][self.from.col].unwrap();
+        let (piece, color) = position.at(&self.from).unwrap();
         let mut new_board = position.board.clone();
 
-        new_board[self.to.row][self.to.col] = Some((piece, color));
-        new_board[self.from.row][self.from.col] = None;
+        new_board[self.to.row as usize][self.to.col as usize] = Some((piece, color));
+        new_board[self.from.row as usize][self.from.col as usize] = None;
 
         let mut new_en_passant_square = None;
         match piece {
@@ -254,39 +276,36 @@ impl Move {
             _ => {}
         }
 
-        let mut new_white_can_castle_kingside = position.white_can_castle_kingside;
-        let mut new_white_can_castle_queenside = position.white_can_castle_queenside;
-        let mut new_black_can_castle_kingside = position.black_can_castle_kingside;
-        let mut new_black_can_castle_queenside = position.black_can_castle_queenside;
+        let mut new_castling_rights = position.castling_rights.clone();
         match piece {
             Piece::King => {
                 if color == Color::White {
-                    new_white_can_castle_kingside = false;
-                    new_white_can_castle_queenside = false;
+                    new_castling_rights.white_kingside = false;
+                    new_castling_rights.white_queenside = false;
                 } else {
-                    new_black_can_castle_kingside = false;
-                    new_black_can_castle_queenside = false;
+                    new_castling_rights.black_kingside = false;
+                    new_castling_rights.black_queenside = false;
                 }
             }
             Piece::Rook => {
                 if color == Color::White {
                     if self.from == (Square { row: 0, col: 0 }) {
-                        new_white_can_castle_queenside = false;
+                        new_castling_rights.white_queenside = false;
                     } else if self.from == (Square { row: 0, col: 7 }) {
-                        new_white_can_castle_kingside = false;
+                        new_castling_rights.white_kingside = false;
                     }
                 } else {
                     if self.from == (Square { row: 7, col: 0 }) {
-                        new_black_can_castle_queenside = false;
+                        new_castling_rights.black_queenside = false;
                     } else if self.from == (Square { row: 7, col: 7 }) {
-                        new_black_can_castle_kingside = false;
+                        new_castling_rights.black_kingside = false;
                     }
                 }
             }
             _ => {}
         }
 
-        let is_capture = position.board[self.to.row][self.to.col].is_some();
+        let is_capture = position.at(&self.to).is_some();
         let is_pawn_move = match piece {
             Piece::Pawn => true,
             _ => false,
@@ -294,10 +313,7 @@ impl Move {
         let new_position = Position {
             board: new_board,
             en_passant_square: new_en_passant_square,
-            white_can_castle_kingside: new_white_can_castle_kingside,
-            white_can_castle_queenside: new_white_can_castle_queenside,
-            black_can_castle_kingside: new_black_can_castle_kingside,
-            black_can_castle_queenside: new_black_can_castle_queenside,
+            castling_rights: new_castling_rights,
             half_move_number: if is_capture || is_pawn_move {
                 0
             } else {
@@ -308,7 +324,7 @@ impl Move {
             } else {
                 position.full_move_number
             },
-            next_to_move: color.opposing_color(),
+            next_to_move: color.opposing(),
         };
         new_position
     }
@@ -323,41 +339,36 @@ impl Move {
 
 #[cfg(test)]
 mod tests {
-    use crate::board::START_FEN;
-
     use super::*;
 
     #[test]
+    fn start_pawn_move() {
+        let position = Position::new();
+        let move_ = Move::new(Square { row: 1, col: 0 }, Square { row: 3, col: 0 }, false);
+        let new_position = move_.make(&position);
+        assert_eq!(new_position.board[3][0], Some((Piece::Pawn, Color::White)));
+        assert_eq!(new_position.board[1][0], None);
+    }
+
+    #[test]
+    fn start_knight_move() {
+        let position = Position::new();
+        let move_ = Move::new(Square { row: 0, col: 6 }, Square { row: 2, col: 5 }, false);
+        let new_position = move_.make(&position);
+        assert_eq!(
+            new_position.board[2][5],
+            Some((Piece::Knight, Color::White))
+        );
+        assert_eq!(new_position.board[0][6], None);
+    }
+
+    #[test]
     fn possible_moves_from_start() {
-        let position = Position::from_fen(START_FEN);
+        let position = Position::new();
         let moves = Move::possible_moves(&position);
         assert_eq!(moves.len(), 20);
     }
 
     #[test]
-    fn make_start_pawn_move() {
-        let position = Position::from_fen(START_FEN);
-        let move_ = Move {
-            from: Square { row: 6, col: 0 },
-            to: Square { row: 4, col: 0 },
-        };
-        let new_position = move_.make(&position);
-        assert_eq!(new_position.board[4][0], Some((Piece::Pawn, Color::White)));
-        assert_eq!(new_position.board[6][0], None);
-    }
-
-    #[test]
-    fn make_start_knight_move() {
-        let position = Position::from_fen(START_FEN);
-        let move_ = Move {
-            from: Square { row: 7, col: 6 },
-            to: Square { row: 5, col: 5 },
-        };
-        let new_position = move_.make(&position);
-        assert_eq!(
-            new_position.board[5][5],
-            Some((Piece::Knight, Color::White))
-        );
-        assert_eq!(new_position.board[7][6], None);
-    }
+    fn possible_positions_halfmove2() {}
 }
