@@ -20,10 +20,10 @@ pub fn position_from_fen(fen: &str) -> Position {
     let mut fen_iter = fen.split_whitespace();
     let board = fen_iter.next().unwrap();
     let next_to_move = fen_iter.next().unwrap();
-    let castling_rights = fen_iter.next().unwrap();
-    let en_passant_square = fen_iter.next().unwrap();
-    let half_move_number = fen_iter.next().unwrap();
-    let full_move_number = fen_iter.next().unwrap();
+    let castling_rights = fen_iter.next().unwrap_or("-");
+    let en_passant_square = fen_iter.next().unwrap_or("-");
+    let half_move_number = fen_iter.next().unwrap_or("0");
+    let full_move_number = fen_iter.next().unwrap_or("1");
 
     let mut row: usize = 7;
     let mut col: usize = 0;
@@ -71,8 +71,8 @@ pub fn position_from_fen(fen: &str) -> Position {
         _ => Some(Square::from_algebraic(en_passant_square)),
     };
 
-    position.half_move_number = half_move_number.parse().unwrap();
-    position.full_move_number = full_move_number.parse().unwrap();
+    position.half_move_number = half_move_number.parse().unwrap_or(0);
+    position.full_move_number = full_move_number.parse().unwrap_or(1);
 
     position
 }
