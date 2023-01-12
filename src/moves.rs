@@ -7,41 +7,46 @@ pub struct Move {
 }
 
 impl Move {
-    fn unchecked_directions(piece: &Piece, color: &Color) -> Vec<(i8, i8)> {
+    fn unchecked_directions(piece: &Piece) -> Vec<(i8, i8)> {
         match piece {
-            Piece::Pawn => match color {
-                Color::White => vec![(-1, 0)],
-                Color::Black => vec![(1, 0)],
-            },
+            Piece::Pawn => panic!(),
             Piece::Rook => vec![(-1, 0), (1, 0), (0, -1), (0, 1)],
-            Piece::Knight => vec![
-                (-2, -1),
-                (-2, 1),
-                (-1, -2),
-                (-1, 2),
-                (1, -2),
-                (1, 2),
-                (2, -1),
-                (2, 1),
-            ],
+            Piece::Knight => {
+                vec![
+                    (-2, -1),
+                    (-2, 1),
+                    (-1, -2),
+                    (-1, 2),
+                    (1, -2),
+                    (1, 2),
+                    (2, -1),
+                    (2, 1),
+                ]
+            }
             Piece::Bishop => vec![(-1, -1), (-1, 1), (1, -1), (1, 1)],
-            Piece::Queen | Piece::King => vec![
-                (-1, -1),
-                (-1, 1),
-                (1, -1),
-                (1, 1),
-                (-1, 0),
-                (1, 0),
-                (0, -1),
-                (0, 1),
-            ],
+            Piece::Queen | Piece::King => {
+                vec![
+                    (-1, -1),
+                    (-1, 1),
+                    (1, -1),
+                    (1, 1),
+                    (-1, 0),
+                    (1, 0),
+                    (0, -1),
+                    (0, 1),
+                ]
+            }
         }
     }
 
-    fn possible_regular_crawling_piece_moves(position: &Position, from: &Square) -> Vec<Move> {
+    fn pseudo_moves_per_square_regular(
+        position: &Position,
+        from: &Square,
+        crawl: bool,
+    ) -> Vec<Move> {
         let (piece, color) = position.board[from.row][from.col].unwrap();
         let mut moves = Vec::new();
-        for (row, col) in Move::unchecked_directions(&piece, &color) {
+        for (row, col) in Move::unchecked_directions(&piece) {
             let mut to = Square {
                 row: (from.row as i8 + row) as usize,
                 col: (from.col as i8 + col) as usize,
@@ -62,6 +67,9 @@ impl Move {
                     }
                     break;
                 }
+                if !crawl {
+                    break;
+                }
                 to.row = (to.row as i8 + row) as usize;
                 to.col = (to.col as i8 + col) as usize;
             }
@@ -69,7 +77,7 @@ impl Move {
         moves
     }
 
-    fn possible_moves_from_square(position: &Position, from: &Square) -> Vec<Move> {
+    fn pseudo_moves_from_square(position: &Position, from: &Square) -> Vec<Move> {
         if position.board[from.row][from.col].is_none() {
             return vec![];
         }
@@ -81,30 +89,11 @@ impl Move {
 
         match piece {
             Piece::Bishop | Piece::Rook | Piece::Queen => {
-                Move::possible_regular_crawling_piece_moves(position, from)
+                Move::pseudo_moves_per_square_regular(position, from, true)
             }
-            Piece::Knight => {
-                let mut moves = Vec::new();
-                for (row, col) in Move::unchecked_directions(&piece, &color) {
-                    let to = Square {
-                        row: (from.row as i8 + row) as usize,
-                        col: (from.col as i8 + col) as usize,
-                    };
-                    if to.row < 8 && to.col < 8 {
-                        if position.board[to.row][to.col].is_none()
-                            || position.board[to.row][to.col].unwrap().1 != color
-                        {
-                            moves.push(Move {
-                                from: from.to_owned(),
-                                to,
-                            });
-                        }
-                    }
-                }
-                moves
-            }
+            Piece::Knight => Move::pseudo_moves_per_square_regular(position, from, false),
             Piece::King => {
-                let mut moves = Move::possible_regular_crawling_piece_moves(position, from);
+                let mut moves = Move::pseudo_moves_per_square_regular(position, from, false);
                 match color {
                     Color::White => {
                         if position.black_can_castle_kingside
@@ -160,7 +149,10 @@ impl Move {
                 moves
             }
             Piece::Pawn => {
-                let front_direction = Self::unchecked_directions(&piece, &color)[0];
+                let front_direction = match color {
+                    Color::White => (-1, 0),
+                    Color::Black => (1, 0),
+                };
                 let mut moves = vec![Move {
                     from: from.to_owned(),
                     to: Square {
@@ -230,7 +222,7 @@ impl Move {
         for row in 0..8 {
             for col in 0..8 {
                 let from = Square { row, col };
-                let moves_from_square = Move::possible_moves_from_square(position, &from);
+                let moves_from_square = Move::pseudo_moves_from_square(position, &from);
                 moves.extend(moves_from_square);
             }
         }
