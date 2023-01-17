@@ -86,12 +86,17 @@ impl Position {
         position_to_fen(&self, true)
     }
 
-    pub fn is_check(&self, checked_player: Color) -> bool {
+    pub fn is_check(&self, checked_player: Color, mid_castle_square: Option<Square>) -> bool {
         let opposing_color = checked_player.opposing();
         let opponent_moves = pseudo_legal_moves(&self, opposing_color);
         for move_ in opponent_moves {
             if let Some(Piece::King(color)) = self.at(&move_.to) {
                 if color == checked_player {
+                    return true;
+                }
+            }
+            if let Some(mid_castle_square) = mid_castle_square {
+                if move_.to == mid_castle_square {
                     return true;
                 }
             }

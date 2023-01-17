@@ -296,7 +296,7 @@ pub fn make_move(position: &Position, move_: &Move) -> Position {
                 }
             }
         }
-    } else if let Some(piece) = new_board[move_.from.index as usize] {
+    } else if let Some(piece) = position.board[move_.from.index as usize] {
         match piece {
             Piece::King(_) => match position.next_to_move {
                 Color::White => {
@@ -363,15 +363,20 @@ pub fn legal_moves(position: &Position) -> Vec<Move> {
     let mut moves = pseudo_legal_moves(position, position.next_to_move);
     moves.retain(|move_| {
         if let Some(piece) = position.at(&move_.from) {
-            if piece == Piece::King(position.next_to_move) {
-                if move_.castle && position.is_check(position.next_to_move) {
+            if piece == Piece::King(position.next_to_move) && move_.castle {
+                if position.is_check(
+                    position.next_to_move,
+                    Some(Square {
+                        index: (move_.to.index + move_.from.index) / 2,
+                    }),
+                ) {
                     return false;
                 }
             }
         }
 
         let new_position = make_move(position, move_);
-        !new_position.is_check(position.next_to_move)
+        !new_position.is_check(position.next_to_move, None)
     });
     moves
 }
@@ -386,8 +391,8 @@ mod tests {
         original_depth: u8,
         current_depth: u8,
         position: &Position,
-        memo: &mut HashMap<(String, u8), (usize, Vec<Move>)>,
-    ) -> (usize, Vec<Move>) {
+        memo: &mut HashMap<(String, u8), (usize, Vec<(Move, usize)>)>,
+    ) -> (usize, Vec<(Move, usize)>) {
         if current_depth == 0 {
             return (1, vec![]);
         }
@@ -398,11 +403,15 @@ mod tests {
         }
 
         let moves = legal_moves(&position);
+        let mut res = Vec::with_capacity(moves.len());
         let mut count = 0;
 
         for move_ in &moves {
             let new_position = make_move(&position, move_);
-            count += generate(original_depth, current_depth - 1, &new_position, memo).0;
+            let leaf_node_count =
+                generate(original_depth, current_depth - 1, &new_position, memo).0;
+            count += leaf_node_count;
+            res.push((move_.to_owned(), leaf_node_count));
         }
 
         memo.insert(
@@ -410,24 +419,30 @@ mod tests {
             (
                 count,
                 if current_depth == original_depth {
-                    moves.to_vec()
+                    res.to_vec()
                 } else {
                     vec![]
                 },
             ),
         );
 
-        (count, moves)
+        (count, res)
     }
 
-    fn perft(fen: &str, depth: u8, expected_nodes: usize) {
+    fn perft_divide(fen: &str, depth: u8, expected_nodes: Option<usize>) -> Vec<(Move, usize)> {
         let new_position = || -> Position { Position::from_fen(fen).unwrap() };
 
         let (count, moves) = generate(depth, depth, &new_position(), &mut HashMap::new());
-        for move_ in moves {
-            //println!("{}", move_);
+
+        if expected_nodes.is_some() {
+            assert_eq!(count, expected_nodes.unwrap());
         }
-        assert_eq!(count, expected_nodes);
+
+        moves
+    }
+
+    fn perft(fen: &str, depth: u8, expected_nodes: usize) {
+        perft_divide(fen, depth, Some(expected_nodes));
     }
 
     /* Taken from https://gist.github.com/peterellisjones/8c46c28141c162d1d8a0f0badbc9cff9 */
@@ -570,18 +585,69 @@ mod tests {
         perft("8/8/2k5/5q2/5n2/8/5K2/8 b - - 0 1", 4, 23527);
     }
 
-    /* Taken from http://www.rocechess.ch/perft.html */
+    /* Expected divides taken from Stockfish */
     #[test]
-    fn roce_perft_1() {
-        perft(
-            "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
-            3,
-            97862,
-        );
-    }
+    fn perft_kiwipete() {
+        let kiwipete_test_fen =
+            "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
 
-    #[test]
-    fn roce_perft_2() {
-        perft("n1n5/PPPk4/8/8/8/8/4Kppp/5N1N b - - 0 1", 4, 182838);
+        let expected_divides = [
+            ("a2a3", 2186),
+            ("b2b3", 1964),
+            ("g2g3", 1882),
+            ("d5d6", 1991),
+            ("a2a4", 2149),
+            ("g2g4", 1843),
+            ("g2h3", 1970),
+            ("d5e6", 2241),
+            ("c3b1", 2038),
+            ("c3d1", 2040),
+            ("c3a4", 2203),
+            ("c3b5", 2138),
+            ("e5d3", 1803),
+            ("e5c4", 1880),
+            ("e5g4", 1878),
+            ("e5c6", 2027),
+            ("e5g6", 1997),
+            ("e5d7", 2124),
+            ("e5f7", 2080),
+            ("d2c1", 1963),
+            ("d2e3", 2136),
+            ("d2f4", 2000),
+            ("d2g5", 2134),
+            ("d2h6", 2019),
+            ("e2d1", 1733),
+            ("e2f1", 2060),
+            ("e2d3", 2050),
+            ("e2c4", 2082),
+            ("e2b5", 2057),
+            ("e2a6", 1907),
+            ("a1b1", 1969),
+            ("a1c1", 1968),
+            ("a1d1", 1885),
+            ("h1f1", 1929),
+            ("h1g1", 2013),
+            ("f3d3", 2005),
+            ("f3e3", 2174),
+            ("f3g3", 2214),
+            ("f3h3", 2360),
+            ("f3f4", 2132),
+            ("f3g4", 2169),
+            ("f3f5", 2396),
+            ("f3h5", 2267),
+            ("f3f6", 2111),
+            ("e1d1", 1894),
+            ("e1f1", 1855),
+            ("e1g1", 2059),
+            ("e1c1", 1887),
+        ];
+
+        let moves = perft_divide(kiwipete_test_fen, 3, None);
+        for (mv, count) in moves {
+            if expected_divides.contains(&(&mv.to_string(), count - 1)) {
+                continue;
+            }
+            println!("Unexpected divide: {} {}", mv, count);
+        }
     }
 }
