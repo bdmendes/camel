@@ -1,30 +1,19 @@
 mod fen;
 mod moves;
+mod piece;
 
 use std::fmt;
 
-use crate::position::fen::{position_from_fen, position_to_fen, START_FEN};
+use self::fen::{position_from_fen, position_to_fen, START_FEN};
+use self::moves::pseudo_legal_moves;
+use self::piece::{Color, Piece};
 
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub enum Color {
-    White,
-    Black,
-}
+const ROW_SIZE: u8 = 8;
+const BOARD_SIZE: u8 = ROW_SIZE * ROW_SIZE;
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum Piece {
-    Pawn,
-    Rook,
-    Knight,
-    Bishop,
-    Queen,
-    King,
-}
-
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug, Eq)]
 pub struct Square {
-    pub row: u8,
-    pub col: u8,
+    pub index: u8,
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -36,7 +25,7 @@ pub struct CastlingRights {
 }
 
 pub struct Position {
-    pub board: [[Option<(Piece, Color)>; 8]; 8], // 2D Little-Endian Rank-File Mapping
+    pub board: [Option<Piece<Color>>; BOARD_SIZE as usize], // 2D Little-Endian Rank-File Mapping
     pub next_to_move: Color,
     pub castling_rights: CastlingRights,
     pub en_passant_square: Option<Square>,
@@ -44,79 +33,70 @@ pub struct Position {
     pub full_move_number: u16,
 }
 
-impl Color {
-    pub fn opposing(&self) -> Color {
-        match self {
-            Color::White => Color::Black,
-            Color::Black => Color::White,
-        }
-    }
-}
-
 impl Square {
     pub fn to_algebraic(&self) -> String {
         let mut algebraic = String::new();
-        algebraic.push((('a' as u8) + self.col as u8) as char);
-        algebraic.push((('1' as u8) + self.row as u8) as char);
+        algebraic.push((('a' as u8) + (self.index as u8) % ROW_SIZE) as char);
+        algebraic.push((('1' as u8) + (self.index as u8) / ROW_SIZE) as char);
         algebraic
     }
 
     pub fn from_algebraic(algebraic: &str) -> Square {
         let mut chars = algebraic.chars();
-        let col = chars.next().unwrap() as u8 - ('a' as u8);
-        let row = (chars.next().unwrap() as u8 - ('1' as u8)) as u8;
-        Square { row, col }
-    }
-}
-
-impl Piece {
-    pub fn from_char(c: char) -> Piece {
-        match c {
-            'p' => Piece::Pawn,
-            'r' => Piece::Rook,
-            'n' => Piece::Knight,
-            'b' => Piece::Bishop,
-            'q' => Piece::Queen,
-            'k' => Piece::King,
-            _ => panic!("Invalid piece"),
+        let col = chars.next().unwrap_or('a') as u8 - ('a' as u8);
+        let row = chars.next().unwrap_or('1') as u8 - ('1' as u8);
+        Square {
+            index: row * ROW_SIZE as u8 + col,
         }
     }
 
-    pub fn to_char(&self) -> char {
-        match self {
-            Piece::Pawn => 'p',
-            Piece::Rook => 'r',
-            Piece::Knight => 'n',
-            Piece::Bishop => 'b',
-            Piece::Queen => 'q',
-            Piece::King => 'k',
+    pub fn from_row_col(row: u8, col: u8) -> Square {
+        Square {
+            index: row * ROW_SIZE + col,
         }
     }
 
-    pub fn to_char_with_color(&self, color: Color) -> char {
-        let c = self.to_char();
-        match color {
-            Color::White => c.to_uppercase().next().unwrap(),
-            Color::Black => c,
-        }
+    pub fn row(&self) -> u8 {
+        self.index / ROW_SIZE
+    }
+
+    pub fn col(&self) -> u8 {
+        self.index % ROW_SIZE
     }
 }
 
 impl Position {
-    pub fn at(&self, square: &Square) -> Option<(Piece, Color)> {
-        self.board[square.row as usize][square.col as usize]
+    pub fn at(&self, square: &Square) -> Option<Piece<Color>> {
+        self.board[square.index as usize]
     }
 
     pub fn new() -> Position {
-        position_from_fen(START_FEN)
+        position_from_fen(START_FEN).unwrap()
     }
 
-    pub fn from_fen(fen: &str) -> Position {
+    pub fn from_fen(fen: &str) -> Result<Position, String> {
         position_from_fen(fen)
     }
 
     pub fn to_fen(&self) -> String {
-        position_to_fen(&self)
+        position_to_fen(&self, false)
+    }
+
+    pub fn to_fen_hash(&self) -> String {
+        position_to_fen(&self, true)
+    }
+
+    pub fn is_check(&self, checked_player: Color) -> bool {
+        let opposing_color = checked_player.opposing();
+        let opponent_moves = pseudo_legal_moves(&self, opposing_color);
+        for move_ in opponent_moves {
+            if let Some(Piece::King(color)) = self.at(&move_.to) {
+                if color == checked_player {
+                    return true;
+                }
+            }
+        }
+        false
     }
 }
 
@@ -124,9 +104,9 @@ impl fmt::Display for Position {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for row in (0..8).rev() {
             for col in 0..8 {
-                match self.board[row][col] {
+                match self.board[(row * 8 + col) as usize] {
                     None => write!(f, " "),
-                    Some((piece, color)) => write!(f, "{}", piece.to_char_with_color(color)),
+                    Some(piece) => write!(f, "{}", piece.to_char()),
                 }?;
             }
             if row > 0 {
@@ -142,25 +122,77 @@ mod tests {
     use super::*;
 
     #[test]
-    fn algebraic_square() {
+    fn square_from_row_col() {
+        let square = Square::from_row_col(0, 0);
+        assert_eq!(square.index, 0);
+
+        let square = Square::from_row_col(7, 7);
+        assert_eq!(square.index, 63);
+
+        let square = Square::from_row_col(3, 4);
+        assert_eq!(square.index, 28);
+
+        let square = Square::from_row_col(4, 3);
+        assert_eq!(square.index, 35);
+    }
+
+    #[test]
+    fn square_from_algebraic() {
         let square = Square::from_algebraic("a1");
-        assert_eq!(square.to_algebraic(), "a1");
-        assert_eq!(square.row, 0);
-        assert_eq!(square.col, 0);
+        assert_eq!(square.index, 0);
 
         let square = Square::from_algebraic("h8");
-        assert_eq!(square.to_algebraic(), "h8");
-        assert_eq!(square.row, 7);
-        assert_eq!(square.col, 7);
+        assert_eq!(square.index, 63);
 
         let square = Square::from_algebraic("e4");
-        assert_eq!(square.to_algebraic(), "e4");
-        assert_eq!(square.row, 3);
-        assert_eq!(square.col, 4);
+        assert_eq!(square.index, 28);
 
         let square = Square::from_algebraic("d5");
+        assert_eq!(square.index, 35);
+    }
+
+    #[test]
+    fn square_to_algebraic() {
+        let square = Square { index: 0 };
+        assert_eq!(square.to_algebraic(), "a1");
+
+        let square = Square { index: 63 };
+        assert_eq!(square.to_algebraic(), "h8");
+
+        let square = Square { index: 28 };
+        assert_eq!(square.to_algebraic(), "e4");
+
+        let square = Square { index: 35 };
         assert_eq!(square.to_algebraic(), "d5");
-        assert_eq!(square.row, 4);
-        assert_eq!(square.col, 3);
+    }
+
+    #[test]
+    fn square_row() {
+        let square = Square { index: 0 };
+        assert_eq!(square.row(), 0);
+
+        let square = Square { index: 63 };
+        assert_eq!(square.row(), 7);
+
+        let square = Square { index: 28 };
+        assert_eq!(square.row(), 3);
+
+        let square = Square { index: 35 };
+        assert_eq!(square.row(), 4);
+    }
+
+    #[test]
+    fn square_col() {
+        let square = Square { index: 0 };
+        assert_eq!(square.col(), 0);
+
+        let square = Square { index: 63 };
+        assert_eq!(square.col(), 7);
+
+        let square = Square { index: 28 };
+        assert_eq!(square.col(), 4);
+
+        let square = Square { index: 35 };
+        assert_eq!(square.col(), 3);
     }
 }

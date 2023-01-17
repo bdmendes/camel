@@ -2,9 +2,9 @@ use super::*;
 
 pub const START_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-pub fn position_from_fen(fen: &str) -> Position {
+pub fn position_from_fen(fen: &str) -> Result<Position, String> {
     let mut position = Position {
-        board: [[Option::None; 8]; 8],
+        board: [Option::None; BOARD_SIZE as usize],
         next_to_move: Color::White,
         castling_rights: CastlingRights {
             white_kingside: false,
@@ -18,15 +18,15 @@ pub fn position_from_fen(fen: &str) -> Position {
     };
 
     let mut fen_iter = fen.split_whitespace();
-    let board = fen_iter.next().unwrap();
-    let next_to_move = fen_iter.next().unwrap();
+    let board = fen_iter.next().unwrap_or("");
+    let next_to_move = fen_iter.next().unwrap_or("w");
     let castling_rights = fen_iter.next().unwrap_or("-");
     let en_passant_square = fen_iter.next().unwrap_or("-");
     let half_move_number = fen_iter.next().unwrap_or("0");
     let full_move_number = fen_iter.next().unwrap_or("1");
 
-    let mut row: usize = 7;
-    let mut col: usize = 0;
+    let mut row: u8 = 7;
+    let mut col: u8 = 0;
     for c in board.chars() {
         match c {
             '/' => {
@@ -34,16 +34,14 @@ pub fn position_from_fen(fen: &str) -> Position {
                 col = 0;
             }
             '1'..='8' => {
-                col += c as usize - ('0' as usize);
+                col += c as u8 - ('0' as u8);
             }
             _ => {
-                let color = if c.is_lowercase() {
-                    Color::Black
-                } else {
-                    Color::White
+                let piece = match Piece::from_char(c) {
+                    Ok(piece) => piece,
+                    Err(msg) => return Err(msg),
                 };
-                let piece = Piece::from_char(c.to_lowercase().next().unwrap());
-                position.board[row][col] = Some((piece, color));
+                position.board[Square::from_row_col(row, col).index as usize] = Some(piece);
                 col += 1;
             }
         }
@@ -52,7 +50,7 @@ pub fn position_from_fen(fen: &str) -> Position {
     position.next_to_move = match next_to_move {
         "w" => Color::White,
         "b" => Color::Black,
-        _ => panic!("Invalid next to move"),
+        _ => return Err("Invalid next to move".to_owned()),
     };
 
     for c in castling_rights.chars() {
@@ -74,23 +72,23 @@ pub fn position_from_fen(fen: &str) -> Position {
     position.half_move_number = half_move_number.parse().unwrap_or(0);
     position.full_move_number = full_move_number.parse().unwrap_or(1);
 
-    position
+    Ok(position)
 }
 
-pub fn position_to_fen(position: &Position) -> String {
+pub fn position_to_fen(position: &Position, omit_move_numbers: bool) -> String {
     let mut fen = String::new();
 
     for row in (0..8).rev() {
         let mut empty = 0;
         for col in 0..8 {
-            match position.board[row][col] {
+            match position.at(&Square::from_row_col(row, col)) {
                 None => empty += 1,
-                Some((piece, color)) => {
+                Some(piece) => {
                     if empty > 0 {
                         fen.push((empty + ('0' as u8)) as char);
                         empty = 0;
                     }
-                    fen.push(piece.to_char_with_color(color));
+                    fen.push(piece.to_char());
                 }
             }
         }
@@ -133,11 +131,12 @@ pub fn position_to_fen(position: &Position) -> String {
         Some(square) => fen.push_str(&square.to_algebraic()),
     }
 
-    fen.push(' ');
-    fen.push_str(position.half_move_number.to_string().as_str());
-
-    fen.push(' ');
-    fen.push_str(&position.full_move_number.to_string());
+    if !omit_move_numbers {
+        fen.push(' ');
+        fen.push_str(position.half_move_number.to_string().as_str());
+        fen.push(' ');
+        fen.push_str(&position.full_move_number.to_string());
+    }
 
     fen
 }
@@ -148,8 +147,8 @@ mod tests {
 
     #[test]
     fn fen_start() {
-        let position = position_from_fen(START_FEN);
-        assert_eq!(position_to_fen(&position), START_FEN);
+        let position = position_from_fen(START_FEN).unwrap();
+        assert_eq!(position_to_fen(&position, false), START_FEN);
 
         let expected_board_view = vec![
             "rnbqkbnr", //
@@ -168,8 +167,8 @@ mod tests {
     #[test]
     fn fen_midgame() {
         let midgame_fen = "r4rk1/pp1q1ppp/2n2b2/3Q4/8/2N5/PPP2PPP/R3K1NR b KQ - 0 14";
-        let position = position_from_fen(midgame_fen);
-        assert_eq!(position_to_fen(&position), midgame_fen);
+        let position = position_from_fen(midgame_fen).unwrap();
+        assert_eq!(position_to_fen(&position, false), midgame_fen);
 
         let expected_board_view = vec![
             "r    rk ", //
