@@ -1,12 +1,15 @@
 mod fen;
 mod moves;
 mod piece;
+mod zobrist;
 
+use bitflags::bitflags;
 use std::fmt;
 
 use self::fen::{position_from_fen, position_to_fen, START_FEN};
 use self::moves::pseudo_legal_moves;
-use self::piece::{Color, Piece};
+pub use self::piece::{Color, Piece};
+use self::zobrist::ZobristHash;
 
 const ROW_SIZE: u8 = 8;
 const BOARD_SIZE: u8 = ROW_SIZE * ROW_SIZE;
@@ -16,16 +19,17 @@ pub struct Square {
     pub index: u8,
 }
 
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub struct CastlingRights {
-    pub white_kingside: bool,
-    pub white_queenside: bool,
-    pub black_kingside: bool,
-    pub black_queenside: bool,
+bitflags! {
+    pub struct CastlingRights: u8 {
+        const WHITE_KINGSIDE = 0b0001;
+        const WHITE_QUEENSIDE = 0b0010;
+        const BLACK_KINGSIDE = 0b0100;
+        const BLACK_QUEENSIDE = 0b1000;
+    }
 }
 
 pub struct Position {
-    pub board: [Option<Piece<Color>>; BOARD_SIZE as usize], // 2D Little-Endian Rank-File Mapping
+    pub board: [Option<Piece<Color>>; 64], // 2D Little-Endian Rank-File Mapping
     pub to_move: Color,
     pub castling_rights: CastlingRights,
     pub en_passant_square: Option<Square>,
@@ -85,6 +89,10 @@ impl Position {
 
     pub fn to_fen_hash(&self) -> String {
         position_to_fen(&self, true)
+    }
+
+    pub fn to_zobrist_hash(&self) -> ZobristHash {
+        zobrist::zobrist_hash_position(&self)
     }
 
     pub fn is_check(&self, checked_player: Color, mid_castle_square: Option<Square>) -> bool {

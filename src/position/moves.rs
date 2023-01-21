@@ -2,7 +2,7 @@ use std::fmt;
 
 use super::{
     piece::{Color, Piece, DOWN, LEFT, RIGHT, UP},
-    Position, Square, BOARD_SIZE, ROW_SIZE,
+    CastlingRights, Position, Square, BOARD_SIZE, ROW_SIZE,
 };
 
 const CASTLE_SQUARES: [[u8; 5]; 4] = [
@@ -180,11 +180,9 @@ fn pseudo_legal_moves_from_square(position: &Position, square: &Square) -> Vec<M
                 }
 
                 if squares[4] >= BOARD_SIZE {
-                    let can_castle_kingside = match color {
-                        Color::White => position.castling_rights.white_kingside,
-                        Color::Black => position.castling_rights.black_kingside,
-                    };
-                    if !can_castle_kingside {
+                    let can_castle_kingside = position.castling_rights
+                        & (CastlingRights::WHITE_KINGSIDE | CastlingRights::BLACK_KINGSIDE);
+                    if can_castle_kingside.is_empty() {
                         continue;
                     }
 
@@ -194,11 +192,9 @@ fn pseudo_legal_moves_from_square(position: &Position, square: &Square) -> Vec<M
                         continue;
                     }
                 } else {
-                    let can_castle_queenside = match color {
-                        Color::White => position.castling_rights.white_queenside,
-                        Color::Black => position.castling_rights.black_queenside,
-                    };
-                    if !can_castle_queenside {
+                    let can_castle_queenside = position.castling_rights
+                        & (CastlingRights::WHITE_QUEENSIDE | CastlingRights::BLACK_QUEENSIDE);
+                    if can_castle_queenside.is_empty() {
                         continue;
                     }
 
@@ -263,8 +259,8 @@ pub fn make_move(position: &Position, move_: &Move) -> Position {
             if piece == Piece::King(position.to_move) {
                 match position.to_move {
                     Color::White => {
-                        new_castling_rights.white_kingside = false;
-                        new_castling_rights.white_queenside = false;
+                        new_castling_rights &=
+                            !(CastlingRights::WHITE_KINGSIDE | CastlingRights::WHITE_QUEENSIDE);
                         if move_.to.index == 6 {
                             new_board[5] = new_board[7];
                             new_board[7] = None;
@@ -274,8 +270,8 @@ pub fn make_move(position: &Position, move_: &Move) -> Position {
                         }
                     }
                     Color::Black => {
-                        new_castling_rights.black_kingside = false;
-                        new_castling_rights.black_queenside = false;
+                        new_castling_rights &=
+                            !(CastlingRights::BLACK_KINGSIDE | CastlingRights::BLACK_QUEENSIDE);
                         if move_.to.index == 62 {
                             new_board[61] = new_board[63];
                             new_board[63] = None;
@@ -291,26 +287,26 @@ pub fn make_move(position: &Position, move_: &Move) -> Position {
         match piece {
             Piece::King(_) => match position.to_move {
                 Color::White => {
-                    new_castling_rights.white_kingside = false;
-                    new_castling_rights.white_queenside = false;
+                    new_castling_rights &=
+                        !(CastlingRights::WHITE_KINGSIDE | CastlingRights::WHITE_QUEENSIDE);
                 }
                 Color::Black => {
-                    new_castling_rights.black_kingside = false;
-                    new_castling_rights.black_queenside = false;
+                    new_castling_rights &=
+                        !(CastlingRights::BLACK_KINGSIDE | CastlingRights::BLACK_QUEENSIDE);
                 }
             },
             Piece::Rook(Color::White) => {
                 if move_.from.index == 0 {
-                    new_castling_rights.white_queenside = false;
+                    new_castling_rights &= !CastlingRights::WHITE_QUEENSIDE;
                 } else if move_.from.index == 7 {
-                    new_castling_rights.white_kingside = false;
+                    new_castling_rights &= !CastlingRights::WHITE_KINGSIDE;
                 }
             }
             Piece::Rook(Color::Black) => {
                 if move_.from.index == 56 {
-                    new_castling_rights.black_queenside = false;
+                    new_castling_rights &= !CastlingRights::BLACK_QUEENSIDE;
                 } else if move_.from.index == 63 {
-                    new_castling_rights.black_kingside = false;
+                    new_castling_rights &= !CastlingRights::BLACK_KINGSIDE;
                 }
             }
             _ => {}
@@ -376,20 +372,22 @@ pub fn legal_moves(position: &Position) -> Vec<Move> {
 mod tests {
     use std::collections::HashMap;
 
+    use crate::position::zobrist::ZobristHash;
+
     use super::*;
 
     fn generate(
         original_depth: u8,
         current_depth: u8,
         position: &Position,
-        memo: &mut HashMap<(String, u8), (usize, Vec<(Move, usize)>)>,
+        memo: &mut HashMap<(ZobristHash, u8), (usize, Vec<(Move, usize)>)>,
     ) -> (usize, Vec<(Move, usize)>) {
         if current_depth == 0 {
             return (1, vec![]);
         }
 
-        let fen_hash = position.to_fen_hash();
-        if let Some((count, moves)) = memo.get(&(fen_hash.to_owned(), current_depth)) {
+        let zobrist_hash = position.to_zobrist_hash();
+        if let Some((count, moves)) = memo.get(&(zobrist_hash, current_depth)) {
             return (*count, moves.to_vec());
         }
 
@@ -406,7 +404,7 @@ mod tests {
         }
 
         memo.insert(
-            (fen_hash, current_depth),
+            (zobrist_hash, current_depth),
             (
                 count,
                 if current_depth == original_depth {

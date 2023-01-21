@@ -6,12 +6,7 @@ pub fn position_from_fen(fen: &str) -> Result<Position, String> {
     let mut position = Position {
         board: [Option::None; BOARD_SIZE as usize],
         to_move: Color::White,
-        castling_rights: CastlingRights {
-            white_kingside: false,
-            white_queenside: false,
-            black_kingside: false,
-            black_queenside: false,
-        },
+        castling_rights: CastlingRights::empty(),
         en_passant_square: None,
         half_move_number: 0,
         full_move_number: 0,
@@ -55,10 +50,10 @@ pub fn position_from_fen(fen: &str) -> Result<Position, String> {
 
     for c in castling_rights.chars() {
         match c {
-            'K' => position.castling_rights.white_kingside = true,
-            'Q' => position.castling_rights.white_queenside = true,
-            'k' => position.castling_rights.black_kingside = true,
-            'q' => position.castling_rights.black_queenside = true,
+            'K' => position.castling_rights |= CastlingRights::WHITE_KINGSIDE,
+            'Q' => position.castling_rights |= CastlingRights::WHITE_QUEENSIDE,
+            'k' => position.castling_rights |= CastlingRights::BLACK_KINGSIDE,
+            'q' => position.castling_rights |= CastlingRights::BLACK_QUEENSIDE,
             '-' => break,
             _ => panic!("Invalid castling rights"),
         }
@@ -108,16 +103,28 @@ pub fn position_to_fen(position: &Position, omit_move_numbers: bool) -> String {
 
     fen.push(' ');
     let mut castling_rights = String::new();
-    if position.castling_rights.white_kingside {
+    if position
+        .castling_rights
+        .contains(CastlingRights::WHITE_KINGSIDE)
+    {
         castling_rights.push('K');
     }
-    if position.castling_rights.white_queenside {
+    if position
+        .castling_rights
+        .contains(CastlingRights::WHITE_QUEENSIDE)
+    {
         castling_rights.push('Q');
     }
-    if position.castling_rights.black_kingside {
+    if position
+        .castling_rights
+        .contains(CastlingRights::BLACK_KINGSIDE)
+    {
         castling_rights.push('k');
     }
-    if position.castling_rights.black_queenside {
+    if position
+        .castling_rights
+        .contains(CastlingRights::BLACK_QUEENSIDE)
+    {
         castling_rights.push('q');
     }
     if castling_rights.is_empty() {
