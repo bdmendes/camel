@@ -5,7 +5,7 @@ pub const START_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq 
 pub fn position_from_fen(fen: &str) -> Result<Position, String> {
     let mut position = Position {
         board: [Option::None; BOARD_SIZE as usize],
-        next_to_move: Color::White,
+        to_move: Color::White,
         castling_rights: CastlingRights {
             white_kingside: false,
             white_queenside: false,
@@ -47,7 +47,7 @@ pub fn position_from_fen(fen: &str) -> Result<Position, String> {
         }
     }
 
-    position.next_to_move = match next_to_move {
+    position.to_move = match next_to_move {
         "w" => Color::White,
         "b" => Color::Black,
         _ => return Err("Invalid next to move".to_owned()),
@@ -101,7 +101,7 @@ pub fn position_to_fen(position: &Position, omit_move_numbers: bool) -> String {
     }
 
     fen.push(' ');
-    fen.push(match position.next_to_move {
+    fen.push(match position.to_move {
         Color::White => 'w',
         Color::Black => 'b',
     });

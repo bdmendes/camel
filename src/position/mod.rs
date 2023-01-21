@@ -26,7 +26,7 @@ pub struct CastlingRights {
 
 pub struct Position {
     pub board: [Option<Piece<Color>>; BOARD_SIZE as usize], // 2D Little-Endian Rank-File Mapping
-    pub next_to_move: Color,
+    pub to_move: Color,
     pub castling_rights: CastlingRights,
     pub en_passant_square: Option<Square>,
     pub half_move_number: u8,
@@ -78,6 +78,7 @@ impl Position {
         position_from_fen(fen)
     }
 
+    #[allow(dead_code)]
     pub fn to_fen(&self) -> String {
         position_to_fen(&self, false)
     }
