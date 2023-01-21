@@ -1,3 +1,4 @@
+mod evaluate;
 mod position;
 mod uci;
 

@@ -11,8 +11,8 @@ use self::moves::pseudo_legal_moves;
 pub use self::piece::{Color, Piece};
 use self::zobrist::ZobristHash;
 
-const ROW_SIZE: u8 = 8;
-const BOARD_SIZE: u8 = ROW_SIZE * ROW_SIZE;
+pub const ROW_SIZE: u8 = 8;
+pub const BOARD_SIZE: u8 = ROW_SIZE * ROW_SIZE;
 
 #[derive(Copy, Clone, PartialEq, Debug, Eq)]
 pub struct Square {
