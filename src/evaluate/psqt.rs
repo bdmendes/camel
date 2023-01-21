@@ -49,14 +49,14 @@ const MIDGAME_QUEEN_PSQT: psqt = [
 ];
 
 const MIDGAME_KING_PSQT: psqt = [
-    [20, 30, 10, 0, 0, 10, 30, 20],
-    [20, 20, 0, 0, 0, 0, 20, 20],
     [-10, -20, -20, -20, -20, -20, -20, -10],
     [-20, -30, -30, -40, -40, -30, -30, -20],
     [-30, -40, -40, -50, -50, -40, -40, -30],
     [-30, -40, -40, -50, -50, -40, -40, -30],
     [-30, -40, -40, -50, -50, -40, -40, -30],
     [-30, -40, -40, -50, -50, -40, -40, -30],
+    [20, 20, 0, 0, 0, 0, 20, 20],
+    [20, 30, 25, 0, 0, 0, 30, 20],
 ];
 
 const MIDGAME_PAWN_PSQT: psqt = [
@@ -99,8 +99,8 @@ const ENDGAME_KING_PSQT: psqt = [
 
 pub fn psqt_value(piece: &Piece<Color>, square: &Square, endgame_ratio: u8) -> Score {
     let psqt_square = match piece.color() {
-        Color::Black => Square::from_row_col(7 - square.row(), square.col()),
-        Color::White => *square,
+        Color::White => Square::from_row_col(7 - square.row(), square.col()),
+        Color::Black => *square,
     };
     let (midgame_psqt, endgame_psqt) = match piece {
         Piece::Pawn(_) => (MIDGAME_PAWN_PSQT, ENDGAME_PAWN_PSQT),

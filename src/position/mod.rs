@@ -1,7 +1,7 @@
-mod fen;
-mod moves;
-mod piece;
-mod zobrist;
+pub mod fen;
+pub mod moves;
+pub mod piece;
+pub mod zobrist;
 
 use bitflags::bitflags;
 use std::fmt;

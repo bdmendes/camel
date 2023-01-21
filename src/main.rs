@@ -1,5 +1,6 @@
 mod evaluate;
 mod position;
+mod search;
 mod uci;
 
 fn uci_loop() {
