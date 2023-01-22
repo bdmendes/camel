@@ -1,10 +1,10 @@
-use crate::position::{Color, Piece, Position, Square, BOARD_SIZE};
+use crate::position::{Color, Piece, Square};
 
 use super::Score;
 
-type psqt = [[i32; 8]; 8];
+type PieceSquareTable = [[i32; 8]; 8];
 
-const MIDGAME_KNIGHT_PSQT: psqt = [
+const MIDGAME_KNIGHT_PSQT: PieceSquareTable = [
     [-50, -40, -30, -30, -30, -30, -40, -50],
     [-40, -20, 0, 0, 0, 0, -20, -40],
     [-30, 0, 10, 15, 15, 10, 0, -30],
@@ -15,7 +15,7 @@ const MIDGAME_KNIGHT_PSQT: psqt = [
     [-50, -40, -30, -30, -30, -30, -40, -50],
 ];
 
-const MIDGAME_BISHOP_PSQT: psqt = [
+const MIDGAME_BISHOP_PSQT: PieceSquareTable = [
     [-20, -10, -10, -10, -10, -10, -10, -20],
     [-10, 0, 0, 0, 0, 0, 0, -10],
     [-10, 0, 5, 10, 10, 5, 0, -10],
@@ -26,7 +26,7 @@ const MIDGAME_BISHOP_PSQT: psqt = [
     [-20, -10, -10, -10, -10, -10, -10, -20],
 ];
 
-const MIDGAME_ROOK_PSQT: psqt = [
+const MIDGAME_ROOK_PSQT: PieceSquareTable = [
     [0, 0, 0, 0, 0, 0, 0, 0],
     [5, 10, 10, 10, 10, 10, 10, 5],
     [-5, 0, 0, 0, 0, 0, 0, -5],
@@ -37,7 +37,7 @@ const MIDGAME_ROOK_PSQT: psqt = [
     [0, 0, 0, 5, 5, 0, 0, 0],
 ];
 
-const MIDGAME_QUEEN_PSQT: psqt = [
+const MIDGAME_QUEEN_PSQT: PieceSquareTable = [
     [-20, -10, -10, -5, -5, -10, -10, -20],
     [-10, 0, 0, 0, 0, 0, 0, -10],
     [-10, 0, 5, 5, 5, 5, 0, -10],
@@ -48,7 +48,7 @@ const MIDGAME_QUEEN_PSQT: psqt = [
     [-20, -10, -10, -5, -5, -10, -10, -20],
 ];
 
-const MIDGAME_KING_PSQT: psqt = [
+const MIDGAME_KING_PSQT: PieceSquareTable = [
     [-10, -20, -20, -20, -20, -20, -20, -10],
     [-20, -30, -30, -40, -40, -30, -30, -20],
     [-30, -40, -40, -50, -50, -40, -40, -30],
@@ -59,7 +59,7 @@ const MIDGAME_KING_PSQT: psqt = [
     [20, 30, 25, 0, 0, 0, 30, 20],
 ];
 
-const MIDGAME_PAWN_PSQT: psqt = [
+const MIDGAME_PAWN_PSQT: PieceSquareTable = [
     [0, 0, 0, 0, 0, 0, 0, 0],
     [50, 50, 50, 50, 50, 50, 50, 50],
     [10, 10, 20, 30, 30, 20, 10, 10],
@@ -70,12 +70,12 @@ const MIDGAME_PAWN_PSQT: psqt = [
     [0, 0, 0, 0, 0, 0, 0, 0],
 ];
 
-const ENDGAME_KNIGHT_PSQT: psqt = MIDGAME_KNIGHT_PSQT;
-const ENDGAME_BISHOP_PSQT: psqt = MIDGAME_BISHOP_PSQT;
-const ENDGAME_ROOK_PSQT: psqt = MIDGAME_ROOK_PSQT;
-const ENDGAME_QUEEN_PSQT: psqt = MIDGAME_QUEEN_PSQT;
+const ENDGAME_KNIGHT_PSQT: PieceSquareTable = MIDGAME_KNIGHT_PSQT;
+const ENDGAME_BISHOP_PSQT: PieceSquareTable = MIDGAME_BISHOP_PSQT;
+const ENDGAME_ROOK_PSQT: PieceSquareTable = MIDGAME_ROOK_PSQT;
+const ENDGAME_QUEEN_PSQT: PieceSquareTable = MIDGAME_QUEEN_PSQT;
 
-const ENDGAME_PAWN_PSQT: psqt = [
+const ENDGAME_PAWN_PSQT: PieceSquareTable = [
     [0, 0, 0, 0, 0, 0, 0, 0],
     [50, 50, 50, 50, 50, 50, 50, 50],
     [10, 10, 20, 30, 30, 20, 10, 10],
@@ -86,7 +86,7 @@ const ENDGAME_PAWN_PSQT: psqt = [
     [0, 0, 0, 0, 0, 0, 0, 0],
 ];
 
-const ENDGAME_KING_PSQT: psqt = [
+const ENDGAME_KING_PSQT: PieceSquareTable = [
     [-50, -30, -30, -30, -30, -30, -30, -50],
     [-30, -30, 0, 0, 0, 0, -30, -30],
     [-30, -10, 20, 30, 30, 20, -10, -30],

@@ -1,4 +1,4 @@
-use super::{CastlingRights, Color, Piece, Position, Square, BOARD_SIZE};
+use super::{Color, Piece, Position, Square, BOARD_SIZE};
 use once_cell::sync::Lazy;
 use rand::Rng;
 

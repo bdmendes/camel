@@ -1,7 +1,4 @@
-mod evaluate;
-mod position;
-mod search;
-mod uci;
+use camel::uci;
 
 fn uci_loop() {
     let state = uci::EngineState::new();

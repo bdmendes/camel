@@ -1,5 +1,5 @@
 pub mod fen;
-pub mod moves;
+pub mod movegen;
 pub mod piece;
 pub mod zobrist;
 
@@ -7,7 +7,7 @@ use bitflags::bitflags;
 use std::fmt;
 
 use self::fen::{position_from_fen, position_to_fen, START_FEN};
-use self::moves::pseudo_legal_moves;
+use self::movegen::pseudo_legal_moves;
 pub use self::piece::{Color, Piece};
 use self::zobrist::ZobristHash;
 

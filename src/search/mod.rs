@@ -3,16 +3,18 @@ use std::collections::HashMap;
 use crate::{
     evaluate::{evaluate_position, Evaluation},
     position::{
-        moves::{legal_moves, make_move, Move},
+        movegen::{legal_moves, make_move, Move},
         zobrist::ZobristHash,
         Color, Position,
     },
 };
 
+#[allow(dead_code)]
 struct Searcher {
     eval_transposition_table: HashMap<ZobristHash, Evaluation>,
 }
 
+#[allow(dead_code)]
 impl Searcher {
     pub fn new() -> Searcher {
         Searcher {
@@ -73,7 +75,7 @@ mod tests {
     fn search_initial_position() {
         let mut searcher = Searcher::new();
         let position = Position::new();
-        let (moves, score) = searcher.search(&position, 3, -999999.0, 999999.0);
+        let (moves, _) = searcher.search(&position, 3, -999999.0, 999999.0);
         assert_eq!(moves.len(), 20);
         for (move_, score) in moves {
             println!("{} {}", move_, score);
@@ -84,7 +86,7 @@ mod tests {
     fn search_test() {
         let mut searcher = Searcher::new();
         let position = Position::from_fen("7R/7p/8/3pR1pk/pr1P4/5P2/P6r/3K4 w - - 0 35").unwrap();
-        let (moves, score) = searcher.search(&position, 4, -999999.0, 999999.0);
+        let (moves, _) = searcher.search(&position, 3, -999999.0, 999999.0);
         for (move_, score) in moves {
             println!("{} {}", move_, score);
         }
