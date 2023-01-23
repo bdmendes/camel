@@ -59,7 +59,6 @@ impl Searcher {
         beta: Evaluation,
         original_depth: u8,
         quiet_search_depth: u8,
-        late_move_reduction_idx: u8,
     ) -> (Vec<(Move, BoundEvaluation)>, BoundEvaluation) {
         // Flag 50 move rule draws
         if position.half_move_number >= 100 {
@@ -130,10 +129,7 @@ impl Searcher {
         let mut eval_moves = Vec::new();
         let mut best_score = f32::MIN;
         let mut new_alpha = alpha;
-        let mut move_idx: u8 = 0;
         for move_ in moves {
-            move_idx += 1;
-
             if quiet_search {
                 let captured_piece = match position.at(&move_.to) {
                     None | Some(Piece::Pawn(_)) => false,
@@ -145,15 +141,7 @@ impl Searcher {
             }
 
             let new_position = make_move(position, &move_);
-            let new_depth = if quiet_search {
-                0
-            } else {
-                if move_idx > late_move_reduction_idx && depth > 1 {
-                    depth - 2
-                } else {
-                    depth - 1
-                }
-            };
+            let new_depth = if quiet_search { 0 } else { depth - 1 };
             let evaluation = self
                 .negamax(
                     &new_position,
@@ -166,7 +154,6 @@ impl Searcher {
                     } else {
                         quiet_search_depth
                     },
-                    late_move_reduction_idx,
                 )
                 .1;
             let score = -evaluation.evaluation;
@@ -198,7 +185,7 @@ impl Searcher {
         position: &Position,
         depth: u8,
     ) -> (Vec<(Move, BoundEvaluation)>, BoundEvaluation) {
-        self.negamax(position, depth, f32::MIN, f32::MAX, depth, 10, 4)
+        self.negamax(position, depth, f32::MIN, f32::MAX, depth, 10)
     }
 }
 
@@ -207,23 +194,29 @@ mod tests {
     use super::*;
 
     #[test]
-    fn search_initial_position() {
+    fn search_xray_check() {
         let mut searcher = Searcher::new(MoveGenerator::new());
-        let position = Position::new();
-        let (moves, _) = searcher.search(&position, 4);
-        assert_eq!(moves.len(), 20);
-        for (move_, score) in moves {
-            println!("{} {}", move_, score);
-        }
+        let position = Position::from_fen("7R/7p/8/3pR1pk/pr1P4/5P2/P6r/3K4 w - - 0 35").unwrap();
+        let (moves, _) = searcher.search(&position, 5);
+        assert_eq!(moves[0].0.to_string(), "h8h7");
     }
 
     #[test]
-    fn search_simple_xray_check() {
+    fn search_double_attack() {
         let mut searcher = Searcher::new(MoveGenerator::new());
-        let position = Position::from_fen("7R/7p/8/3pR1pk/pr1P4/5P2/P6r/3K4 w - - 0 35").unwrap();
-        let (moves, _) = searcher.search(&position, 6);
-        for (move_, score) in moves {
-            println!("{} {}", move_, score);
-        }
+        let position =
+            Position::from_fen("2kr3r/ppp2q2/4p2p/3nn3/2P3p1/1B5Q/P1P2PPP/R1B1K2R w KQ - 0 17")
+                .unwrap();
+        let (moves, _) = searcher.search(&position, 5);
+        assert_eq!(moves[0].0.to_string(), "h3g3");
+    }
+
+    #[test]
+    fn search_mate_pattern() {
+        let mut searcher = Searcher::new(MoveGenerator::new());
+        let position =
+            Position::from_fen("q5k1/3R2pp/p3pp2/N1b5/4b3/2B2r2/6PP/4QB1K b - - 5 35").unwrap();
+        let (moves, _) = searcher.search(&position, 5);
+        assert_eq!(moves[0].0.to_string(), "f3f2");
     }
 }
