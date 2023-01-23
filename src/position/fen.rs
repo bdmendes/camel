@@ -76,7 +76,7 @@ pub fn position_to_fen(position: &Position, omit_move_numbers: bool) -> String {
     for row in (0..8).rev() {
         let mut empty = 0;
         for col in 0..8 {
-            match position.at(&Square::from_row_col(row, col)) {
+            match position.at(Square::from_row_col(row, col)) {
                 None => empty += 1,
                 Some(piece) => {
                     if empty > 0 {

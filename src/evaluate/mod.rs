@@ -1,4 +1,4 @@
-mod psqt;
+pub mod psqt;
 
 use crate::position::{Color, Piece, Position, Square, BOARD_SIZE};
 
@@ -39,7 +39,7 @@ pub fn evaluate_position(position: &Position) -> Evaluation {
     // Count material and midgame ratio
     let mut midgame_ratio = 0;
     for index in 0..BOARD_SIZE {
-        match position.at(&Square { index }) {
+        match position.at(Square { index }) {
             None => (),
             Some(piece) => {
                 let piece_value = piece_value(piece);
@@ -54,7 +54,7 @@ pub fn evaluate_position(position: &Position) -> Evaluation {
 
     // Add positional score
     for index in 0..BOARD_SIZE {
-        match position.at(&Square { index }) {
+        match position.at(Square { index }) {
             None => (),
             Some(piece) => {
                 let psqt_value = psqt_value(piece, Square { index }, 255 - midgame_ratio);

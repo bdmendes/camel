@@ -39,7 +39,7 @@ pub fn zobrist_hash_position(position: &Position) -> ZobristHash {
     // Hash the pieces
     for index in 0..BOARD_SIZE {
         let square = Square { index };
-        if let Some(piece) = position.at(&square) {
+        if let Some(piece) = position.at(square) {
             hash ^= zobrist_number(piece, square);
         }
     }

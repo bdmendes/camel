@@ -69,7 +69,7 @@ impl Square {
 }
 
 impl Position {
-    pub fn at(&self, square: &Square) -> Option<Piece> {
+    pub fn at(&self, square: Square) -> Option<Piece> {
         self.board[square.index as usize]
     }
 

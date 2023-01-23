@@ -16,3 +16,7 @@ criterion = "0.4.0"
 [[bench]]
 name = "movegen"
 harness = false
+
+[[bench]]
+name = "search"
+harness = false

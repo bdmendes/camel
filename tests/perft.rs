@@ -2,7 +2,7 @@ extern crate camel;
 use std::collections::HashMap;
 
 use camel::position::{
-    movegen::{make_move, Move, MoveGenerator},
+    movegen::{legal_moves, make_move, Move},
     zobrist::ZobristHash,
     Position,
 };
@@ -22,7 +22,7 @@ fn generate(
         return (*count, moves.to_vec());
     }
 
-    let moves = MoveGenerator::new().legal_moves(&position, position.to_move);
+    let moves = legal_moves(&position, position.to_move);
     let mut res = Vec::with_capacity(moves.len());
     let mut count = 0;
 

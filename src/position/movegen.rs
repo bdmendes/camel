@@ -1,8 +1,7 @@
-use std::{collections::HashMap, fmt};
+use std::fmt;
 
 use super::{
     piece::{Color, Piece, DOWN, LEFT, RIGHT, UP},
-    zobrist::ZobristHash,
     CastlingRights, Position, Square, BOARD_SIZE, ROW_SIZE,
 };
 
@@ -21,6 +20,7 @@ pub struct Move {
     pub enpassant: bool,
     pub castle: bool,
     pub promotion: Option<Piece>,
+    pub check: bool,
 }
 
 impl fmt::Display for Move {
@@ -47,265 +47,248 @@ impl Move {
             enpassant: false,
             castle: false,
             promotion: None,
+            check: false,
         }
     }
 }
 
-pub struct MoveGenerator {
-    legal_moves_memo: HashMap<ZobristHash, Vec<Move>>,
-}
+fn generate_regular_moves_from_square(
+    position: &Position,
+    square: Square,
+    directions: Vec<i8>,
+) -> Vec<Move> {
+    let piece = position.at(square).unwrap();
+    let color = piece.color();
+    let crawls = piece.is_crawling();
+    let mut moves = Vec::new();
 
-impl MoveGenerator {
-    pub fn new() -> MoveGenerator {
-        MoveGenerator {
-            legal_moves_memo: HashMap::new(),
-        }
-    }
+    for offset in directions {
+        let mut current_offset = offset;
+        let mut last_column = square.col();
 
-    fn generate_regular_moves_from_square(
-        position: &Position,
-        square: &Square,
-        directions: Vec<i8>,
-    ) -> Vec<Move> {
-        let piece = position.at(square).unwrap();
-        let color = piece.color();
-        let crawls = piece.is_crawling();
-        let mut moves = Vec::new();
-
-        for offset in directions {
-            let mut current_offset = offset;
-            let mut last_column = square.col();
-
-            loop {
-                let to_index = (square.index as i8 + current_offset) as u8;
-                let current_col = to_index % ROW_SIZE;
-                let out_of_bounds =
-                    to_index >= BOARD_SIZE || (current_col as i8 - last_column as i8).abs() > 2;
-                if out_of_bounds {
-                    break;
-                }
-
-                let to_piece = position.board[to_index as usize];
-                if to_piece.is_none() {
-                    moves.push(Move::new(*square, Square { index: to_index }, false));
-                    if crawls {
-                        last_column = current_col;
-                        current_offset += offset;
-                        continue;
-                    }
-                } else if to_piece.unwrap().color() != color {
-                    moves.push(Move::new(*square, Square { index: to_index }, true));
-                }
+        loop {
+            let to_index = (square.index as i8 + current_offset) as u8;
+            let current_col = to_index % ROW_SIZE;
+            let out_of_bounds =
+                to_index >= BOARD_SIZE || (current_col as i8 - last_column as i8).abs() > 2;
+            if out_of_bounds {
                 break;
             }
+
+            let to_piece = position.board[to_index as usize];
+            if to_piece.is_none() {
+                moves.push(Move::new(square, Square { index: to_index }, false));
+                if crawls {
+                    last_column = current_col;
+                    current_offset += offset;
+                    continue;
+                }
+            } else if to_piece.unwrap().color() != color {
+                moves.push(Move::new(square, Square { index: to_index }, true));
+            }
+            break;
         }
-        moves
     }
+    moves
+}
 
-    fn pseudo_legal_moves_from_square(position: &Position, square: &Square) -> Vec<Move> {
-        let piece = position.at(square).unwrap();
-        match piece {
-            Piece::Bishop(_) | Piece::Knight(_) | Piece::Rook(_) | Piece::Queen(_) => {
-                Self::generate_regular_moves_from_square(
-                    position,
-                    square,
-                    piece.unchecked_directions(),
-                )
+fn pseudo_legal_moves_from_square(position: &Position, square: Square) -> Vec<Move> {
+    let piece = position.at(square).unwrap();
+    let moves = match piece {
+        Piece::Bishop(_) | Piece::Knight(_) | Piece::Rook(_) | Piece::Queen(_) => {
+            generate_regular_moves_from_square(position, square, piece.unchecked_directions())
+        }
+        Piece::Pawn(color) => {
+            let mut directions = piece.unchecked_directions();
+            let front_direction = directions[0];
+            let row = square.row();
+
+            // Do not advance if there is a piece in front
+            if (position.board[(square.index as i8 + front_direction) as usize]).is_some() {
+                directions.pop();
             }
-            Piece::Pawn(color) => {
-                let mut directions = piece.unchecked_directions();
-                let front_direction = directions[0];
-                let row = square.row();
 
-                // Do not advance if there is a piece in front
-                if (position.board[(square.index as i8 + front_direction) as usize]).is_some() {
-                    directions.pop();
+            // Move two squares on first pawn move
+            if (row == 1 && color == Color::White) || (row == 6 && color == Color::Black) {
+                if (position.board[(square.index as i8 + front_direction * 2) as usize]).is_none()
+                    && (position.board[(square.index as i8 + front_direction) as usize]).is_none()
+                {
+                    directions.push(front_direction * 2);
                 }
-
-                // Move two squares on first pawn move
-                if (row == 1 && color == Color::White) || (row == 6 && color == Color::Black) {
-                    if (position.board[(square.index as i8 + front_direction * 2) as usize])
-                        .is_none()
-                        && (position.board[(square.index as i8 + front_direction) as usize])
-                            .is_none()
-                    {
-                        directions.push(front_direction * 2);
-                    }
-                }
-
-                // Capture squares, if they are occupied by an opponent piece
-                for capture_direction in [
-                    (front_direction + LEFT) as i8,
-                    (front_direction + RIGHT) as i8,
-                ] {
-                    let capture_square = (square.index as i8 + capture_direction) as u8;
-                    if capture_square > BOARD_SIZE {
-                        break;
-                    }
-                    let to_piece = position.board[capture_square as usize];
-                    let is_opponent_piece =
-                        to_piece.is_some() && to_piece.unwrap().color() != color;
-                    let is_en_passant = position.en_passant_square.is_some()
-                        && position.en_passant_square.unwrap().index == capture_square;
-                    if is_opponent_piece || is_en_passant {
-                        directions.push(capture_direction);
-                    }
-                }
-
-                // Handle promotion and en passant
-                let mut moves =
-                    Self::generate_regular_moves_from_square(position, square, directions);
-                let mut under_promotion_moves = Vec::<Move>::new();
-                for move_ in &mut moves {
-                    let row = move_.to.row();
-                    if row == 0 || row == 7 {
-                        move_.promotion = Some(Piece::Queen(color));
-                        for promotion_piece in [
-                            Piece::Knight(color),
-                            Piece::Bishop(color),
-                            Piece::Rook(color),
-                        ] {
-                            let mut promotion_move = move_.clone();
-                            promotion_move.promotion = Some(promotion_piece);
-                            under_promotion_moves.push(promotion_move);
-                        }
-                    } else if position.en_passant_square.is_some()
-                        && move_.to == position.en_passant_square.unwrap()
-                    {
-                        move_.enpassant = true;
-                    }
-                }
-                moves.extend(under_promotion_moves);
-
-                moves
             }
-            Piece::King(color) => {
-                let mut moves = Self::generate_regular_moves_from_square(
-                    position,
-                    square,
-                    piece.unchecked_directions(),
-                );
 
-                // Handle castling
-                for squares in CASTLE_SQUARES {
-                    if squares[0] != square.index {
+            // Capture squares, if they are occupied by an opponent piece
+            for capture_direction in [
+                (front_direction + LEFT) as i8,
+                (front_direction + RIGHT) as i8,
+            ] {
+                let capture_square = (square.index as i8 + capture_direction) as u8;
+                if capture_square > BOARD_SIZE {
+                    break;
+                }
+                let to_piece = position.board[capture_square as usize];
+                let is_opponent_piece = to_piece.is_some() && to_piece.unwrap().color() != color;
+                let is_en_passant = position.en_passant_square.is_some()
+                    && position.en_passant_square.unwrap().index == capture_square;
+                if is_opponent_piece || is_en_passant {
+                    directions.push(capture_direction);
+                }
+            }
+
+            // Handle promotion and en passant
+            let mut moves = generate_regular_moves_from_square(position, square, directions);
+            let mut under_promotion_moves = Vec::<Move>::new();
+            for move_ in &mut moves {
+                let row = move_.to.row();
+                if row == 0 || row == 7 {
+                    move_.promotion = Some(Piece::Queen(color));
+                    for promotion_piece in [
+                        Piece::Knight(color),
+                        Piece::Bishop(color),
+                        Piece::Rook(color),
+                    ] {
+                        let mut promotion_move = move_.clone();
+                        promotion_move.promotion = Some(promotion_piece);
+                        under_promotion_moves.push(promotion_move);
+                    }
+                } else if position.en_passant_square.is_some()
+                    && move_.to == position.en_passant_square.unwrap()
+                {
+                    move_.enpassant = true;
+                }
+            }
+            moves.extend(under_promotion_moves);
+
+            moves
+        }
+        Piece::King(color) => {
+            let mut moves =
+                generate_regular_moves_from_square(position, square, piece.unchecked_directions());
+
+            // Handle castling
+            for squares in CASTLE_SQUARES {
+                if squares[0] != square.index {
+                    continue;
+                }
+
+                if position.board[squares[1] as usize].is_some()
+                    || position.board[squares[2] as usize].is_some()
+                {
+                    continue;
+                }
+
+                if squares[4] >= BOARD_SIZE {
+                    let can_castle_kingside = position.castling_rights
+                        & (CastlingRights::WHITE_KINGSIDE | CastlingRights::BLACK_KINGSIDE);
+                    if can_castle_kingside.is_empty() {
                         continue;
                     }
 
-                    if position.board[squares[1] as usize].is_some()
-                        || position.board[squares[2] as usize].is_some()
+                    if position.board[squares[3] as usize].is_none()
+                        || position.board[squares[3] as usize].unwrap() != Piece::Rook(color)
                     {
                         continue;
                     }
-
-                    if squares[4] >= BOARD_SIZE {
-                        let can_castle_kingside = position.castling_rights
-                            & (CastlingRights::WHITE_KINGSIDE | CastlingRights::BLACK_KINGSIDE);
-                        if can_castle_kingside.is_empty() {
-                            continue;
-                        }
-
-                        if position.board[squares[3] as usize].is_none()
-                            || position.board[squares[3] as usize].unwrap() != Piece::Rook(color)
-                        {
-                            continue;
-                        }
-                    } else {
-                        let can_castle_queenside = position.castling_rights
-                            & (CastlingRights::WHITE_QUEENSIDE | CastlingRights::BLACK_QUEENSIDE);
-                        if can_castle_queenside.is_empty() {
-                            continue;
-                        }
-
-                        if position.board[squares[3] as usize].is_some()
-                            || position.board[squares[4] as usize].is_none()
-                            || position.board[squares[4] as usize].unwrap() != Piece::Rook(color)
-                        {
-                            continue;
-                        }
+                } else {
+                    let can_castle_queenside = position.castling_rights
+                        & (CastlingRights::WHITE_QUEENSIDE | CastlingRights::BLACK_QUEENSIDE);
+                    if can_castle_queenside.is_empty() {
+                        continue;
                     }
 
-                    moves.push(Move {
-                        from: *square,
-                        to: Square { index: squares[2] },
-                        capture: false,
-                        promotion: None,
-                        enpassant: false,
-                        castle: true,
-                    });
-                }
-
-                moves
-            }
-        }
-    }
-
-    pub fn pseudo_legal_moves(position: &Position, to_move: Color) -> Vec<Move> {
-        let mut moves = Vec::new();
-        for index in 0..BOARD_SIZE {
-            let piece = position.board[index as usize];
-            if piece.is_none() || piece.unwrap().color() != to_move {
-                continue;
-            }
-            moves.extend(Self::pseudo_legal_moves_from_square(
-                position,
-                &Square { index },
-            ));
-        }
-        moves
-    }
-
-    pub fn legal_moves(&mut self, position: &Position, to_move: Color) -> Vec<Move> {
-        let zobrish_hash = position.to_zobrist_hash();
-        if self.legal_moves_memo.contains_key(&zobrish_hash) {
-            return self.legal_moves_memo.get(&zobrish_hash).unwrap().clone();
-        }
-
-        let mut moves = Self::pseudo_legal_moves(position, to_move);
-        moves.retain(|move_| {
-            if let Some(piece) = position.at(&move_.from) {
-                if piece == Piece::King(to_move) && move_.castle {
-                    if Self::position_is_check(
-                        position,
-                        to_move,
-                        Some(Square {
-                            index: (move_.to.index + move_.from.index) / 2,
-                        }),
-                    ) {
-                        return false;
+                    if position.board[squares[3] as usize].is_some()
+                        || position.board[squares[4] as usize].is_none()
+                        || position.board[squares[4] as usize].unwrap() != Piece::Rook(color)
+                    {
+                        continue;
                     }
                 }
+
+                moves.push(Move {
+                    from: square,
+                    to: Square { index: squares[2] },
+                    capture: false,
+                    promotion: None,
+                    enpassant: false,
+                    castle: true,
+                    check: false,
+                });
             }
 
-            let new_position = make_move(position, move_);
-            !Self::position_is_check(&new_position, to_move, None)
-        });
+            moves
+        }
+    };
+    moves
+}
 
-        self.legal_moves_memo.insert(zobrish_hash, moves.clone());
-        moves
+pub fn pseudo_legal_moves(position: &Position, to_move: Color) -> Vec<Move> {
+    let mut moves = Vec::new();
+    for index in 0..BOARD_SIZE {
+        let piece = position.board[index as usize];
+        if piece.is_none() || piece.unwrap().color() != to_move {
+            continue;
+        }
+        moves.extend(pseudo_legal_moves_from_square(position, Square { index }));
     }
+    moves
+}
 
-    pub fn position_is_check(
-        position: &Position,
-        checked_player: Color,
-        mid_castle_square: Option<Square>,
-    ) -> bool {
-        let opposing_color = checked_player.opposing();
-        let opponent_moves = Self::pseudo_legal_moves(position, opposing_color);
-        for move_ in opponent_moves {
-            if let Some(Piece::King(color)) = position.at(&move_.to) {
-                if color == checked_player {
-                    return true;
-                }
-            }
-            if let Some(mid_castle_square) = mid_castle_square {
-                if move_.to == mid_castle_square {
-                    return true;
+pub fn legal_moves(position: &Position, to_move: Color) -> Vec<Move> {
+    let mut moves = pseudo_legal_moves(position, to_move);
+    let mut legal_moves = Vec::with_capacity(moves.len());
+
+    for move_ in &mut moves {
+        // Do not allow castling while in check or through check
+        if let Some(piece) = position.at(move_.from) {
+            if piece == Piece::King(to_move) && move_.castle {
+                if position_is_check(
+                    position,
+                    to_move,
+                    Some(Square {
+                        index: (move_.to.index + move_.from.index) / 2,
+                    }),
+                ) {
+                    continue;
                 }
             }
         }
-        false
+
+        // Do not allow moves that leave the player in check
+        let new_position = make_move(position, move_);
+        if position_is_check(&new_position, to_move, None) {
+            continue;
+        }
+
+        // Apply check
+        move_.check = position_is_check(&new_position, to_move.opposing(), None);
+
+        // Move is legal
+        legal_moves.push(move_.clone());
     }
+
+    legal_moves
+}
+
+pub fn position_is_check(
+    position: &Position,
+    checked_player: Color,
+    mid_castle_square: Option<Square>,
+) -> bool {
+    let opposing_color = checked_player.opposing();
+    let opponent_moves = pseudo_legal_moves(position, opposing_color);
+    for move_ in opponent_moves {
+        if let Some(Piece::King(color)) = position.at(move_.to) {
+            if color == checked_player {
+                return true;
+            }
+        }
+        if let Some(mid_castle_square) = mid_castle_square {
+            if move_.to == mid_castle_square {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 pub fn make_move(position: &Position, move_: &Move) -> Position {
@@ -392,7 +375,7 @@ pub fn make_move(position: &Position, move_: &Move) -> Position {
         board: new_board,
         to_move: position.to_move.opposing(),
         castling_rights: new_castling_rights,
-        en_passant_square: match position.at(&move_.from).unwrap() {
+        en_passant_square: match position.at(move_.from).unwrap() {
             Piece::Pawn(_) => {
                 if (move_.to.index as i8 - move_.from.index as i8).abs() == 2 * UP {
                     Some(Square {
@@ -405,7 +388,7 @@ pub fn make_move(position: &Position, move_: &Move) -> Position {
             _ => None,
         },
         half_move_number: if move_.capture
-            || match position.at(&move_.from).unwrap() {
+            || match position.at(move_.from).unwrap() {
                 Piece::Pawn(_) => true,
                 _ => false,
             } {
@@ -423,10 +406,12 @@ pub fn make_move(position: &Position, move_: &Move) -> Position {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn legal_moves_from_start_position() {
         let position = super::Position::new();
-        let moves = super::MoveGenerator::new().legal_moves(&position, position.to_move);
+        let moves = legal_moves(&position, position.to_move);
         assert_eq!(moves.len(), 20);
     }
 }
