@@ -3,6 +3,7 @@ pub const DOWN: i8 = -8;
 pub const LEFT: i8 = -1;
 pub const RIGHT: i8 = 1;
 
+#[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Color {
     White,
@@ -19,7 +20,7 @@ impl Color {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Piece<Color> {
+pub enum Piece {
     Pawn(Color),
     Rook(Color),
     Knight(Color),
@@ -28,8 +29,8 @@ pub enum Piece<Color> {
     King(Color),
 }
 
-impl Piece<Color> {
-    pub fn from_char(c: char) -> Result<Piece<Color>, String> {
+impl Piece {
+    pub fn from_char(c: char) -> Result<Piece, String> {
         let color = match c.is_uppercase() {
             true => Color::White,
             false => Color::Black,

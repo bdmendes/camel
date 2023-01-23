@@ -7,25 +7,29 @@ use self::psqt::psqt_value;
 pub type Score = i32;
 pub type Evaluation = f32;
 
-fn piece_value(piece: Piece<Color>) -> Score {
+pub fn piece_value(piece: Piece) -> Score {
+    // Values from https://github.com/official-stockfish/Stockfish/blob/master/src/types.h
     match piece {
         Piece::Pawn(_) => 100,
         Piece::Knight(_) => 310,
         Piece::Bishop(_) => 320,
-        Piece::Rook(_) => 475,
-        Piece::Queen(_) => 980,
-        Piece::King(_) => 0,
+        Piece::Rook(_) => 480,
+        Piece::Queen(_) => 900,
+        _ => 0,
     }
 }
 
-fn piece_midgame_ratio_gain(piece: Piece<Color>) -> Score {
+fn piece_midgame_ratio_gain(piece: Piece) -> Score {
+    // Values engineered so that they add up to 255, the ratio to interpolate
+    // between the midgame and endgame PSQT tables
+    // (2×8 + 10×2 + 10×2 + 16×2 + 39)×2 = 254
     match piece {
         Piece::Pawn(_) => 2,
         Piece::Knight(_) => 10,
         Piece::Bishop(_) => 10,
-        Piece::Rook(_) => 15,
-        Piece::Queen(_) => 40,
-        Piece::King(_) => 0,
+        Piece::Rook(_) => 16,
+        Piece::Queen(_) => 39,
+        _ => 0,
     }
 }
 
@@ -53,7 +57,7 @@ pub fn evaluate_position(position: &Position) -> Evaluation {
         match position.at(&Square { index }) {
             None => (),
             Some(piece) => {
-                let psqt_value = psqt_value(&piece, &Square { index }, 255 - midgame_ratio);
+                let psqt_value = psqt_value(piece, Square { index }, 255 - midgame_ratio);
                 score += match piece.color() {
                     Color::White => psqt_value,
                     Color::Black => -psqt_value,

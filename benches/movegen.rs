@@ -4,7 +4,10 @@ fn start_position_move_generation(c: &mut Criterion) {
     c.bench_function("start position move generation", |b| {
         b.iter(|| {
             let position = black_box(camel::position::Position::new());
-            black_box(camel::position::movegen::legal_moves(&position));
+            black_box(
+                camel::position::movegen::MoveGenerator::new()
+                    .legal_moves(&position, position.to_move),
+            );
         })
     });
 }

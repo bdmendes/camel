@@ -13,7 +13,7 @@ static ZOBRIST_NUMBERS: Lazy<[u128; 12 * BOARD_SIZE as usize]> = Lazy::new(|| {
 
 pub type ZobristHash = u128;
 
-fn zobrist_number(piece: Piece<Color>, square: Square) -> u128 {
+fn zobrist_number(piece: Piece, square: Square) -> u128 {
     let piece_index = match piece {
         Piece::Pawn(Color::White) => 0,
         Piece::Knight(Color::White) => 1,

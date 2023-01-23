@@ -7,7 +7,6 @@ use bitflags::bitflags;
 use std::fmt;
 
 use self::fen::{position_from_fen, position_to_fen, START_FEN};
-use self::movegen::pseudo_legal_moves;
 pub use self::piece::{Color, Piece};
 use self::zobrist::ZobristHash;
 
@@ -29,7 +28,7 @@ bitflags! {
 }
 
 pub struct Position {
-    pub board: [Option<Piece<Color>>; 64], // 2D Little-Endian Rank-File Mapping
+    pub board: [Option<Piece>; 64], // 2D Little-Endian Rank-File Mapping
     pub to_move: Color,
     pub castling_rights: CastlingRights,
     pub en_passant_square: Option<Square>,
@@ -70,7 +69,7 @@ impl Square {
 }
 
 impl Position {
-    pub fn at(&self, square: &Square) -> Option<Piece<Color>> {
+    pub fn at(&self, square: &Square) -> Option<Piece> {
         self.board[square.index as usize]
     }
 
@@ -93,24 +92,6 @@ impl Position {
 
     pub fn to_zobrist_hash(&self) -> ZobristHash {
         zobrist::zobrist_hash_position(&self)
-    }
-
-    pub fn is_check(&self, checked_player: Color, mid_castle_square: Option<Square>) -> bool {
-        let opposing_color = checked_player.opposing();
-        let opponent_moves = pseudo_legal_moves(&self, opposing_color);
-        for move_ in opponent_moves {
-            if let Some(Piece::King(color)) = self.at(&move_.to) {
-                if color == checked_player {
-                    return true;
-                }
-            }
-            if let Some(mid_castle_square) = mid_castle_square {
-                if move_.to == mid_castle_square {
-                    return true;
-                }
-            }
-        }
-        false
     }
 }
 
