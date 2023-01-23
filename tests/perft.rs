@@ -2,7 +2,7 @@ extern crate camel;
 use std::collections::HashMap;
 
 use camel::position::{
-    movegen::{legal_moves, make_move, Move},
+    moves::{legal_moves, make_move, Move},
     zobrist::ZobristHash,
     Position,
 };

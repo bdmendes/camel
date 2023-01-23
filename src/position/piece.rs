@@ -21,54 +21,69 @@ impl Color {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Piece {
-    Pawn(Color),
-    Rook(Color),
-    Knight(Color),
-    Bishop(Color),
-    Queen(Color),
-    King(Color),
+    WP,
+    WR,
+    WN,
+    WB,
+    WQ,
+    WK,
+    BP,
+    BR,
+    BN,
+    BB,
+    BQ,
+    BK,
 }
 
 impl Piece {
+    pub fn color(&self) -> Color {
+        match self {
+            Piece::WP | Piece::WR | Piece::WN | Piece::WB | Piece::WQ | Piece::WK => Color::White,
+            Piece::BP | Piece::BR | Piece::BN | Piece::BB | Piece::BQ | Piece::BK => Color::Black,
+        }
+    }
+
     pub fn from_char(c: char) -> Result<Piece, String> {
-        let color = match c.is_uppercase() {
-            true => Color::White,
-            false => Color::Black,
-        };
         match c {
-            'p' | 'P' => Ok(Piece::Pawn(color)),
-            'r' | 'R' => Ok(Piece::Rook(color)),
-            'n' | 'N' => Ok(Piece::Knight(color)),
-            'b' | 'B' => Ok(Piece::Bishop(color)),
-            'q' | 'Q' => Ok(Piece::Queen(color)),
-            'k' | 'K' => Ok(Piece::King(color)),
-            _ => Err("Invalid piece".to_owned()),
+            'p' => Ok(Piece::BP),
+            'r' => Ok(Piece::BR),
+            'n' => Ok(Piece::BN),
+            'b' => Ok(Piece::BB),
+            'q' => Ok(Piece::BQ),
+            'k' => Ok(Piece::BK),
+            'P' => Ok(Piece::WP),
+            'R' => Ok(Piece::WR),
+            'N' => Ok(Piece::WN),
+            'B' => Ok(Piece::WB),
+            'Q' => Ok(Piece::WQ),
+            'K' => Ok(Piece::WK),
+            _ => Err(format!("Invalid piece character: {}", c)),
         }
     }
 
     pub fn to_char(&self) -> char {
         match self {
-            Piece::Pawn(Color::White) => 'P',
-            Piece::Rook(Color::White) => 'R',
-            Piece::Knight(Color::White) => 'N',
-            Piece::Bishop(Color::White) => 'B',
-            Piece::Queen(Color::White) => 'Q',
-            Piece::King(Color::White) => 'K',
-            Piece::Pawn(Color::Black) => 'p',
-            Piece::Rook(Color::Black) => 'r',
-            Piece::Knight(Color::Black) => 'n',
-            Piece::Bishop(Color::Black) => 'b',
-            Piece::Queen(Color::Black) => 'q',
-            Piece::King(Color::Black) => 'k',
+            Piece::WP => 'P',
+            Piece::WR => 'R',
+            Piece::WN => 'N',
+            Piece::WB => 'B',
+            Piece::WQ => 'Q',
+            Piece::WK => 'K',
+            Piece::BP => 'p',
+            Piece::BR => 'r',
+            Piece::BN => 'n',
+            Piece::BB => 'b',
+            Piece::BQ => 'q',
+            Piece::BK => 'k',
         }
     }
 
     pub fn unchecked_directions(&self) -> Vec<i8> {
         match self {
-            Piece::Pawn(Color::White) => vec![UP],
-            Piece::Pawn(Color::Black) => vec![DOWN],
-            Piece::Rook(_) => vec![UP, DOWN, LEFT, RIGHT],
-            Piece::Knight(_) => vec![
+            Piece::WP => vec![UP],
+            Piece::BP => vec![DOWN],
+            Piece::WR | Piece::BR => vec![UP, DOWN, LEFT, RIGHT],
+            Piece::WN | Piece::BN => vec![
                 2 * UP + LEFT,
                 2 * UP + RIGHT,
                 2 * DOWN + LEFT,
@@ -78,8 +93,8 @@ impl Piece {
                 2 * RIGHT + UP,
                 2 * RIGHT + DOWN,
             ],
-            Piece::Bishop(_) => vec![UP + LEFT, UP + RIGHT, DOWN + LEFT, DOWN + RIGHT],
-            Piece::Queen(_) | Piece::King(_) => vec![
+            Piece::WB | Piece::BB => vec![UP + LEFT, UP + RIGHT, DOWN + LEFT, DOWN + RIGHT],
+            Piece::WQ | Piece::BQ | Piece::WK | Piece::BK => vec![
                 UP,
                 DOWN,
                 LEFT,
@@ -92,20 +107,9 @@ impl Piece {
         }
     }
 
-    pub fn color(&self) -> Color {
-        match self {
-            Piece::Pawn(color)
-            | Piece::Rook(color)
-            | Piece::Knight(color)
-            | Piece::Bishop(color)
-            | Piece::Queen(color)
-            | Piece::King(color) => *color,
-        }
-    }
-
     pub fn is_crawling(&self) -> bool {
         match self {
-            Piece::Pawn(_) | Piece::King(_) | Piece::Knight(_) => false,
+            Piece::WP | Piece::BP | Piece::WK | Piece::BK | Piece::WN | Piece::BN => false,
             _ => true,
         }
     }

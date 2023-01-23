@@ -1,5 +1,5 @@
 pub mod fen;
-pub mod movegen;
+pub mod moves;
 pub mod piece;
 pub mod zobrist;
 

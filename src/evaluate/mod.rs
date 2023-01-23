@@ -10,11 +10,11 @@ pub type Evaluation = f32;
 pub fn piece_value(piece: Piece) -> Score {
     // Values from https://github.com/official-stockfish/Stockfish/blob/master/src/types.h
     match piece {
-        Piece::Pawn(_) => 100,
-        Piece::Knight(_) => 310,
-        Piece::Bishop(_) => 320,
-        Piece::Rook(_) => 480,
-        Piece::Queen(_) => 900,
+        Piece::WP | Piece::BP => 100,
+        Piece::WN | Piece::BN => 310,
+        Piece::WB | Piece::BB => 320,
+        Piece::WR | Piece::BR => 480,
+        Piece::WQ | Piece::BQ => 900,
         _ => 0,
     }
 }
@@ -24,11 +24,11 @@ fn piece_midgame_ratio_gain(piece: Piece) -> Score {
     // between the midgame and endgame PSQT tables
     // (2×8 + 10×2 + 10×2 + 16×2 + 39)×2 = 254
     match piece {
-        Piece::Pawn(_) => 2,
-        Piece::Knight(_) => 10,
-        Piece::Bishop(_) => 10,
-        Piece::Rook(_) => 16,
-        Piece::Queen(_) => 39,
+        Piece::WP | Piece::BP => 2,
+        Piece::WN | Piece::BN => 10,
+        Piece::WB | Piece::BB => 10,
+        Piece::WR | Piece::BR => 16,
+        Piece::WQ | Piece::BQ => 39,
         _ => 0,
     }
 }

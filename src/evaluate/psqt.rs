@@ -93,12 +93,12 @@ pub fn psqt_value(piece: Piece, square: Square, endgame_ratio: u8) -> Score {
         Color::White => square,
     };
     let (midgame_psqt, endgame_psqt) = match piece {
-        Piece::Pawn(_) => (MIDGAME_PAWN_PSQT, ENDGAME_PAWN_PSQT),
-        Piece::Knight(_) => (MIDGAME_KNIGHT_PSQT, ENDGAME_KNIGHT_PSQT),
-        Piece::Bishop(_) => (MIDGAME_BISHOP_PSQT, ENDGAME_BISHOP_PSQT),
-        Piece::Rook(_) => (MIDGAME_ROOK_PSQT, ENDGAME_ROOK_PSQT),
-        Piece::Queen(_) => (MIDGAME_QUEEN_PSQT, ENDGAME_QUEEN_PSQT),
-        Piece::King(_) => (MIDGAME_KING_PSQT, ENDGAME_KING_PSQT),
+        Piece::WP | Piece::BP => (MIDGAME_PAWN_PSQT, ENDGAME_PAWN_PSQT),
+        Piece::WN | Piece::BN => (MIDGAME_KNIGHT_PSQT, ENDGAME_KNIGHT_PSQT),
+        Piece::WB | Piece::BB => (MIDGAME_BISHOP_PSQT, ENDGAME_BISHOP_PSQT),
+        Piece::WR | Piece::BR => (MIDGAME_ROOK_PSQT, ENDGAME_ROOK_PSQT),
+        Piece::WQ | Piece::BQ => (MIDGAME_QUEEN_PSQT, ENDGAME_QUEEN_PSQT),
+        Piece::WK | Piece::BK => (MIDGAME_KING_PSQT, ENDGAME_KING_PSQT),
     };
 
     let midgame_value = midgame_psqt[psqt_square.index as usize];

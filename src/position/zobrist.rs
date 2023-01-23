@@ -15,18 +15,18 @@ pub type ZobristHash = u128;
 
 fn zobrist_number(piece: Piece, square: Square) -> u128 {
     let piece_index = match piece {
-        Piece::Pawn(Color::White) => 0,
-        Piece::Knight(Color::White) => 1,
-        Piece::Bishop(Color::White) => 2,
-        Piece::Rook(Color::White) => 3,
-        Piece::Queen(Color::White) => 4,
-        Piece::King(Color::White) => 5,
-        Piece::Pawn(Color::Black) => 6,
-        Piece::Knight(Color::Black) => 7,
-        Piece::Bishop(Color::Black) => 8,
-        Piece::Rook(Color::Black) => 9,
-        Piece::Queen(Color::Black) => 10,
-        Piece::King(Color::Black) => 11,
+        Piece::WQ => 0,
+        Piece::WR => 1,
+        Piece::WB => 2,
+        Piece::WN => 3,
+        Piece::WP => 4,
+        Piece::WK => 5,
+        Piece::BQ => 6,
+        Piece::BR => 7,
+        Piece::BB => 8,
+        Piece::BN => 9,
+        Piece::BP => 10,
+        Piece::BK => 11,
     };
     let square_index = square.index;
     let index = piece_index * 64 + square_index as usize;
