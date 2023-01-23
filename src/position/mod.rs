@@ -13,7 +13,7 @@ use self::zobrist::ZobristHash;
 pub const ROW_SIZE: u8 = 8;
 pub const BOARD_SIZE: u8 = ROW_SIZE * ROW_SIZE;
 
-#[derive(Copy, Clone, PartialEq, Debug, Eq)]
+#[derive(Copy, Clone, PartialEq, Debug, Eq, Hash)]
 pub struct Square {
     pub index: u8,
 }

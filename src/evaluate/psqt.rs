@@ -104,10 +104,10 @@ pub fn psqt_value(piece: Piece, square: Square, endgame_ratio: u8) -> Score {
     let midgame_value = midgame_psqt[psqt_square.index as usize];
     let endgame_value = endgame_psqt[psqt_square.index as usize];
 
-    if midgame_value != endgame_value {
+    if endgame_ratio == 0 || midgame_value == endgame_value {
+        midgame_value
+    } else {
         ((midgame_value * (255 - endgame_ratio) as i32) + (endgame_value * endgame_ratio as i32))
             / 255
-    } else {
-        midgame_value
     }
 }

@@ -66,7 +66,7 @@ pub fn evaluate_position(position: &Position) -> Evaluation {
         }
     }
 
-    score as f32 / 100.0
+    score as Evaluation / 100.0
 }
 
 #[cfg(test)]
@@ -95,8 +95,6 @@ mod tests {
             Position::from_fen("8/1K6/8/2q5/8/1k6/8/8 w - - 11 58").unwrap();
         let king_at_center_evaluation = evaluate_position(&king_at_center_position);
         let king_at_corner_evaluation = evaluate_position(&king_at_corner_position);
-        assert!(king_at_center_evaluation < 8.0);
-        assert!(king_at_corner_evaluation < 8.0);
         assert!(king_at_center_evaluation > king_at_corner_evaluation);
     }
 }

@@ -15,7 +15,7 @@ const CASTLE_SQUARES: [[u8; 5]; 4] = [
 const WHITE_PROMOTIONS: [Piece; 4] = [Piece::WQ, Piece::WR, Piece::WB, Piece::WN];
 const BLACK_PROMOTIONS: [Piece; 4] = [Piece::BQ, Piece::BR, Piece::BB, Piece::BN];
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Move {
     pub from: Square,
     pub to: Square,
