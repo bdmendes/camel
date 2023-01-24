@@ -1,7 +1,7 @@
 use std::fmt;
 
 use super::{
-    piece::{Color, Piece, DOWN, LEFT, RIGHT, UP},
+    piece::{Color, Piece, DOWN, UP},
     CastlingRights, Position, Square, BOARD_SIZE, ROW_SIZE,
 };
 
@@ -49,15 +49,16 @@ impl Move {
 fn generate_regular_moves_from_square(
     position: &Position,
     square: Square,
-    directions: Vec<i8>,
+    directions: &[i8],
 ) -> Vec<Move> {
     let piece = position.at(square).unwrap();
     let color = piece.color();
     let crawls = piece.is_crawling();
-    let mut moves = Vec::new();
+    let mut moves =
+        Vec::with_capacity(if crawls { directions.len() * 4 } else { directions.len() });
 
     for offset in directions {
-        let mut current_offset = offset;
+        let mut current_offset = *offset;
         let mut last_column = square.col() as i8;
 
         loop {
@@ -90,45 +91,40 @@ fn pseudo_legal_moves_from_square(position: &Position, square: Square) -> Vec<Mo
     let color = piece.color();
     match piece {
         Piece::WP | Piece::BP => {
-            let mut directions = piece.unchecked_directions();
-            let front_direction = directions[0];
-            let row = square.row();
+            let mut moves =
+                generate_regular_moves_from_square(position, square, piece.unchecked_directions());
 
-            // Do not advance if there is a piece in front
-            if (position.board[(square.index as i8 + front_direction) as usize]).is_some() {
-                directions.pop();
-            }
-
-            // Move two squares on first pawn move
-            if (row == 1 && color == Color::White) || (row == 6 && color == Color::Black) {
-                if (position.board[(square.index as i8 + front_direction * 2) as usize]).is_none()
-                    && (position.board[(square.index as i8 + front_direction) as usize]).is_none()
-                {
-                    directions.push(front_direction * 2);
+            // Do not advance if there is a piece in front; do not capture if there is no piece
+            moves.retain(|move_| {
+                let index_diff = (move_.to.index as i8 - move_.from.index as i8).abs();
+                if index_diff == UP {
+                    !move_.capture
+                } else if index_diff == UP + UP {
+                    let row = move_.from.row();
+                    let can_advance_two = ((row == 1 && color == Color::White)
+                        || (row == 6 && color == Color::Black))
+                        && position.at(move_.to).is_none();
+                    let jumped_piece = position.board[(move_.from.index as i8
+                        + (if color == Color::White { UP } else { DOWN }))
+                        as usize]
+                        .is_some();
+                    can_advance_two && !jumped_piece
+                } else {
+                    move_.capture
+                        || match position.en_passant_square {
+                            Some(en_passant_square) => move_.to == en_passant_square,
+                            None => false,
+                        }
                 }
-            }
+            });
 
-            // Capture squares, if they are occupied by an opponent piece
-            for capture_direction in [(front_direction + LEFT), (front_direction + RIGHT)] {
-                let capture_square = (square.index as i8 + capture_direction) as u8;
-                if capture_square > BOARD_SIZE {
-                    break;
-                }
-                let to_piece = position.board[capture_square as usize];
-                let is_opponent_piece = to_piece.is_some() && to_piece.unwrap().color() != color;
-                let is_en_passant = position.en_passant_square.is_some()
-                    && position.en_passant_square.unwrap().index == capture_square;
-                if is_opponent_piece || is_en_passant {
-                    directions.push(capture_direction);
-                }
-            }
-
-            // Handle promotion and en passant
-            let mut moves = generate_regular_moves_from_square(position, square, directions);
-            let mut under_promotion_moves = Vec::<Move>::with_capacity(3);
-            for move_ in &mut moves {
+            // Add promotion and en passant
+            let curr_moves_len = moves.len();
+            for i in 0..curr_moves_len {
+                let mut move_ = &mut moves[i];
                 let row = move_.to.row();
                 if row == 0 || row == 7 {
+                    let mut under_promotion_moves = Vec::<Move>::with_capacity(3);
                     let promotion_pieces =
                         if color == Color::White { WHITE_PROMOTIONS } else { BLACK_PROMOTIONS };
                     move_.promotion = Some(promotion_pieces[0]);
@@ -137,13 +133,13 @@ fn pseudo_legal_moves_from_square(position: &Position, square: Square) -> Vec<Mo
                         promotion_move.promotion = Some(promotion_pieces[i]);
                         under_promotion_moves.push(promotion_move);
                     }
+                    moves.extend(under_promotion_moves);
                 } else if position.en_passant_square.is_some()
                     && move_.to == position.en_passant_square.unwrap()
                 {
                     move_.enpassant = true;
                 }
             }
-            moves.extend(under_promotion_moves);
 
             moves
         }
@@ -434,7 +430,19 @@ mod tests {
     fn perft_divide(fen: &str, depth: u8, expected_nodes: Option<usize>) -> Vec<(Move, usize)> {
         let new_position = || -> Position { Position::from_fen(fen).unwrap() };
 
+        let intial_time = std::time::Instant::now();
+
         let (count, moves) = generate(depth, depth, &new_position(), &mut HashMap::new());
+
+        let elapsed = intial_time.elapsed();
+
+        println!(
+            "Generated {} nodes in {}.{:.3} seconds ({:.3} nodes/s)",
+            count,
+            elapsed.as_secs(),
+            elapsed.subsec_millis(),
+            count as f64 / (elapsed.as_secs() as f64 + elapsed.subsec_millis() as f64 / 1000.0)
+        );
 
         if expected_nodes.is_some() {
             assert_eq!(count, expected_nodes.unwrap());
@@ -561,71 +569,5 @@ mod tests {
     #[test]
     fn perft_gh_23() {
         perft("8/8/2k5/5q2/5n2/8/5K2/8 b - - 0 1", 4, 23527);
-    }
-
-    /* Expected divides taken from Stockfish */
-    #[test]
-    fn perft_kiwipete() {
-        let kiwipete_test_fen =
-            "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
-
-        let expected_divides = [
-            ("a2a3", 2186),
-            ("b2b3", 1964),
-            ("g2g3", 1882),
-            ("d5d6", 1991),
-            ("a2a4", 2149),
-            ("g2g4", 1843),
-            ("g2h3", 1970),
-            ("d5e6", 2241),
-            ("c3b1", 2038),
-            ("c3d1", 2040),
-            ("c3a4", 2203),
-            ("c3b5", 2138),
-            ("e5d3", 1803),
-            ("e5c4", 1880),
-            ("e5g4", 1878),
-            ("e5c6", 2027),
-            ("e5g6", 1997),
-            ("e5d7", 2124),
-            ("e5f7", 2080),
-            ("d2c1", 1963),
-            ("d2e3", 2136),
-            ("d2f4", 2000),
-            ("d2g5", 2134),
-            ("d2h6", 2019),
-            ("e2d1", 1733),
-            ("e2f1", 2060),
-            ("e2d3", 2050),
-            ("e2c4", 2082),
-            ("e2b5", 2057),
-            ("e2a6", 1907),
-            ("a1b1", 1969),
-            ("a1c1", 1968),
-            ("a1d1", 1885),
-            ("h1f1", 1929),
-            ("h1g1", 2013),
-            ("f3d3", 2005),
-            ("f3e3", 2174),
-            ("f3g3", 2214),
-            ("f3h3", 2360),
-            ("f3f4", 2132),
-            ("f3g4", 2169),
-            ("f3f5", 2396),
-            ("f3h5", 2267),
-            ("f3f6", 2111),
-            ("e1d1", 1894),
-            ("e1f1", 1855),
-            ("e1g1", 2059),
-            ("e1c1", 1887),
-        ];
-
-        let moves = perft_divide(kiwipete_test_fen, 3, None);
-        for (mv, count) in moves {
-            if expected_divides.contains(&(&mv.to_string(), count - 1)) {
-                continue;
-            }
-            println!("Unexpected divide: {} {}", mv, count);
-        }
     }
 }

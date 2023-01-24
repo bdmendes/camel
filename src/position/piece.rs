@@ -78,12 +78,12 @@ impl Piece {
         }
     }
 
-    pub fn unchecked_directions(&self) -> Vec<i8> {
+    pub fn unchecked_directions(&self) -> &'static [i8] {
         match self {
-            Piece::WP => vec![UP],
-            Piece::BP => vec![DOWN],
-            Piece::WR | Piece::BR => vec![UP, DOWN, LEFT, RIGHT],
-            Piece::WN | Piece::BN => vec![
+            Piece::WP => &[UP, UP + UP, UP + LEFT, UP + RIGHT],
+            Piece::BP => &[DOWN, DOWN + DOWN, DOWN + LEFT, DOWN + RIGHT],
+            Piece::WR | Piece::BR => &[UP, DOWN, LEFT, RIGHT],
+            Piece::WN | Piece::BN => &[
                 2 * UP + LEFT,
                 2 * UP + RIGHT,
                 2 * DOWN + LEFT,
@@ -93,9 +93,9 @@ impl Piece {
                 2 * RIGHT + UP,
                 2 * RIGHT + DOWN,
             ],
-            Piece::WB | Piece::BB => vec![UP + LEFT, UP + RIGHT, DOWN + LEFT, DOWN + RIGHT],
+            Piece::WB | Piece::BB => &[UP + LEFT, UP + RIGHT, DOWN + LEFT, DOWN + RIGHT],
             Piece::WQ | Piece::BQ | Piece::WK | Piece::BK => {
-                vec![UP, DOWN, LEFT, RIGHT, UP + LEFT, UP + RIGHT, DOWN + LEFT, DOWN + RIGHT]
+                &[UP, DOWN, LEFT, RIGHT, UP + LEFT, UP + RIGHT, DOWN + LEFT, DOWN + RIGHT]
             }
         }
     }
