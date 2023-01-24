@@ -2,10 +2,10 @@ use super::{Color, Piece, Position, Square, BOARD_SIZE};
 use once_cell::sync::Lazy;
 use rand::Rng;
 
-static ZOBRIST_NUMBERS: Lazy<[u128; 12 * BOARD_SIZE as usize]> = Lazy::new(|| {
+static ZOBRIST_NUMBERS: Lazy<[u128; 12 * BOARD_SIZE]> = Lazy::new(|| {
     let mut rng = rand::thread_rng();
-    let mut zobrist_numbers = [0; 12 * BOARD_SIZE as usize];
-    for i in 0..(12 * BOARD_SIZE as usize) {
+    let mut zobrist_numbers = [0; 12 * BOARD_SIZE];
+    for i in 0..(12 * BOARD_SIZE) {
         zobrist_numbers[i] = rng.gen();
     }
     zobrist_numbers
@@ -29,7 +29,7 @@ fn zobrist_number(piece: Piece, square: Square) -> u128 {
         Piece::BK => 11,
     };
     let square_index = square.index;
-    let index = piece_index * 64 + square_index as usize;
+    let index = piece_index * 64 + square_index;
     ZOBRIST_NUMBERS[index]
 }
 

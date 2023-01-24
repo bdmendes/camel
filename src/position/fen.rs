@@ -4,7 +4,7 @@ pub const START_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq 
 
 pub fn position_from_fen(fen: &str) -> Result<Position, String> {
     let mut position = Position {
-        board: [Option::None; BOARD_SIZE as usize],
+        board: [Option::None; BOARD_SIZE],
         to_move: Color::White,
         castling_rights: CastlingRights::empty(),
         en_passant_square: None,
@@ -20,8 +20,8 @@ pub fn position_from_fen(fen: &str) -> Result<Position, String> {
     let half_move_number = fen_iter.next().unwrap_or("0");
     let full_move_number = fen_iter.next().unwrap_or("1");
 
-    let mut row: u8 = 7;
-    let mut col: u8 = 0;
+    let mut row: usize = 7;
+    let mut col: usize = 0;
     for c in board.chars() {
         match c {
             '/' => {
@@ -29,14 +29,14 @@ pub fn position_from_fen(fen: &str) -> Result<Position, String> {
                 col = 0;
             }
             '1'..='8' => {
-                col += c as u8 - ('0' as u8);
+                col += (c as u8 - ('0' as u8)) as usize;
             }
             _ => {
                 let piece = match Piece::from_char(c) {
                     Ok(piece) => piece,
                     Err(msg) => return Err(msg),
                 };
-                position.board[Square::from_row_col(row, col).index as usize] = Some(piece);
+                position.board[Square::from_row_col(row, col).index] = Some(piece);
                 col += 1;
             }
         }

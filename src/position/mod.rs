@@ -9,12 +9,12 @@ use self::zobrist::ZobristHash;
 use bitflags::bitflags;
 use std::fmt;
 
-pub const ROW_SIZE: u8 = 8;
-pub const BOARD_SIZE: u8 = ROW_SIZE * ROW_SIZE;
+pub const ROW_SIZE: usize = 8;
+pub const BOARD_SIZE: usize = ROW_SIZE * ROW_SIZE;
 
 #[derive(Copy, Clone, PartialEq, Debug, Eq, Hash)]
 pub struct Square {
-    pub index: u8,
+    pub index: usize,
 }
 
 bitflags! {
@@ -38,34 +38,34 @@ pub struct Position {
 impl Square {
     pub fn to_algebraic(&self) -> String {
         let mut algebraic = String::new();
-        algebraic.push((('a' as u8) + (self.index as u8) % ROW_SIZE) as char);
-        algebraic.push((('1' as u8) + (self.index as u8) / ROW_SIZE) as char);
+        algebraic.push(('a' as u8 + self.index as u8 % ROW_SIZE as u8) as char);
+        algebraic.push(('1' as u8 + self.index as u8 / ROW_SIZE as u8) as char);
         algebraic
     }
 
     pub fn from_algebraic(algebraic: &str) -> Square {
         let mut chars = algebraic.chars();
-        let col = chars.next().unwrap_or('a') as u8 - ('a' as u8);
-        let row = chars.next().unwrap_or('1') as u8 - ('1' as u8);
-        Square { index: row * ROW_SIZE as u8 + col }
-    }
-
-    pub fn from_row_col(row: u8, col: u8) -> Square {
+        let col = (chars.next().unwrap_or('a') as u8 - ('a' as u8)) as usize;
+        let row = (chars.next().unwrap_or('1') as u8 - ('1' as u8)) as usize;
         Square { index: row * ROW_SIZE + col }
     }
 
-    pub fn row(&self) -> u8 {
+    pub fn from_row_col(row: usize, col: usize) -> Square {
+        Square { index: row * ROW_SIZE + col }
+    }
+
+    pub fn row(&self) -> usize {
         self.index / ROW_SIZE
     }
 
-    pub fn col(&self) -> u8 {
+    pub fn col(&self) -> usize {
         self.index % ROW_SIZE
     }
 }
 
 impl Position {
     pub fn at(&self, square: Square) -> Option<Piece> {
-        self.board[square.index as usize]
+        self.board[square.index]
     }
 
     pub fn new() -> Position {
@@ -106,7 +106,7 @@ impl fmt::Display for Position {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for row in (0..8).rev() {
             for col in 0..8 {
-                match self.board[(row * 8 + col) as usize] {
+                match self.board[(row * 8 + col)] {
                     None => write!(f, " "),
                     Some(piece) => write!(f, "{}", piece.to_char()),
                 }?;

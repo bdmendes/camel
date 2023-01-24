@@ -5,7 +5,7 @@ use super::{
 use bitflags::bitflags;
 use std::fmt;
 
-const CASTLE_SQUARES: [[u8; 5]; 4] = [
+const CASTLE_SQUARES: [[usize; 5]; 4] = [
     [4, 5, 6, 7, BOARD_SIZE],     // White kingside
     [4, 3, 2, 1, 0],              // White queenside
     [60, 61, 62, 63, BOARD_SIZE], // Black kingside
@@ -67,14 +67,14 @@ fn generate_regular_moves_from_square(
         let mut last_column = square.col() as i8;
 
         loop {
-            let to_index = (square.index as i8 + current_offset) as u8;
+            let to_index = (square.index as i8 + current_offset) as usize;
             let current_col = (to_index % ROW_SIZE) as i8;
             let out_of_bounds = to_index >= BOARD_SIZE || (current_col - last_column).abs() > 2;
             if out_of_bounds {
                 break;
             }
 
-            let to_piece = position.board[to_index as usize];
+            let to_piece = position.board[to_index];
             if to_piece.is_none() {
                 moves.push(Move::new(square, Square { index: to_index }, MoveFlags::empty()));
                 if crawls {
@@ -175,21 +175,17 @@ fn pseudo_legal_moves_from_square(position: &Position, square: Square) -> Vec<Mo
                 if squares[0] != square.index {
                     continue;
                 }
-                if position.board[squares[1] as usize].is_some()
-                    || position.board[squares[2] as usize].is_some()
-                {
+                if position.board[squares[1]].is_some() || position.board[squares[2]].is_some() {
                     continue;
                 }
                 let same_color_rook = if color == Color::White { Piece::WR } else { Piece::BR };
                 let kingside = i == 0 || i == 2;
                 if !kingside {
-                    if let Some(_) = position.board[squares[3] as usize] {
+                    if let Some(_) = position.board[squares[3]] {
                         continue;
                     }
                 }
-                if let Some(to_piece) =
-                    position.board[squares[3 + if kingside { 0 } else { 1 }] as usize]
-                {
+                if let Some(to_piece) = position.board[squares[3 + if kingside { 0 } else { 1 }]] {
                     if to_piece != same_color_rook {
                         continue;
                     }
@@ -214,7 +210,7 @@ fn pseudo_legal_moves_from_square(position: &Position, square: Square) -> Vec<Mo
 pub fn pseudo_legal_moves(position: &Position, to_move: Color) -> Vec<Move> {
     let mut moves = Vec::with_capacity(40);
     for index in 0..BOARD_SIZE {
-        let piece = position.board[index as usize];
+        let piece = position.board[index];
         if piece.is_none() || piece.unwrap().color() != to_move {
             continue;
         }
@@ -274,8 +270,8 @@ pub fn position_is_check(
 
 pub fn make_move(position: &Position, move_: Move) -> Position {
     let mut new_board = position.board;
-    new_board[move_.to.index as usize] = new_board[move_.from.index as usize];
-    new_board[move_.from.index as usize] = None;
+    new_board[move_.to.index] = new_board[move_.from.index];
+    new_board[move_.from.index] = None;
 
     // En passant
     if move_.flags.contains(MoveFlags::ENPASSANT) {
@@ -288,7 +284,7 @@ pub fn make_move(position: &Position, move_: Move) -> Position {
 
     // Promotion
     if let Some(promotion_piece) = move_.promotion {
-        new_board[move_.to.index as usize] = Some(promotion_piece);
+        new_board[move_.to.index] = Some(promotion_piece);
     }
 
     // Castling
