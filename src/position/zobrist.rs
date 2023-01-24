@@ -68,7 +68,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn same_position_same_hash() {
+    fn zobrist_same_hash() {
         let position = Position::new();
         let hash1 = zobrist_hash_position(&position);
         let hash2 = zobrist_hash_position(&position);
