@@ -3,12 +3,11 @@ pub mod moves;
 pub mod piece;
 pub mod zobrist;
 
-use bitflags::bitflags;
-use std::fmt;
-
 use self::fen::{position_from_fen, position_to_fen, START_FEN};
 pub use self::piece::{Color, Piece};
 use self::zobrist::ZobristHash;
+use bitflags::bitflags;
+use std::fmt;
 
 pub const ROW_SIZE: u8 = 8;
 pub const BOARD_SIZE: u8 = ROW_SIZE * ROW_SIZE;
@@ -88,6 +87,18 @@ impl Position {
 
     pub fn to_zobrist_hash(&self) -> ZobristHash {
         zobrist::zobrist_hash_position(&self)
+    }
+
+    pub fn legal_moves(&self) -> Vec<moves::Move> {
+        moves::legal_moves(&self, self.to_move)
+    }
+
+    pub fn make_move(&self, m: moves::Move) -> Position {
+        moves::make_move(&self, m)
+    }
+
+    pub fn is_check(&self, mid_castle_square: Option<Square>) -> bool {
+        moves::position_is_check(&self, self.to_move, mid_castle_square)
     }
 }
 

@@ -3,7 +3,7 @@ mod pvs;
 use crate::{
     evaluate::{piece_value, psqt::psqt_value, Score, MATE_LOWER, MATE_UPPER},
     position::{
-        moves::{position_is_check, Move},
+        moves::{position_is_check, Move, MoveFlags},
         Piece, Position,
     },
 };
@@ -21,7 +21,7 @@ impl Searcher {
 
     fn is_quiet_move(move_: &Move, position: &Position) -> bool {
         let promotion = move_.promotion.is_some();
-        let capture_piece = move_.capture
+        let capture_piece = move_.flags.contains(MoveFlags::CAPTURE)
             && match position.at(move_.to).unwrap() {
                 Piece::WP | Piece::BP => false,
                 _ => true,
@@ -38,7 +38,7 @@ impl Searcher {
 
         let moved_piece = position.at(move_.from).unwrap();
 
-        if move_.capture {
+        if move_.flags.contains(MoveFlags::CAPTURE) {
             let moved_piece_value = piece_value(moved_piece);
             let captured_piece_value = piece_value(position.at(move_.to).unwrap());
             let value_diff = 2 * captured_piece_value - moved_piece_value; // if negative, we're losing material

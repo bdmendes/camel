@@ -71,7 +71,7 @@ pub fn pvsearch(
         }
 
         // Search node
-        let new_position = make_move(position, &move_);
+        let new_position = make_move(position, move_);
         let res = pvsearch(
             searcher,
             &new_position,
