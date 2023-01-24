@@ -1,7 +1,7 @@
-pub const UP: i8 = 8;
-pub const DOWN: i8 = -8;
-pub const LEFT: i8 = -1;
-pub const RIGHT: i8 = 1;
+pub const UP: i64 = 8;
+pub const DOWN: i64 = -8;
+pub const LEFT: i64 = -1;
+pub const RIGHT: i64 = 1;
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -78,7 +78,7 @@ impl Piece {
         }
     }
 
-    pub fn unchecked_directions(&self) -> &'static [i8] {
+    pub fn unchecked_directions(&self) -> &'static [i64] {
         match self {
             Piece::WP => &[UP, UP + UP, UP + LEFT, UP + RIGHT],
             Piece::BP => &[DOWN, DOWN + DOWN, DOWN + LEFT, DOWN + RIGHT],
