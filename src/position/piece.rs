@@ -94,16 +94,9 @@ impl Piece {
                 2 * RIGHT + DOWN,
             ],
             Piece::WB | Piece::BB => vec![UP + LEFT, UP + RIGHT, DOWN + LEFT, DOWN + RIGHT],
-            Piece::WQ | Piece::BQ | Piece::WK | Piece::BK => vec![
-                UP,
-                DOWN,
-                LEFT,
-                RIGHT,
-                UP + LEFT,
-                UP + RIGHT,
-                DOWN + LEFT,
-                DOWN + RIGHT,
-            ],
+            Piece::WQ | Piece::BQ | Piece::WK | Piece::BK => {
+                vec![UP, DOWN, LEFT, RIGHT, UP + LEFT, UP + RIGHT, DOWN + LEFT, DOWN + RIGHT]
+            }
         }
     }
 

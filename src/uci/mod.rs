@@ -60,9 +60,7 @@ impl UCICommand {
 
 impl EngineState {
     pub fn new() -> Self {
-        Self {
-            _position: Position::new(),
-        }
+        Self { _position: Position::new() }
     }
 
     pub fn execute(&self, command: UCICommand) {

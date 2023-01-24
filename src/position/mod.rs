@@ -48,15 +48,11 @@ impl Square {
         let mut chars = algebraic.chars();
         let col = chars.next().unwrap_or('a') as u8 - ('a' as u8);
         let row = chars.next().unwrap_or('1') as u8 - ('1' as u8);
-        Square {
-            index: row * ROW_SIZE as u8 + col,
-        }
+        Square { index: row * ROW_SIZE as u8 + col }
     }
 
     pub fn from_row_col(row: u8, col: u8) -> Square {
-        Square {
-            index: row * ROW_SIZE + col,
-        }
+        Square { index: row * ROW_SIZE + col }
     }
 
     pub fn row(&self) -> u8 {

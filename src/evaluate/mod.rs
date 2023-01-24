@@ -5,7 +5,9 @@ use crate::position::{Color, Piece, Position, Square, BOARD_SIZE};
 use self::psqt::psqt_value;
 
 pub type Score = i32;
-pub type Evaluation = f32;
+
+pub const MATE_LOWER: Score = i32::MIN + 1;
+pub const MATE_UPPER: Score = i32::MAX;
 
 pub fn piece_value(piece: Piece) -> Score {
     // Values from https://github.com/official-stockfish/Stockfish/blob/master/src/types.h
@@ -33,7 +35,7 @@ fn piece_midgame_ratio_gain(piece: Piece) -> Score {
     }
 }
 
-pub fn evaluate_position(position: &Position) -> Evaluation {
+pub fn evaluate_position(position: &Position) -> Score {
     let mut score: Score = 0;
 
     // Count material and midgame ratio
@@ -47,17 +49,18 @@ pub fn evaluate_position(position: &Position) -> Evaluation {
                     Color::White => piece_value,
                     Color::Black => -piece_value,
                 };
-                midgame_ratio += piece_midgame_ratio_gain(piece) as u8;
+                midgame_ratio += piece_midgame_ratio_gain(piece);
             }
         }
     }
+    midgame_ratio = std::cmp::min(midgame_ratio, u8::MAX as Score);
 
     // Add positional score
     for index in 0..BOARD_SIZE {
         match position.at(Square { index }) {
             None => (),
             Some(piece) => {
-                let psqt_value = psqt_value(piece, Square { index }, 255 - midgame_ratio);
+                let psqt_value = psqt_value(piece, Square { index }, 255 - midgame_ratio as u8);
                 score += match piece.color() {
                     Color::White => psqt_value,
                     Color::Black => -psqt_value,
@@ -66,7 +69,7 @@ pub fn evaluate_position(position: &Position) -> Evaluation {
         }
     }
 
-    score as Evaluation / 100.0
+    score
 }
 
 #[cfg(test)]
@@ -76,7 +79,7 @@ mod tests {
     #[test]
     fn eval_starts_zero() {
         let position = Position::new();
-        assert_eq!(evaluate_position(&position), 0.0);
+        assert_eq!(evaluate_position(&position), 0);
     }
 
     #[test]
@@ -84,7 +87,7 @@ mod tests {
         let position =
             Position::from_fen("3r3k/1p1qQ1pp/p2P1n2/2p5/7B/P7/1P3PPP/4R1K1 w - - 5 26").unwrap();
         let evaluation = evaluate_position(&position);
-        assert!(evaluation > 1.0 && evaluation < 3.0);
+        assert!(evaluation > 100 && evaluation < 300);
     }
 
     #[test]

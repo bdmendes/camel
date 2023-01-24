@@ -1,60 +1,22 @@
 mod pvs;
 
-use std::collections::HashMap;
-
 use crate::{
-    evaluate::{piece_value, psqt::psqt_value, Evaluation, Score},
+    evaluate::{piece_value, psqt::psqt_value, Score, MATE_LOWER, MATE_UPPER},
     position::{
         moves::{position_is_check, Move},
-        zobrist::ZobristHash,
         Piece, Position,
     },
 };
 
 use self::pvs::pvsearch;
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum Bound {
-    Exact,
-    Lower,
-    Upper,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct BoundEvaluation {
-    pub evaluation: Evaluation,
-    pub bound: Bound,
-}
-
-impl BoundEvaluation {
-    pub fn new(evaluation: Evaluation, bound: Bound) -> BoundEvaluation {
-        BoundEvaluation { evaluation, bound }
-    }
-}
-
-impl std::fmt::Display for BoundEvaluation {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self.bound {
-            Bound::Exact => write!(f, "{}", self.evaluation),
-            Bound::Lower => write!(f, "≥{}", self.evaluation),
-            Bound::Upper => write!(f, "≤{}", self.evaluation),
-        }
-    }
-}
-
 #[allow(dead_code)]
-pub struct Searcher {
-    pub move_value_table: HashMap<(Move, ZobristHash), Score>,
-    pub position_value_table: HashMap<ZobristHash, (BoundEvaluation, u8)>,
-}
+pub struct Searcher {}
 
 #[allow(dead_code)]
 impl Searcher {
     pub fn new() -> Searcher {
-        Searcher {
-            move_value_table: HashMap::new(),
-            position_value_table: HashMap::new(),
-        }
+        Searcher {}
     }
 
     fn is_quiet_move(move_: &Move, position: &Position) -> bool {
@@ -67,11 +29,11 @@ impl Searcher {
         !promotion && !capture_piece
     }
 
-    fn move_heuristic_value(move_: &Move, position: &Position) -> Score {
+    fn move_heuristic_value(move_: Move, position: &Position) -> Score {
         let mut score: Score = 0;
 
         if move_.promotion.is_some() {
-            score += 3 * piece_value(move_.promotion.unwrap()); // usually ~2700 if queen
+            score += 4 * piece_value(move_.promotion.unwrap()); // usually ~3600 if queen
         }
 
         let moved_piece = position.at(move_.from).unwrap();
@@ -79,62 +41,75 @@ impl Searcher {
         if move_.capture {
             let moved_piece_value = piece_value(moved_piece);
             let captured_piece_value = piece_value(position.at(move_.to).unwrap());
-            let value_diff = captured_piece_value - moved_piece_value; // if negative, we're losing material
-            score += value_diff + piece_value(Piece::WQ); // [~100, ~2000]; equal trade is ~1000
+            let value_diff = 2 * captured_piece_value - moved_piece_value; // if negative, we're losing material
+            score += value_diff + piece_value(Piece::WQ); // [~1000, ~2800]
         }
 
         let start_psqt_value = psqt_value(moved_piece, move_.from, 0);
         let end_psqt_value = psqt_value(moved_piece, move_.to, 0);
         let psqt_value_diff = end_psqt_value - start_psqt_value;
-        score += psqt_value_diff as Score + 200; // [~0, ~400]
+        score += psqt_value_diff; // [~-200, ~200];
 
         score
     }
 
-    fn game_over_evaluation(position: &Position, moves: &Vec<Move>) -> Option<Evaluation> {
+    fn game_over_evaluation(position: &Position, moves: &Vec<Move>) -> Option<Score> {
         // Flag 50 move rule draws
         if position.half_move_number >= 100 {
-            return Some(0.0);
+            return Some(0);
         }
 
         // Stalemate and checkmate detection
         if moves.len() == 0 {
             let is_check = position_is_check(position, position.to_move, None);
             return match is_check {
-                true => Some(f32::MIN),
-                false => Some(0.0),
+                true => Some(MATE_LOWER),
+                false => Some(0),
             };
         }
 
         None
     }
 
-    fn ids(
-        &mut self,
-        position: &Position,
-        max_depth: u8,
-    ) -> (Vec<(Move, BoundEvaluation)>, BoundEvaluation) {
+    fn ids(&mut self, position: &Position, max_depth: u8) -> (Option<Move>, Score, usize) {
+        // TODO: implement iterative deepening
         for i in 1..=max_depth {
-            let (eval_moves, eval) = pvsearch(self, position, i, f32::MIN, f32::MAX, i, 10);
+            let (move_, eval, nodes) = pvsearch(self, position, i, MATE_LOWER, MATE_UPPER, i, 10);
             if i == max_depth {
-                return (eval_moves.unwrap_or(Vec::new()), eval);
+                return (move_, eval, nodes);
             }
         }
         unreachable!()
     }
 
-    pub fn search(
-        &mut self,
-        position: &Position,
-        depth: u8,
-    ) -> (Vec<(Move, BoundEvaluation)>, BoundEvaluation) {
-        self.ids(position, depth)
+    pub fn search(&mut self, position: &Position, depth: u8) -> (Option<Move>, Score) {
+        //let res = self.ids(position, depth);
+        let res = pvsearch(self, position, depth, MATE_LOWER, MATE_UPPER, depth, 10);
+        println!("searched: {}", res.2);
+        (res.0, res.1)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::position::moves::legal_moves;
+
     use super::*;
+
+    #[test]
+    fn mvv_lva_psqt_heuristic_value() {
+        let position = Position::from_fen(
+            "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+        )
+        .unwrap();
+        let mut moves = legal_moves(&position, position.to_move);
+        moves.sort_by(|a, b| {
+            Searcher::move_heuristic_value(*b, &position)
+                .cmp(&Searcher::move_heuristic_value(*a, &position))
+        });
+        assert_eq!(moves[0].to_string(), "e2a6"); // equal trade of piece
+        assert_eq!(moves[6].to_string(), "f3f6"); // queen for knight trade, after 2 pawn captures and 3 knight captures
+    }
 
     #[test]
     fn search_xray_check() {
@@ -142,9 +117,8 @@ mod tests {
         let position = Position::from_fen("7R/7p/8/3pR1pk/pr1P4/5P2/P6r/3K4 w - - 0 35").unwrap();
 
         let depth = 2; // quiet search should increase depth due to capture on leaf node
-        let (moves, _) = searcher.ids(&position, depth);
-
-        assert_eq!(moves[0].0.to_string(), "h8h7");
+        let (move_, _) = searcher.search(&position, depth);
+        assert_eq!(move_.unwrap().to_string(), "h8h7");
     }
 
     #[test]
@@ -155,9 +129,8 @@ mod tests {
                 .unwrap();
 
         let depth = 2; // quiet search should increase depth due to capture on leaf node
-        let (moves, _) = searcher.ids(&position, depth);
-
-        assert_eq!(moves[0].0.to_string(), "h3g3");
+        let (move_, _) = searcher.search(&position, depth);
+        assert_eq!(move_.unwrap().to_string(), "h3g3");
     }
 
     #[test]
@@ -166,9 +139,34 @@ mod tests {
         let position =
             Position::from_fen("q5k1/3R2pp/p3pp2/N1b5/4b3/2B2r2/6PP/4QB1K b - - 5 35").unwrap();
 
-        let depth = 5; // needed to find forcing combination
+        let depth = 2; // TODO: change to 5 after search is optimized
+        let (move_, _) = searcher.search(&position, depth);
+        assert_eq!(move_.unwrap().to_string(), "f3f2");
+    }
 
-        //let (moves, _) = searcher.iterative_deepening_search(&position, depth);
-        //assert_eq!(moves[0].0.to_string(), "f3f2");
+    #[test]
+    fn search_quickest_mate() {
+        let mut searcher = Searcher::new();
+        let position = Position::from_fen("8/k7/1pK5/8/8/8/5R2/8 w - - 0 1").unwrap();
+
+        // Find quickest mate with exact ply and extra ply too
+        for depth in [5, 6] {
+            let (move_, eval) = searcher.search(&position, depth);
+            assert_eq!(move_.unwrap().to_string(), "f2c2");
+            assert!(eval >= MATE_UPPER - depth as Score);
+        }
+    }
+
+    #[test]
+    fn search_forced_capture() {
+        let mut searcher = Searcher::new();
+        let position = Position::from_fen(
+            "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+        )
+        .unwrap();
+
+        let depth = 2; // TODO: Increase to 4 after search is optimized
+        let (move_, _) = searcher.search(&position, depth);
+        assert_eq!(move_.unwrap().to_string(), "e2a6");
     }
 }

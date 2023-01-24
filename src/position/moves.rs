@@ -15,7 +15,7 @@ const CASTLE_SQUARES: [[u8; 5]; 4] = [
 const WHITE_PROMOTIONS: [Piece; 4] = [Piece::WQ, Piece::WR, Piece::WB, Piece::WN];
 const BLACK_PROMOTIONS: [Piece; 4] = [Piece::BQ, Piece::BR, Piece::BB, Piece::BN];
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, Copy)]
 pub struct Move {
     pub from: Square,
     pub to: Square,
@@ -42,14 +42,7 @@ impl fmt::Display for Move {
 
 impl Move {
     pub fn new(from: Square, to: Square, capture: bool) -> Move {
-        Move {
-            from,
-            to,
-            capture,
-            enpassant: false,
-            castle: false,
-            promotion: None,
-        }
+        Move { from, to, capture, enpassant: false, castle: false, promotion: None }
     }
 }
 
@@ -136,11 +129,8 @@ fn pseudo_legal_moves_from_square(position: &Position, square: Square) -> Vec<Mo
             for move_ in &mut moves {
                 let row = move_.to.row();
                 if row == 0 || row == 7 {
-                    let promotion_pieces = if color == Color::White {
-                        WHITE_PROMOTIONS
-                    } else {
-                        BLACK_PROMOTIONS
-                    };
+                    let promotion_pieces =
+                        if color == Color::White { WHITE_PROMOTIONS } else { BLACK_PROMOTIONS };
                     move_.promotion = Some(promotion_pieces[0]);
                     for i in 1..4 {
                         let mut promotion_move = move_.clone();
@@ -163,11 +153,7 @@ fn pseudo_legal_moves_from_square(position: &Position, square: Square) -> Vec<Mo
 
             // Handle castling
             for squares in CASTLE_SQUARES {
-                let same_color_rook = if color == Color::White {
-                    Piece::WR
-                } else {
-                    Piece::BR
-                };
+                let same_color_rook = if color == Color::White { Piece::WR } else { Piece::BR };
                 if squares[4] >= BOARD_SIZE {
                     let can_castle_kingside = position.castling_rights
                         & (CastlingRights::WHITE_KINGSIDE | CastlingRights::BLACK_KINGSIDE);
@@ -243,9 +229,7 @@ pub fn legal_moves(position: &Position, to_move: Color) -> Vec<Move> {
                 if position_is_check(
                     position,
                     to_move,
-                    Some(Square {
-                        index: (move_.to.index + move_.from.index) / 2,
-                    }),
+                    Some(Square { index: (move_.to.index + move_.from.index) / 2 }),
                 ) {
                     return false;
                 }
@@ -287,7 +271,7 @@ pub fn position_is_check(
 }
 
 pub fn make_move(position: &Position, move_: &Move) -> Position {
-    let mut new_board = position.board.clone();
+    let mut new_board = position.board;
     new_board[move_.to.index as usize] = new_board[move_.from.index as usize];
     new_board[move_.from.index as usize] = None;
 
@@ -306,7 +290,7 @@ pub fn make_move(position: &Position, move_: &Move) -> Position {
     }
 
     // Castling
-    let mut new_castling_rights = position.castling_rights.clone();
+    let mut new_castling_rights = position.castling_rights;
     if move_.castle {
         if let Some(piece) = new_board[move_.to.index as usize] {
             if piece == Piece::WK || piece == Piece::BK {
@@ -373,9 +357,7 @@ pub fn make_move(position: &Position, move_: &Move) -> Position {
         en_passant_square: match position.at(move_.from).unwrap() {
             Piece::WP | Piece::BP => {
                 if (move_.to.index as i8 - move_.from.index as i8).abs() == 2 * UP {
-                    Some(Square {
-                        index: (move_.to.index + move_.from.index) / 2,
-                    })
+                    Some(Square { index: (move_.to.index + move_.from.index) / 2 })
                 } else {
                     None
                 }
@@ -443,14 +425,7 @@ mod tests {
 
         memo.insert(
             (zobrist_hash, current_depth),
-            (
-                count,
-                if current_depth == original_depth {
-                    res.to_vec()
-                } else {
-                    vec![]
-                },
-            ),
+            (count, if current_depth == original_depth { res.to_vec() } else { vec![] }),
         );
 
         (count, res)
@@ -485,38 +460,22 @@ mod tests {
 
     #[test]
     fn perft_gh_3() {
-        perft(
-            "r1bqkbnr/pppppppp/n7/8/8/P7/1PPPPPPP/RNBQKBNR w KQkq - 2 2",
-            1,
-            19,
-        );
+        perft("r1bqkbnr/pppppppp/n7/8/8/P7/1PPPPPPP/RNBQKBNR w KQkq - 2 2", 1, 19);
     }
 
     #[test]
     fn perft_gh_4() {
-        perft(
-            "2kr3r/p1ppqpb1/bn2Qnp1/3PN3/1p2P3/2N5/PPPBBPPP/R3K2R b KQ - 3 2",
-            1,
-            44,
-        );
+        perft("2kr3r/p1ppqpb1/bn2Qnp1/3PN3/1p2P3/2N5/PPPBBPPP/R3K2R b KQ - 3 2", 1, 44);
     }
 
     #[test]
     fn perft_gh_5() {
-        perft(
-            "2kr3r/p1ppqpb1/bn2Qnp1/3PN3/1p2P3/2N5/PPPBBPPP/R3K2R b KQ - 3 2",
-            1,
-            44,
-        );
+        perft("2kr3r/p1ppqpb1/bn2Qnp1/3PN3/1p2P3/2N5/PPPBBPPP/R3K2R b KQ - 3 2", 1, 44);
     }
 
     #[test]
     fn perft_gh_6() {
-        perft(
-            "rnb2k1r/pp1Pbppp/2p5/q7/2B5/8/PPPQNnPP/RNB1K2R w KQ - 3 9",
-            1,
-            39,
-        );
+        perft("rnb2k1r/pp1Pbppp/2p5/q7/2B5/8/PPPQNnPP/RNB1K2R w KQ - 3 9", 1, 39);
     }
 
     #[test]
@@ -526,20 +485,12 @@ mod tests {
 
     #[test]
     fn perft_gh_8() {
-        perft(
-            "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8",
-            3,
-            62379,
-        );
+        perft("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8", 3, 62379);
     }
 
     #[test]
     fn perft_gh_9() {
-        perft(
-            "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10",
-            3,
-            89890,
-        );
+        perft("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10", 3, 89890);
     }
 
     #[test]
