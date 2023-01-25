@@ -1,16 +1,16 @@
-use std::collections::HashMap;
-
 use crate::{
     evaluation::{
         evaluate_game_over, evaluate_move, evaluate_position, Score, MATE_LOWER, MATE_UPPER,
     },
     position::{moves::Move, zobrist::ZobristHash, Color, Position},
 };
+use std::collections::HashMap;
 
-const MAX_ITERATIVE_DEPTH: u8 = 25;
+const MAX_ITERATIVE_DEPTH: i8 = 20;
 const MAX_TABLE_SIZE: usize = 256_000_000;
+const MAX_QSEARCH_DEPTH: i8 = 10;
 
-pub type Depth = u8;
+pub type Depth = i8;
 
 struct SearchMemo {
     pub killer_moves: HashMap<ZobristHash, ([Option<Move>; 2], Depth, Score)>,
@@ -121,6 +121,7 @@ fn alphabeta(
     alpha: Score,
     beta: Score,
     memo: &mut SearchMemo,
+    qs_depth: Depth,
 ) -> (Option<Move>, Score, usize) {
     // Cleanup tables if they get too big
     memo.cleanup_tables();
@@ -138,12 +139,19 @@ fn alphabeta(
     }
 
     // Check for maximum depth
-    if depth == 0 {
-        let color_cof = match position.to_move {
-            Color::White => 1,
-            Color::Black => -1,
-        };
-        return (None, color_cof * evaluate_position(position), 1);
+    let mut quiet_search = false;
+    if depth <= 0 {
+        if qs_depth > 0 {
+            quiet_search = moves.iter().any(|mov| !mov.is_quiet(position));
+        }
+
+        if !quiet_search {
+            let color_cof = match position.to_move {
+                Color::White => 1,
+                Color::Black => -1,
+            };
+            return (None, color_cof * evaluate_position(position), 1);
+        }
     }
 
     // Sort moves by heuristic value + killer move + hash move
@@ -170,10 +178,22 @@ fn alphabeta(
     let mut best_score = alpha;
     let mut count = 0;
     for mov in &moves {
+        if quiet_search && mov.is_quiet(position) {
+            continue;
+        }
+
         let new_position = position.make_move(*mov);
-        let (_, score, nodes) = alphabeta(&new_position, depth - 1, -beta, -best_score, memo);
+        let (_, score, nodes) = alphabeta(
+            &new_position,
+            depth - 1,
+            -beta,
+            -best_score,
+            memo,
+            if quiet_search { qs_depth - 1 } else { qs_depth },
+        );
         let score = -score;
         count += nodes;
+
         if score > best_score {
             best_move = *mov;
             best_score = score;
@@ -192,7 +212,7 @@ fn alphabeta(
 }
 
 pub fn search(position: &Position, depth: Depth) -> (Option<Move>, Score, usize) {
-    alphabeta(position, depth, MATE_LOWER, MATE_UPPER, &mut SearchMemo::new())
+    alphabeta(position, depth, MATE_LOWER, MATE_UPPER, &mut SearchMemo::new(), MAX_QSEARCH_DEPTH)
 }
 
 pub fn search_iterative_deep(
@@ -202,7 +222,8 @@ pub fn search_iterative_deep(
     let mut memo = SearchMemo::new();
     let max_depth = depth.unwrap_or(MAX_ITERATIVE_DEPTH);
     for ply in 1..=max_depth {
-        let (mov, score, nodes) = alphabeta(position, ply, MATE_LOWER, MATE_UPPER, &mut memo);
+        let (mov, score, nodes) =
+            alphabeta(position, ply, MATE_LOWER, MATE_UPPER, &mut memo, MAX_QSEARCH_DEPTH);
         println!("{}: {} {} {}", ply, mov.unwrap(), score, nodes);
         if ply == max_depth {
             return (mov, score, nodes);
@@ -218,7 +239,7 @@ mod tests {
 
     fn test_search(
         fen: &str,
-        depth: u8,
+        depth: Depth,
         expected_move: &str,
         expected_lower_score: Option<Score>,
         expected_upper_score: Option<Score>,
@@ -267,7 +288,7 @@ mod tests {
     fn search_forced_capture() {
         test_search(
             "r2N2k1/p1R3pp/8/1pP5/1b2p1bP/4P3/4BPP1/3K3R b - - 0 24",
-            6,
+            5,
             "a8d8",
             None,
             None,

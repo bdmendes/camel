@@ -1,11 +1,9 @@
 pub mod psqt;
-
+use self::psqt::psqt_value;
 use crate::position::{
     moves::{Move, MoveFlags},
     Color, Piece, Position, Square, BOARD_SIZE,
 };
-
-use self::psqt::psqt_value;
 
 pub type Score = i32;
 
