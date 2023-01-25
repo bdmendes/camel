@@ -38,11 +38,24 @@ fn piece_midgame_ratio_gain(piece: Piece) -> Score {
     }
 }
 
-pub fn evaluate_move(move_: Move, position: &Position) -> Score {
+pub fn evaluate_move(
+    move_: Move,
+    position: &Position,
+    killer_move: bool,
+    hash_move: bool,
+) -> Score {
+    if hash_move {
+        return MATE_UPPER;
+    }
+
+    if killer_move {
+        return piece_value(Piece::WQ) + 1; // better than quiet moves, seemingly bad captures and promotions
+    }
+
     let mut score: Score = 0;
 
     if move_.promotion.is_some() {
-        score += 4 * piece_value(move_.promotion.unwrap()); // usually ~3600 if queen
+        score += piece_value(move_.promotion.unwrap());
     }
 
     let moved_piece = position.at(move_.from).unwrap();
@@ -50,14 +63,12 @@ pub fn evaluate_move(move_: Move, position: &Position) -> Score {
     if move_.flags.contains(MoveFlags::CAPTURE) {
         let moved_piece_value = piece_value(moved_piece);
         let captured_piece_value = piece_value(position.at(move_.to).unwrap());
-        let value_diff = 2 * captured_piece_value - moved_piece_value; // if negative, we're losing material
-        score += value_diff + piece_value(Piece::WQ); // [~1000, ~2800]
+        score = 2 * captured_piece_value - moved_piece_value + piece_value(Piece::WQ);
     }
 
     let start_psqt_value = psqt_value(moved_piece, move_.from, 0);
     let end_psqt_value = psqt_value(moved_piece, move_.to, 0);
-    let psqt_value_diff = end_psqt_value - start_psqt_value;
-    score += psqt_value_diff; // [~-200, ~200];
+    score += end_psqt_value - start_psqt_value;
 
     score
 }
@@ -128,7 +139,10 @@ mod tests {
         )
         .unwrap();
         let mut moves = position.legal_moves();
-        moves.sort_by(|a, b| evaluate_move(*b, &position).cmp(&evaluate_move(*a, &position)));
+        moves.sort_by(|a, b| {
+            evaluate_move(*b, &position, false, false)
+                .cmp(&evaluate_move(*a, &position, false, false))
+        });
         assert_eq!(moves[0].to_string(), "e2a6"); // equal trade of piece
         assert_eq!(moves[6].to_string(), "f3f6"); // queen for knight trade, after 2 pawn captures and 3 knight captures
     }

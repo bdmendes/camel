@@ -101,9 +101,6 @@ impl Piece {
     }
 
     pub fn is_crawling(&self) -> bool {
-        match self {
-            Piece::WP | Piece::BP | Piece::WK | Piece::BK | Piece::WN | Piece::BN => false,
-            _ => true,
-        }
+        !matches!(self, Piece::WP | Piece::BP | Piece::WK | Piece::BK | Piece::WN | Piece::BN)
     }
 }

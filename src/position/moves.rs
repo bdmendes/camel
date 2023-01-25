@@ -49,6 +49,12 @@ impl Move {
     pub fn new(from: Square, to: Square, flags: MoveFlags) -> Move {
         Move { from, to, flags, promotion: None }
     }
+
+    pub fn is_quiet(&self, position: &Position) -> bool {
+        let captured_piece = self.flags.contains(MoveFlags::CAPTURE)
+            && !matches!(position.at(self.to).unwrap(), Piece::WP | Piece::BP);
+        !captured_piece && self.promotion.is_none()
+    }
 }
 
 fn generate_regular_moves_from_square(
@@ -355,10 +361,8 @@ pub fn make_move(position: &Position, move_: Move) -> Position {
             _ => None,
         },
         half_move_number: if move_.flags.contains(MoveFlags::CAPTURE)
-            || match position.at(move_.from).unwrap() {
-                Piece::WP | Piece::BP => true,
-                _ => false,
-            } {
+            || matches!(position.at(move_.from).unwrap(), Piece::WP | Piece::BP)
+        {
             0
         } else {
             position.half_move_number + 1
