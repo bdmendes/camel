@@ -1,6 +1,9 @@
 pub mod psqt;
 
-use crate::position::{Color, Piece, Position, Square, BOARD_SIZE};
+use crate::position::{
+    moves::{Move, MoveFlags},
+    Color, Piece, Position, Square, BOARD_SIZE,
+};
 
 use self::psqt::psqt_value;
 
@@ -9,7 +12,7 @@ pub type Score = i32;
 pub const MATE_LOWER: Score = i32::MIN + 1;
 pub const MATE_UPPER: Score = i32::MAX;
 
-pub fn piece_value(piece: Piece) -> Score {
+fn piece_value(piece: Piece) -> Score {
     // Values from https://github.com/official-stockfish/Stockfish/blob/master/src/types.h
     match piece {
         Piece::WP | Piece::BP => 100,
@@ -33,6 +36,48 @@ fn piece_midgame_ratio_gain(piece: Piece) -> Score {
         Piece::WQ | Piece::BQ => 39,
         _ => 0,
     }
+}
+
+pub fn evaluate_move(move_: Move, position: &Position) -> Score {
+    let mut score: Score = 0;
+
+    if move_.promotion.is_some() {
+        score += 4 * piece_value(move_.promotion.unwrap()); // usually ~3600 if queen
+    }
+
+    let moved_piece = position.at(move_.from).unwrap();
+
+    if move_.flags.contains(MoveFlags::CAPTURE) {
+        let moved_piece_value = piece_value(moved_piece);
+        let captured_piece_value = piece_value(position.at(move_.to).unwrap());
+        let value_diff = 2 * captured_piece_value - moved_piece_value; // if negative, we're losing material
+        score += value_diff + piece_value(Piece::WQ); // [~1000, ~2800]
+    }
+
+    let start_psqt_value = psqt_value(moved_piece, move_.from, 0);
+    let end_psqt_value = psqt_value(moved_piece, move_.to, 0);
+    let psqt_value_diff = end_psqt_value - start_psqt_value;
+    score += psqt_value_diff; // [~-200, ~200];
+
+    score
+}
+
+pub fn evaluate_game_over(position: &Position, moves: &Vec<Move>) -> Option<Score> {
+    // Flag 50 move rule draws
+    if position.half_move_number >= 100 {
+        return Some(0);
+    }
+
+    // Stalemate and checkmate detection
+    if moves.len() == 0 {
+        let is_check = position.is_check(None);
+        return match is_check {
+            true => Some(MATE_LOWER),
+            false => Some(0),
+        };
+    }
+
+    None
 }
 
 pub fn evaluate_position(position: &Position) -> Score {
@@ -75,6 +120,30 @@ pub fn evaluate_position(position: &Position) -> Score {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn eval_move_heuristic_value() {
+        let position = Position::from_fen(
+            "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+        )
+        .unwrap();
+        let mut moves = position.legal_moves();
+        moves.sort_by(|a, b| evaluate_move(*b, &position).cmp(&evaluate_move(*a, &position)));
+        assert_eq!(moves[0].to_string(), "e2a6"); // equal trade of piece
+        assert_eq!(moves[6].to_string(), "f3f6"); // queen for knight trade, after 2 pawn captures and 3 knight captures
+    }
+
+    #[test]
+    fn eval_checkmate() {
+        let position = Position::from_fen("2k3R1/7R/8/8/8/4K3/8/8 b - - 0 1").unwrap();
+        assert_eq!(evaluate_game_over(&position, &position.legal_moves()).unwrap(), MATE_LOWER);
+    }
+
+    #[test]
+    fn eval_stalemate() {
+        let position = Position::from_fen("8/8/8/8/8/6Q1/8/4K2k b - - 0 1").unwrap();
+        assert_eq!(evaluate_game_over(&position, &position.legal_moves()).unwrap(), 0);
+    }
 
     #[test]
     fn eval_starts_zero() {
