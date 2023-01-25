@@ -9,6 +9,7 @@ use std::collections::HashMap;
 const MAX_ITERATIVE_DEPTH: i8 = 20;
 const MAX_TABLE_SIZE: usize = 256_000_000;
 const MAX_QSEARCH_DEPTH: i8 = 10;
+const MAX_DURATION_PER_MOVE: std::time::Duration = std::time::Duration::from_secs(30);
 
 pub type Depth = i8;
 
@@ -16,14 +17,18 @@ struct SearchMemo {
     pub killer_moves: HashMap<ZobristHash, ([Option<Move>; 2], Depth, Score)>,
     pub hash_move: HashMap<ZobristHash, (Move, Depth)>,
     pub transposition_table: HashMap<ZobristHash, (Option<Move>, Score, Depth)>,
+    pub initial_instant: std::time::Instant,
+    pub duration: std::time::Duration,
 }
 
 impl SearchMemo {
-    fn new() -> Self {
+    fn new(duration: Option<std::time::Duration>) -> Self {
         Self {
             killer_moves: HashMap::new(),
             hash_move: HashMap::new(),
             transposition_table: HashMap::new(),
+            initial_instant: std::time::Instant::now(),
+            duration: duration.unwrap_or(MAX_DURATION_PER_MOVE),
         }
     }
 
@@ -123,6 +128,11 @@ fn alphabeta(
     memo: &mut SearchMemo,
     qs_depth: Depth,
 ) -> (Option<Move>, Score, usize) {
+    // Check if time is over
+    if memo.initial_instant.elapsed() > memo.duration {
+        return (None, alpha, 1);
+    }
+
     // Cleanup tables if they get too big
     memo.cleanup_tables();
 
@@ -212,23 +222,39 @@ fn alphabeta(
 }
 
 pub fn search(position: &Position, depth: Depth) -> (Option<Move>, Score, usize) {
-    alphabeta(position, depth, MATE_LOWER, MATE_UPPER, &mut SearchMemo::new(), MAX_QSEARCH_DEPTH)
+    alphabeta(
+        position,
+        depth,
+        MATE_LOWER,
+        MATE_UPPER,
+        &mut SearchMemo::new(None),
+        MAX_QSEARCH_DEPTH,
+    )
 }
 
 pub fn search_iterative_deep(
     position: &Position,
     depth: Option<Depth>,
+    duration: Option<std::time::Duration>,
 ) -> (Option<Move>, Score, usize) {
-    let mut memo = SearchMemo::new();
     let max_depth = depth.unwrap_or(MAX_ITERATIVE_DEPTH);
+    let mut memo = SearchMemo::new(duration);
+
     for ply in 1..=max_depth {
         let (mov, score, nodes) =
             alphabeta(position, ply, MATE_LOWER, MATE_UPPER, &mut memo, MAX_QSEARCH_DEPTH);
+
+        if ply > 1 && memo.initial_instant.elapsed() > memo.duration {
+            return (mov, score, nodes);
+        }
+
         println!("{}: {} {} {}", ply, mov.unwrap(), score, nodes);
+
         if ply == max_depth {
             return (mov, score, nodes);
         }
     }
+
     unreachable!()
 }
 
@@ -260,7 +286,7 @@ mod tests {
         }
 
         let now = std::time::Instant::now();
-        let (mov, score, nodes) = search_iterative_deep(&position, Some(depth));
+        let (mov, score, nodes) = search_iterative_deep(&position, Some(depth), None);
         let elapsed = now.elapsed().as_millis();
         println!("[iterative] {}: {} nodes in {} ms at depth {}", fen, nodes, elapsed, depth);
 
