@@ -1,6 +1,7 @@
 use super::*;
 
-pub const START_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+pub const START_FEN: &str =
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 pub fn position_from_fen(fen: &str) -> Result<Position, String> {
     let mut position = Position {
@@ -36,7 +37,8 @@ pub fn position_from_fen(fen: &str) -> Result<Position, String> {
                     Ok(piece) => piece,
                     Err(msg) => return Err(msg),
                 };
-                position.board[Square::from_row_col(row, col).index] = Some(piece);
+                position.board[Square::from_row_col(row, col).index] =
+                    Some(piece);
                 col += 1;
             }
         }
@@ -161,7 +163,8 @@ mod tests {
 
     #[test]
     fn fen_midgame() {
-        let midgame_fen = "r4rk1/pp1q1ppp/2n2b2/3Q4/8/2N5/PPP2PPP/R3K1NR b KQ - 0 14";
+        let midgame_fen =
+            "r4rk1/pp1q1ppp/2n2b2/3Q4/8/2N5/PPP2PPP/R3K1NR b KQ - 0 14";
         let position = position_from_fen(midgame_fen).unwrap();
         assert_eq!(position_to_fen(&position, false), midgame_fen);
 

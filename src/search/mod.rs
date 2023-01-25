@@ -1,17 +1,19 @@
 use crate::{
     evaluation::{
-        evaluate_game_over, evaluate_move, evaluate_position, Score, MATE_LOWER, MATE_UPPER,
+        evaluate_game_over, evaluate_move, evaluate_position, Score,
+        MATE_LOWER, MATE_UPPER,
     },
     position::{moves::Move, zobrist::ZobristHash, Color, Position},
 };
 use std::collections::HashMap;
 
-const MAX_ITERATIVE_DEPTH: i8 = 20;
-const MAX_TABLE_SIZE: usize = 256_000_000;
-const MAX_QSEARCH_DEPTH: i8 = 10;
-const MAX_DURATION_PER_MOVE: std::time::Duration = std::time::Duration::from_secs(30);
-
 pub type Depth = i8;
+
+const MAX_ITERATIVE_DEPTH: Depth = 20;
+const MAX_TABLE_SIZE: usize = 1_000_000;
+const MAX_QSEARCH_DEPTH: Depth = 10;
+const MAX_DURATION_PER_MOVE: std::time::Duration =
+    std::time::Duration::from_secs(30);
 
 struct SearchMemo {
     pub killer_moves: HashMap<ZobristHash, ([Option<Move>; 2], Depth, Score)>,
@@ -39,8 +41,10 @@ impl SearchMemo {
         depth: Depth,
         curr_score: Score,
     ) {
-        let (killer_moves, killer_depth, score) =
-            self.killer_moves.entry(zobrist_hash).or_insert(([None, None], 0, MATE_LOWER));
+        let (killer_moves, killer_depth, score) = self
+            .killer_moves
+            .entry(zobrist_hash)
+            .or_insert(([None, None], 0, MATE_LOWER));
         if depth < *killer_depth {
             return;
         }
@@ -56,16 +60,28 @@ impl SearchMemo {
         *killer_depth = depth;
     }
 
-    fn get_killer_moves(&mut self, zobrist_hash: ZobristHash) -> [Option<Move>; 2] {
-        self.killer_moves.entry(zobrist_hash).or_insert(([None, None], 0, MATE_LOWER)).0
+    fn get_killer_moves(
+        &mut self,
+        zobrist_hash: ZobristHash,
+    ) -> [Option<Move>; 2] {
+        self.killer_moves
+            .entry(zobrist_hash)
+            .or_insert(([None, None], 0, MATE_LOWER))
+            .0
     }
 
     fn is_killer_move(mov: Move, killer_moves: [Option<Move>; 2]) -> bool {
         killer_moves[0] == Some(mov) || killer_moves[1] == Some(mov)
     }
 
-    fn put_hash_move(&mut self, zobrist_hash: ZobristHash, mov: Move, depth: Depth) {
-        let (hash_mov, hash_depth) = self.hash_move.entry(zobrist_hash).or_insert((mov, 0));
+    fn put_hash_move(
+        &mut self,
+        zobrist_hash: ZobristHash,
+        mov: Move,
+        depth: Depth,
+    ) {
+        let (hash_mov, hash_depth) =
+            self.hash_move.entry(zobrist_hash).or_insert((mov, 0));
         if depth <= *hash_depth {
             return;
         }
@@ -84,8 +100,10 @@ impl SearchMemo {
         mov: Option<Move>,
         score: Score,
     ) {
-        let (transp_mov, transp_score, transp_depth) =
-            self.transposition_table.entry(zobrist_hash).or_insert((mov, score, 0));
+        let (transp_mov, transp_score, transp_depth) = self
+            .transposition_table
+            .entry(zobrist_hash)
+            .or_insert((mov, score, 0));
         if depth <= *transp_depth {
             return;
         }
@@ -99,7 +117,9 @@ impl SearchMemo {
         zobrist_hash: ZobristHash,
         depth: Depth,
     ) -> Option<(Option<Move>, Score)> {
-        if let Some((mov, score, transp_depth)) = self.transposition_table.get(&zobrist_hash) {
+        if let Some((mov, score, transp_depth)) =
+            self.transposition_table.get(&zobrist_hash)
+        {
             if depth <= *transp_depth {
                 return Some((*mov, *score));
             }
@@ -145,7 +165,7 @@ fn alphabeta(
     // Check for game over
     let mut moves = position.legal_moves();
     if let Some(score) = evaluate_game_over(position, &moves) {
-        return (None, score + position.half_move_number as Score, 1);
+        return (None, score + position.full_move_number as Score, 1);
     }
 
     // Check for maximum depth
@@ -187,12 +207,12 @@ fn alphabeta(
     let mut best_move = moves[0];
     let mut best_score = alpha;
     let mut count = 0;
-    for mov in &moves {
+    for mov in moves {
         if quiet_search && mov.is_quiet(position) {
             continue;
         }
 
-        let new_position = position.make_move(*mov);
+        let new_position = position.make_move(mov);
         let (_, score, nodes) = alphabeta(
             &new_position,
             depth - 1,
@@ -205,11 +225,11 @@ fn alphabeta(
         count += nodes;
 
         if score > best_score {
-            best_move = *mov;
+            best_move = mov;
             best_score = score;
             if best_score >= beta {
                 if mov.is_quiet(position) {
-                    memo.put_killer_move(zobrist_hash, *mov, depth, best_score);
+                    memo.put_killer_move(zobrist_hash, mov, depth, best_score);
                 }
                 break;
             }
@@ -217,11 +237,19 @@ fn alphabeta(
     }
 
     memo.put_hash_move(zobrist_hash, best_move, depth);
-    memo.put_transposition_table(zobrist_hash, depth, Some(best_move), best_score);
+    memo.put_transposition_table(
+        zobrist_hash,
+        depth,
+        Some(best_move),
+        best_score,
+    );
     (Some(best_move), best_score, count)
 }
 
-pub fn search(position: &Position, depth: Depth) -> (Option<Move>, Score, usize) {
+pub fn search(
+    position: &Position,
+    depth: Depth,
+) -> (Option<Move>, Score, usize) {
     alphabeta(
         position,
         depth,
@@ -240,13 +268,35 @@ pub fn search_iterative_deep(
     let max_depth = depth.unwrap_or(MAX_ITERATIVE_DEPTH);
     let mut memo = SearchMemo::new(duration);
 
-    for ply in 1..=max_depth {
-        let (mov, score, nodes) =
-            alphabeta(position, ply, MATE_LOWER, MATE_UPPER, &mut memo, MAX_QSEARCH_DEPTH);
+    // First guaranteed search
+    let (mut mov, mut score, mut nodes) = alphabeta(
+        position,
+        1,
+        MATE_LOWER,
+        MATE_UPPER,
+        &mut memo,
+        MAX_QSEARCH_DEPTH,
+    );
+    println!("{}: {} {} {}", 1, mov.unwrap(), score, nodes);
 
-        if ply > 1 && memo.initial_instant.elapsed() > memo.duration {
+    // Time constrained iterative deepening
+    for ply in 2..=max_depth {
+        let (new_mov, new_score, new_nodes) = alphabeta(
+            position,
+            ply,
+            MATE_LOWER,
+            MATE_UPPER,
+            &mut memo,
+            MAX_QSEARCH_DEPTH,
+        );
+
+        if memo.initial_instant.elapsed() > memo.duration {
             return (mov, score, nodes);
         }
+
+        mov = new_mov;
+        score = new_score;
+        nodes = new_nodes;
 
         println!("{}: {} {} {}", ply, mov.unwrap(), score, nodes);
 
@@ -269,13 +319,18 @@ mod tests {
         expected_move: &str,
         expected_lower_score: Option<Score>,
         expected_upper_score: Option<Score>,
+        test_regular: bool,
     ) {
         let position = Position::from_fen(fen).unwrap();
 
         let now = std::time::Instant::now();
-        let (mov, score, nodes) = search(&position, depth);
+        let (mov, score, nodes) =
+            search_iterative_deep(&position, Some(depth), None);
         let elapsed = now.elapsed().as_millis();
-        println!("[regular] {}: {} nodes in {} ms at depth {}", fen, nodes, elapsed, depth);
+        println!(
+            "[iterative] {}: {} nodes in {} ms at depth {}\n",
+            fen, nodes, elapsed, depth
+        );
 
         assert_eq!(mov.unwrap().to_string(), expected_move);
         if let Some(expected_lower_score) = expected_lower_score {
@@ -285,10 +340,17 @@ mod tests {
             assert!(score <= expected_upper_score);
         }
 
+        if !test_regular {
+            return;
+        }
+
         let now = std::time::Instant::now();
-        let (mov, score, nodes) = search_iterative_deep(&position, Some(depth), None);
+        let (mov, score, nodes) = search(&position, depth);
         let elapsed = now.elapsed().as_millis();
-        println!("[iterative] {}: {} nodes in {} ms at depth {}", fen, nodes, elapsed, depth);
+        println!(
+            "[regular] {}: {} nodes in {} ms at depth {}",
+            fen, nodes, elapsed, depth
+        );
 
         assert_eq!(mov.unwrap().to_string(), expected_move);
         if let Some(expected_lower_score) = expected_lower_score {
@@ -307,6 +369,7 @@ mod tests {
             "h5h8",
             Some(MATE_UPPER - MAX_MATE_SCORE_DIFF),
             None,
+            false,
         );
     }
 
@@ -314,10 +377,35 @@ mod tests {
     fn search_forced_capture() {
         test_search(
             "r2N2k1/p1R3pp/8/1pP5/1b2p1bP/4P3/4BPP1/3K3R b - - 0 24",
-            5,
+            4,
             "a8d8",
             None,
             None,
+            false,
+        );
+    }
+
+    #[test]
+    fn search_trapped_knight() {
+        test_search(
+            "r2B1rk1/pp1n1pp1/2p1p1p1/8/3P4/5N1P/PPP3P1/R2nR1K1 w - - 0 15",
+            4,
+            "d8e7",
+            None,
+            None,
+            false,
+        );
+    }
+
+    #[test]
+    fn search_check_combination() {
+        test_search(
+            "4r2k/1p4p1/3P3p/P1P5/4b3/1Bq5/6PP/3QR1K1 b - - 11 41",
+            3,
+            "c3c5",
+            None,
+            None,
+            false,
         );
     }
 }

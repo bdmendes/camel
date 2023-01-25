@@ -106,7 +106,8 @@ pub fn psqt_value(piece: Piece, square: Square, endgame_ratio: u8) -> Score {
     if endgame_ratio == 0 || midgame_value == endgame_value {
         midgame_value
     } else {
-        ((midgame_value * (255 - endgame_ratio) as i32) + (endgame_value * endgame_ratio as i32))
+        ((midgame_value * (255 - endgame_ratio) as i32)
+            + (endgame_value * endgame_ratio as i32))
             / 255
     }
 }

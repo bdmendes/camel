@@ -11,8 +11,10 @@ const CASTLE_SQUARES: [[usize; 5]; 4] = [
     [60, 61, 62, 63, BOARD_SIZE], // Black kingside
     [60, 59, 58, 57, 56],         // Black queenside
 ];
-const WHITE_PROMOTIONS: [Piece; 4] = [Piece::WQ, Piece::WR, Piece::WB, Piece::WN];
-const BLACK_PROMOTIONS: [Piece; 4] = [Piece::BQ, Piece::BR, Piece::BB, Piece::BN];
+const WHITE_PROMOTIONS: [Piece; 4] =
+    [Piece::WQ, Piece::WR, Piece::WB, Piece::WN];
+const BLACK_PROMOTIONS: [Piece; 4] =
+    [Piece::BQ, Piece::BR, Piece::BB, Piece::BN];
 
 bitflags! {
     pub struct MoveFlags: u8 {
@@ -38,7 +40,8 @@ impl fmt::Display for Move {
             self.from.to_algebraic(),
             self.to.to_algebraic(),
             match self.promotion {
-                Some(promotion) => promotion.to_char().to_string().to_lowercase(),
+                Some(promotion) =>
+                    promotion.to_char().to_string().to_lowercase(),
                 None => "".to_owned(),
             }
         )
@@ -65,8 +68,11 @@ fn generate_regular_moves_from_square(
     let piece = position.at(square).unwrap();
     let color = piece.color();
     let crawls = piece.is_crawling();
-    let mut moves =
-        Vec::with_capacity(if crawls { directions.len() * 4 } else { directions.len() });
+    let mut moves = Vec::with_capacity(if crawls {
+        directions.len() * 4
+    } else {
+        directions.len()
+    });
 
     for offset in directions {
         let mut current_offset = *offset;
@@ -75,21 +81,30 @@ fn generate_regular_moves_from_square(
         loop {
             let to_index = (square.index as i64 + current_offset) as usize;
             let current_col = (to_index % ROW_SIZE) as i64;
-            let out_of_bounds = to_index >= BOARD_SIZE || (current_col - last_column).abs() > 2;
+            let out_of_bounds =
+                to_index >= BOARD_SIZE || (current_col - last_column).abs() > 2;
             if out_of_bounds {
                 break;
             }
 
             let to_piece = position.board[to_index];
             if to_piece.is_none() {
-                moves.push(Move::new(square, Square { index: to_index }, MoveFlags::empty()));
+                moves.push(Move::new(
+                    square,
+                    Square { index: to_index },
+                    MoveFlags::empty(),
+                ));
                 if crawls {
                     last_column = current_col;
                     current_offset += offset;
                     continue;
                 }
             } else if to_piece.unwrap().color() != color {
-                moves.push(Move::new(square, Square { index: to_index }, MoveFlags::CAPTURE));
+                moves.push(Move::new(
+                    square,
+                    Square { index: to_index },
+                    MoveFlags::CAPTURE,
+                ));
             }
             break;
         }
@@ -97,17 +112,24 @@ fn generate_regular_moves_from_square(
     moves
 }
 
-fn pseudo_legal_moves_from_square(position: &Position, square: Square) -> Vec<Move> {
+fn pseudo_legal_moves_from_square(
+    position: &Position,
+    square: Square,
+) -> Vec<Move> {
     let piece = position.at(square).unwrap();
     let color = piece.color();
     match piece {
         Piece::WP | Piece::BP => {
-            let mut moves =
-                generate_regular_moves_from_square(position, square, piece.unchecked_directions());
+            let mut moves = generate_regular_moves_from_square(
+                position,
+                square,
+                piece.unchecked_directions(),
+            );
 
             // Do not advance if there is a piece in front; do not capture if there is no piece
             moves.retain(|move_| {
-                let index_diff = (move_.to.index as i64 - move_.from.index as i64).abs();
+                let index_diff =
+                    (move_.to.index as i64 - move_.from.index as i64).abs();
                 if index_diff == UP {
                     !move_.flags.contains(MoveFlags::CAPTURE)
                 } else if index_diff == UP + UP {
@@ -123,7 +145,9 @@ fn pseudo_legal_moves_from_square(position: &Position, square: Square) -> Vec<Mo
                 } else {
                     move_.flags.contains(MoveFlags::CAPTURE)
                         || match position.en_passant_square {
-                            Some(en_passant_square) => move_.to == en_passant_square,
+                            Some(en_passant_square) => {
+                                move_.to == en_passant_square
+                            }
                             None => false,
                         }
                 }
@@ -135,9 +159,13 @@ fn pseudo_legal_moves_from_square(position: &Position, square: Square) -> Vec<Mo
                 let mut move_ = &mut moves[i];
                 let row = move_.to.row();
                 if row == 0 || row == 7 {
-                    let mut under_promotion_moves = Vec::<Move>::with_capacity(3);
-                    let promotion_pieces =
-                        if color == Color::White { WHITE_PROMOTIONS } else { BLACK_PROMOTIONS };
+                    let mut under_promotion_moves =
+                        Vec::<Move>::with_capacity(3);
+                    let promotion_pieces = if color == Color::White {
+                        WHITE_PROMOTIONS
+                    } else {
+                        BLACK_PROMOTIONS
+                    };
                     move_.promotion = Some(promotion_pieces[0]);
                     for i in 1..4 {
                         let promotion_move = Move {
@@ -149,7 +177,9 @@ fn pseudo_legal_moves_from_square(position: &Position, square: Square) -> Vec<Mo
                         under_promotion_moves.push(promotion_move);
                     }
                     moves.extend(under_promotion_moves);
-                } else if let Some(en_passant_square) = position.en_passant_square {
+                } else if let Some(en_passant_square) =
+                    position.en_passant_square
+                {
                     if move_.to == en_passant_square {
                         move_.flags |= MoveFlags::ENPASSANT;
                     }
@@ -159,17 +189,28 @@ fn pseudo_legal_moves_from_square(position: &Position, square: Square) -> Vec<Mo
             moves
         }
         Piece::WK | Piece::BK => {
-            let mut moves =
-                generate_regular_moves_from_square(position, square, piece.unchecked_directions());
+            let mut moves = generate_regular_moves_from_square(
+                position,
+                square,
+                piece.unchecked_directions(),
+            );
 
             // Handle castling
             for i in 0..4 {
                 // Check castle rights
                 let can_castle = match i {
-                    0 => position.castling_rights.contains(CastlingRights::WHITE_KINGSIDE),
-                    1 => position.castling_rights.contains(CastlingRights::WHITE_QUEENSIDE),
-                    2 => position.castling_rights.contains(CastlingRights::BLACK_KINGSIDE),
-                    3 => position.castling_rights.contains(CastlingRights::BLACK_QUEENSIDE),
+                    0 => position
+                        .castling_rights
+                        .contains(CastlingRights::WHITE_KINGSIDE),
+                    1 => position
+                        .castling_rights
+                        .contains(CastlingRights::WHITE_QUEENSIDE),
+                    2 => position
+                        .castling_rights
+                        .contains(CastlingRights::BLACK_KINGSIDE),
+                    3 => position
+                        .castling_rights
+                        .contains(CastlingRights::BLACK_QUEENSIDE),
                     _ => unreachable!(),
                 };
                 if !can_castle {
@@ -181,17 +222,22 @@ fn pseudo_legal_moves_from_square(position: &Position, square: Square) -> Vec<Mo
                 if squares[0] != square.index {
                     continue;
                 }
-                if position.board[squares[1]].is_some() || position.board[squares[2]].is_some() {
+                if position.board[squares[1]].is_some()
+                    || position.board[squares[2]].is_some()
+                {
                     continue;
                 }
-                let same_color_rook = if color == Color::White { Piece::WR } else { Piece::BR };
+                let same_color_rook =
+                    if color == Color::White { Piece::WR } else { Piece::BR };
                 let kingside = i == 0 || i == 2;
                 if !kingside {
                     if let Some(_) = position.board[squares[3]] {
                         continue;
                     }
                 }
-                if let Some(to_piece) = position.board[squares[3 + if kingside { 0 } else { 1 }]] {
+                if let Some(to_piece) =
+                    position.board[squares[3 + if kingside { 0 } else { 1 }]]
+                {
                     if to_piece != same_color_rook {
                         continue;
                     }
@@ -209,7 +255,11 @@ fn pseudo_legal_moves_from_square(position: &Position, square: Square) -> Vec<Mo
 
             moves
         }
-        _ => generate_regular_moves_from_square(position, square, piece.unchecked_directions()),
+        _ => generate_regular_moves_from_square(
+            position,
+            square,
+            piece.unchecked_directions(),
+        ),
     }
 }
 
@@ -220,7 +270,8 @@ pub fn pseudo_legal_moves(position: &Position, to_move: Color) -> Vec<Move> {
         if piece.is_none() || piece.unwrap().color() != to_move {
             continue;
         }
-        moves.extend(pseudo_legal_moves_from_square(position, Square { index }));
+        moves
+            .extend(pseudo_legal_moves_from_square(position, Square { index }));
     }
     moves
 }
@@ -230,7 +281,9 @@ pub fn legal_moves(position: &Position, to_move: Color) -> Vec<Move> {
 
     moves.retain(|move_| {
         let piece = position.at(move_.from).unwrap();
-        if (piece == Piece::WK || piece == Piece::BK) && move_.flags.contains(MoveFlags::CASTLE) {
+        if (piece == Piece::WK || piece == Piece::BK)
+            && move_.flags.contains(MoveFlags::CASTLE)
+        {
             if position_is_check(
                 position,
                 to_move,
@@ -298,8 +351,8 @@ pub fn make_move(position: &Position, move_: Move) -> Position {
     let piece = position.at(move_.from).unwrap();
     if move_.flags.contains(MoveFlags::CASTLE) {
         if piece == Piece::WK {
-            new_castling_rights &=
-                !(CastlingRights::WHITE_KINGSIDE | CastlingRights::WHITE_QUEENSIDE);
+            new_castling_rights &= !(CastlingRights::WHITE_KINGSIDE
+                | CastlingRights::WHITE_QUEENSIDE);
             if move_.to.index == 6 {
                 new_board[5] = new_board[7];
                 new_board[7] = None;
@@ -308,8 +361,8 @@ pub fn make_move(position: &Position, move_: Move) -> Position {
                 new_board[0] = None;
             }
         } else if piece == Piece::BK {
-            new_castling_rights &=
-                !(CastlingRights::BLACK_KINGSIDE | CastlingRights::BLACK_QUEENSIDE);
+            new_castling_rights &= !(CastlingRights::BLACK_KINGSIDE
+                | CastlingRights::BLACK_QUEENSIDE);
             if move_.to.index == 62 {
                 new_board[61] = new_board[63];
                 new_board[63] = None;
@@ -321,12 +374,12 @@ pub fn make_move(position: &Position, move_: Move) -> Position {
     } else {
         match piece {
             Piece::WK => {
-                new_castling_rights &=
-                    !(CastlingRights::WHITE_KINGSIDE | CastlingRights::WHITE_QUEENSIDE);
+                new_castling_rights &= !(CastlingRights::WHITE_KINGSIDE
+                    | CastlingRights::WHITE_QUEENSIDE);
             }
             Piece::BK => {
-                new_castling_rights &=
-                    !(CastlingRights::BLACK_KINGSIDE | CastlingRights::BLACK_QUEENSIDE);
+                new_castling_rights &= !(CastlingRights::BLACK_KINGSIDE
+                    | CastlingRights::BLACK_QUEENSIDE);
             }
             Piece::WR => {
                 if move_.from.index == 0 {
@@ -352,8 +405,12 @@ pub fn make_move(position: &Position, move_: Move) -> Position {
         castling_rights: new_castling_rights,
         en_passant_square: match position.at(move_.from).unwrap() {
             Piece::WP | Piece::BP => {
-                if (move_.to.index as i64 - move_.from.index as i64).abs() == 2 * UP {
-                    Some(Square { index: (move_.to.index + move_.from.index) / 2 })
+                if (move_.to.index as i64 - move_.from.index as i64).abs()
+                    == 2 * UP
+                {
+                    Some(Square {
+                        index: (move_.to.index + move_.from.index) / 2,
+                    })
                 } else {
                     None
                 }
@@ -411,26 +468,43 @@ mod tests {
 
         for move_ in &moves {
             let new_position = make_move(&position, *move_);
-            let leaf_node_count =
-                generate(original_depth, current_depth - 1, &new_position, memo).0;
+            let leaf_node_count = generate(
+                original_depth,
+                current_depth - 1,
+                &new_position,
+                memo,
+            )
+            .0;
             count += leaf_node_count;
             res.push((move_.to_owned(), leaf_node_count));
         }
 
         memo.insert(
             (zobrist_hash, current_depth),
-            (count, if current_depth == original_depth { res.to_vec() } else { vec![] }),
+            (
+                count,
+                if current_depth == original_depth {
+                    res.to_vec()
+                } else {
+                    vec![]
+                },
+            ),
         );
 
         (count, res)
     }
 
-    fn perft_divide(fen: &str, depth: u8, expected_nodes: Option<usize>) -> Vec<(Move, usize)> {
+    fn perft_divide(
+        fen: &str,
+        depth: u8,
+        expected_nodes: Option<usize>,
+    ) -> Vec<(Move, usize)> {
         let new_position = || -> Position { Position::from_fen(fen).unwrap() };
 
         let intial_time = std::time::Instant::now();
 
-        let (count, moves) = generate(depth, depth, &new_position(), &mut HashMap::new());
+        let (count, moves) =
+            generate(depth, depth, &new_position(), &mut HashMap::new());
 
         let elapsed = intial_time.elapsed();
 
@@ -439,7 +513,9 @@ mod tests {
             count,
             elapsed.as_secs(),
             elapsed.subsec_millis(),
-            count as f64 / (elapsed.as_secs() as f64 + elapsed.subsec_millis() as f64 / 1000.0)
+            count as f64
+                / (elapsed.as_secs() as f64
+                    + elapsed.subsec_millis() as f64 / 1000.0)
         );
 
         if expected_nodes.is_some() {
@@ -466,22 +542,38 @@ mod tests {
 
     #[test]
     fn perft_gh_3() {
-        perft("r1bqkbnr/pppppppp/n7/8/8/P7/1PPPPPPP/RNBQKBNR w KQkq - 2 2", 1, 19);
+        perft(
+            "r1bqkbnr/pppppppp/n7/8/8/P7/1PPPPPPP/RNBQKBNR w KQkq - 2 2",
+            1,
+            19,
+        );
     }
 
     #[test]
     fn perft_gh_4() {
-        perft("2kr3r/p1ppqpb1/bn2Qnp1/3PN3/1p2P3/2N5/PPPBBPPP/R3K2R b KQ - 3 2", 1, 44);
+        perft(
+            "2kr3r/p1ppqpb1/bn2Qnp1/3PN3/1p2P3/2N5/PPPBBPPP/R3K2R b KQ - 3 2",
+            1,
+            44,
+        );
     }
 
     #[test]
     fn perft_gh_5() {
-        perft("2kr3r/p1ppqpb1/bn2Qnp1/3PN3/1p2P3/2N5/PPPBBPPP/R3K2R b KQ - 3 2", 1, 44);
+        perft(
+            "2kr3r/p1ppqpb1/bn2Qnp1/3PN3/1p2P3/2N5/PPPBBPPP/R3K2R b KQ - 3 2",
+            1,
+            44,
+        );
     }
 
     #[test]
     fn perft_gh_6() {
-        perft("rnb2k1r/pp1Pbppp/2p5/q7/2B5/8/PPPQNnPP/RNB1K2R w KQ - 3 9", 1, 39);
+        perft(
+            "rnb2k1r/pp1Pbppp/2p5/q7/2B5/8/PPPQNnPP/RNB1K2R w KQ - 3 9",
+            1,
+            39,
+        );
     }
 
     #[test]
@@ -491,7 +583,11 @@ mod tests {
 
     #[test]
     fn perft_gh_8() {
-        perft("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8", 3, 62379);
+        perft(
+            "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8",
+            3,
+            62379,
+        );
     }
 
     #[test]

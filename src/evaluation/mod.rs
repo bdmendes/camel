@@ -61,7 +61,8 @@ pub fn evaluate_move(
     if move_.flags.contains(MoveFlags::CAPTURE) {
         let moved_piece_value = piece_value(moved_piece);
         let captured_piece_value = piece_value(position.at(move_.to).unwrap());
-        score = 2 * captured_piece_value - moved_piece_value + piece_value(Piece::WQ);
+        score = 3 * captured_piece_value - moved_piece_value
+            + piece_value(Piece::WQ);
     }
 
     let start_psqt_value = psqt_value(moved_piece, move_.from, 0);
@@ -71,7 +72,10 @@ pub fn evaluate_move(
     score
 }
 
-pub fn evaluate_game_over(position: &Position, moves: &Vec<Move>) -> Option<Score> {
+pub fn evaluate_game_over(
+    position: &Position,
+    moves: &Vec<Move>,
+) -> Option<Score> {
     // Flag 50 move rule draws
     if position.half_move_number >= 100 {
         return Some(0);
@@ -114,7 +118,11 @@ pub fn evaluate_position(position: &Position) -> Score {
         match position.at(Square { index }) {
             None => (),
             Some(piece) => {
-                let psqt_value = psqt_value(piece, Square { index }, 255 - midgame_ratio as u8);
+                let psqt_value = psqt_value(
+                    piece,
+                    Square { index },
+                    255 - midgame_ratio as u8,
+                );
                 score += match piece.color() {
                     Color::White => psqt_value,
                     Color::Black => -psqt_value,
@@ -147,14 +155,22 @@ mod tests {
 
     #[test]
     fn eval_checkmate() {
-        let position = Position::from_fen("2k3R1/7R/8/8/8/4K3/8/8 b - - 0 1").unwrap();
-        assert_eq!(evaluate_game_over(&position, &position.legal_moves()).unwrap(), MATE_LOWER);
+        let position =
+            Position::from_fen("2k3R1/7R/8/8/8/4K3/8/8 b - - 0 1").unwrap();
+        assert_eq!(
+            evaluate_game_over(&position, &position.legal_moves()).unwrap(),
+            MATE_LOWER
+        );
     }
 
     #[test]
     fn eval_stalemate() {
-        let position = Position::from_fen("8/8/8/8/8/6Q1/8/4K2k b - - 0 1").unwrap();
-        assert_eq!(evaluate_game_over(&position, &position.legal_moves()).unwrap(), 0);
+        let position =
+            Position::from_fen("8/8/8/8/8/6Q1/8/4K2k b - - 0 1").unwrap();
+        assert_eq!(
+            evaluate_game_over(&position, &position.legal_moves()).unwrap(),
+            0
+        );
     }
 
     #[test]
@@ -165,8 +181,10 @@ mod tests {
 
     #[test]
     fn eval_passed_extra_pawn_midgame() {
-        let position =
-            Position::from_fen("3r3k/1p1qQ1pp/p2P1n2/2p5/7B/P7/1P3PPP/4R1K1 w - - 5 26").unwrap();
+        let position = Position::from_fen(
+            "3r3k/1p1qQ1pp/p2P1n2/2p5/7B/P7/1P3PPP/4R1K1 w - - 5 26",
+        )
+        .unwrap();
         let evaluation = evaluate_position(&position);
         assert!(evaluation > 100 && evaluation < 300);
     }
@@ -177,8 +195,10 @@ mod tests {
             Position::from_fen("8/8/8/3K4/8/4q3/k7/8 b - - 6 55").unwrap();
         let king_at_corner_position =
             Position::from_fen("8/1K6/8/2q5/8/1k6/8/8 w - - 11 58").unwrap();
-        let king_at_center_evaluation = evaluate_position(&king_at_center_position);
-        let king_at_corner_evaluation = evaluate_position(&king_at_corner_position);
+        let king_at_center_evaluation =
+            evaluate_position(&king_at_center_position);
+        let king_at_corner_evaluation =
+            evaluate_position(&king_at_corner_position);
         assert!(king_at_center_evaluation > king_at_corner_evaluation);
     }
 }

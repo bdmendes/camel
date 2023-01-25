@@ -68,10 +68,14 @@ impl EngineState {
             UCICommand::UCI => Self::handle_uci(),
             UCICommand::Debug(value) => Self::handle_debug(value),
             UCICommand::IsReady => Self::handle_isready(),
-            UCICommand::SetOption(name, value) => Self::handle_setoption(&name, &value),
+            UCICommand::SetOption(name, value) => {
+                Self::handle_setoption(&name, &value)
+            }
             UCICommand::Register(code) => Self::handle_register(&code),
             UCICommand::UCINewGame => Self::handle_newgame(),
-            UCICommand::Position(position, moves) => Self::handle_position(&position, moves),
+            UCICommand::Position(position, moves) => {
+                Self::handle_position(&position, moves)
+            }
             UCICommand::Go(search) => Self::handle_go(&search),
             UCICommand::Stop => Self::handle_stop(),
             UCICommand::PonderHit => Self::handle_ponderhit(),
