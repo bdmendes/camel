@@ -432,6 +432,21 @@ pub fn make_move(position: &Position, move_: Move) -> Position {
     }
 }
 
+pub fn make_null_move(position: &Position) -> Position {
+    Position {
+        board: position.board,
+        to_move: position.to_move.opposite(),
+        castling_rights: position.castling_rights,
+        en_passant_square: None,
+        half_move_number: position.half_move_number + 1,
+        full_move_number: if position.to_move == Color::Black {
+            position.full_move_number + 1
+        } else {
+            position.full_move_number
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;

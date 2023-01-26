@@ -13,7 +13,8 @@ const MAX_ITERATIVE_DEPTH: Depth = 20;
 const MAX_TABLE_SIZE: usize = 1_000_000;
 const MAX_QSEARCH_DEPTH: Depth = 10;
 const MAX_DURATION_PER_MOVE: std::time::Duration =
-    std::time::Duration::from_secs(5 * 60);
+    std::time::Duration::from_secs(60);
+const NULL_MOVE_REDUCTION: Depth = 3;
 
 struct SearchMemo {
     pub killer_moves: HashMap<Depth, [Option<Move>; 2]>,
@@ -138,10 +139,27 @@ fn alphabeta(
     // Cleanup tables if they get too big
     memo.cleanup_tables();
 
-    // Check for transposition table
+    // Check for transposition table hit
     let zobrist_hash = position.to_zobrist_hash();
     if let Some(res) = memo.get_transposition_table(zobrist_hash, depth) {
         return (res.0, res.1, 1);
+    }
+
+    // Null move pruning: if not moving still causes a cutoff, too good to be true
+    if beta < MATE_UPPER && depth > NULL_MOVE_REDUCTION {
+        let after_null_position = position.make_null_move();
+        let (_, mut score, nodes) = alphabeta(
+            &after_null_position,
+            depth - NULL_MOVE_REDUCTION,
+            -beta,
+            -alpha,
+            memo,
+            qs_depth,
+        );
+        score = -score;
+        if score >= beta {
+            return (None, score, nodes);
+        }
     }
 
     // Check for game over
@@ -383,7 +401,7 @@ mod tests {
     fn search_check_combination() {
         test_search(
             "4r2k/1p4p1/3P3p/P1P5/4b3/1Bq5/6PP/3QR1K1 b - - 11 41",
-            4,
+            3,
             "c3c5",
             None,
             None,

@@ -97,6 +97,10 @@ impl Position {
         moves::make_move(&self, m)
     }
 
+    pub fn make_null_move(&self) -> Position {
+        moves::make_null_move(&self)
+    }
+
     pub fn is_check(&self, mid_castle_square: Option<Square>) -> bool {
         moves::position_is_check(&self, self.to_move, mid_castle_square)
     }
