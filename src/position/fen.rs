@@ -46,6 +46,10 @@ pub fn position_from_fen(fen: &str) -> Result<Position, String> {
         }
     }
 
+    if col != 8 || row != 0 {
+        return Err("Insufficient board information".to_owned());
+    }
+
     position.info.to_move = match next_to_move {
         "w" => Color::White,
         "b" => Color::Black,
@@ -160,10 +164,10 @@ mod tests {
         let expected_board_view = vec![
             "rnbqkbnr", //
             "pppppppp", //
-            "        ", //
-            "        ", //
-            "        ", //
-            "        ", //
+            "--------", //
+            "--------", //
+            "--------", //
+            "--------", //
             "PPPPPPPP", //
             "RNBQKBNR",
         ]
@@ -179,14 +183,14 @@ mod tests {
         assert_eq!(position_to_fen(&position, false), midgame_fen);
 
         let expected_board_view = vec![
-            "r    rk ", //
-            "pp q ppp", //
-            "  n  b  ", //
-            "   Q    ", //
-            "        ", //
-            "  N     ", //
-            "PPP  PPP", //
-            "R   K NR",
+            "r----rk-", //
+            "pp-q-ppp", //
+            "--n--b--", //
+            "---Q----", //
+            "--------", //
+            "--N-----", //
+            "PPP--PPP", //
+            "R---K-NR",
         ]
         .join("\n");
         assert_eq!(format!("{}", position), expected_board_view);

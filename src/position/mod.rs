@@ -117,7 +117,7 @@ impl fmt::Display for Position {
         for row in (0..8).rev() {
             for col in 0..8 {
                 match self.board[(row * 8 + col)] {
-                    None => write!(f, " "),
+                    None => write!(f, "-"),
                     Some(piece) => write!(f, "{}", piece.to_char()),
                 }?;
             }

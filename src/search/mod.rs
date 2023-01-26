@@ -5,7 +5,13 @@ use crate::{
     },
     position::{moves::Move, zobrist::ZobristHash, Color, Position},
 };
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
 
 pub type Depth = i8;
 
@@ -13,7 +19,7 @@ const MAX_ITERATIVE_DEPTH: Depth = 20;
 const MAX_TABLE_SIZE: usize = 1_000_000;
 const MAX_QSEARCH_DEPTH: Depth = 10;
 const MAX_DURATION_PER_MOVE: std::time::Duration =
-    std::time::Duration::from_secs(60);
+    std::time::Duration::from_secs(5 * 60);
 const NULL_MOVE_REDUCTION: Depth = 3;
 
 struct SearchMemo {
@@ -130,10 +136,16 @@ fn alphabeta(
     beta: Score,
     memo: &mut SearchMemo,
     qs_depth: Depth,
+    stop_now: Option<Arc<AtomicBool>>,
 ) -> (Option<Move>, Score, usize) {
-    // Check if time is over
+    // Check if the search should be stopped
     if memo.initial_instant.elapsed() > memo.duration {
         return (None, alpha, 1);
+    }
+    if let Some(ref stop_now) = stop_now {
+        if stop_now.load(std::sync::atomic::Ordering::Relaxed) {
+            return (None, alpha, 1);
+        }
     }
 
     // Cleanup tables if they get too big
@@ -155,6 +167,7 @@ fn alphabeta(
             -alpha,
             memo,
             qs_depth,
+            stop_now.clone(),
         );
         score = -score;
         if score >= beta {
@@ -220,6 +233,7 @@ fn alphabeta(
             -best_score,
             memo,
             if quiet_search { qs_depth - 1 } else { qs_depth },
+            stop_now.clone(),
         );
         let score = -score;
         count += nodes;
@@ -257,6 +271,7 @@ pub fn search(
         MATE_UPPER,
         &mut SearchMemo::new(None),
         MAX_QSEARCH_DEPTH,
+        None,
     )
 }
 
@@ -264,6 +279,7 @@ pub fn search_iterative_deep(
     position: &Position,
     depth: Option<Depth>,
     duration: Option<std::time::Duration>,
+    stop_now: Option<Arc<AtomicBool>>,
 ) -> (Option<Move>, Score, usize) {
     let max_depth = depth.unwrap_or(MAX_ITERATIVE_DEPTH);
     let mut memo = SearchMemo::new(duration);
@@ -276,6 +292,7 @@ pub fn search_iterative_deep(
         MATE_UPPER,
         &mut memo,
         MAX_QSEARCH_DEPTH,
+        stop_now.clone(),
     );
     println!("{}: {} {} {}", 1, mov.unwrap(), score, nodes);
 
@@ -288,10 +305,19 @@ pub fn search_iterative_deep(
             MATE_UPPER,
             &mut memo,
             MAX_QSEARCH_DEPTH,
+            stop_now.clone(),
         );
 
+        // Check if the search has been stopped
         if memo.initial_instant.elapsed() > memo.duration {
+            println!("bestmove {}", mov.unwrap());
             return (mov, score, nodes);
+        }
+        if let Some(stop_now) = stop_now.as_ref() {
+            if stop_now.load(Ordering::Relaxed) {
+                println!("bestmove {}", mov.unwrap());
+                return (mov, score, nodes);
+            }
         }
 
         mov = new_mov;
@@ -301,6 +327,7 @@ pub fn search_iterative_deep(
         println!("{}: {} {} {}", ply, mov.unwrap(), score, nodes);
 
         if ply == max_depth {
+            println!("bestmove {}", mov.unwrap());
             return (mov, score, nodes);
         }
     }
@@ -325,7 +352,7 @@ mod tests {
 
         let now = std::time::Instant::now();
         let (mov, score, nodes) =
-            search_iterative_deep(&position, Some(depth), None);
+            search_iterative_deep(&position, Some(depth), None, None);
         let elapsed = now.elapsed().as_millis();
         println!(
             "[iterative] {}: {} nodes in {} ms at depth {}\n",
