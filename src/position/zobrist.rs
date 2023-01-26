@@ -48,15 +48,15 @@ pub fn zobrist_hash_position(position: &Position) -> ZobristHash {
     hash <<= 11;
 
     // Hash the active color
-    if position.to_move == Color::Black {
+    if position.info.to_move == Color::Black {
         hash |= 0b1;
     }
 
     // Hash the castling rights
-    hash |= (position.castling_rights.bits as ZobristHash) << 1;
+    hash |= (position.info.castling_rights.bits as ZobristHash) << 1;
 
     // Hash the en passant square
-    if let Some(square) = position.en_passant_square {
+    if let Some(square) = position.info.en_passant_square {
         hash |= (square.index as ZobristHash) << 5;
     }
 

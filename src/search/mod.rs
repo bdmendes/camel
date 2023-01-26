@@ -165,7 +165,7 @@ fn alphabeta(
     // Check for game over
     let mut moves = position.legal_moves();
     if let Some(score) = evaluate_game_over(position, &moves) {
-        return (None, score + position.full_move_number as Score, 1);
+        return (None, score + position.info.full_move_number as Score, 1);
     }
 
     // Check for maximum depth
@@ -176,7 +176,7 @@ fn alphabeta(
         }
 
         if !quiet_search {
-            let color_cof = match position.to_move {
+            let color_cof = match position.info.to_move {
                 Color::White => 1,
                 Color::Black => -1,
             };

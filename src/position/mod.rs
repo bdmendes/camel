@@ -26,13 +26,19 @@ bitflags! {
     }
 }
 
-pub struct Position {
-    pub board: [Option<Piece>; 64], // 2D Little-Endian Rank-File Mapping
+#[derive(Copy, Clone, PartialEq, Debug, Eq)]
+pub struct PositionInfo {
     pub to_move: Color,
     pub castling_rights: CastlingRights,
     pub en_passant_square: Option<Square>,
     pub half_move_number: u8,
     pub full_move_number: u16,
+}
+
+#[derive(Copy, Clone, PartialEq, Debug, Eq)]
+pub struct Position {
+    pub board: [Option<Piece>; 64], // 2D Little-Endian Rank-File Mapping
+    pub info: PositionInfo,
 }
 
 impl Square {
@@ -90,7 +96,7 @@ impl Position {
     }
 
     pub fn legal_moves(&self) -> Vec<moves::Move> {
-        moves::legal_moves(&self, self.to_move)
+        moves::legal_moves(&self, self.info.to_move)
     }
 
     pub fn make_move(&self, m: moves::Move) -> Position {
@@ -102,7 +108,7 @@ impl Position {
     }
 
     pub fn is_check(&self) -> bool {
-        moves::position_is_check(&self, self.to_move, None)
+        moves::position_is_check(&self, self.info.to_move, None)
     }
 }
 

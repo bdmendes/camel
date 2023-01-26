@@ -77,7 +77,7 @@ pub fn evaluate_game_over(
     moves: &Vec<Move>,
 ) -> Option<Score> {
     // Flag 50 move rule draws
-    if position.half_move_number >= 100 {
+    if position.info.half_move_number >= 100 {
         return Some(0);
     }
 

@@ -1,6 +1,6 @@
 use super::{
     piece::{Color, Piece, DOWN, UP},
-    CastlingRights, Position, Square, BOARD_SIZE, ROW_SIZE,
+    CastlingRights, Position, PositionInfo, Square, BOARD_SIZE, ROW_SIZE,
 };
 use bitflags::bitflags;
 use std::fmt;
@@ -144,7 +144,7 @@ fn pseudo_legal_moves_from_square(
                     can_advance_two && !jumped_piece
                 } else {
                     move_.flags.contains(MoveFlags::CAPTURE)
-                        || match position.en_passant_square {
+                        || match position.info.en_passant_square {
                             Some(en_passant_square) => {
                                 move_.to == en_passant_square
                             }
@@ -178,7 +178,7 @@ fn pseudo_legal_moves_from_square(
                     }
                     moves.extend(under_promotion_moves);
                 } else if let Some(en_passant_square) =
-                    position.en_passant_square
+                    position.info.en_passant_square
                 {
                     if move_.to == en_passant_square {
                         move_.flags |= MoveFlags::ENPASSANT;
@@ -200,15 +200,19 @@ fn pseudo_legal_moves_from_square(
                 // Check castle rights
                 let can_castle = match i {
                     0 => position
+                        .info
                         .castling_rights
                         .contains(CastlingRights::WHITE_KINGSIDE),
                     1 => position
+                        .info
                         .castling_rights
                         .contains(CastlingRights::WHITE_QUEENSIDE),
                     2 => position
+                        .info
                         .castling_rights
                         .contains(CastlingRights::BLACK_KINGSIDE),
                     3 => position
+                        .info
                         .castling_rights
                         .contains(CastlingRights::BLACK_QUEENSIDE),
                     _ => unreachable!(),
@@ -333,7 +337,7 @@ pub fn make_move(position: &Position, move_: Move) -> Position {
 
     // En passant
     if move_.flags.contains(MoveFlags::ENPASSANT) {
-        let capture_square = match position.to_move {
+        let capture_square = match position.info.to_move {
             Color::White => move_.to.index as i64 + DOWN,
             Color::Black => move_.to.index as i64 + UP,
         };
@@ -346,7 +350,7 @@ pub fn make_move(position: &Position, move_: Move) -> Position {
     }
 
     // Castling
-    let mut new_castling_rights = position.castling_rights;
+    let mut new_castling_rights = position.info.castling_rights;
     let piece = position.at(move_.from).unwrap();
     if move_.flags.contains(MoveFlags::CASTLE) {
         if piece == Piece::WK {
@@ -400,33 +404,37 @@ pub fn make_move(position: &Position, move_: Move) -> Position {
 
     Position {
         board: new_board,
-        to_move: position.to_move.opposite(),
-        castling_rights: new_castling_rights,
-        en_passant_square: match position.at(move_.from).unwrap() {
-            Piece::WP | Piece::BP => {
-                if (move_.to.index as i64 - move_.from.index as i64).abs()
-                    == 2 * UP
-                {
-                    Some(Square {
-                        index: (move_.to.index + move_.from.index) / 2,
-                    })
-                } else {
-                    None
+        info: PositionInfo {
+            to_move: position.info.to_move.opposite(),
+            castling_rights: new_castling_rights,
+            en_passant_square: match position.at(move_.from).unwrap() {
+                Piece::WP | Piece::BP => {
+                    if (move_.to.index as i64 - move_.from.index as i64).abs()
+                        == 2 * UP
+                    {
+                        Some(Square {
+                            index: (move_.to.index + move_.from.index) / 2,
+                        })
+                    } else {
+                        None
+                    }
                 }
-            }
-            _ => None,
-        },
-        half_move_number: if move_.flags.contains(MoveFlags::CAPTURE)
-            || matches!(position.at(move_.from).unwrap(), Piece::WP | Piece::BP)
-        {
-            0
-        } else {
-            position.half_move_number + 1
-        },
-        full_move_number: if position.to_move == Color::Black {
-            position.full_move_number + 1
-        } else {
-            position.full_move_number
+                _ => None,
+            },
+            half_move_number: if move_.flags.contains(MoveFlags::CAPTURE)
+                || matches!(
+                    position.at(move_.from).unwrap(),
+                    Piece::WP | Piece::BP
+                ) {
+                0
+            } else {
+                position.info.half_move_number + 1
+            },
+            full_move_number: if position.info.to_move == Color::Black {
+                position.info.full_move_number + 1
+            } else {
+                position.info.full_move_number
+            },
         },
     }
 }
@@ -434,14 +442,12 @@ pub fn make_move(position: &Position, move_: Move) -> Position {
 pub fn make_null_move(position: &Position) -> Position {
     Position {
         board: position.board,
-        to_move: position.to_move.opposite(),
-        castling_rights: position.castling_rights,
-        en_passant_square: None,
-        half_move_number: position.half_move_number + 1,
-        full_move_number: if position.to_move == Color::Black {
-            position.full_move_number + 1
-        } else {
-            position.full_move_number
+        info: PositionInfo {
+            to_move: position.info.to_move.opposite(),
+            castling_rights: position.info.castling_rights,
+            en_passant_square: None,
+            half_move_number: position.info.half_move_number,
+            full_move_number: position.info.full_move_number,
         },
     }
 }
@@ -457,7 +463,7 @@ mod tests {
     #[test]
     fn perft_start() {
         let position = super::Position::new();
-        let moves = legal_moves(&position, position.to_move);
+        let moves = legal_moves(&position, position.info.to_move);
         assert_eq!(moves.len(), 20);
     }
 
@@ -476,7 +482,7 @@ mod tests {
             return (*count, moves.to_vec());
         }
 
-        let moves = legal_moves(&position, position.to_move);
+        let moves = legal_moves(&position, position.info.to_move);
         let mut res = Vec::with_capacity(moves.len());
         let mut count = 0;
 

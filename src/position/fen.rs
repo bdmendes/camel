@@ -6,11 +6,13 @@ pub const START_FEN: &str =
 pub fn position_from_fen(fen: &str) -> Result<Position, String> {
     let mut position = Position {
         board: [Option::None; BOARD_SIZE],
-        to_move: Color::White,
-        castling_rights: CastlingRights::empty(),
-        en_passant_square: None,
-        half_move_number: 0,
-        full_move_number: 0,
+        info: PositionInfo {
+            to_move: Color::White,
+            castling_rights: CastlingRights::empty(),
+            en_passant_square: None,
+            half_move_number: 0,
+            full_move_number: 0,
+        },
     };
 
     let mut fen_iter = fen.split_whitespace();
@@ -44,7 +46,7 @@ pub fn position_from_fen(fen: &str) -> Result<Position, String> {
         }
     }
 
-    position.to_move = match next_to_move {
+    position.info.to_move = match next_to_move {
         "w" => Color::White,
         "b" => Color::Black,
         _ => return Err("Invalid next to move".to_owned()),
@@ -52,22 +54,30 @@ pub fn position_from_fen(fen: &str) -> Result<Position, String> {
 
     for c in castling_rights.chars() {
         match c {
-            'K' => position.castling_rights |= CastlingRights::WHITE_KINGSIDE,
-            'Q' => position.castling_rights |= CastlingRights::WHITE_QUEENSIDE,
-            'k' => position.castling_rights |= CastlingRights::BLACK_KINGSIDE,
-            'q' => position.castling_rights |= CastlingRights::BLACK_QUEENSIDE,
+            'K' => {
+                position.info.castling_rights |= CastlingRights::WHITE_KINGSIDE
+            }
+            'Q' => {
+                position.info.castling_rights |= CastlingRights::WHITE_QUEENSIDE
+            }
+            'k' => {
+                position.info.castling_rights |= CastlingRights::BLACK_KINGSIDE
+            }
+            'q' => {
+                position.info.castling_rights |= CastlingRights::BLACK_QUEENSIDE
+            }
             '-' => break,
             _ => panic!("Invalid castling rights"),
         }
     }
 
-    position.en_passant_square = match en_passant_square {
+    position.info.en_passant_square = match en_passant_square {
         "-" => None,
         _ => Some(Square::from_algebraic(en_passant_square)),
     };
 
-    position.half_move_number = half_move_number.parse().unwrap_or(0);
-    position.full_move_number = full_move_number.parse().unwrap_or(1);
+    position.info.half_move_number = half_move_number.parse().unwrap_or(0);
+    position.info.full_move_number = full_move_number.parse().unwrap_or(1);
 
     Ok(position)
 }
@@ -98,23 +108,23 @@ pub fn position_to_fen(position: &Position, omit_move_numbers: bool) -> String {
     }
 
     fen.push(' ');
-    fen.push(match position.to_move {
+    fen.push(match position.info.to_move {
         Color::White => 'w',
         Color::Black => 'b',
     });
 
     fen.push(' ');
     let mut castling_rights = String::new();
-    if position.castling_rights.contains(CastlingRights::WHITE_KINGSIDE) {
+    if position.info.castling_rights.contains(CastlingRights::WHITE_KINGSIDE) {
         castling_rights.push('K');
     }
-    if position.castling_rights.contains(CastlingRights::WHITE_QUEENSIDE) {
+    if position.info.castling_rights.contains(CastlingRights::WHITE_QUEENSIDE) {
         castling_rights.push('Q');
     }
-    if position.castling_rights.contains(CastlingRights::BLACK_KINGSIDE) {
+    if position.info.castling_rights.contains(CastlingRights::BLACK_KINGSIDE) {
         castling_rights.push('k');
     }
-    if position.castling_rights.contains(CastlingRights::BLACK_QUEENSIDE) {
+    if position.info.castling_rights.contains(CastlingRights::BLACK_QUEENSIDE) {
         castling_rights.push('q');
     }
     if castling_rights.is_empty() {
@@ -123,16 +133,16 @@ pub fn position_to_fen(position: &Position, omit_move_numbers: bool) -> String {
     fen.push_str(castling_rights.as_str());
 
     fen.push(' ');
-    match position.en_passant_square {
+    match position.info.en_passant_square {
         None => fen.push('-'),
         Some(square) => fen.push_str(&square.to_algebraic()),
     }
 
     if !omit_move_numbers {
         fen.push(' ');
-        fen.push_str(position.half_move_number.to_string().as_str());
+        fen.push_str(position.info.half_move_number.to_string().as_str());
         fen.push(' ');
-        fen.push_str(&position.full_move_number.to_string());
+        fen.push_str(&position.info.full_move_number.to_string());
     }
 
     fen
