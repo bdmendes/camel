@@ -13,10 +13,10 @@ const MAX_ITERATIVE_DEPTH: Depth = 20;
 const MAX_TABLE_SIZE: usize = 1_000_000;
 const MAX_QSEARCH_DEPTH: Depth = 10;
 const MAX_DURATION_PER_MOVE: std::time::Duration =
-    std::time::Duration::from_secs(30);
+    std::time::Duration::from_secs(5 * 60);
 
 struct SearchMemo {
-    pub killer_moves: HashMap<ZobristHash, ([Option<Move>; 2], Depth, Score)>,
+    pub killer_moves: HashMap<Depth, [Option<Move>; 2]>,
     pub hash_move: HashMap<ZobristHash, (Move, Depth)>,
     pub transposition_table: HashMap<ZobristHash, (Option<Move>, Score, Depth)>,
     pub initial_instant: std::time::Instant,
@@ -34,40 +34,22 @@ impl SearchMemo {
         }
     }
 
-    fn put_killer_move(
-        &mut self,
-        zobrist_hash: ZobristHash,
-        mov: Move,
-        depth: Depth,
-        curr_score: Score,
-    ) {
-        let (killer_moves, killer_depth, score) = self
-            .killer_moves
-            .entry(zobrist_hash)
-            .or_insert(([None, None], 0, MATE_LOWER));
-        if depth < *killer_depth {
-            return;
-        }
+    fn put_killer_move(&mut self, mov: Move, depth: Depth) {
+        let killer_moves =
+            self.killer_moves.entry(depth).or_insert([None, None]);
         if killer_moves[0] == None {
             killer_moves[0] = Some(mov);
         } else if killer_moves[1] == None {
             killer_moves[1] = Some(mov);
-        } else if curr_score > *score {
-            killer_moves[1] = killer_moves[0];
+        } else if Some(mov) == killer_moves[0] {
+            killer_moves[1] = Some(mov);
+        } else {
             killer_moves[0] = Some(mov);
-            *score = curr_score;
         }
-        *killer_depth = depth;
     }
 
-    fn get_killer_moves(
-        &mut self,
-        zobrist_hash: ZobristHash,
-    ) -> [Option<Move>; 2] {
-        self.killer_moves
-            .entry(zobrist_hash)
-            .or_insert(([None, None], 0, MATE_LOWER))
-            .0
+    fn get_killer_moves(&mut self, depth: Depth) -> [Option<Move>; 2] {
+        *self.killer_moves.entry(depth).or_insert([None, None])
     }
 
     fn is_killer_move(mov: Move, killer_moves: [Option<Move>; 2]) -> bool {
@@ -185,7 +167,7 @@ fn alphabeta(
     }
 
     // Sort moves by heuristic value + killer move + hash move
-    let killer_moves = memo.get_killer_moves(zobrist_hash);
+    let killer_moves = memo.get_killer_moves(depth);
     let hash_move = memo.hash_move.get(&zobrist_hash).map(|(mov, _)| *mov);
     moves.sort_unstable_by(|a, b| {
         let a_value = evaluate_move(
@@ -229,7 +211,7 @@ fn alphabeta(
             best_score = score;
             if best_score >= beta {
                 if mov.is_quiet(position) {
-                    memo.put_killer_move(zobrist_hash, mov, depth, best_score);
+                    memo.put_killer_move(mov, depth);
                 }
                 break;
             }
@@ -401,7 +383,7 @@ mod tests {
     fn search_check_combination() {
         test_search(
             "4r2k/1p4p1/3P3p/P1P5/4b3/1Bq5/6PP/3QR1K1 b - - 11 41",
-            3,
+            4,
             "c3c5",
             None,
             None,

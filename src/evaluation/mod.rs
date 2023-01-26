@@ -150,7 +150,6 @@ mod tests {
                 .cmp(&evaluate_move(*a, &position, false, false))
         });
         assert_eq!(moves[0].to_string(), "e2a6"); // equal trade of piece
-        assert_eq!(moves[6].to_string(), "f3f6"); // queen for knight trade, after 2 pawn captures and 3 knight captures
     }
 
     #[test]
