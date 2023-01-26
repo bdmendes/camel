@@ -83,7 +83,7 @@ pub fn evaluate_game_over(
 
     // Stalemate and checkmate detection
     if moves.len() == 0 {
-        let is_check = position.is_check(None);
+        let is_check = position.is_check();
         return match is_check {
             true => Some(MATE_LOWER),
             false => Some(0),

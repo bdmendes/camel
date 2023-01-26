@@ -280,22 +280,21 @@ pub fn legal_moves(position: &Position, to_move: Color) -> Vec<Move> {
     let mut moves = pseudo_legal_moves(position, to_move);
 
     moves.retain(|move_| {
-        let piece = position.at(move_.from).unwrap();
-        if (piece == Piece::WK || piece == Piece::BK)
-            && move_.flags.contains(MoveFlags::CASTLE)
-        {
-            if position_is_check(
-                position,
-                to_move,
-                Some(Square { index: (move_.to.index + move_.from.index) / 2 }),
-            ) {
-                return false;
+        let castle_passent_squares = match position.at(move_.from) {
+            Some(Piece::WK) | Some(Piece::BK)
+                if move_.flags.contains(MoveFlags::CASTLE) =>
+            {
+                Some([
+                    move_.from,
+                    Square { index: (move_.to.index + move_.from.index) / 2 },
+                ])
             }
-        }
+            _ => None,
+        };
 
         // Do not allow moves that leave the player in check
         let new_position = make_move(position, *move_);
-        !position_is_check(&new_position, to_move, None)
+        !position_is_check(&new_position, to_move, castle_passent_squares)
     });
 
     moves
@@ -304,7 +303,7 @@ pub fn legal_moves(position: &Position, to_move: Color) -> Vec<Move> {
 pub fn position_is_check(
     position: &Position,
     checked_player: Color,
-    mid_castle_square: Option<Square>,
+    castle_passent_squares: Option<[Square; 2]>,
 ) -> bool {
     let opposing_color = checked_player.opposite();
     let opponent_moves = pseudo_legal_moves(position, opposing_color);
@@ -317,8 +316,8 @@ pub fn position_is_check(
                 return true;
             }
         }
-        if let Some(mid_castle_square) = mid_castle_square {
-            if move_.to == mid_castle_square {
+        if let Some([square1, square2]) = castle_passent_squares {
+            if move_.to == square1 || move_.to == square2 {
                 return true;
             }
         }
