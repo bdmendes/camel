@@ -48,8 +48,8 @@ const MIDGAME_QUEEN_PSQT: PieceSquareTable = [
 ];
 
 const MIDGAME_KING_PSQT: PieceSquareTable = [
-    20, 30, 10, 0, 0, 10, 30, 20, //
-    20, 20, 0, 0, 0, 0, 20, 20, //
+    20, 30, 10, 0, 0, 10, 25, 20, //
+    5, 5, 0, 0, 0, 0, 5, 5, //
     -10, -20, -20, -20, -20, -20, -20, -10, //
     20, -30, -30, -40, -40, -30, -30, -20, //
     -30, -40, -40, -50, -50, -40, -40, -30, //
@@ -73,7 +73,17 @@ const ENDGAME_KNIGHT_PSQT: PieceSquareTable = MIDGAME_KNIGHT_PSQT;
 const ENDGAME_BISHOP_PSQT: PieceSquareTable = MIDGAME_BISHOP_PSQT;
 const ENDGAME_ROOK_PSQT: PieceSquareTable = MIDGAME_ROOK_PSQT;
 const ENDGAME_QUEEN_PSQT: PieceSquareTable = MIDGAME_QUEEN_PSQT;
-const ENDGAME_PAWN_PSQT: PieceSquareTable = MIDGAME_PAWN_PSQT;
+
+const ENDGAME_PAWN_PSQT: PieceSquareTable = [
+    0, 0, 0, 0, 0, 0, 0, 0, //
+    20, 20, 20, 20, 20, 20, 20, 20, //
+    40, 40, 40, 40, 40, 40, 40, 40, //
+    60, 60, 60, 60, 60, 60, 60, 60, //
+    80, 80, 80, 80, 80, 80, 80, 80, //
+    100, 100, 100, 100, 100, 100, 100, 100, //
+    120, 120, 120, 120, 120, 120, 120, 120, //
+    0, 0, 0, 0, 0, 0, 0, 0,
+];
 
 const ENDGAME_KING_PSQT: PieceSquareTable = [
     -50, -30, -30, -30, -30, -30, -30, -50, //
