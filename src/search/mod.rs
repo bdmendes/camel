@@ -16,7 +16,7 @@ const MAX_ITERATIVE_DEPTH: Depth = 40;
 const MAX_TABLE_SIZE: usize = 1_000_000;
 const MAX_QS_DEPTH: Depth = 5;
 const MAX_DURATION_PER_MOVE: std::time::Duration =
-    std::time::Duration::from_secs(5 * 60);
+    std::time::Duration::from_secs(60);
 
 struct SearchMemo {
     pub killer_moves: HashMap<Depth, [Option<Move>; 2]>,
@@ -105,7 +105,7 @@ impl SearchMemo {
         if let Some((mov, score, transp_depth)) =
             self.transposition_table.get(&zobrist_hash)
         {
-            if depth <= *transp_depth {
+            if depth < *transp_depth {
                 return Some((*mov, *score));
             }
         }
@@ -454,7 +454,7 @@ mod tests {
     fn search_endgame_opposition() {
         test_search(
             "5k2/8/6K1/5P2/8/8/8/8 w - - 0 1",
-            3,
+            9,
             "g6f6",
             None,
             None,
