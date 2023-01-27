@@ -144,7 +144,7 @@ mod tests {
             "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
         )
         .unwrap();
-        let mut moves = position.legal_moves();
+        let mut moves = position.legal_moves(false);
         moves.sort_by(|a, b| {
             evaluate_move(*b, &position, false, false)
                 .cmp(&evaluate_move(*a, &position, false, false))
@@ -157,7 +157,8 @@ mod tests {
         let position =
             Position::from_fen("2k3R1/7R/8/8/8/4K3/8/8 b - - 0 1").unwrap();
         assert_eq!(
-            evaluate_game_over(&position, &position.legal_moves()).unwrap(),
+            evaluate_game_over(&position, &position.legal_moves(false))
+                .unwrap(),
             MATE_LOWER
         );
     }
@@ -167,7 +168,8 @@ mod tests {
         let position =
             Position::from_fen("8/8/8/8/8/6Q1/8/4K2k b - - 0 1").unwrap();
         assert_eq!(
-            evaluate_game_over(&position, &position.legal_moves()).unwrap(),
+            evaluate_game_over(&position, &position.legal_moves(false))
+                .unwrap(),
             0
         );
     }

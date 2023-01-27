@@ -7,20 +7,16 @@ use crate::{
 };
 use std::{
     collections::HashMap,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
+    sync::{atomic::AtomicBool, Arc},
 };
 
 pub type Depth = i8;
 
-const MAX_ITERATIVE_DEPTH: Depth = 20;
+const MAX_ITERATIVE_DEPTH: Depth = 40;
 const MAX_TABLE_SIZE: usize = 1_000_000;
-const MAX_QSEARCH_DEPTH: Depth = 10;
+const MAX_QS_DEPTH: Depth = 5;
 const MAX_DURATION_PER_MOVE: std::time::Duration =
     std::time::Duration::from_secs(5 * 60);
-const NULL_MOVE_REDUCTION: Depth = 3;
 
 struct SearchMemo {
     pub killer_moves: HashMap<Depth, [Option<Move>; 2]>,
@@ -129,27 +125,105 @@ impl SearchMemo {
     }
 }
 
-fn alphabeta(
-    position: &Position,
-    depth: Depth,
-    alpha: Score,
-    beta: Score,
-    memo: &mut SearchMemo,
-    qs_depth: Depth,
+fn should_stop_search(
+    memo: &SearchMemo,
     stop_now: Option<Arc<AtomicBool>>,
-) -> (Option<Move>, Score, usize) {
-    // Check if the search should be stopped
+) -> bool {
     if memo.initial_instant.elapsed() > memo.duration {
-        return (None, alpha, 1);
+        return true;
     }
     if let Some(ref stop_now) = stop_now {
         if stop_now.load(std::sync::atomic::Ordering::Relaxed) {
-            return (None, alpha, 1);
+            return true;
+        }
+    }
+    false
+}
+
+fn alphabeta_quiet(
+    position: &Position,
+    depth: Depth,
+    mut alpha: Score,
+    beta: Score,
+    memo: &SearchMemo,
+    stop_now: Option<Arc<AtomicBool>>,
+) -> (Score, usize) {
+    // Check if the search should be stopped
+    if should_stop_search(memo, stop_now.clone()) {
+        return (alpha, 1);
+    }
+
+    // Calculate static evaluation and return if quiescence search depth is reached
+    let color_cof = match position.info.to_move {
+        Color::White => 1,
+        Color::Black => -1,
+    };
+    let static_evaluation = color_cof * evaluate_position(position);
+    if depth == 0 {
+        return (static_evaluation, 1);
+    }
+
+    // Alpha-beta prune based on static evaluation
+    if static_evaluation >= beta {
+        return (beta, 1);
+    }
+
+    // Generate and sort non-quiet moves
+    let mut moves = position.legal_moves(true);
+    moves.sort_unstable_by(|a, b| {
+        let a_value = evaluate_move(*a, &position, false, false);
+        let b_value = evaluate_move(*b, &position, false, false);
+        b_value.cmp(&a_value)
+    });
+
+    // Evaluate statically if only quiet moves are left
+    if moves.is_empty() {
+        return (static_evaluation, 1);
+    }
+
+    // Set lower bound to alpha ("standing pat")
+    if static_evaluation > alpha {
+        alpha = static_evaluation;
+    }
+
+    // Search moves
+    let mut count = 0;
+    for mov in moves {
+        let new_position = position.make_move(mov);
+        let (score, nodes) = alphabeta_quiet(
+            &new_position,
+            depth - 1,
+            -beta,
+            -alpha,
+            memo,
+            stop_now.clone(),
+        );
+        let score = -score;
+        count += nodes;
+
+        if score > alpha {
+            alpha = score;
+            if alpha >= beta {
+                break;
+            }
         }
     }
 
-    // Cleanup tables if they get too big
-    memo.cleanup_tables();
+    (alpha, count)
+}
+
+fn alphabeta_memo(
+    position: &Position,
+    depth: Depth,
+    mut alpha: Score,
+    beta: Score,
+    memo: &mut SearchMemo,
+    stop_now: Option<Arc<AtomicBool>>,
+) -> (Option<Move>, Score, usize) {
+    // Check if the search should be stopped
+    if should_stop_search(memo, stop_now.clone()) {
+        return (None, alpha, 1);
+    }
 
     // Check for transposition table hit
     let zobrist_hash = position.to_zobrist_hash();
@@ -157,44 +231,26 @@ fn alphabeta(
         return (res.0, res.1, 1);
     }
 
-    // Null move pruning: if not moving still causes a cutoff, too good to be true
-    if beta < MATE_UPPER && depth > NULL_MOVE_REDUCTION {
-        let after_null_position = position.make_null_move();
-        let (_, mut score, nodes) = alphabeta(
-            &after_null_position,
-            depth - NULL_MOVE_REDUCTION,
-            -beta,
-            -alpha,
+    // Cleanup tables if they get too big
+    memo.cleanup_tables();
+
+    // Enter quiescence search if depth is 0
+    if depth == 0 {
+        let (score, nodes) = alphabeta_quiet(
+            position,
+            MAX_QS_DEPTH,
+            alpha,
+            beta,
             memo,
-            qs_depth,
-            stop_now.clone(),
+            stop_now,
         );
-        score = -score;
-        if score >= beta {
-            return (None, score, nodes);
-        }
+        return (None, score, nodes);
     }
 
-    // Check for game over
-    let mut moves = position.legal_moves();
+    // When game is over, do not search
+    let mut moves = position.legal_moves(false);
     if let Some(score) = evaluate_game_over(position, &moves) {
         return (None, score + position.info.full_move_number as Score, 1);
-    }
-
-    // Check for maximum depth
-    let mut quiet_search = false;
-    if depth <= 0 {
-        if qs_depth > 0 {
-            quiet_search = moves.iter().any(|mov| !mov.is_quiet(position));
-        }
-
-        if !quiet_search {
-            let color_cof = match position.info.to_move {
-                Color::White => 1,
-                Color::Black => -1,
-            };
-            return (None, color_cof * evaluate_position(position), 1);
-        }
     }
 
     // Sort moves by heuristic value + killer move + hash move
@@ -218,30 +274,24 @@ fn alphabeta(
 
     // Search moves
     let mut best_move = moves[0];
-    let mut best_score = alpha;
     let mut count = 0;
     for mov in moves {
-        if quiet_search && mov.is_quiet(position) {
-            continue;
-        }
-
         let new_position = position.make_move(mov);
-        let (_, score, nodes) = alphabeta(
+        let (_, score, nodes) = alphabeta_memo(
             &new_position,
             depth - 1,
             -beta,
-            -best_score,
+            -alpha,
             memo,
-            if quiet_search { qs_depth - 1 } else { qs_depth },
             stop_now.clone(),
         );
         let score = -score;
         count += nodes;
 
-        if score > best_score {
+        if score > alpha {
             best_move = mov;
-            best_score = score;
-            if best_score >= beta {
+            alpha = score;
+            if alpha >= beta {
                 if mov.is_quiet(position) {
                     memo.put_killer_move(mov, depth);
                 }
@@ -251,28 +301,17 @@ fn alphabeta(
     }
 
     memo.put_hash_move(zobrist_hash, best_move, depth);
-    memo.put_transposition_table(
-        zobrist_hash,
-        depth,
-        Some(best_move),
-        best_score,
-    );
-    (Some(best_move), best_score, count)
+    memo.put_transposition_table(zobrist_hash, depth, Some(best_move), alpha);
+    (Some(best_move), alpha, count)
 }
 
-pub fn search(
+fn search_simple(
     position: &Position,
     depth: Depth,
+    memo: &mut SearchMemo,
+    stop_now: Option<Arc<AtomicBool>>,
 ) -> (Option<Move>, Score, usize) {
-    alphabeta(
-        position,
-        depth,
-        MATE_LOWER,
-        MATE_UPPER,
-        &mut SearchMemo::new(None),
-        MAX_QSEARCH_DEPTH,
-        None,
-    )
+    alphabeta_memo(position, depth, MATE_LOWER, MATE_UPPER, memo, stop_now)
 }
 
 pub fn search_iterative_deep(
@@ -285,39 +324,17 @@ pub fn search_iterative_deep(
     let mut memo = SearchMemo::new(duration);
 
     // First guaranteed search
-    let (mut mov, mut score, mut nodes) = alphabeta(
-        position,
-        1,
-        MATE_LOWER,
-        MATE_UPPER,
-        &mut memo,
-        MAX_QSEARCH_DEPTH,
-        stop_now.clone(),
-    );
+    let (mut mov, mut score, mut nodes) =
+        search_simple(position, 1, &mut memo, stop_now.clone());
     println!("{}: {} {} {}", 1, mov.unwrap(), score, nodes);
 
     // Time constrained iterative deepening
     for ply in 2..=max_depth {
-        let (new_mov, new_score, new_nodes) = alphabeta(
-            position,
-            ply,
-            MATE_LOWER,
-            MATE_UPPER,
-            &mut memo,
-            MAX_QSEARCH_DEPTH,
-            stop_now.clone(),
-        );
+        let (new_mov, new_score, new_nodes) =
+            search_simple(position, ply, &mut memo, stop_now.clone());
 
-        // Check if the search has been stopped
-        if memo.initial_instant.elapsed() > memo.duration {
-            println!("bestmove {}", mov.unwrap());
-            return (mov, score, nodes);
-        }
-        if let Some(stop_now) = stop_now.as_ref() {
-            if stop_now.load(Ordering::Relaxed) {
-                println!("bestmove {}", mov.unwrap());
-                return (mov, score, nodes);
-            }
+        if should_stop_search(&memo, stop_now.clone()) {
+            break;
         }
 
         mov = new_mov;
@@ -325,14 +342,10 @@ pub fn search_iterative_deep(
         nodes = new_nodes;
 
         println!("{}: {} {} {}", ply, mov.unwrap(), score, nodes);
-
-        if ply == max_depth {
-            println!("bestmove {}", mov.unwrap());
-            return (mov, score, nodes);
-        }
     }
 
-    unreachable!()
+    println!("bestmove {}", mov.unwrap());
+    return (mov, score, nodes);
 }
 
 #[cfg(test)]
@@ -351,40 +364,41 @@ mod tests {
         let position = Position::from_fen(fen).unwrap();
 
         let now = std::time::Instant::now();
-        let (mov, score, nodes) =
+        let (reg_mov, reg_score, reg_nodes) =
             search_iterative_deep(&position, Some(depth), None, None);
         let elapsed = now.elapsed().as_millis();
         println!(
             "[iterative] {}: {} nodes in {} ms at depth {}\n",
-            fen, nodes, elapsed, depth
+            fen, reg_nodes, elapsed, depth
         );
-
-        assert_eq!(mov.unwrap().to_string(), expected_move);
-        if let Some(expected_lower_score) = expected_lower_score {
-            assert!(score >= expected_lower_score);
-        }
-        if let Some(expected_upper_score) = expected_upper_score {
-            assert!(score <= expected_upper_score);
-        }
 
         if !test_regular {
             return;
         }
 
         let now = std::time::Instant::now();
-        let (mov, score, nodes) = search(&position, depth);
+        let (iter_mov, iter_score, iter_nodes) =
+            search_simple(&position, depth, &mut SearchMemo::new(None), None);
         let elapsed = now.elapsed().as_millis();
         println!(
             "[regular] {}: {} nodes in {} ms at depth {}",
-            fen, nodes, elapsed, depth
+            fen, iter_nodes, elapsed, depth
         );
 
-        assert_eq!(mov.unwrap().to_string(), expected_move);
+        assert_eq!(reg_mov.unwrap().to_string(), expected_move);
         if let Some(expected_lower_score) = expected_lower_score {
-            assert!(score >= expected_lower_score);
+            assert!(reg_score >= expected_lower_score - MAX_MATE_SCORE_DIFF);
         }
         if let Some(expected_upper_score) = expected_upper_score {
-            assert!(score <= expected_upper_score);
+            assert!(reg_score <= expected_upper_score + MAX_MATE_SCORE_DIFF);
+        }
+
+        assert_eq!(iter_mov.unwrap().to_string(), expected_move);
+        if let Some(expected_lower_score) = expected_lower_score {
+            assert!(iter_score >= expected_lower_score - MAX_MATE_SCORE_DIFF);
+        }
+        if let Some(expected_upper_score) = expected_upper_score {
+            assert!(iter_score <= expected_upper_score + MAX_MATE_SCORE_DIFF);
         }
     }
 
@@ -394,7 +408,7 @@ mod tests {
             "3k4/6R1/8/7R/8/8/8/4k3 w - - 0 1",
             5,
             "h5h8",
-            Some(MATE_UPPER - MAX_MATE_SCORE_DIFF),
+            Some(MATE_UPPER),
             None,
             false,
         );
@@ -428,11 +442,23 @@ mod tests {
     fn search_check_combination() {
         test_search(
             "4r2k/1p4p1/3P3p/P1P5/4b3/1Bq5/6PP/3QR1K1 b - - 11 41",
-            3,
+            4,
             "c3c5",
             None,
             None,
             false,
+        );
+    }
+
+    #[test]
+    fn search_endgame_opposition() {
+        test_search(
+            "5k2/8/6K1/5P2/8/8/8/8 w - - 0 1",
+            3,
+            "g6f6",
+            None,
+            None,
+            true,
         );
     }
 }

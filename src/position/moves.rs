@@ -64,6 +64,7 @@ fn generate_regular_moves_from_square(
     position: &Position,
     square: Square,
     directions: &[i64],
+    only_captures: bool,
 ) -> Vec<Move> {
     let piece = position.at(square).unwrap();
     let color = piece.color();
@@ -89,11 +90,13 @@ fn generate_regular_moves_from_square(
 
             let to_piece = position.board[to_index];
             if to_piece.is_none() {
-                moves.push(Move::new(
-                    square,
-                    Square { index: to_index },
-                    MoveFlags::empty(),
-                ));
+                if !only_captures {
+                    moves.push(Move::new(
+                        square,
+                        Square { index: to_index },
+                        MoveFlags::empty(),
+                    ));
+                }
                 if crawls {
                     last_column = current_col;
                     current_offset += offset;
@@ -115,6 +118,7 @@ fn generate_regular_moves_from_square(
 fn pseudo_legal_moves_from_square(
     position: &Position,
     square: Square,
+    only_non_quiet: bool,
 ) -> Vec<Move> {
     let piece = position.at(square).unwrap();
     let color = piece.color();
@@ -124,6 +128,7 @@ fn pseudo_legal_moves_from_square(
                 position,
                 square,
                 piece.unchecked_directions(),
+                only_non_quiet,
             );
 
             // Do not advance if there is a piece in front; do not capture if there is no piece
@@ -193,7 +198,12 @@ fn pseudo_legal_moves_from_square(
                 position,
                 square,
                 piece.unchecked_directions(),
+                only_non_quiet,
             );
+
+            if only_non_quiet {
+                return moves;
+            }
 
             // Handle castling
             for i in 0..4 {
@@ -263,25 +273,37 @@ fn pseudo_legal_moves_from_square(
             position,
             square,
             piece.unchecked_directions(),
+            only_non_quiet,
         ),
     }
 }
 
-pub fn pseudo_legal_moves(position: &Position, to_move: Color) -> Vec<Move> {
+pub fn pseudo_legal_moves(
+    position: &Position,
+    to_move: Color,
+    only_non_quiet: bool,
+) -> Vec<Move> {
     let mut moves = Vec::with_capacity(40);
     for index in 0..BOARD_SIZE {
         let piece = position.board[index];
         if piece.is_none() || piece.unwrap().color() != to_move {
             continue;
         }
-        moves
-            .extend(pseudo_legal_moves_from_square(position, Square { index }));
+        moves.extend(pseudo_legal_moves_from_square(
+            position,
+            Square { index },
+            only_non_quiet,
+        ));
     }
     moves
 }
 
-pub fn legal_moves(position: &Position, to_move: Color) -> Vec<Move> {
-    let mut moves = pseudo_legal_moves(position, to_move);
+pub fn legal_moves(
+    position: &Position,
+    to_move: Color,
+    only_non_quiet: bool,
+) -> Vec<Move> {
+    let mut moves = pseudo_legal_moves(position, to_move, only_non_quiet);
 
     moves.retain(|move_| {
         let castle_passent_squares = match position.at(move_.from) {
@@ -310,7 +332,7 @@ pub fn position_is_check(
     castle_passent_squares: Option<[Square; 2]>,
 ) -> bool {
     let opposing_color = checked_player.opposite();
-    let opponent_moves = pseudo_legal_moves(position, opposing_color);
+    let opponent_moves = pseudo_legal_moves(position, opposing_color, false);
 
     for move_ in opponent_moves {
         if let Some(piece) = position.at(move_.to) {
@@ -463,7 +485,7 @@ mod tests {
     #[test]
     fn perft_start() {
         let position = super::Position::new();
-        let moves = legal_moves(&position, position.info.to_move);
+        let moves = legal_moves(&position, position.info.to_move, false);
         assert_eq!(moves.len(), 20);
     }
 
@@ -482,7 +504,7 @@ mod tests {
             return (*count, moves.to_vec());
         }
 
-        let moves = legal_moves(&position, position.info.to_move);
+        let moves = legal_moves(&position, position.info.to_move, false);
         let mut res = Vec::with_capacity(moves.len());
         let mut count = 0;
 

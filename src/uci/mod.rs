@@ -211,7 +211,7 @@ impl EngineState {
         };
 
         for mov in moves {
-            let legal_moves = self.position.legal_moves();
+            let legal_moves = self.position.legal_moves(false);
             if let Some(m) = legal_moves.iter().find(|m| m.to_string() == mov) {
                 self.position = self.position.make_move(*m);
             } else {
