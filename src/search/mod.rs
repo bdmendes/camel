@@ -8,15 +8,17 @@ use crate::{
 use std::{
     collections::HashMap,
     sync::{atomic::AtomicBool, Arc},
+    time::{Duration, Instant},
 };
 
-pub type Depth = i8;
+pub type Depth = u8;
 
 const MAX_ITERATIVE_DEPTH: Depth = 40;
 const MAX_TABLE_SIZE: usize = 1_000_000;
 const MAX_QS_DEPTH: Depth = 5;
 const MAX_DURATION_PER_MOVE: std::time::Duration =
     std::time::Duration::from_secs(60);
+const MAX_MATE_SCORE_DIFF: Score = 300;
 
 struct SearchMemo {
     pub killer_moves: HashMap<Depth, [Option<Move>; 2]>,
@@ -35,6 +37,28 @@ impl SearchMemo {
             initial_instant: std::time::Instant::now(),
             duration: duration.unwrap_or(MAX_DURATION_PER_MOVE),
         }
+    }
+
+    fn get_principal_variation(
+        &self,
+        position: &Position,
+        depth: Depth,
+    ) -> Option<Vec<Move>> {
+        let mut principal_variation = Vec::new();
+        let mut current_position = position.clone();
+        let mut current_depth = depth;
+        while current_depth > 0 {
+            let entry = self.hash_move.get(&current_position.to_zobrist_hash());
+            if entry.is_none() {
+                break;
+            }
+
+            let mov = entry.unwrap().0;
+            principal_variation.push(mov);
+            current_position = current_position.make_move(mov);
+            current_depth -= 1;
+        }
+        Some(principal_variation)
     }
 
     fn put_killer_move(&mut self, mov: Move, depth: Depth) {
@@ -219,6 +243,7 @@ fn alphabeta_memo(
     beta: Score,
     memo: &mut SearchMemo,
     stop_now: Option<Arc<AtomicBool>>,
+    original_depth: Depth,
 ) -> (Option<Move>, Score, usize) {
     // Check if the search should be stopped
     if should_stop_search(memo, stop_now.clone()) {
@@ -249,8 +274,10 @@ fn alphabeta_memo(
 
     // When game is over, do not search
     let mut moves = position.legal_moves(false);
-    if let Some(score) = evaluate_game_over(position, &moves) {
-        return (None, score + position.info.full_move_number as Score, 1);
+    if let Some(score) =
+        evaluate_game_over(position, &moves, original_depth - depth)
+    {
+        return (None, score as Score, 1);
     }
 
     // Sort moves by heuristic value + killer move + hash move
@@ -284,6 +311,7 @@ fn alphabeta_memo(
             -alpha,
             memo,
             stop_now.clone(),
+            original_depth,
         );
         let score = -score;
         count += nodes;
@@ -302,6 +330,7 @@ fn alphabeta_memo(
 
     memo.put_hash_move(zobrist_hash, best_move, depth);
     memo.put_transposition_table(zobrist_hash, depth, Some(best_move), alpha);
+
     (Some(best_move), alpha, count)
 }
 
@@ -311,7 +340,9 @@ fn search_simple(
     memo: &mut SearchMemo,
     stop_now: Option<Arc<AtomicBool>>,
 ) -> (Option<Move>, Score, usize) {
-    alphabeta_memo(position, depth, MATE_LOWER, MATE_UPPER, memo, stop_now)
+    alphabeta_memo(
+        position, depth, MATE_LOWER, MATE_UPPER, memo, stop_now, depth,
+    )
 }
 
 pub fn search_iterative_deep(
@@ -320,16 +351,48 @@ pub fn search_iterative_deep(
     duration: Option<std::time::Duration>,
     stop_now: Option<Arc<AtomicBool>>,
 ) -> (Option<Move>, Score, usize) {
+    let print_info = |memo: &SearchMemo,
+                      depth: Depth,
+                      score: Score,
+                      nodes: usize,
+                      time: Duration| {
+        let distance_to_mate = if score > 0 {
+            MATE_UPPER - score
+        } else {
+            (MATE_LOWER - score).abs()
+        };
+        print!(
+            "info depth {} score cp {} time {} nodes {} nps {} pv",
+            depth,
+            if distance_to_mate < MAX_MATE_SCORE_DIFF {
+                format!("mate {}", (distance_to_mate + 1) / 2)
+            } else {
+                score.to_string()
+            },
+            time.as_millis(),
+            nodes,
+            (nodes as f64 / (time.as_secs_f64() + 0.001)) as usize
+        );
+        let pv =
+            memo.get_principal_variation(position, depth).unwrap_or(vec![]);
+        for mov in pv {
+            print!(" {}", mov);
+        }
+        println!();
+    };
+
     let max_depth = depth.unwrap_or(MAX_ITERATIVE_DEPTH);
     let mut memo = SearchMemo::new(duration);
 
     // First guaranteed search
+    let start = Instant::now();
     let (mut mov, mut score, mut nodes) =
         search_simple(position, 1, &mut memo, stop_now.clone());
-    println!("{}: {} {} {}", 1, mov.unwrap(), score, nodes);
+    print_info(&memo, 1, score, nodes, start.elapsed());
 
     // Time constrained iterative deepening
     for ply in 2..=max_depth {
+        let start = Instant::now();
         let (new_mov, new_score, new_nodes) =
             search_simple(position, ply, &mut memo, stop_now.clone());
 
@@ -337,11 +400,11 @@ pub fn search_iterative_deep(
             break;
         }
 
+        print_info(&memo, ply, new_score, new_nodes, start.elapsed());
+
         mov = new_mov;
         score = new_score;
         nodes = new_nodes;
-
-        println!("{}: {} {} {}", ply, mov.unwrap(), score, nodes);
     }
 
     println!("bestmove {}", mov.unwrap());
@@ -351,7 +414,6 @@ pub fn search_iterative_deep(
 #[cfg(test)]
 mod tests {
     use super::*;
-    const MAX_MATE_SCORE_DIFF: Score = 300;
 
     fn test_search(
         fen: &str,

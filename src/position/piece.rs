@@ -88,6 +88,23 @@ impl Piece {
         }
     }
 
+    pub fn to_fancy_char(&self) -> char {
+        match self {
+            Piece::WP => '♙',
+            Piece::WR => '♖',
+            Piece::WN => '♘',
+            Piece::WB => '♗',
+            Piece::WQ => '♕',
+            Piece::WK => '♔',
+            Piece::BP => '♟',
+            Piece::BR => '♜',
+            Piece::BN => '♞',
+            Piece::BB => '♝',
+            Piece::BQ => '♛',
+            Piece::BK => '♚',
+        }
+    }
+
     pub fn unchecked_directions(&self) -> &'static [i64] {
         match self {
             Piece::WP => &[UP, UP + UP, UP + LEFT, UP + RIGHT],

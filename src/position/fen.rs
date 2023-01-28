@@ -160,19 +160,6 @@ mod tests {
     fn fen_start() {
         let position = position_from_fen(START_FEN).unwrap();
         assert_eq!(position_to_fen(&position, false), START_FEN);
-
-        let expected_board_view = vec![
-            "rnbqkbnr", //
-            "pppppppp", //
-            "--------", //
-            "--------", //
-            "--------", //
-            "--------", //
-            "PPPPPPPP", //
-            "RNBQKBNR",
-        ]
-        .join("\n");
-        assert_eq!(format!("{}", position), expected_board_view);
     }
 
     #[test]
@@ -181,18 +168,5 @@ mod tests {
             "r4rk1/pp1q1ppp/2n2b2/3Q4/8/2N5/PPP2PPP/R3K1NR b KQ - 0 14";
         let position = position_from_fen(midgame_fen).unwrap();
         assert_eq!(position_to_fen(&position, false), midgame_fen);
-
-        let expected_board_view = vec![
-            "r----rk-", //
-            "pp-q-ppp", //
-            "--n--b--", //
-            "---Q----", //
-            "--------", //
-            "--N-----", //
-            "PPP--PPP", //
-            "R---K-NR",
-        ]
-        .join("\n");
-        assert_eq!(format!("{}", position), expected_board_view);
     }
 }

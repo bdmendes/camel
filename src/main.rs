@@ -11,7 +11,7 @@ fn uci_loop() {
 
         match uci::UCICommand::parse(&input) {
             Ok(command) => state.execute(command),
-            Err(error) => println!("Error: {}", error),
+            Err(_error) => {}
         }
     }
 }

@@ -111,12 +111,7 @@ impl UCICommand {
                                     .map_err(|_| "Invalid movetime value")?,
                             ));
                         }
-                        _ => {
-                            return Err(format!(
-                                "Unknown go command: {}",
-                                token
-                            ))
-                        }
+                        _ => {}
                     }
                 }
                 Ok(UCICommand::Go { depth, movetime })
@@ -165,7 +160,7 @@ impl EngineState {
     }
 
     fn handle_display(&self) {
-        println!("{}", self.position)
+        println!("{}", self.position);
     }
 
     fn handle_uci() {
@@ -182,9 +177,7 @@ impl EngineState {
         self.debug = _value;
     }
 
-    fn handle_setoption(_name: &str, _value: &str) {
-        todo!();
-    }
+    fn handle_setoption(_name: &str, _value: &str) {}
 
     fn handle_register(_code: &str) {}
 
@@ -234,9 +227,7 @@ impl EngineState {
         self.stop.store(true, Ordering::Relaxed);
     }
 
-    fn handle_ponderhit() {
-        todo!();
-    }
+    fn handle_ponderhit() {}
 
     fn handle_quit() {
         exit(0);

@@ -1,4 +1,5 @@
 pub mod psqt;
+
 use self::psqt::psqt_value;
 use crate::position::{
     moves::{Move, MoveFlags},
@@ -7,8 +8,8 @@ use crate::position::{
 
 pub type Score = i32;
 
-pub const MATE_LOWER: Score = i32::MIN + 1;
-pub const MATE_UPPER: Score = i32::MAX;
+pub const MATE_LOWER: Score = -70000;
+pub const MATE_UPPER: Score = 70000;
 
 fn piece_value(piece: Piece) -> Score {
     // Values from https://github.com/official-stockfish/Stockfish/blob/master/src/types.h
@@ -75,6 +76,7 @@ pub fn evaluate_move(
 pub fn evaluate_game_over(
     position: &Position,
     moves: &Vec<Move>,
+    distance_to_root: u8,
 ) -> Option<Score> {
     // Flag 50 move rule draws
     if position.info.half_move_number >= 100 {
@@ -85,7 +87,7 @@ pub fn evaluate_game_over(
     if moves.len() == 0 {
         let is_check = position.is_check();
         return match is_check {
-            true => Some(MATE_LOWER),
+            true => Some(MATE_LOWER + distance_to_root as Score),
             false => Some(0),
         };
     }
@@ -157,7 +159,7 @@ mod tests {
         let position =
             Position::from_fen("2k3R1/7R/8/8/8/4K3/8/8 b - - 0 1").unwrap();
         assert_eq!(
-            evaluate_game_over(&position, &position.legal_moves(false))
+            evaluate_game_over(&position, &position.legal_moves(false), 0)
                 .unwrap(),
             MATE_LOWER
         );
@@ -168,7 +170,7 @@ mod tests {
         let position =
             Position::from_fen("8/8/8/8/8/6Q1/8/4K2k b - - 0 1").unwrap();
         assert_eq!(
-            evaluate_game_over(&position, &position.legal_moves(false))
+            evaluate_game_over(&position, &position.legal_moves(false), 0)
                 .unwrap(),
             0
         );
