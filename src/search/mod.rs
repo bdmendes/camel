@@ -356,16 +356,16 @@ pub fn search_iterative_deep(
                       score: Score,
                       nodes: usize,
                       time: Duration| {
-        let distance_to_mate = if score > 0 {
-            MATE_UPPER - score
-        } else {
-            (MATE_LOWER - score).abs()
-        };
+        let distance_to_mate = MATE_UPPER - score.abs();
         print!(
             "info depth {} score cp {} time {} nodes {} nps {} pv",
             depth,
             if distance_to_mate < MAX_MATE_SCORE_DIFF {
-                format!("mate {}", (distance_to_mate + 1) / 2)
+                format!(
+                    "mate {}{}",
+                    if score < 0 { "-" } else { "" },
+                    (distance_to_mate + 1) / 2
+                )
             } else {
                 score.to_string()
             },

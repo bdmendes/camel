@@ -11,7 +11,10 @@ fn uci_loop() {
 
         match uci::UCICommand::parse(&input) {
             Ok(command) => state.execute(command),
-            Err(_error) => {}
+            Err(_error) => {
+                print!("Unknown command: {}", input);
+                println!("Enter 'help' for program usage details.");
+            }
         }
     }
 }

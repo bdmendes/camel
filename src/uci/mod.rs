@@ -15,6 +15,7 @@ use crate::{
 };
 
 pub enum UCICommand {
+    // Standard UCI commands
     UCI,
     Debug(bool),
     IsReady,
@@ -27,7 +28,13 @@ pub enum UCICommand {
     Stop,
     PonderHit,
     Quit,
+
+    // Custom commands
     Display,
+    Help,
+    Move(String),
+    AutoMove,
+    List,
 }
 
 pub struct EngineState {
@@ -43,6 +50,13 @@ impl UCICommand {
         let command = tokens.pop_front().ok_or("No command found")?;
 
         match command.as_str() {
+            "l" | "list" => Ok(UCICommand::List),
+            "a" | "automove" => Ok(UCICommand::AutoMove),
+            "h" | "help" => Ok(UCICommand::Help),
+            "m" | "move" => {
+                let m = tokens.pop_front().ok_or("No move found")?;
+                Ok(UCICommand::Move(m))
+            }
             "d" | "display" => Ok(UCICommand::Display),
             "uci" => Ok(UCICommand::UCI),
             "debug" => {
@@ -135,7 +149,6 @@ impl EngineState {
 
     pub fn execute(&mut self, command: UCICommand) {
         match command {
-            UCICommand::Display => self.handle_display(),
             UCICommand::UCI => Self::handle_uci(),
             UCICommand::Debug(value) => self.handle_debug(value),
             UCICommand::IsReady => Self::handle_isready(),
@@ -156,6 +169,11 @@ impl EngineState {
             UCICommand::Stop => self.handle_stop(),
             UCICommand::PonderHit => Self::handle_ponderhit(),
             UCICommand::Quit => Self::handle_quit(),
+            UCICommand::Display => self.handle_display(),
+            UCICommand::Move(m) => self.handle_move(m),
+            UCICommand::Help => Self::handle_help(),
+            UCICommand::AutoMove => self.handle_auto_move(),
+            UCICommand::List => self.handle_list(),
         }
     }
 
@@ -231,5 +249,58 @@ impl EngineState {
 
     fn handle_quit() {
         exit(0);
+    }
+
+    fn handle_help() {
+        println!("Camel is an UCI-compatible chess engine.");
+        println!("You such use a GUI such as Arena (Windows) or Scid (Linux/Mac) to play against it.");
+        println!("In alternative, check the UCI protocol details at https://backscattering.de/chess/uci/.");
+        println!("Camel is written in Rust and is open source. You can find the source code at https://github.com/bdmendes/camel.");
+        println!("");
+        println!("Additional commands [besides standard UCI]:");
+        println!("  help: display this help message");
+        println!("  display: display the current position");
+        println!("  move [long_algebraic_notation]: make a move in the current position");
+        println!("  automove: let the engine make a move in the current position (1 second time limit)");
+        println!("  list: list all legal moves in the current position");
+    }
+
+    fn handle_move(&mut self, mov: String) {
+        let legal_moves = self.position.legal_moves(false);
+        if let Some(m) = legal_moves.iter().find(|m| m.to_string() == mov) {
+            self.position = self.position.make_move(*m);
+            println!("{}", self.position);
+        } else {
+            println!("Invalid move: {}", mov);
+        }
+    }
+
+    fn handle_auto_move(&mut self) {
+        let (mov, _, _) = search_iterative_deep(
+            &self.position,
+            None,
+            Some(Duration::from_secs(1)),
+            None,
+        );
+        if let Some(m) = mov {
+            self.position = self.position.make_move(m);
+            println!("{}", self.position);
+        } else {
+            println!("No move found. The game is over.");
+        }
+    }
+
+    fn handle_list(&self) {
+        let legal_moves = self.position.legal_moves(false);
+
+        if legal_moves.is_empty() {
+            println!("No legal moves. The game is over.");
+            return;
+        }
+
+        for mov in legal_moves {
+            print!("{} ", mov);
+        }
+        println!();
     }
 }
