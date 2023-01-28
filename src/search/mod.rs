@@ -45,7 +45,7 @@ impl SearchMemo {
         &self,
         position: &Position,
         depth: Depth,
-    ) -> Option<Vec<Move>> {
+    ) -> Vec<Move> {
         let mut principal_variation = Vec::new();
         let mut current_position = position.clone();
         let mut current_depth = depth;
@@ -60,7 +60,7 @@ impl SearchMemo {
             current_position = current_position.make_move(mov);
             current_depth -= 1;
         }
-        Some(principal_variation)
+        principal_variation
     }
 
     fn visit_position(&mut self, zobrist_hash: ZobristHash) {
@@ -412,8 +412,7 @@ pub fn search_iterative_deep(
             nodes,
             (nodes as f64 / (time.as_secs_f64() + 0.001)) as usize
         );
-        let pv =
-            memo.get_principal_variation(position, depth).unwrap_or(vec![]);
+        let pv = memo.get_principal_variation(position, depth);
         for mov in pv {
             print!(" {}", mov);
         }
