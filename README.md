@@ -49,6 +49,16 @@ Chess rules are implemented carefully and extensively, including details such as
 
 [Chess programming](https://www.chessprogramming.org/Main_Page) is a vast topic, and Camel is far from being a complete engine. It has great room for improvement, both in terms of search algorithms and move generation performance. If you are interested in chess programming, I encourage you to read the links above, and contribute to this project.
 
+## What can I do with it?
+
+Camel is licensed under the [GNU General Public License v3.0](./LICENSE). You can use it for any purpose, including commercial use, provided you always include the license and the source code.
+
+## Credits
+
+- [Chess Programming Wiki](https://www.chessprogramming.org/Main_Page): a great resource for chess programming.
+- [Stockfish](https://stockfishchess.org/): the gold standard of chess engines, for sure.
+- [Sunfish](https://github.com/thomasahle/sunfish): an interesting, small chess engine with the fundamentals done right.
+
 ## Why Camel?
 
 Camel likes to play active chess. It does grunt sometimes when it loses, though.
