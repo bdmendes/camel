@@ -24,6 +24,7 @@ struct SearchMemo {
     pub killer_moves: HashMap<Depth, [Option<Move>; 2]>,
     pub hash_move: HashMap<ZobristHash, (Move, Depth)>,
     pub transposition_table: HashMap<ZobristHash, (Option<Move>, Score, Depth)>,
+    pub move_repetition_table: HashMap<ZobristHash, u8>,
     pub initial_instant: std::time::Instant,
     pub duration: std::time::Duration,
 }
@@ -34,6 +35,7 @@ impl SearchMemo {
             killer_moves: HashMap::new(),
             hash_move: HashMap::new(),
             transposition_table: HashMap::new(),
+            move_repetition_table: HashMap::new(),
             initial_instant: std::time::Instant::now(),
             duration: duration.unwrap_or(MAX_DURATION_PER_MOVE),
         }
@@ -59,6 +61,31 @@ impl SearchMemo {
             current_depth -= 1;
         }
         Some(principal_variation)
+    }
+
+    fn visit_position(&mut self, zobrist_hash: ZobristHash) {
+        let entry = self.move_repetition_table.entry(zobrist_hash).or_insert(0);
+        *entry += 1;
+    }
+
+    fn leave_position(&mut self, zobrist_hash: ZobristHash) {
+        let entry = self.move_repetition_table.entry(zobrist_hash).or_insert(0);
+        *entry -= 1;
+        if *entry == 0 {
+            self.move_repetition_table.remove(&zobrist_hash);
+        }
+    }
+
+    fn threefold_repetition(&self, zobrist_hash: ZobristHash) -> bool {
+        if let Some(entry) = self.move_repetition_table.get(&zobrist_hash) {
+            *entry >= 3
+        } else {
+            false
+        }
+    }
+
+    fn seen_position_before(&self, zobrist_hash: ZobristHash) -> bool {
+        self.move_repetition_table.contains_key(&zobrist_hash)
     }
 
     fn put_killer_move(&mut self, mov: Move, depth: Depth) {
@@ -129,7 +156,7 @@ impl SearchMemo {
         if let Some((mov, score, transp_depth)) =
             self.transposition_table.get(&zobrist_hash)
         {
-            if depth < *transp_depth {
+            if depth <= *transp_depth {
                 return Some((*mov, *score));
             }
         }
@@ -250,10 +277,17 @@ fn alphabeta_memo(
         return (None, alpha, 1);
     }
 
-    // Check for transposition table hit
+    // Flag draw in case of threefold repetition
     let zobrist_hash = position.to_zobrist_hash();
-    if let Some(res) = memo.get_transposition_table(zobrist_hash, depth) {
-        return (res.0, res.1, 1);
+    if memo.threefold_repetition(zobrist_hash) {
+        return (None, 0, 1);
+    }
+
+    // Check for transposition table hit
+    if !memo.seen_position_before(zobrist_hash) {
+        if let Some(res) = memo.get_transposition_table(zobrist_hash, depth) {
+            return (res.0, res.1, 1);
+        }
     }
 
     // Cleanup tables if they get too big
@@ -304,6 +338,9 @@ fn alphabeta_memo(
     let mut count = 0;
     for mov in moves {
         let new_position = position.make_move(mov);
+        let new_position_hash = new_position.to_zobrist_hash();
+
+        memo.visit_position(new_position_hash);
         let (_, score, nodes) = alphabeta_memo(
             &new_position,
             depth - 1,
@@ -313,6 +350,8 @@ fn alphabeta_memo(
             stop_now.clone(),
             original_depth,
         );
+        memo.leave_position(new_position_hash);
+
         let score = -score;
         count += nodes;
 
