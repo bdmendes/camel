@@ -99,7 +99,7 @@ impl Position {
         moves::legal_moves(&self, self.info.to_move, only_non_quiet)
     }
 
-    pub fn make_move(&self, m: moves::Move) -> Position {
+    pub fn make_move(&self, m: &moves::Move) -> Position {
         moves::make_move(&self, m)
     }
 

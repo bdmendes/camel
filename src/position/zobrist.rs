@@ -2,34 +2,21 @@ use super::{Color, Piece, Position, Square, BOARD_SIZE};
 use once_cell::sync::Lazy;
 use rand::Rng;
 
-static ZOBRIST_NUMBERS: Lazy<[u128; 12 * BOARD_SIZE]> = Lazy::new(|| {
-    let mut rng = rand::thread_rng();
-    let mut zobrist_numbers = [0; 12 * BOARD_SIZE];
-    for i in 0..(12 * BOARD_SIZE) {
-        zobrist_numbers[i] = rng.gen();
-    }
-    zobrist_numbers
-});
+pub type ZobristHash = u64;
 
-pub type ZobristHash = u128;
+static ZOBRIST_NUMBERS: Lazy<[ZobristHash; 12 * BOARD_SIZE]> =
+    Lazy::new(|| {
+        let mut rng = rand::thread_rng();
+        let mut zobrist_numbers = [0; 12 * BOARD_SIZE];
+        for i in 0..(12 * BOARD_SIZE) {
+            zobrist_numbers[i] = rng.gen();
+        }
+        zobrist_numbers
+    });
 
-fn zobrist_number(piece: Piece, square: Square) -> u128 {
-    let piece_index = match piece {
-        Piece::WQ => 0,
-        Piece::WR => 1,
-        Piece::WB => 2,
-        Piece::WN => 3,
-        Piece::WP => 4,
-        Piece::WK => 5,
-        Piece::BQ => 6,
-        Piece::BR => 7,
-        Piece::BB => 8,
-        Piece::BN => 9,
-        Piece::BP => 10,
-        Piece::BK => 11,
-    };
+fn zobrist_number(piece: Piece, square: Square) -> ZobristHash {
     let square_index = square.index;
-    let index = piece_index * 64 + square_index;
+    let index = piece as usize * 64 + square_index;
     ZOBRIST_NUMBERS[index]
 }
 

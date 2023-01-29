@@ -62,7 +62,7 @@ impl SearchMemo {
 
             let mov = entry.unwrap().0;
             principal_variation.push(mov);
-            current_position = current_position.make_move(mov);
+            current_position = current_position.make_move(&mov);
             current_depth -= 1;
         }
         principal_variation
@@ -93,17 +93,17 @@ impl SearchMemo {
         self.move_repetition_table.contains_key(&zobrist_hash)
     }
 
-    fn put_killer_move(&mut self, mov: Move, depth: Depth) {
+    fn put_killer_move(&mut self, mov: &Move, depth: Depth) {
         let killer_moves =
             self.killer_moves.entry(depth).or_insert([None, None]);
         if killer_moves[0] == None {
-            killer_moves[0] = Some(mov);
+            killer_moves[0] = Some(*mov);
         } else if killer_moves[1] == None {
-            killer_moves[1] = Some(mov);
-        } else if Some(mov) == killer_moves[0] {
-            killer_moves[1] = Some(mov);
+            killer_moves[1] = Some(*mov);
+        } else if Some(*mov) == killer_moves[0] {
+            killer_moves[1] = Some(*mov);
         } else {
-            killer_moves[0] = Some(mov);
+            killer_moves[0] = Some(*mov);
         }
     }
 
@@ -111,26 +111,26 @@ impl SearchMemo {
         *self.killer_moves.entry(depth).or_insert([None, None])
     }
 
-    fn is_killer_move(mov: Move, killer_moves: [Option<Move>; 2]) -> bool {
-        killer_moves[0] == Some(mov) || killer_moves[1] == Some(mov)
+    fn is_killer_move(mov: &Move, killer_moves: [Option<Move>; 2]) -> bool {
+        killer_moves[0] == Some(*mov) || killer_moves[1] == Some(*mov)
     }
 
     fn put_hash_move(
         &mut self,
         zobrist_hash: ZobristHash,
-        mov: Move,
+        mov: &Move,
         depth: Depth,
     ) {
         let (hash_mov, hash_depth) =
-            self.hash_move.entry(zobrist_hash).or_insert((mov, 0));
+            self.hash_move.entry(zobrist_hash).or_insert((*mov, 0));
         if depth <= *hash_depth {
             return;
         }
         *hash_depth = depth;
-        *hash_mov = mov;
+        *hash_mov = *mov;
     }
 
-    fn is_hash_move(mov: Move, hash_move: Option<Move>) -> bool {
+    fn is_hash_move(mov: &Move, hash_move: Option<&Move>) -> bool {
         hash_move == Some(mov)
     }
 

@@ -36,8 +36,8 @@ fn alphabeta_quiet(
     // Generate and sort non-quiet moves
     let mut moves = position.legal_moves(true);
     moves.sort_unstable_by(|a, b| {
-        let a_value = evaluate_move(*a, &position, false, false);
-        let b_value = evaluate_move(*b, &position, false, false);
+        let a_value = evaluate_move(a, &position, false, false);
+        let b_value = evaluate_move(b, &position, false, false);
         b_value.cmp(&a_value)
     });
 
@@ -53,7 +53,7 @@ fn alphabeta_quiet(
 
     // Search moves
     let mut count = 0;
-    for mov in moves {
+    for mov in &moves {
         let new_position = position.make_move(mov);
         let (score, nodes) =
             alphabeta_quiet(&new_position, depth - 1, -beta, -alpha, memo);
@@ -117,19 +117,19 @@ pub fn alphabeta_memo(
 
     // Sort moves by heuristic value + killer move + hash move
     let killer_moves = memo.get_killer_moves(depth);
-    let hash_move = memo.hash_move.get(&zobrist_hash).map(|(mov, _)| *mov);
+    let hash_move = memo.hash_move.get(&zobrist_hash).map(|(mov, _)| mov);
     moves.sort_unstable_by(|a, b| {
         let a_value = evaluate_move(
-            *a,
+            a,
             &position,
-            SearchMemo::is_killer_move(*a, killer_moves),
-            SearchMemo::is_hash_move(*a, hash_move),
+            SearchMemo::is_killer_move(a, killer_moves),
+            SearchMemo::is_hash_move(a, hash_move),
         );
         let b_value = evaluate_move(
-            *b,
+            b,
             &position,
-            SearchMemo::is_killer_move(*b, killer_moves),
-            SearchMemo::is_hash_move(*b, hash_move),
+            SearchMemo::is_killer_move(b, killer_moves),
+            SearchMemo::is_hash_move(b, hash_move),
         );
         b_value.cmp(&a_value)
     });
@@ -137,8 +137,8 @@ pub fn alphabeta_memo(
     // Search moves
     let mut best_move = moves[0];
     let mut count = 0;
-    for mov in moves {
-        let new_position = position.make_move(mov);
+    for mov in &moves {
+        let new_position = position.make_move(&mov);
         let new_position_hash = new_position.to_zobrist_hash();
 
         memo.visit_position(new_position_hash);
@@ -156,7 +156,7 @@ pub fn alphabeta_memo(
         count += nodes;
 
         if score > alpha {
-            best_move = mov;
+            best_move = *mov;
             alpha = score;
             if alpha >= beta {
                 if !mov.is_tactical() {
@@ -167,7 +167,7 @@ pub fn alphabeta_memo(
         }
     }
 
-    memo.put_hash_move(zobrist_hash, best_move, depth);
+    memo.put_hash_move(zobrist_hash, &best_move, depth);
     memo.put_transposition_table(zobrist_hash, depth, Some(best_move), alpha);
 
     (Some(best_move), alpha, count)

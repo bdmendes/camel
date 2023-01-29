@@ -3,7 +3,7 @@ pub const DOWN: isize = -8;
 pub const LEFT: isize = -1;
 pub const RIGHT: isize = 1;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Color {
     White,
     Black,
@@ -110,14 +110,14 @@ impl Piece {
             Piece::BP => &[DOWN, DOWN + DOWN, DOWN + LEFT, DOWN + RIGHT],
             Piece::WR | Piece::BR => &[UP, DOWN, LEFT, RIGHT],
             Piece::WN | Piece::BN => &[
-                2 * UP + LEFT,
-                2 * UP + RIGHT,
-                2 * DOWN + LEFT,
-                2 * DOWN + RIGHT,
-                2 * LEFT + UP,
-                2 * LEFT + DOWN,
-                2 * RIGHT + UP,
-                2 * RIGHT + DOWN,
+                UP + UP + LEFT,
+                UP + UP + RIGHT,
+                DOWN + DOWN + LEFT,
+                DOWN + DOWN + RIGHT,
+                LEFT + LEFT + UP,
+                LEFT + LEFT + DOWN,
+                RIGHT + RIGHT + UP,
+                RIGHT + RIGHT + DOWN,
             ],
             Piece::WB | Piece::BB => {
                 &[UP + LEFT, UP + RIGHT, DOWN + LEFT, DOWN + RIGHT]

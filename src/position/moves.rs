@@ -13,7 +13,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub struct Move {
     pub from: Square,
     pub to: Square,
@@ -43,7 +43,7 @@ impl Move {
     }
 
     pub fn is_tactical(&self) -> bool {
-        self.flags.contains(MoveFlags::CAPTURE) || self.promotion.is_none()
+        self.flags.contains(MoveFlags::CAPTURE) || self.promotion.is_some()
     }
 }
 
@@ -57,26 +57,32 @@ fn generate_regular_moves_from_square(
     let color = piece.color();
     let slides = piece.is_sliding();
     let mut moves = Vec::with_capacity(if slides && !only_captures {
-        directions.len() * 4
+        directions.len() * 5
     } else {
         directions.len()
     });
 
-    for offset in directions {
-        let mut current_offset = *offset;
+    for &offset in directions {
+        let mut current_offset = offset;
         let mut last_column = square.col() as isize;
 
         loop {
             let to_index = (square.index as isize + current_offset) as usize;
             let current_col = (to_index % ROW_SIZE) as isize;
-            let out_of_bounds =
-                to_index >= BOARD_SIZE || (current_col - last_column).abs() > 2;
-            if out_of_bounds {
+            if to_index >= BOARD_SIZE || (current_col - last_column).abs() > 2 {
                 break;
             }
 
-            let to_piece = position.board[to_index];
-            if to_piece.is_none() {
+            if let Some(to_piece) = position.board[to_index] {
+                if to_piece.color() != color {
+                    moves.push(Move::new(
+                        square,
+                        Square { index: to_index },
+                        MoveFlags::CAPTURE,
+                    ));
+                }
+                break;
+            } else {
                 if !only_captures {
                     moves.push(Move::new(
                         square,
@@ -89,14 +95,8 @@ fn generate_regular_moves_from_square(
                     current_offset += offset;
                     continue;
                 }
-            } else if to_piece.unwrap().color() != color {
-                moves.push(Move::new(
-                    square,
-                    Square { index: to_index },
-                    MoveFlags::CAPTURE,
-                ));
+                break;
             }
-            break;
         }
     }
     moves
@@ -129,22 +129,21 @@ fn pseudo_legal_moves_from_square(
                     let can_advance_two = ((row == 1 && color == Color::White)
                         || (row == 6 && color == Color::Black))
                         && !move_.flags.contains(MoveFlags::CAPTURE);
-                    let jumped_piece = position.board[(move_.from.index
-                        as isize
-                        + (if color == Color::White { UP } else { DOWN }))
-                        as usize]
+                    let jumped_piece = position.board
+                        [(move_.from.index + move_.to.index) / 2]
                         .is_some();
                     can_advance_two && !jumped_piece
                 } else {
                     move_.flags.contains(MoveFlags::CAPTURE)
-                        || match position.info.en_passant_square {
-                            Some(en_passant_square) => {
-                                move_.to == en_passant_square
-                            }
-                            None => false,
-                        }
+                        || matches!(position.info.en_passant_square,
+                            Some(en_passant_square) if
+                                move_.to == en_passant_square)
                 }
             });
+
+            if only_tactical {
+                return moves;
+            }
 
             // Add promotion and en passant
             let curr_moves_len = moves.len();
@@ -181,17 +180,13 @@ fn pseudo_legal_moves_from_square(
 
             moves
         }
-        Piece::WK | Piece::BK => {
+        Piece::WK | Piece::BK if !only_tactical => {
             let mut moves = generate_regular_moves_from_square(
                 position,
                 square,
                 piece.unchecked_directions(),
                 only_tactical,
             );
-
-            if only_tactical {
-                return moves;
-            }
 
             // Handle castling
             const CASTLE_SQUARES: [[usize; 5]; 4] = [
@@ -277,17 +272,24 @@ pub fn pseudo_legal_moves(
     to_move: Color,
     only_tactical: bool,
 ) -> Vec<Move> {
-    let mut moves = Vec::with_capacity(40);
+    let mut moves =
+        Vec::with_capacity(if position.info.half_move_number < 30 {
+            32
+        } else {
+            16
+        });
     for index in 0..BOARD_SIZE {
         let piece = position.board[index];
-        if piece.is_none() || piece.unwrap().color() != to_move {
-            continue;
+        if let Some(piece) = piece {
+            if piece.color() != to_move {
+                continue;
+            }
+            moves.extend(pseudo_legal_moves_from_square(
+                position,
+                Square { index },
+                only_tactical,
+            ));
         }
-        moves.extend(pseudo_legal_moves_from_square(
-            position,
-            Square { index },
-            only_tactical,
-        ));
     }
     moves
 }
@@ -311,7 +313,7 @@ pub fn legal_moves(
         };
 
         // Do not allow moves that leave the player in check
-        let new_position = make_move(position, *move_);
+        let new_position = make_move(position, move_);
         !position_is_check(&new_position, to_move, castle_passent_squares)
     });
 
@@ -348,7 +350,7 @@ pub fn position_is_check(
     false
 }
 
-pub fn make_move(position: &Position, move_: Move) -> Position {
+pub fn make_move(position: &Position, move_: &Move) -> Position {
     let mut new_board = position.board;
     new_board[move_.to.index] = new_board[move_.from.index];
     new_board[move_.from.index] = None;
@@ -425,11 +427,10 @@ pub fn make_move(position: &Position, move_: Move) -> Position {
         info: PositionInfo {
             to_move: position.info.to_move.opposite(),
             castling_rights: new_castling_rights,
-            en_passant_square: match position.at(move_.from).unwrap() {
-                Piece::WP | Piece::BP => {
-                    if (move_.to.index as isize - move_.from.index as isize)
-                        .abs()
-                        == 2 * UP
+            en_passant_square: match position.at(move_.from) {
+                Some(Piece::WP) | Some(Piece::BP) => {
+                    if (move_.from.row() == 1 && move_.to.row() == 3)
+                        || (move_.from.row() == 6 && move_.to.row() == 4)
                     {
                         Some(Square {
                             index: (move_.to.index + move_.from.index) / 2,
@@ -506,7 +507,7 @@ mod tests {
         let mut count = 0;
 
         for move_ in &moves {
-            let new_position = make_move(&position, *move_);
+            let new_position = make_move(&position, move_);
             let leaf_node_count = generate(
                 original_depth,
                 current_depth - 1,

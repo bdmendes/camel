@@ -38,7 +38,7 @@ fn piece_midgame_ratio_gain(piece: Piece) -> Score {
 }
 
 pub fn evaluate_move(
-    move_: Move,
+    move_: &Move,
     position: &Position,
     killer_move: bool,
     hash_move: bool,
@@ -148,8 +148,8 @@ mod tests {
         .unwrap();
         let mut moves = position.legal_moves(false);
         moves.sort_by(|a, b| {
-            evaluate_move(*b, &position, false, false)
-                .cmp(&evaluate_move(*a, &position, false, false))
+            evaluate_move(b, &position, false, false)
+                .cmp(&evaluate_move(a, &position, false, false))
         });
         assert_eq!(moves[0].to_string(), "e2a6"); // equal trade of piece
     }

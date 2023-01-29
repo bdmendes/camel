@@ -227,7 +227,7 @@ impl EngineState {
         for mov in moves {
             let legal_moves = self.position.legal_moves(false);
             if let Some(m) = legal_moves.iter().find(|m| m.to_string() == mov) {
-                self.position = self.position.make_move(*m);
+                self.position = self.position.make_move(m);
             } else {
                 println!("Invalid move: {}; stopping line before it", mov);
                 break;
@@ -272,7 +272,7 @@ impl EngineState {
     fn handle_move(&mut self, mov: String) {
         let legal_moves = self.position.legal_moves(false);
         if let Some(m) = legal_moves.iter().find(|m| m.to_string() == mov) {
-            self.position = self.position.make_move(*m);
+            self.position = self.position.make_move(m);
             println!("{}", self.position);
         } else {
             println!("Invalid move: {}", mov);
@@ -287,7 +287,7 @@ impl EngineState {
             None,
         );
         if let Some(m) = mov {
-            self.position = self.position.make_move(m);
+            self.position = self.position.make_move(&m);
             println!("{}", self.position);
         } else {
             println!("No move found. The game is over.");
