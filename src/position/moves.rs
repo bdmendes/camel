@@ -5,17 +5,6 @@ use super::{
 use bitflags::bitflags;
 use std::fmt;
 
-const CASTLE_SQUARES: [[usize; 5]; 4] = [
-    [4, 5, 6, 7, BOARD_SIZE],     // White kingside
-    [4, 3, 2, 1, 0],              // White queenside
-    [60, 61, 62, 63, BOARD_SIZE], // Black kingside
-    [60, 59, 58, 57, 56],         // Black queenside
-];
-const WHITE_PROMOTIONS: [Piece; 4] =
-    [Piece::WQ, Piece::WR, Piece::WB, Piece::WN];
-const BLACK_PROMOTIONS: [Piece; 4] =
-    [Piece::BQ, Piece::BR, Piece::BB, Piece::BN];
-
 bitflags! {
     pub struct MoveFlags: u8 {
         const CAPTURE = 0b001;
@@ -53,10 +42,8 @@ impl Move {
         Move { from, to, flags, promotion: None }
     }
 
-    pub fn is_quiet(&self, position: &Position) -> bool {
-        let captured_piece = self.flags.contains(MoveFlags::CAPTURE)
-            && !matches!(position.at(self.to).unwrap(), Piece::WP | Piece::BP);
-        !captured_piece && self.promotion.is_none()
+    pub fn is_tactical(&self) -> bool {
+        self.flags.contains(MoveFlags::CAPTURE) || self.promotion.is_none()
     }
 }
 
@@ -68,8 +55,8 @@ fn generate_regular_moves_from_square(
 ) -> Vec<Move> {
     let piece = position.at(square).unwrap();
     let color = piece.color();
-    let crawls = piece.is_crawling();
-    let mut moves = Vec::with_capacity(if crawls {
+    let slides = piece.is_sliding();
+    let mut moves = Vec::with_capacity(if slides && !only_captures {
         directions.len() * 4
     } else {
         directions.len()
@@ -97,7 +84,7 @@ fn generate_regular_moves_from_square(
                         MoveFlags::empty(),
                     ));
                 }
-                if crawls {
+                if slides {
                     last_column = current_col;
                     current_offset += offset;
                     continue;
@@ -118,7 +105,7 @@ fn generate_regular_moves_from_square(
 fn pseudo_legal_moves_from_square(
     position: &Position,
     square: Square,
-    only_non_quiet: bool,
+    only_tactical: bool,
 ) -> Vec<Move> {
     let piece = position.at(square).unwrap();
     let color = piece.color();
@@ -128,7 +115,7 @@ fn pseudo_legal_moves_from_square(
                 position,
                 square,
                 piece.unchecked_directions(),
-                only_non_quiet,
+                only_tactical,
             );
 
             // Do not advance if there is a piece in front; do not capture if there is no piece
@@ -167,12 +154,12 @@ fn pseudo_legal_moves_from_square(
                     let mut under_promotion_moves =
                         Vec::<Move>::with_capacity(3);
                     let promotion_pieces = if color == Color::White {
-                        WHITE_PROMOTIONS
+                        [Piece::WQ, Piece::WR, Piece::WB, Piece::WN]
                     } else {
-                        BLACK_PROMOTIONS
+                        [Piece::BQ, Piece::BR, Piece::BB, Piece::BN]
                     };
                     move_.promotion = Some(promotion_pieces[0]);
-                    for i in 1..4 {
+                    for i in 1..=3 {
                         let promotion_move = Move {
                             from: move_.from,
                             to: move_.to,
@@ -198,14 +185,20 @@ fn pseudo_legal_moves_from_square(
                 position,
                 square,
                 piece.unchecked_directions(),
-                only_non_quiet,
+                only_tactical,
             );
 
-            if only_non_quiet {
+            if only_tactical {
                 return moves;
             }
 
             // Handle castling
+            const CASTLE_SQUARES: [[usize; 5]; 4] = [
+                [4, 5, 6, 7, BOARD_SIZE],     // White kingside
+                [4, 3, 2, 1, 0],              // White queenside
+                [60, 61, 62, 63, BOARD_SIZE], // Black kingside
+                [60, 59, 58, 57, 56],         // Black queenside
+            ];
             for i in 0..4 {
                 // Check castle rights
                 let can_castle = match i {
@@ -273,7 +266,7 @@ fn pseudo_legal_moves_from_square(
             position,
             square,
             piece.unchecked_directions(),
-            only_non_quiet,
+            only_tactical,
         ),
     }
 }
@@ -281,7 +274,7 @@ fn pseudo_legal_moves_from_square(
 pub fn pseudo_legal_moves(
     position: &Position,
     to_move: Color,
-    only_non_quiet: bool,
+    only_tactical: bool,
 ) -> Vec<Move> {
     let mut moves = Vec::with_capacity(40);
     for index in 0..BOARD_SIZE {
@@ -292,7 +285,7 @@ pub fn pseudo_legal_moves(
         moves.extend(pseudo_legal_moves_from_square(
             position,
             Square { index },
-            only_non_quiet,
+            only_tactical,
         ));
     }
     moves
@@ -306,16 +299,14 @@ pub fn legal_moves(
     let mut moves = pseudo_legal_moves(position, to_move, only_non_quiet);
 
     moves.retain(|move_| {
-        let castle_passent_squares = match position.at(move_.from) {
-            Some(Piece::WK) | Some(Piece::BK)
-                if move_.flags.contains(MoveFlags::CASTLE) =>
-            {
-                Some([
-                    move_.from,
-                    Square { index: (move_.to.index + move_.from.index) / 2 },
-                ])
-            }
-            _ => None,
+        let castle_passent_squares = if move_.flags.contains(MoveFlags::CASTLE)
+        {
+            Some([
+                move_.from,
+                Square { index: (move_.to.index + move_.from.index) / 2 },
+            ])
+        } else {
+            None
         };
 
         // Do not allow moves that leave the player in check
@@ -332,7 +323,11 @@ pub fn position_is_check(
     castle_passent_squares: Option<[Square; 2]>,
 ) -> bool {
     let opposing_color = checked_player.opposite();
-    let opponent_moves = pseudo_legal_moves(position, opposing_color, false);
+    let opponent_moves = pseudo_legal_moves(
+        position,
+        opposing_color,
+        castle_passent_squares.is_none(),
+    );
 
     for move_ in opponent_moves {
         if let Some(piece) = position.at(move_.to) {

@@ -136,7 +136,7 @@ impl Piece {
         }
     }
 
-    pub fn is_crawling(&self) -> bool {
+    pub fn is_sliding(&self) -> bool {
         !matches!(
             self,
             Piece::WP

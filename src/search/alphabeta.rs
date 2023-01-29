@@ -159,7 +159,7 @@ pub fn alphabeta_memo(
             best_move = mov;
             alpha = score;
             if alpha >= beta {
-                if mov.is_quiet(position) {
+                if !mov.is_tactical() {
                     memo.put_killer_move(mov, depth);
                 }
                 break;
