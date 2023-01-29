@@ -50,7 +50,7 @@ impl Move {
 fn generate_regular_moves_from_square(
     position: &Position,
     square: Square,
-    directions: &[i64],
+    directions: &[isize],
     only_captures: bool,
 ) -> Vec<Move> {
     let piece = position.at(square).unwrap();
@@ -64,11 +64,11 @@ fn generate_regular_moves_from_square(
 
     for offset in directions {
         let mut current_offset = *offset;
-        let mut last_column = square.col() as i64;
+        let mut last_column = square.col() as isize;
 
         loop {
-            let to_index = (square.index as i64 + current_offset) as usize;
-            let current_col = (to_index % ROW_SIZE) as i64;
+            let to_index = (square.index as isize + current_offset) as usize;
+            let current_col = (to_index % ROW_SIZE) as isize;
             let out_of_bounds =
                 to_index >= BOARD_SIZE || (current_col - last_column).abs() > 2;
             if out_of_bounds {
@@ -121,7 +121,7 @@ fn pseudo_legal_moves_from_square(
             // Do not advance if there is a piece in front; do not capture if there is no piece
             moves.retain(|move_| {
                 let index_diff =
-                    (move_.to.index as i64 - move_.from.index as i64).abs();
+                    (move_.to.index as isize - move_.from.index as isize).abs();
                 if index_diff == UP {
                     !move_.flags.contains(MoveFlags::CAPTURE)
                 } else if index_diff == UP + UP {
@@ -129,7 +129,8 @@ fn pseudo_legal_moves_from_square(
                     let can_advance_two = ((row == 1 && color == Color::White)
                         || (row == 6 && color == Color::Black))
                         && !move_.flags.contains(MoveFlags::CAPTURE);
-                    let jumped_piece = position.board[(move_.from.index as i64
+                    let jumped_piece = position.board[(move_.from.index
+                        as isize
                         + (if color == Color::White { UP } else { DOWN }))
                         as usize]
                         .is_some();
@@ -355,8 +356,8 @@ pub fn make_move(position: &Position, move_: Move) -> Position {
     // En passant
     if move_.flags.contains(MoveFlags::ENPASSANT) {
         let capture_square = match position.info.to_move {
-            Color::White => move_.to.index as i64 + DOWN,
-            Color::Black => move_.to.index as i64 + UP,
+            Color::White => move_.to.index as isize + DOWN,
+            Color::Black => move_.to.index as isize + UP,
         };
         new_board[capture_square as usize] = None;
     }
@@ -426,7 +427,8 @@ pub fn make_move(position: &Position, move_: Move) -> Position {
             castling_rights: new_castling_rights,
             en_passant_square: match position.at(move_.from).unwrap() {
                 Piece::WP | Piece::BP => {
-                    if (move_.to.index as i64 - move_.from.index as i64).abs()
+                    if (move_.to.index as isize - move_.from.index as isize)
+                        .abs()
                         == 2 * UP
                     {
                         Some(Square {

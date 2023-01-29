@@ -1,9 +1,8 @@
-pub const UP: i64 = 8;
-pub const DOWN: i64 = -8;
-pub const LEFT: i64 = -1;
-pub const RIGHT: i64 = 1;
+pub const UP: isize = 8;
+pub const DOWN: isize = -8;
+pub const LEFT: isize = -1;
+pub const RIGHT: isize = 1;
 
-#[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Color {
     White,
@@ -105,7 +104,7 @@ impl Piece {
         }
     }
 
-    pub fn unchecked_directions(&self) -> &'static [i64] {
+    pub fn unchecked_directions(&self) -> &'static [isize] {
         match self {
             Piece::WP => &[UP, UP + UP, UP + LEFT, UP + RIGHT],
             Piece::BP => &[DOWN, DOWN + DOWN, DOWN + LEFT, DOWN + RIGHT],
