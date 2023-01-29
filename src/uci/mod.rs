@@ -35,6 +35,7 @@ pub enum UCICommand {
     Move(String),
     AutoMove,
     List,
+    Fen,
 }
 
 pub struct EngineState {
@@ -50,6 +51,7 @@ impl UCICommand {
         let command = tokens.pop_front().ok_or("No command found")?;
 
         match command.as_str() {
+            "f" | "fen" => Ok(UCICommand::Fen),
             "l" | "list" => Ok(UCICommand::List),
             "a" | "automove" => Ok(UCICommand::AutoMove),
             "h" | "help" => Ok(UCICommand::Help),
@@ -149,6 +151,7 @@ impl EngineState {
 
     pub fn execute(&mut self, command: UCICommand) {
         match command {
+            UCICommand::Fen => self.handle_fen(),
             UCICommand::UCI => Self::handle_uci(),
             UCICommand::Debug(value) => self.handle_debug(value),
             UCICommand::IsReady => Self::handle_isready(),
@@ -263,6 +266,7 @@ impl EngineState {
         println!("  move [long_algebraic_notation]: make a move in the current position");
         println!("  automove: let the engine make a move in the current position (1 second time limit)");
         println!("  list: list all legal moves in the current position");
+        println!("  fen: display the FEN of the current position");
     }
 
     fn handle_move(&mut self, mov: String) {
@@ -302,5 +306,9 @@ impl EngineState {
             print!("{} ", mov);
         }
         println!();
+    }
+
+    fn handle_fen(&self) {
+        println!("{}", self.position.to_fen());
     }
 }
