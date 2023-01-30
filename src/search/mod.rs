@@ -14,10 +14,7 @@ use self::alphabeta::alphabeta_memo;
 
 pub type Depth = u8;
 
-const MAX_ITERATIVE_DEPTH: Depth = 40;
 const MAX_TABLE_SIZE: usize = 1_000_000;
-const MAX_DURATION_PER_MOVE: std::time::Duration =
-    std::time::Duration::from_secs(60);
 const MAX_MATE_SCORE_DIFF: Score = 300;
 
 pub struct SearchMemo {
@@ -26,7 +23,7 @@ pub struct SearchMemo {
     pub transposition_table: HashMap<ZobristHash, (Option<Move>, Score, Depth)>,
     pub move_repetition_table: HashMap<ZobristHash, u8>,
     pub initial_instant: std::time::Instant,
-    pub duration: std::time::Duration,
+    pub duration: Option<std::time::Duration>,
     pub stop_now: Option<Arc<AtomicBool>>,
 }
 
@@ -41,7 +38,7 @@ impl SearchMemo {
             transposition_table: HashMap::new(),
             move_repetition_table: HashMap::new(),
             initial_instant: std::time::Instant::now(),
-            duration: duration.unwrap_or(MAX_DURATION_PER_MOVE),
+            duration: duration,
             stop_now,
         }
     }
@@ -181,14 +178,18 @@ impl SearchMemo {
     }
 
     fn should_stop_search(&self) -> bool {
-        if self.initial_instant.elapsed() > self.duration {
-            return true;
+        if let Some(duration) = self.duration {
+            if self.initial_instant.elapsed() > duration {
+                return true;
+            }
         }
+
         if let Some(ref stop_now) = self.stop_now {
             if stop_now.load(std::sync::atomic::Ordering::Relaxed) {
                 return true;
             }
         }
+
         false
     }
 }
@@ -242,6 +243,7 @@ pub fn search_iterative_deep(
     duration: Option<std::time::Duration>,
     stop_now: Option<Arc<AtomicBool>>,
 ) -> (Option<Move>, Score, usize) {
+    const MAX_ITERATIVE_DEPTH: Depth = 25;
     let max_depth = depth.unwrap_or(MAX_ITERATIVE_DEPTH);
     let mut memo = SearchMemo::new(duration, stop_now.clone());
 
@@ -275,7 +277,7 @@ pub fn search_iterative_deep(
     }
 
     println!(
-        "bestmove {}\n",
+        "bestmove {}",
         if mov.is_some() {
             mov.unwrap().to_string()
         } else {

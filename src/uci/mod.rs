@@ -1,3 +1,5 @@
+mod time;
+
 use std::{
     collections::VecDeque,
     process::exit,
@@ -13,6 +15,8 @@ use crate::{
     position::Position,
     search::{search_iterative_deep, Depth},
 };
+
+use self::time::get_duration;
 
 pub enum UCICommand {
     // Standard UCI commands
@@ -105,6 +109,8 @@ impl UCICommand {
             "go" => {
                 let mut depth = None;
                 let mut move_time = None;
+                let mut white_time = None;
+                let mut black_time = None;
                 loop {
                     let token = tokens.pop_front();
                     if token.is_none() {
@@ -132,15 +138,28 @@ impl UCICommand {
                                     .map_err(|_| "Invalid movetime value")?,
                             ));
                         }
+                        "wtime" => {
+                            let value =
+                                tokens.pop_front().ok_or("No value found")?;
+                            white_time = Some(Duration::from_millis(
+                                value
+                                    .parse::<u64>()
+                                    .map_err(|_| "Invalid wtime value")?,
+                            ));
+                        }
+                        "btime" => {
+                            let value =
+                                tokens.pop_front().ok_or("No value found")?;
+                            black_time = Some(Duration::from_millis(
+                                value
+                                    .parse::<u64>()
+                                    .map_err(|_| "Invalid btime value")?,
+                            ));
+                        }
                         _ => {}
                     }
                 }
-                Ok(UCICommand::Go {
-                    depth,
-                    move_time,
-                    white_time: None,
-                    black_time: None,
-                })
+                Ok(UCICommand::Go { depth, move_time, white_time, black_time })
             }
             "stop" => Ok(UCICommand::Stop),
             "ponderhit" => Ok(UCICommand::PonderHit),
@@ -176,8 +195,8 @@ impl EngineState {
             UCICommand::PositionStart(moves) => {
                 self.handle_position(None, moves)
             }
-            UCICommand::Go { depth, move_time, .. } => {
-                self.handle_go(depth, move_time)
+            UCICommand::Go { depth, move_time, white_time, black_time } => {
+                self.handle_go(depth, move_time, white_time, black_time)
             }
             UCICommand::Stop => self.handle_stop(),
             UCICommand::PonderHit => Self::handle_ponderhit(),
@@ -245,12 +264,40 @@ impl EngineState {
         }
     }
 
-    fn handle_go(&self, depth: Option<Depth>, move_time: Option<Duration>) {
+    fn handle_go(
+        &self,
+        depth: Option<Depth>,
+        move_time: Option<Duration>,
+        mut white_time: Option<Duration>,
+        mut black_time: Option<Duration>,
+    ) {
         self.stop.store(false, Ordering::Relaxed);
         let stop_now = self.stop.clone();
         let position = self.position.clone();
+
+        if white_time.is_some() && black_time.is_none() {
+            black_time = white_time;
+        } else if black_time.is_some() && white_time.is_none() {
+            white_time = black_time;
+        }
+
+        let calc_move_time = match move_time {
+            Some(t) => Some(t),
+            None if white_time.is_some() => Some(get_duration(
+                &position,
+                white_time.unwrap(),
+                black_time.unwrap(),
+            )),
+            None => None,
+        };
+
         thread::spawn(move || {
-            search_iterative_deep(&position, depth, move_time, Some(stop_now));
+            search_iterative_deep(
+                &position,
+                depth,
+                calc_move_time,
+                Some(stop_now),
+            );
         });
     }
 

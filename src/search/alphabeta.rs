@@ -6,6 +6,8 @@ use crate::{
 
 const MAX_QS_DEPTH: Depth = 10;
 
+const OPENING_MOVE_THRESHOLD: u16 = 5;
+
 fn alphabeta_quiet(
     position: &Position,
     depth: Depth,
@@ -23,8 +25,12 @@ fn alphabeta_quiet(
         Color::White => 1,
         Color::Black => -1,
     };
-    let static_evaluation = color_cof * evaluate_position(position);
-    if depth == 0 {
+    let static_evaluation = color_cof
+        * evaluate_position(
+            position,
+            position.info.full_move_number < OPENING_MOVE_THRESHOLD,
+        );
+    if depth <= 0 {
         return (static_evaluation, 1);
     }
 
@@ -101,7 +107,7 @@ pub fn alphabeta_memo(
     memo.cleanup_tables();
 
     // Enter quiescence search if depth is 0
-    if depth == 0 {
+    if depth <= 0 {
         let (score, nodes) =
             alphabeta_quiet(position, MAX_QS_DEPTH, alpha, beta, memo);
         return (None, score, nodes);
@@ -137,7 +143,7 @@ pub fn alphabeta_memo(
     // Search moves
     let mut best_move = moves[0];
     let mut count = 0;
-    for mov in &moves {
+    for (_, mov) in moves.iter().enumerate() {
         let new_position = position.make_move(&mov);
         let new_position_hash = new_position.to_zobrist_hash();
 

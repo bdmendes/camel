@@ -11,6 +11,8 @@ pub type Score = i32;
 pub const MATE_LOWER: Score = -70000;
 pub const MATE_UPPER: Score = 70000;
 
+const CENTIPAWN_ENTROPY: Score = 10;
+
 fn piece_value(piece: Piece) -> Score {
     // Values from https://github.com/official-stockfish/Stockfish/blob/master/src/types.h
     match piece {
@@ -95,7 +97,7 @@ pub fn evaluate_game_over(
     None
 }
 
-pub fn evaluate_position(position: &Position) -> Score {
+pub fn evaluate_position(position: &Position, opening_entropy: bool) -> Score {
     let mut score: Score = 0;
 
     // Count material and midgame ratio
@@ -114,23 +116,27 @@ pub fn evaluate_position(position: &Position) -> Score {
         }
     }
     midgame_ratio = std::cmp::min(midgame_ratio, u8::MAX as Score);
+    let endgame_ratio = 255 - midgame_ratio as u8;
 
     // Add positional score
     for index in 0..BOARD_SIZE {
         match position.at(Square { index }) {
             None => (),
             Some(piece) => {
-                let psqt_value = psqt_value(
-                    piece,
-                    Square { index },
-                    255 - midgame_ratio as u8,
-                );
+                let psqt_value =
+                    psqt_value(piece, Square { index }, endgame_ratio);
                 score += match piece.color() {
                     Color::White => psqt_value,
                     Color::Black => -psqt_value,
                 };
             }
         }
+    }
+
+    // Add entropy to avoid playing the same opening moves every time
+    if opening_entropy {
+        score +=
+            rand::random::<Score>() % CENTIPAWN_ENTROPY - CENTIPAWN_ENTROPY / 2;
     }
 
     score
@@ -179,7 +185,7 @@ mod tests {
     #[test]
     fn eval_starts_zero() {
         let position = Position::new();
-        assert_eq!(evaluate_position(&position), 0);
+        assert_eq!(evaluate_position(&position, false), 0);
     }
 
     #[test]
@@ -188,7 +194,7 @@ mod tests {
             "3r3k/1p1qQ1pp/p2P1n2/2p5/7B/P7/1P3PPP/4R1K1 w - - 5 26",
         )
         .unwrap();
-        let evaluation = evaluate_position(&position);
+        let evaluation = evaluate_position(&position, false);
         assert!(evaluation > 100 && evaluation < 300);
     }
 
@@ -199,9 +205,9 @@ mod tests {
         let king_at_corner_position =
             Position::from_fen("8/1K6/8/2q5/8/1k6/8/8 w - - 11 58").unwrap();
         let king_at_center_evaluation =
-            evaluate_position(&king_at_center_position);
+            evaluate_position(&king_at_center_position, false);
         let king_at_corner_evaluation =
-            evaluate_position(&king_at_corner_position);
+            evaluate_position(&king_at_corner_position, false);
         assert!(king_at_center_evaluation > king_at_corner_evaluation);
     }
 }

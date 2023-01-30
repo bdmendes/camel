@@ -16,8 +16,6 @@ fn uci_loop() {
                 println!("Enter 'help' for program usage details.");
             }
         }
-
-        println!("");
     }
 }
 
