@@ -24,7 +24,12 @@ pub enum UCICommand {
     UCINewGame,
     PositionStart(VecDeque<String>),
     PositionFen(String, VecDeque<String>),
-    Go { depth: Option<Depth>, movetime: Option<Duration> },
+    Go {
+        depth: Option<Depth>,
+        move_time: Option<Duration>,
+        white_time: Option<Duration>,
+        black_time: Option<Duration>,
+    },
     Stop,
     PonderHit,
     Quit,
@@ -99,7 +104,7 @@ impl UCICommand {
             }
             "go" => {
                 let mut depth = None;
-                let mut movetime = None;
+                let mut move_time = None;
                 loop {
                     let token = tokens.pop_front();
                     if token.is_none() {
@@ -121,7 +126,7 @@ impl UCICommand {
                         "movetime" => {
                             let value =
                                 tokens.pop_front().ok_or("No value found")?;
-                            movetime = Some(Duration::from_millis(
+                            move_time = Some(Duration::from_millis(
                                 value
                                     .parse::<u64>()
                                     .map_err(|_| "Invalid movetime value")?,
@@ -130,7 +135,12 @@ impl UCICommand {
                         _ => {}
                     }
                 }
-                Ok(UCICommand::Go { depth, movetime })
+                Ok(UCICommand::Go {
+                    depth,
+                    move_time,
+                    white_time: None,
+                    black_time: None,
+                })
             }
             "stop" => Ok(UCICommand::Stop),
             "ponderhit" => Ok(UCICommand::PonderHit),
@@ -166,8 +176,8 @@ impl EngineState {
             UCICommand::PositionStart(moves) => {
                 self.handle_position(None, moves)
             }
-            UCICommand::Go { depth, movetime } => {
-                self.handle_go(depth, movetime)
+            UCICommand::Go { depth, move_time, .. } => {
+                self.handle_go(depth, move_time)
             }
             UCICommand::Stop => self.handle_stop(),
             UCICommand::PonderHit => Self::handle_ponderhit(),
@@ -235,12 +245,12 @@ impl EngineState {
         }
     }
 
-    fn handle_go(&self, depth: Option<Depth>, movetime: Option<Duration>) {
+    fn handle_go(&self, depth: Option<Depth>, move_time: Option<Duration>) {
         self.stop.store(false, Ordering::Relaxed);
         let stop_now = self.stop.clone();
         let position = self.position.clone();
         thread::spawn(move || {
-            search_iterative_deep(&position, depth, movetime, Some(stop_now));
+            search_iterative_deep(&position, depth, move_time, Some(stop_now));
         });
     }
 

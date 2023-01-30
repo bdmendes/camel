@@ -4,7 +4,7 @@ use crate::{
     position::{moves::Move, Color, Position},
 };
 
-const MAX_QS_DEPTH: Depth = 5;
+const MAX_QS_DEPTH: Depth = 10;
 
 fn alphabeta_quiet(
     position: &Position,

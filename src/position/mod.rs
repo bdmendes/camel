@@ -96,7 +96,7 @@ impl Position {
     }
 
     pub fn legal_moves(&self, only_non_quiet: bool) -> Vec<moves::Move> {
-        moves::legal_moves(&self, self.info.to_move, only_non_quiet)
+        moves::legal_moves(&self, only_non_quiet)
     }
 
     pub fn make_move(&self, m: &moves::Move) -> Position {
