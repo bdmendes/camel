@@ -194,14 +194,6 @@ impl SearchMemo {
     }
 }
 
-fn search_simple(
-    position: &Position,
-    depth: Depth,
-    memo: &mut SearchMemo,
-) -> (Option<Move>, Score, usize) {
-    alphabeta_memo(position, depth, MATE_LOWER, MATE_UPPER, memo, depth)
-}
-
 fn print_iterative_info(
     position: &Position,
     memo: &SearchMemo,
@@ -242,6 +234,7 @@ pub fn search_iterative_deep(
     depth: Option<Depth>,
     duration: Option<std::time::Duration>,
     stop_now: Option<Arc<AtomicBool>>,
+    previous_moves: Option<&Vec<Move>>,
 ) -> (Option<Move>, Score, usize) {
     const MAX_ITERATIVE_DEPTH: Depth = 25;
     let max_depth = depth.unwrap_or(MAX_ITERATIVE_DEPTH);
@@ -249,14 +242,29 @@ pub fn search_iterative_deep(
 
     // First guaranteed search
     let start = Instant::now();
-    let (mut mov, mut score, mut nodes) = search_simple(position, 1, &mut memo);
+    let (mut mov, mut score, mut nodes) = alphabeta_memo(
+        position,
+        1,
+        MATE_LOWER,
+        MATE_UPPER,
+        &mut memo,
+        1,
+        previous_moves,
+    );
     print_iterative_info(position, &memo, 1, score, nodes, start.elapsed());
 
     // Time constrained iterative deepening
     for ply in 2..=max_depth {
         let start = Instant::now();
-        let (new_mov, new_score, new_nodes) =
-            search_simple(position, ply, &mut memo);
+        let (new_mov, new_score, new_nodes) = alphabeta_memo(
+            position,
+            ply,
+            MATE_LOWER,
+            MATE_UPPER,
+            &mut memo,
+            ply,
+            previous_moves,
+        );
 
         if memo.should_stop_search() {
             break;
@@ -303,7 +311,7 @@ mod tests {
 
         let now = std::time::Instant::now();
         let (reg_mov, reg_score, reg_nodes) =
-            search_iterative_deep(&position, Some(depth), None, None);
+            search_iterative_deep(&position, Some(depth), None, None, None);
         let elapsed = now.elapsed().as_millis();
         println!(
             "[iterative] {}: {} nodes in {} ms at depth {}\n",
@@ -315,8 +323,15 @@ mod tests {
         }
 
         let now = std::time::Instant::now();
-        let (iter_mov, iter_score, iter_nodes) =
-            search_simple(&position, depth, &mut SearchMemo::new(None, None));
+        let (iter_mov, iter_score, iter_nodes) = alphabeta_memo(
+            &position,
+            depth,
+            MATE_LOWER,
+            MATE_UPPER,
+            &mut SearchMemo::new(None, None),
+            depth,
+            None,
+        );
         let elapsed = now.elapsed().as_millis();
         println!(
             "[regular] {}: {} nodes in {} ms at depth {}",

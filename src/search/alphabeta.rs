@@ -5,8 +5,35 @@ use crate::{
 };
 
 const MAX_QS_DEPTH: Depth = 10;
-
 const OPENING_MOVE_THRESHOLD: u16 = 5;
+const THREEFOLD_DRAW_EVAL_THRESHOLD: Score = 100;
+
+fn should_skip_due_to_repetition(
+    mov: &Move,
+    previous_moves: Option<&Vec<Move>>,
+    position: &Position,
+) -> bool {
+    if let Some(previous_moves) = previous_moves {
+        let move_len = previous_moves.len();
+        if move_len < 4 {
+            return false;
+        }
+
+        let my_previous_moves =
+            (previous_moves[move_len - 2], previous_moves[move_len - 4]);
+        if mov != &my_previous_moves.0 || mov != &my_previous_moves.1 {
+            return false;
+        }
+
+        let my_evaluation = match position.info.to_move {
+            Color::White => evaluate_position(position, false),
+            Color::Black => -evaluate_position(position, false),
+        };
+        return my_evaluation < THREEFOLD_DRAW_EVAL_THRESHOLD;
+    }
+
+    false
+}
 
 fn alphabeta_quiet(
     position: &Position,
@@ -84,6 +111,7 @@ pub fn alphabeta_memo(
     beta: Score,
     memo: &mut SearchMemo,
     original_depth: Depth,
+    previous_moves: Option<&Vec<Move>>,
 ) -> (Option<Move>, Score, usize) {
     // Check if the search should be stopped
     if memo.should_stop_search() {
@@ -155,11 +183,18 @@ pub fn alphabeta_memo(
             -alpha,
             memo,
             original_depth,
+            None,
         );
         memo.leave_position(new_position_hash);
 
         let score = -score;
         count += nodes;
+
+        if moves.len() > 1
+            && should_skip_due_to_repetition(mov, previous_moves, &position)
+        {
+            continue;
+        }
 
         if score > alpha {
             best_move = *mov;

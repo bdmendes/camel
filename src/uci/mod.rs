@@ -12,7 +12,7 @@ use std::{
 };
 
 use crate::{
-    position::Position,
+    position::{moves::Move, Position},
     search::{search_iterative_deep, Depth},
 };
 
@@ -51,7 +51,9 @@ pub struct EngineState {
     debug: bool,
     position: Position,
     stop: Arc<AtomicBool>,
+    moves: Vec<Move>,
 }
+
 impl UCICommand {
     pub fn parse(input: &str) -> Result<UCICommand, String> {
         let mut tokens: VecDeque<String> =
@@ -175,6 +177,7 @@ impl EngineState {
             position: Position::new(),
             debug: false,
             stop: Arc::new(AtomicBool::new(false)),
+            moves: Vec::new(),
         }
     }
 
@@ -188,7 +191,7 @@ impl EngineState {
                 Self::handle_setoption(&name, &value)
             }
             UCICommand::Register(code) => Self::handle_register(&code),
-            UCICommand::UCINewGame => Self::handle_newgame(),
+            UCICommand::UCINewGame => self.handle_newgame(),
             UCICommand::PositionFen(fen, moves) => {
                 self.handle_position(Some(&fen), moves)
             }
@@ -231,7 +234,9 @@ impl EngineState {
 
     fn handle_register(_code: &str) {}
 
-    fn handle_newgame() {}
+    fn handle_newgame(&mut self) {
+        self.moves.clear();
+    }
 
     fn handle_position(
         &mut self,
@@ -253,10 +258,13 @@ impl EngineState {
             Position::new()
         };
 
+        self.moves.clear();
+
         for mov in moves {
             let legal_moves = self.position.legal_moves(false);
             if let Some(m) = legal_moves.iter().find(|m| m.to_string() == mov) {
                 self.position = self.position.make_move(m);
+                self.moves.push(m.clone());
             } else {
                 println!("Invalid move: {}; stopping line before it", mov);
                 break;
@@ -291,12 +299,14 @@ impl EngineState {
             None => None,
         };
 
+        let previous_moves = self.moves.clone();
         thread::spawn(move || {
             search_iterative_deep(
                 &position,
                 depth,
                 calc_move_time,
                 Some(stop_now),
+                Some(&previous_moves),
             );
         });
     }
@@ -341,6 +351,7 @@ impl EngineState {
             &self.position,
             None,
             Some(Duration::from_secs(1)),
+            None,
             None,
         );
         if let Some(m) = mov {

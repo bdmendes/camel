@@ -47,5 +47,10 @@ pub fn get_duration(
         return Duration::from_millis(10);
     }
 
+    // Play fast on the first move
+    if position.info.full_move_number == 1 {
+        return Duration::from_millis(500);
+    }
+
     get_duration_based_on_eval(position, our_duration)
 }
