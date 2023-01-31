@@ -21,7 +21,7 @@ fn get_duration_based_on_eval(position: &Position, time: Duration) -> Duration {
     };
 
     let cof = if our_eval > 300 {
-        15 - (our_eval / 100) as u32
+        20 - (std::cmp::min(our_eval / 100, 10)) as u32
     } else if our_eval < -300 {
         20
     } else {

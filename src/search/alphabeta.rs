@@ -180,7 +180,8 @@ pub fn alphabeta_memo(
     }
 
     // Null move pruning when not in check and zugzwang is not possible
-    if depth > NULL_MOVE_REDUCTION
+    if depth != original_depth
+        && depth > NULL_MOVE_REDUCTION
         && both_sides_have_pieces(position)
         && !position.is_check()
     {
