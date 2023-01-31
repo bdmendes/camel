@@ -3,6 +3,7 @@ pub mod psqt;
 use self::psqt::psqt_value;
 use crate::position::{
     moves::{Move, MoveFlags},
+    zobrist::ZobristHash,
     Color, Piece, Position, Square, BOARD_SIZE,
 };
 
@@ -14,7 +15,6 @@ pub const MATE_UPPER: Score = 90000;
 const CENTIPAWN_ENTROPY: Score = 10;
 
 const fn piece_value(piece: Piece) -> Score {
-    // Values from https://github.com/official-stockfish/Stockfish/blob/master/src/types.h
     match piece {
         Piece::WP | Piece::BP => 100,
         Piece::WN | Piece::BN => 310,
@@ -79,10 +79,25 @@ pub fn evaluate_game_over(
     position: &Position,
     moves: &Vec<Move>,
     distance_to_root: u8,
+    game_history: Option<&Vec<ZobristHash>>,
 ) -> Option<Score> {
     // Flag 50 move rule draws
     if position.info.half_move_number >= 100 {
         return Some(0);
+    }
+
+    // Flag 3-fold repetition draws
+    if let Some(game_history) = game_history {
+        let zobrist_hash = position.to_zobrist_hash();
+        let mut repetitions = 0;
+        for hash in game_history {
+            if *hash == zobrist_hash {
+                repetitions += 1;
+                if repetitions >= 3 {
+                    return Some(0);
+                }
+            }
+        }
     }
 
     // Stalemate and checkmate detection
@@ -164,8 +179,13 @@ mod tests {
         let position =
             Position::from_fen("2k3R1/7R/8/8/8/4K3/8/8 b - - 0 1").unwrap();
         assert_eq!(
-            evaluate_game_over(&position, &position.legal_moves(false), 0)
-                .unwrap(),
+            evaluate_game_over(
+                &position,
+                &position.legal_moves(false),
+                0,
+                None
+            )
+            .unwrap(),
             MATE_LOWER
         );
     }
@@ -175,8 +195,13 @@ mod tests {
         let position =
             Position::from_fen("8/8/8/8/8/6Q1/8/4K2k b - - 0 1").unwrap();
         assert_eq!(
-            evaluate_game_over(&position, &position.legal_moves(false), 0)
-                .unwrap(),
+            evaluate_game_over(
+                &position,
+                &position.legal_moves(false),
+                0,
+                None
+            )
+            .unwrap(),
             0
         );
     }

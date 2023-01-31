@@ -10,7 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use self::alphabeta::alphabeta_memo;
+use self::alphabeta::alphabeta;
 
 pub type Depth = u8;
 
@@ -207,7 +207,7 @@ pub fn search_iterative_deep(
     depth: Option<Depth>,
     duration: Option<std::time::Duration>,
     stop_now: Option<Arc<AtomicBool>>,
-    previous_moves: Option<&Vec<Move>>,
+    game_history: Option<&Vec<ZobristHash>>,
 ) -> (Option<Move>, Score, usize) {
     const MAX_ITERATIVE_DEPTH: Depth = 25;
     let max_depth = depth.unwrap_or(MAX_ITERATIVE_DEPTH);
@@ -215,28 +215,28 @@ pub fn search_iterative_deep(
 
     // First guaranteed search
     let start = Instant::now();
-    let (mut mov, mut score, mut nodes) = alphabeta_memo(
+    let (mut mov, mut score, mut nodes) = alphabeta(
         position,
         1,
         MATE_LOWER,
         MATE_UPPER,
         &mut memo,
         1,
-        previous_moves,
+        game_history,
     );
     print_iterative_info(position, &memo, 1, score, nodes, start.elapsed());
 
     // Time constrained iterative deepening
     for ply in 2..=max_depth {
         let start = Instant::now();
-        let (new_mov, new_score, new_nodes) = alphabeta_memo(
+        let (new_mov, new_score, new_nodes) = alphabeta(
             position,
             ply,
             MATE_LOWER,
             MATE_UPPER,
             &mut memo,
             ply,
-            previous_moves,
+            game_history,
         );
 
         if memo.should_stop_search() {
@@ -255,6 +255,8 @@ pub fn search_iterative_deep(
         mov = new_mov;
         score = new_score;
         nodes = new_nodes;
+
+        memo.cleanup_tables();
     }
 
     println!(
@@ -296,7 +298,7 @@ mod tests {
         }
 
         let now = std::time::Instant::now();
-        let (iter_mov, iter_score, iter_nodes) = alphabeta_memo(
+        let (iter_mov, iter_score, iter_nodes) = alphabeta(
             &position,
             depth,
             MATE_LOWER,

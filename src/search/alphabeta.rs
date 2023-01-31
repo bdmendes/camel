@@ -1,13 +1,14 @@
 use super::{Depth, SearchMemo};
 use crate::{
     evaluation::{evaluate_game_over, evaluate_move, evaluate_position, Score},
-    position::{moves::Move, Color, Piece, Position, BOARD_SIZE},
+    position::{
+        moves::Move, zobrist::ZobristHash, Color, Piece, Position, BOARD_SIZE,
+    },
 };
 
 const NULL_MOVE_REDUCTION: Depth = 3;
 const MAX_QS_DEPTH: Depth = 10;
 const OPENING_MOVE_THRESHOLD: u16 = 5;
-const THREEFOLD_DRAW_EVAL_THRESHOLD: Score = 100;
 
 fn both_sides_have_pieces(position: &Position) -> bool {
     let mut white_has_pieces = false;
@@ -33,33 +34,6 @@ fn both_sides_have_pieces(position: &Position) -> bool {
                 }
             }
         }
-    }
-
-    false
-}
-
-fn should_skip_due_to_repetition(
-    mov: &Move,
-    previous_moves: Option<&Vec<Move>>,
-    position: &Position,
-) -> bool {
-    if let Some(previous_moves) = previous_moves {
-        let move_len = previous_moves.len();
-        if move_len < 8 {
-            return false;
-        }
-
-        let my_previous_moves =
-            (previous_moves[move_len - 8], previous_moves[move_len - 4]);
-        if mov != &my_previous_moves.0 || mov != &my_previous_moves.1 {
-            return false;
-        }
-
-        let my_evaluation = match position.info.to_move {
-            Color::White => evaluate_position(position, false),
-            Color::Black => -evaluate_position(position, false),
-        };
-        return my_evaluation > THREEFOLD_DRAW_EVAL_THRESHOLD;
     }
 
     false
@@ -134,14 +108,14 @@ fn alphabeta_quiet(
     (alpha, count)
 }
 
-pub fn alphabeta_memo(
+pub fn alphabeta(
     position: &Position,
     depth: Depth,
     mut alpha: Score,
     beta: Score,
     memo: &mut SearchMemo,
     original_depth: Depth,
-    previous_moves: Option<&Vec<Move>>,
+    game_history: Option<&Vec<ZobristHash>>,
 ) -> (Option<Move>, Score, usize) {
     // Check if the search should be stopped
     if memo.should_stop_search() {
@@ -154,9 +128,6 @@ pub fn alphabeta_memo(
         return (res.0, res.1, 1);
     }
 
-    // Cleanup tables if they get too big
-    memo.cleanup_tables();
-
     // Enter quiescence search if depth is 0
     if depth <= 0 {
         let (score, nodes) =
@@ -166,9 +137,12 @@ pub fn alphabeta_memo(
 
     // When game is over, do not search
     let mut moves = position.legal_moves(false);
-    if let Some(score) =
-        evaluate_game_over(position, &moves, original_depth - depth)
-    {
+    if let Some(score) = evaluate_game_over(
+        position,
+        &moves,
+        original_depth - depth,
+        game_history,
+    ) {
         return (None, score as Score, 1);
     }
 
@@ -179,7 +153,7 @@ pub fn alphabeta_memo(
         && !position.is_check()
     {
         let new_position = position.make_null_move();
-        let (_, score, nodes) = alphabeta_memo(
+        let (_, score, nodes) = alphabeta(
             &new_position,
             depth - NULL_MOVE_REDUCTION,
             -beta,
@@ -219,7 +193,7 @@ pub fn alphabeta_memo(
     for (_, mov) in moves.iter().enumerate() {
         let new_position = position.make_move(&mov);
 
-        let (_, score, nodes) = alphabeta_memo(
+        let (_, score, nodes) = alphabeta(
             &new_position,
             depth - 1,
             -beta,
@@ -231,12 +205,6 @@ pub fn alphabeta_memo(
 
         let score = -score;
         count += nodes;
-
-        if moves.len() > 1
-            && should_skip_due_to_repetition(mov, previous_moves, &position)
-        {
-            continue;
-        }
 
         if score > alpha {
             best_move = *mov;
