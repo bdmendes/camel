@@ -5,17 +5,6 @@ use super::{
 use bitflags::bitflags;
 use std::fmt;
 
-const CASTLE_SQUARES: [[usize; 5]; 4] = [
-    [4, 5, 6, 7, BOARD_SIZE],     // White kingside
-    [4, 3, 2, 1, 0],              // White queenside
-    [60, 61, 62, 63, BOARD_SIZE], // Black kingside
-    [60, 59, 58, 57, 56],         // Black queenside
-];
-const WHITE_PROMOTIONS: [Piece; 4] =
-    [Piece::WQ, Piece::WR, Piece::WB, Piece::WN];
-const BLACK_PROMOTIONS: [Piece; 4] =
-    [Piece::BQ, Piece::BR, Piece::BB, Piece::BN];
-
 bitflags! {
     pub struct MoveFlags: u8 {
         const CAPTURE = 0b001;
@@ -24,7 +13,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub struct Move {
     pub from: Square,
     pub to: Square,
@@ -53,43 +42,47 @@ impl Move {
         Move { from, to, flags, promotion: None }
     }
 
-    pub fn is_quiet(&self, position: &Position) -> bool {
-        let captured_piece = self.flags.contains(MoveFlags::CAPTURE)
-            && !matches!(position.at(self.to).unwrap(), Piece::WP | Piece::BP);
-        !captured_piece && self.promotion.is_none()
+    pub fn is_tactical(&self) -> bool {
+        self.flags.contains(MoveFlags::CAPTURE) || self.promotion.is_some()
     }
 }
 
 fn generate_regular_moves_from_square(
     position: &Position,
     square: Square,
-    directions: &[i64],
+    directions: &[isize],
     only_captures: bool,
 ) -> Vec<Move> {
     let piece = position.at(square).unwrap();
     let color = piece.color();
-    let crawls = piece.is_crawling();
-    let mut moves = Vec::with_capacity(if crawls {
-        directions.len() * 4
+    let slides = piece.is_sliding();
+    let mut moves = Vec::with_capacity(if slides && !only_captures {
+        directions.len() * 5
     } else {
         directions.len()
     });
 
-    for offset in directions {
-        let mut current_offset = *offset;
-        let mut last_column = square.col() as i64;
+    for &offset in directions {
+        let mut current_offset = offset;
+        let mut last_column = square.col() as isize;
 
         loop {
-            let to_index = (square.index as i64 + current_offset) as usize;
-            let current_col = (to_index % ROW_SIZE) as i64;
-            let out_of_bounds =
-                to_index >= BOARD_SIZE || (current_col - last_column).abs() > 2;
-            if out_of_bounds {
+            let to_index = (square.index as isize + current_offset) as usize;
+            let current_col = (to_index % ROW_SIZE) as isize;
+            if to_index >= BOARD_SIZE || (current_col - last_column).abs() > 2 {
                 break;
             }
 
-            let to_piece = position.board[to_index];
-            if to_piece.is_none() {
+            if let Some(to_piece) = position.board[to_index] {
+                if to_piece.color() != color {
+                    moves.push(Move::new(
+                        square,
+                        Square { index: to_index },
+                        MoveFlags::CAPTURE,
+                    ));
+                }
+                break;
+            } else {
                 if !only_captures {
                     moves.push(Move::new(
                         square,
@@ -97,19 +90,13 @@ fn generate_regular_moves_from_square(
                         MoveFlags::empty(),
                     ));
                 }
-                if crawls {
+                if slides {
                     last_column = current_col;
                     current_offset += offset;
                     continue;
                 }
-            } else if to_piece.unwrap().color() != color {
-                moves.push(Move::new(
-                    square,
-                    Square { index: to_index },
-                    MoveFlags::CAPTURE,
-                ));
+                break;
             }
-            break;
         }
     }
     moves
@@ -118,23 +105,23 @@ fn generate_regular_moves_from_square(
 fn pseudo_legal_moves_from_square(
     position: &Position,
     square: Square,
-    only_non_quiet: bool,
+    only_tactical: bool,
 ) -> Vec<Move> {
     let piece = position.at(square).unwrap();
     let color = piece.color();
+    let mut moves = generate_regular_moves_from_square(
+        position,
+        square,
+        piece.unchecked_directions(),
+        only_tactical,
+    );
+
     match piece {
         Piece::WP | Piece::BP => {
-            let mut moves = generate_regular_moves_from_square(
-                position,
-                square,
-                piece.unchecked_directions(),
-                only_non_quiet,
-            );
-
             // Do not advance if there is a piece in front; do not capture if there is no piece
             moves.retain(|move_| {
                 let index_diff =
-                    (move_.to.index as i64 - move_.from.index as i64).abs();
+                    (move_.to.index as isize - move_.from.index as isize).abs();
                 if index_diff == UP {
                     !move_.flags.contains(MoveFlags::CAPTURE)
                 } else if index_diff == UP + UP {
@@ -142,19 +129,15 @@ fn pseudo_legal_moves_from_square(
                     let can_advance_two = ((row == 1 && color == Color::White)
                         || (row == 6 && color == Color::Black))
                         && !move_.flags.contains(MoveFlags::CAPTURE);
-                    let jumped_piece = position.board[(move_.from.index as i64
-                        + (if color == Color::White { UP } else { DOWN }))
-                        as usize]
+                    let jumped_piece = position.board
+                        [(move_.from.index + move_.to.index) / 2]
                         .is_some();
                     can_advance_two && !jumped_piece
                 } else {
                     move_.flags.contains(MoveFlags::CAPTURE)
-                        || match position.info.en_passant_square {
-                            Some(en_passant_square) => {
-                                move_.to == en_passant_square
-                            }
-                            None => false,
-                        }
+                        || matches!(position.info.en_passant_square,
+                            Some(en_passant_square) if
+                                move_.to == en_passant_square)
                 }
             });
 
@@ -167,12 +150,12 @@ fn pseudo_legal_moves_from_square(
                     let mut under_promotion_moves =
                         Vec::<Move>::with_capacity(3);
                     let promotion_pieces = if color == Color::White {
-                        WHITE_PROMOTIONS
+                        [Piece::WQ, Piece::WR, Piece::WB, Piece::WN]
                     } else {
-                        BLACK_PROMOTIONS
+                        [Piece::BQ, Piece::BR, Piece::BB, Piece::BN]
                     };
                     move_.promotion = Some(promotion_pieces[0]);
-                    for i in 1..4 {
+                    for i in 1..=3 {
                         let promotion_move = Move {
                             from: move_.from,
                             to: move_.to,
@@ -190,137 +173,134 @@ fn pseudo_legal_moves_from_square(
                     }
                 }
             }
-
-            moves
         }
-        Piece::WK | Piece::BK => {
-            let mut moves = generate_regular_moves_from_square(
-                position,
-                square,
-                piece.unchecked_directions(),
-                only_non_quiet,
-            );
+        Piece::WK | Piece::BK if !only_tactical => {
+            // Add castle moves
+            let castle_squares = match color {
+                Color::White => [
+                    [4, 7], // White kingside
+                    [4, 0], // White queenside
+                ],
+                Color::Black => [
+                    [60, 63], // Black kingside
+                    [60, 56], // Black queenside
+                ],
+            };
 
-            if only_non_quiet {
-                return moves;
-            }
-
-            // Handle castling
-            for i in 0..4 {
+            for i in 0..2 {
                 // Check castle rights
-                let can_castle = match i {
-                    0 => position
-                        .info
-                        .castling_rights
-                        .contains(CastlingRights::WHITE_KINGSIDE),
-                    1 => position
-                        .info
-                        .castling_rights
-                        .contains(CastlingRights::WHITE_QUEENSIDE),
-                    2 => position
-                        .info
-                        .castling_rights
-                        .contains(CastlingRights::BLACK_KINGSIDE),
-                    3 => position
-                        .info
-                        .castling_rights
-                        .contains(CastlingRights::BLACK_QUEENSIDE),
-                    _ => unreachable!(),
+                let is_kingside = i == 0;
+                let castle_rights = match color {
+                    Color::White => match is_kingside {
+                        true => CastlingRights::WHITE_KINGSIDE,
+                        false => CastlingRights::WHITE_QUEENSIDE,
+                    },
+                    Color::Black => match is_kingside {
+                        true => CastlingRights::BLACK_KINGSIDE,
+                        false => CastlingRights::BLACK_QUEENSIDE,
+                    },
                 };
-                if !can_castle {
+                if !position.info.castling_rights.contains(castle_rights) {
                     continue;
                 }
 
-                // Check if the squares between the king and the rook are empty
-                let squares = CASTLE_SQUARES[i];
-                if squares[0] != square.index {
-                    continue;
-                }
-                if position.board[squares[1]].is_some()
-                    || position.board[squares[2]].is_some()
-                {
-                    continue;
-                }
-                let same_color_rook =
-                    if color == Color::White { Piece::WR } else { Piece::BR };
-                let kingside = i == 0 || i == 2;
-                if !kingside {
-                    if let Some(_) = position.board[squares[3]] {
+                // Check if king and rook are in place
+                let squares = &castle_squares[i];
+                if let Some(king_piece) = position.board[squares[0]] {
+                    if king_piece != piece {
                         continue;
                     }
                 }
-                if let Some(to_piece) =
-                    position.board[squares[3 + if kingside { 0 } else { 1 }]]
-                {
-                    if to_piece != same_color_rook {
+                let same_color_rook = match color {
+                    Color::White => Piece::WR,
+                    Color::Black => Piece::BR,
+                };
+                if let Some(rook_piece) = position.board[squares[1]] {
+                    if rook_piece != same_color_rook {
                         continue;
                     }
-                } else {
+                }
+
+                // Check if squares between king and rook are empty
+                let inbetween_squares = match squares[1] > squares[0] {
+                    true => (squares[0] + 1)..squares[1],
+                    false => (squares[1] + 1)..squares[0],
+                };
+                if inbetween_squares
+                    .clone()
+                    .any(|i| position.board[i].is_some())
+                {
                     continue;
                 }
 
                 moves.push(Move {
                     from: square,
-                    to: Square { index: squares[2] },
+                    to: Square {
+                        index: if is_kingside {
+                            squares[0] + 2
+                        } else {
+                            squares[0] - 2
+                        },
+                    },
                     flags: MoveFlags::CASTLE,
                     promotion: None,
                 });
             }
-
-            moves
         }
-        _ => generate_regular_moves_from_square(
-            position,
-            square,
-            piece.unchecked_directions(),
-            only_non_quiet,
-        ),
+        _ => {}
     }
+
+    moves
 }
 
 pub fn pseudo_legal_moves(
     position: &Position,
     to_move: Color,
-    only_non_quiet: bool,
+    only_tactical: bool,
 ) -> Vec<Move> {
-    let mut moves = Vec::with_capacity(40);
+    let mut moves =
+        Vec::with_capacity(if position.info.half_move_number < 30 {
+            32
+        } else {
+            16
+        });
     for index in 0..BOARD_SIZE {
-        let piece = position.board[index];
-        if piece.is_none() || piece.unwrap().color() != to_move {
-            continue;
+        if let Some(piece) = position.board[index] {
+            if piece.color() != to_move {
+                continue;
+            }
+            moves.extend(pseudo_legal_moves_from_square(
+                position,
+                Square { index },
+                only_tactical,
+            ));
         }
-        moves.extend(pseudo_legal_moves_from_square(
-            position,
-            Square { index },
-            only_non_quiet,
-        ));
     }
     moves
 }
 
-pub fn legal_moves(
-    position: &Position,
-    to_move: Color,
-    only_non_quiet: bool,
-) -> Vec<Move> {
-    let mut moves = pseudo_legal_moves(position, to_move, only_non_quiet);
+pub fn legal_moves(position: &Position, only_non_quiet: bool) -> Vec<Move> {
+    let mut moves =
+        pseudo_legal_moves(position, position.info.to_move, only_non_quiet);
 
     moves.retain(|move_| {
-        let castle_passent_squares = match position.at(move_.from) {
-            Some(Piece::WK) | Some(Piece::BK)
-                if move_.flags.contains(MoveFlags::CASTLE) =>
-            {
-                Some([
-                    move_.from,
-                    Square { index: (move_.to.index + move_.from.index) / 2 },
-                ])
-            }
-            _ => None,
+        let castle_passent_squares = if move_.flags.contains(MoveFlags::CASTLE)
+        {
+            Some([
+                move_.from,
+                Square { index: (move_.to.index + move_.from.index) / 2 },
+            ])
+        } else {
+            None
         };
 
         // Do not allow moves that leave the player in check
-        let new_position = make_move(position, *move_);
-        !position_is_check(&new_position, to_move, castle_passent_squares)
+        let new_position = make_move(position, move_);
+        !position_is_check(
+            &new_position,
+            position.info.to_move,
+            castle_passent_squares,
+        )
     });
 
     moves
@@ -332,9 +312,13 @@ pub fn position_is_check(
     castle_passent_squares: Option<[Square; 2]>,
 ) -> bool {
     let opposing_color = checked_player.opposite();
-    let opponent_moves = pseudo_legal_moves(position, opposing_color, false);
+    let opponent_moves = pseudo_legal_moves(
+        position,
+        opposing_color,
+        castle_passent_squares.is_none(),
+    );
 
-    for move_ in opponent_moves {
+    opponent_moves.iter().any(|move_| {
         if let Some(piece) = position.at(move_.to) {
             if (piece == Piece::WK && checked_player == Color::White)
                 || (piece == Piece::BK && checked_player == Color::Black)
@@ -347,12 +331,11 @@ pub fn position_is_check(
                 return true;
             }
         }
-    }
-
-    false
+        false
+    })
 }
 
-pub fn make_move(position: &Position, move_: Move) -> Position {
+pub fn make_move(position: &Position, move_: &Move) -> Position {
     let mut new_board = position.board;
     new_board[move_.to.index] = new_board[move_.from.index];
     new_board[move_.from.index] = None;
@@ -360,8 +343,8 @@ pub fn make_move(position: &Position, move_: Move) -> Position {
     // En passant
     if move_.flags.contains(MoveFlags::ENPASSANT) {
         let capture_square = match position.info.to_move {
-            Color::White => move_.to.index as i64 + DOWN,
-            Color::Black => move_.to.index as i64 + UP,
+            Color::White => move_.to.index as isize + DOWN,
+            Color::Black => move_.to.index as isize + UP,
         };
         new_board[capture_square as usize] = None;
     }
@@ -429,10 +412,10 @@ pub fn make_move(position: &Position, move_: Move) -> Position {
         info: PositionInfo {
             to_move: position.info.to_move.opposite(),
             castling_rights: new_castling_rights,
-            en_passant_square: match position.at(move_.from).unwrap() {
-                Piece::WP | Piece::BP => {
-                    if (move_.to.index as i64 - move_.from.index as i64).abs()
-                        == 2 * UP
+            en_passant_square: match position.at(move_.from) {
+                Some(Piece::WP) | Some(Piece::BP) => {
+                    if (move_.from.row() == 1 && move_.to.row() == 3)
+                        || (move_.from.row() == 6 && move_.to.row() == 4)
                     {
                         Some(Square {
                             index: (move_.to.index + move_.from.index) / 2,
@@ -485,7 +468,7 @@ mod tests {
     #[test]
     fn perft_start() {
         let position = super::Position::new();
-        let moves = legal_moves(&position, position.info.to_move, false);
+        let moves = legal_moves(&position, false);
         assert_eq!(moves.len(), 20);
     }
 
@@ -504,12 +487,12 @@ mod tests {
             return (*count, moves.to_vec());
         }
 
-        let moves = legal_moves(&position, position.info.to_move, false);
+        let moves = legal_moves(&position, false);
         let mut res = Vec::with_capacity(moves.len());
         let mut count = 0;
 
         for move_ in &moves {
-            let new_position = make_move(&position, *move_);
+            let new_position = make_move(&position, move_);
             let leaf_node_count = generate(
                 original_depth,
                 current_depth - 1,

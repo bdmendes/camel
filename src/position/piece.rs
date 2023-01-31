@@ -1,10 +1,9 @@
-pub const UP: i64 = 8;
-pub const DOWN: i64 = -8;
-pub const LEFT: i64 = -1;
-pub const RIGHT: i64 = 1;
+pub const UP: isize = 8;
+pub const DOWN: isize = -8;
+pub const LEFT: isize = -1;
+pub const RIGHT: isize = 1;
 
-#[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Color {
     White,
     Black,
@@ -105,20 +104,20 @@ impl Piece {
         }
     }
 
-    pub fn unchecked_directions(&self) -> &'static [i64] {
+    pub fn unchecked_directions(&self) -> &'static [isize] {
         match self {
             Piece::WP => &[UP, UP + UP, UP + LEFT, UP + RIGHT],
             Piece::BP => &[DOWN, DOWN + DOWN, DOWN + LEFT, DOWN + RIGHT],
             Piece::WR | Piece::BR => &[UP, DOWN, LEFT, RIGHT],
             Piece::WN | Piece::BN => &[
-                2 * UP + LEFT,
-                2 * UP + RIGHT,
-                2 * DOWN + LEFT,
-                2 * DOWN + RIGHT,
-                2 * LEFT + UP,
-                2 * LEFT + DOWN,
-                2 * RIGHT + UP,
-                2 * RIGHT + DOWN,
+                UP + UP + LEFT,
+                UP + UP + RIGHT,
+                DOWN + DOWN + LEFT,
+                DOWN + DOWN + RIGHT,
+                LEFT + LEFT + UP,
+                LEFT + LEFT + DOWN,
+                RIGHT + RIGHT + UP,
+                RIGHT + RIGHT + DOWN,
             ],
             Piece::WB | Piece::BB => {
                 &[UP + LEFT, UP + RIGHT, DOWN + LEFT, DOWN + RIGHT]
@@ -136,7 +135,7 @@ impl Piece {
         }
     }
 
-    pub fn is_crawling(&self) -> bool {
+    pub fn is_sliding(&self) -> bool {
         !matches!(
             self,
             Piece::WP

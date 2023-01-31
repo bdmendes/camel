@@ -2,11 +2,13 @@
 
 ![Camel Chess Engine](./readme_assets/camel.png)
 
-Camel is a chess engine written from scratch in Rust. It aims to achieve a high level of play (>2000 [Elo](https://en.wikipedia.org/wiki/Elo_rating_system), although not yet tested extensively), while also being easy to understand and modify.
+Camel is a chess engine written from scratch in Rust. It aims to achieve a high level of play (>2000 [Elo](https://en.wikipedia.org/wiki/Elo_rating_system)), while also being easy to understand and modify.
+
+Camel is on [lichess](https://lichess.org/@/camel_bot), through the [lichess-bot bridge](https://github.com/lichess-bot-devs/lichess-bot).
 
 ## How to use it
 
-Camel is an [UCI-compatible](https://backscattering.de/chess/uci/) chess engine, which means it can be used with any chess GUI that supports the UCI protocol, such as [Scid](https://flathub.org/apps/details/io.github.benini.scid). Alternatively, you can explore it through the interactive CLI, which builds on top of the UCI protocol, allowing you to visualize the board, make a move of your own, query legal moves and ask the engine to move. Type `help` to see the available commands.
+Camel is an [UCI-compatible](https://backscattering.de/chess/uci/) chess engine, which means it can be used with any chess GUI that supports the UCI protocol, such as [Scid](https://flathub.org/apps/details/io.github.benini.scid). Alternatively, you can explore it through the interactive CLI, which builds on top of the UCI protocol, allowing you to visualize the board, make a move of your own, query legal moves and ask the engine to move.
 
 <pre>
 $ <b>cargo run</b>
@@ -19,10 +21,8 @@ display
 - - - - - - - - 
 ♙ ♙ ♙ ♙ ♙ ♙ ♙ ♙ 
 ♖ ♘ ♗ ♕ ♔ ♗ ♘ ♖ 
-
 list
 b1a3 b1c3 g1f3 g1h3 a2a3 a2a4 b2b3 b2b4 c2c3 c2c4 d2d3 d2d4 e2e3 e2e4 f2f3 f2f4 g2g3 g2g4 h2h3 h2h4 
-
 automove
 info depth 1 score cp 50 time 4 nodes 20 nps 3841 pv b1c3
 info depth 2 score cp 0 time 23 nodes 39 nps 1599 pv b1c3 b8c6
@@ -38,6 +38,8 @@ bestmove b1c3
 ♙ ♙ ♙ ♙ ♙ ♙ ♙ ♙ 
 ♖ - ♗ ♕ ♔ ♗ ♘ ♖ 
 </pre>
+
+Type `help` to see the available commands.
 
 ## How it works
 

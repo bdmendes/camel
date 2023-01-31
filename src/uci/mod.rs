@@ -1,3 +1,5 @@
+mod time;
+
 use std::{
     collections::VecDeque,
     process::exit,
@@ -10,9 +12,11 @@ use std::{
 };
 
 use crate::{
-    position::Position,
+    position::{moves::Move, Position},
     search::{search_iterative_deep, Depth},
 };
+
+use self::time::get_duration;
 
 pub enum UCICommand {
     // Standard UCI commands
@@ -24,7 +28,12 @@ pub enum UCICommand {
     UCINewGame,
     PositionStart(VecDeque<String>),
     PositionFen(String, VecDeque<String>),
-    Go { depth: Option<Depth>, movetime: Option<Duration> },
+    Go {
+        depth: Option<Depth>,
+        move_time: Option<Duration>,
+        white_time: Option<Duration>,
+        black_time: Option<Duration>,
+    },
     Stop,
     PonderHit,
     Quit,
@@ -35,13 +44,16 @@ pub enum UCICommand {
     Move(String),
     AutoMove,
     List,
+    Fen,
 }
 
 pub struct EngineState {
     debug: bool,
     position: Position,
     stop: Arc<AtomicBool>,
+    moves: Vec<Move>,
 }
+
 impl UCICommand {
     pub fn parse(input: &str) -> Result<UCICommand, String> {
         let mut tokens: VecDeque<String> =
@@ -50,6 +62,7 @@ impl UCICommand {
         let command = tokens.pop_front().ok_or("No command found")?;
 
         match command.as_str() {
+            "f" | "fen" => Ok(UCICommand::Fen),
             "l" | "list" => Ok(UCICommand::List),
             "a" | "automove" => Ok(UCICommand::AutoMove),
             "h" | "help" => Ok(UCICommand::Help),
@@ -97,7 +110,9 @@ impl UCICommand {
             }
             "go" => {
                 let mut depth = None;
-                let mut movetime = None;
+                let mut move_time = None;
+                let mut white_time = None;
+                let mut black_time = None;
                 loop {
                     let token = tokens.pop_front();
                     if token.is_none() {
@@ -119,16 +134,34 @@ impl UCICommand {
                         "movetime" => {
                             let value =
                                 tokens.pop_front().ok_or("No value found")?;
-                            movetime = Some(Duration::from_millis(
+                            move_time = Some(Duration::from_millis(
                                 value
                                     .parse::<u64>()
                                     .map_err(|_| "Invalid movetime value")?,
                             ));
                         }
+                        "wtime" => {
+                            let value =
+                                tokens.pop_front().ok_or("No value found")?;
+                            white_time = Some(Duration::from_millis(
+                                value
+                                    .parse::<u64>()
+                                    .map_err(|_| "Invalid wtime value")?,
+                            ));
+                        }
+                        "btime" => {
+                            let value =
+                                tokens.pop_front().ok_or("No value found")?;
+                            black_time = Some(Duration::from_millis(
+                                value
+                                    .parse::<u64>()
+                                    .map_err(|_| "Invalid btime value")?,
+                            ));
+                        }
                         _ => {}
                     }
                 }
-                Ok(UCICommand::Go { depth, movetime })
+                Ok(UCICommand::Go { depth, move_time, white_time, black_time })
             }
             "stop" => Ok(UCICommand::Stop),
             "ponderhit" => Ok(UCICommand::PonderHit),
@@ -144,11 +177,13 @@ impl EngineState {
             position: Position::new(),
             debug: false,
             stop: Arc::new(AtomicBool::new(false)),
+            moves: Vec::new(),
         }
     }
 
     pub fn execute(&mut self, command: UCICommand) {
         match command {
+            UCICommand::Fen => self.handle_fen(),
             UCICommand::UCI => Self::handle_uci(),
             UCICommand::Debug(value) => self.handle_debug(value),
             UCICommand::IsReady => Self::handle_isready(),
@@ -156,15 +191,15 @@ impl EngineState {
                 Self::handle_setoption(&name, &value)
             }
             UCICommand::Register(code) => Self::handle_register(&code),
-            UCICommand::UCINewGame => Self::handle_newgame(),
+            UCICommand::UCINewGame => self.handle_newgame(),
             UCICommand::PositionFen(fen, moves) => {
                 self.handle_position(Some(&fen), moves)
             }
             UCICommand::PositionStart(moves) => {
                 self.handle_position(None, moves)
             }
-            UCICommand::Go { depth, movetime } => {
-                self.handle_go(depth, movetime)
+            UCICommand::Go { depth, move_time, white_time, black_time } => {
+                self.handle_go(depth, move_time, white_time, black_time)
             }
             UCICommand::Stop => self.handle_stop(),
             UCICommand::PonderHit => Self::handle_ponderhit(),
@@ -199,7 +234,9 @@ impl EngineState {
 
     fn handle_register(_code: &str) {}
 
-    fn handle_newgame() {}
+    fn handle_newgame(&mut self) {
+        self.moves.clear();
+    }
 
     fn handle_position(
         &mut self,
@@ -221,10 +258,13 @@ impl EngineState {
             Position::new()
         };
 
+        self.moves.clear();
+
         for mov in moves {
             let legal_moves = self.position.legal_moves(false);
             if let Some(m) = legal_moves.iter().find(|m| m.to_string() == mov) {
-                self.position = self.position.make_move(*m);
+                self.position = self.position.make_move(m);
+                self.moves.push(m.clone());
             } else {
                 println!("Invalid move: {}; stopping line before it", mov);
                 break;
@@ -232,12 +272,42 @@ impl EngineState {
         }
     }
 
-    fn handle_go(&self, depth: Option<Depth>, movetime: Option<Duration>) {
+    fn handle_go(
+        &self,
+        depth: Option<Depth>,
+        move_time: Option<Duration>,
+        mut white_time: Option<Duration>,
+        mut black_time: Option<Duration>,
+    ) {
         self.stop.store(false, Ordering::Relaxed);
         let stop_now = self.stop.clone();
         let position = self.position.clone();
+
+        if white_time.is_some() && black_time.is_none() {
+            black_time = white_time;
+        } else if black_time.is_some() && white_time.is_none() {
+            white_time = black_time;
+        }
+
+        let calc_move_time = match move_time {
+            Some(t) => Some(t),
+            None if white_time.is_some() => Some(get_duration(
+                &position,
+                white_time.unwrap(),
+                black_time.unwrap(),
+            )),
+            None => None,
+        };
+
+        let previous_moves = self.moves.clone();
         thread::spawn(move || {
-            search_iterative_deep(&position, depth, movetime, Some(stop_now));
+            search_iterative_deep(
+                &position,
+                depth,
+                calc_move_time,
+                Some(stop_now),
+                Some(&previous_moves),
+            );
         });
     }
 
@@ -263,12 +333,13 @@ impl EngineState {
         println!("  move [long_algebraic_notation]: make a move in the current position");
         println!("  automove: let the engine make a move in the current position (1 second time limit)");
         println!("  list: list all legal moves in the current position");
+        println!("  fen: display the FEN of the current position");
     }
 
     fn handle_move(&mut self, mov: String) {
         let legal_moves = self.position.legal_moves(false);
         if let Some(m) = legal_moves.iter().find(|m| m.to_string() == mov) {
-            self.position = self.position.make_move(*m);
+            self.position = self.position.make_move(m);
             println!("{}", self.position);
         } else {
             println!("Invalid move: {}", mov);
@@ -281,9 +352,10 @@ impl EngineState {
             None,
             Some(Duration::from_secs(1)),
             None,
+            None,
         );
         if let Some(m) = mov {
-            self.position = self.position.make_move(m);
+            self.position = self.position.make_move(&m);
             println!("{}", self.position);
         } else {
             println!("No move found. The game is over.");
@@ -302,5 +374,9 @@ impl EngineState {
             print!("{} ", mov);
         }
         println!();
+    }
+
+    fn handle_fen(&self) {
+        println!("{}", self.position.to_fen());
     }
 }
