@@ -1,43 +1,12 @@
 use super::{Depth, SearchMemo};
 use crate::{
     evaluation::{evaluate_game_over, evaluate_move, evaluate_position, Score},
-    position::{
-        moves::Move, zobrist::ZobristHash, Color, Piece, Position, BOARD_SIZE,
-    },
+    position::{moves::Move, zobrist::ZobristHash, Color, Position},
 };
 
 const NULL_MOVE_REDUCTION: Depth = 3;
 const MAX_QS_DEPTH: Depth = 10;
-const OPENING_MOVE_THRESHOLD: u16 = 5;
-
-fn both_sides_have_pieces(position: &Position) -> bool {
-    let mut white_has_pieces = false;
-    let mut black_has_pieces = false;
-
-    for index in 0..BOARD_SIZE {
-        match position.board[index] {
-            None => {}
-            Some(piece) => {
-                if piece == Piece::WP
-                    || piece == Piece::BP
-                    || piece == Piece::WK
-                    || piece == Piece::BK
-                {
-                    continue;
-                }
-                match piece.color() {
-                    Color::White => white_has_pieces = true,
-                    Color::Black => black_has_pieces = true,
-                }
-                if white_has_pieces && black_has_pieces {
-                    return true;
-                }
-            }
-        }
-    }
-
-    false
-}
+const OPENING_MOVE_THRESHOLD: u16 = 3;
 
 fn alphabeta_quiet(
     position: &Position,
@@ -52,15 +21,11 @@ fn alphabeta_quiet(
     }
 
     // Calculate static evaluation and return if quiescence search depth is reached
-    let color_cof = match position.info.to_move {
-        Color::White => 1,
-        Color::Black => -1,
-    };
-    let static_evaluation = color_cof
-        * evaluate_position(
-            position,
-            position.info.full_move_number < OPENING_MOVE_THRESHOLD,
-        );
+    let static_evaluation = evaluate_position(
+        position,
+        position.info.full_move_number < OPENING_MOVE_THRESHOLD,
+        true,
+    );
     if depth <= 0 {
         return (static_evaluation, 1);
     }
@@ -149,7 +114,8 @@ pub fn alphabeta(
     // Null move pruning when not in check and zugzwang is not possible
     if depth != original_depth
         && depth > NULL_MOVE_REDUCTION
-        && both_sides_have_pieces(position)
+        && position.piece_count(Some(Color::White), None) > 0
+        && position.piece_count(Some(Color::Black), None) > 0
         && !position.is_check()
     {
         let new_position = position.make_null_move();
@@ -162,6 +128,7 @@ pub fn alphabeta(
             original_depth,
             None,
         );
+
         let score = -score;
         if score >= beta {
             return (None, beta, nodes);
@@ -192,7 +159,6 @@ pub fn alphabeta(
     let mut count = 0;
     for (_, mov) in moves.iter().enumerate() {
         let new_position = position.make_move(&mov);
-
         let (_, score, nodes) = alphabeta(
             &new_position,
             depth - 1,

@@ -112,7 +112,11 @@ pub fn evaluate_game_over(
     None
 }
 
-pub fn evaluate_position(position: &Position, opening_entropy: bool) -> Score {
+pub fn evaluate_position(
+    position: &Position,
+    opening_entropy: bool,
+    relative_to_current: bool,
+) -> Score {
     let mut score: Score = 0;
 
     // Count material and midgame ratio
@@ -153,7 +157,11 @@ pub fn evaluate_position(position: &Position, opening_entropy: bool) -> Score {
         score += rand::random::<Score>() % CENTIPAWN_ENTROPY;
     }
 
-    score
+    if relative_to_current && position.info.to_move == Color::Black {
+        -score
+    } else {
+        score
+    }
 }
 
 #[cfg(test)]
@@ -209,7 +217,7 @@ mod tests {
     #[test]
     fn eval_starts_zero() {
         let position = Position::new();
-        assert_eq!(evaluate_position(&position, false), 0);
+        assert_eq!(evaluate_position(&position, false, false), 0);
     }
 
     #[test]
@@ -218,7 +226,7 @@ mod tests {
             "3r3k/1p1qQ1pp/p2P1n2/2p5/7B/P7/1P3PPP/4R1K1 w - - 5 26",
         )
         .unwrap();
-        let evaluation = evaluate_position(&position, false);
+        let evaluation = evaluate_position(&position, false, false);
         assert!(evaluation > 100 && evaluation < 300);
     }
 
@@ -229,9 +237,9 @@ mod tests {
         let king_at_corner_position =
             Position::from_fen("8/1K6/8/2q5/8/1k6/8/8 w - - 11 58").unwrap();
         let king_at_center_evaluation =
-            evaluate_position(&king_at_center_position, false);
+            evaluate_position(&king_at_center_position, false, false);
         let king_at_corner_evaluation =
-            evaluate_position(&king_at_corner_position, false);
+            evaluate_position(&king_at_corner_position, false, false);
         assert!(king_at_center_evaluation > king_at_corner_evaluation);
     }
 }

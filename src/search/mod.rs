@@ -135,6 +135,7 @@ impl SearchMemo {
                 return Some((*mov, *score));
             }
         }
+
         None
     }
 
