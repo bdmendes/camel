@@ -15,12 +15,12 @@ fn should_skip_due_to_repetition(
 ) -> bool {
     if let Some(previous_moves) = previous_moves {
         let move_len = previous_moves.len();
-        if move_len < 4 {
+        if move_len < 8 {
             return false;
         }
 
         let my_previous_moves =
-            (previous_moves[move_len - 2], previous_moves[move_len - 4]);
+            (previous_moves[move_len - 8], previous_moves[move_len - 4]);
         if mov != &my_previous_moves.0 || mov != &my_previous_moves.1 {
             return false;
         }
