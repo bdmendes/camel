@@ -13,7 +13,7 @@ pub const MATE_UPPER: Score = 90000;
 
 const CENTIPAWN_ENTROPY: Score = 10;
 
-fn piece_value(piece: Piece) -> Score {
+const fn piece_value(piece: Piece) -> Score {
     // Values from https://github.com/official-stockfish/Stockfish/blob/master/src/types.h
     match piece {
         Piece::WP | Piece::BP => 100,

@@ -1,12 +1,42 @@
 use super::{Depth, SearchMemo};
 use crate::{
     evaluation::{evaluate_game_over, evaluate_move, evaluate_position, Score},
-    position::{moves::Move, Color, Position},
+    position::{moves::Move, Color, Piece, Position, BOARD_SIZE},
 };
 
+const NULL_MOVE_REDUCTION: Depth = 3;
 const MAX_QS_DEPTH: Depth = 10;
 const OPENING_MOVE_THRESHOLD: u16 = 5;
 const THREEFOLD_DRAW_EVAL_THRESHOLD: Score = 100;
+
+fn both_sides_have_pieces(position: &Position) -> bool {
+    let mut white_has_pieces = false;
+    let mut black_has_pieces = false;
+
+    for index in 0..BOARD_SIZE {
+        match position.board[index] {
+            None => {}
+            Some(piece) => {
+                if piece == Piece::WP
+                    || piece == Piece::BP
+                    || piece == Piece::WK
+                    || piece == Piece::BK
+                {
+                    continue;
+                }
+                match piece.color() {
+                    Color::White => white_has_pieces = true,
+                    Color::Black => black_has_pieces = true,
+                }
+                if white_has_pieces && black_has_pieces {
+                    return true;
+                }
+            }
+        }
+    }
+
+    false
+}
 
 fn should_skip_due_to_repetition(
     mov: &Move,
@@ -147,6 +177,28 @@ pub fn alphabeta_memo(
         evaluate_game_over(position, &moves, original_depth - depth)
     {
         return (None, score as Score, 1);
+    }
+
+    // Null move pruning when not in check and zugzwang is not possible
+    if depth != original_depth
+        && depth > NULL_MOVE_REDUCTION
+        && both_sides_have_pieces(position)
+        && !position.is_check()
+    {
+        let new_position = position.make_null_move();
+        let (_, score, nodes) = alphabeta_memo(
+            &new_position,
+            depth - NULL_MOVE_REDUCTION,
+            -beta,
+            -alpha,
+            memo,
+            original_depth,
+            None,
+        );
+        let score = -score;
+        if score >= beta {
+            return (None, beta, nodes);
+        }
     }
 
     // Sort moves by heuristic value + killer move + hash move
