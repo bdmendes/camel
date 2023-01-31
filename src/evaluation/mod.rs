@@ -8,8 +8,8 @@ use crate::position::{
 
 pub type Score = i32;
 
-pub const MATE_LOWER: Score = -70000;
-pub const MATE_UPPER: Score = 70000;
+pub const MATE_LOWER: Score = -90000;
+pub const MATE_UPPER: Score = 90000;
 
 const CENTIPAWN_ENTROPY: Score = 10;
 
@@ -135,8 +135,7 @@ pub fn evaluate_position(position: &Position, opening_entropy: bool) -> Score {
 
     // Add entropy to avoid playing the same opening moves every time
     if opening_entropy {
-        score +=
-            rand::random::<Score>() % CENTIPAWN_ENTROPY - CENTIPAWN_ENTROPY / 2;
+        score += rand::random::<Score>() % CENTIPAWN_ENTROPY;
     }
 
     score

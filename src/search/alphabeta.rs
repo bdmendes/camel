@@ -29,7 +29,7 @@ fn should_skip_due_to_repetition(
             Color::White => evaluate_position(position, false),
             Color::Black => -evaluate_position(position, false),
         };
-        return my_evaluation < THREEFOLD_DRAW_EVAL_THRESHOLD;
+        return my_evaluation > THREEFOLD_DRAW_EVAL_THRESHOLD;
     }
 
     false
