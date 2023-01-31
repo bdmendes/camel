@@ -11,7 +11,7 @@ Camel is on [lichess](https://lichess.org/@/camel_bot), through the [lichess-bot
 Camel is an [UCI-compatible](https://backscattering.de/chess/uci/) chess engine, which means it can be used with any chess GUI that supports the UCI protocol, such as [Scid](https://flathub.org/apps/details/io.github.benini.scid). Alternatively, you can explore it through the interactive CLI, which builds on top of the UCI protocol, allowing you to visualize the board, make a move of your own, query legal moves and ask the engine to move.
 
 <pre>
-$ <b>cargo run</b>
+$ <b>cargo run --release</b>
 display
 ♜ ♞ ♝ ♛ ♚ ♝ ♞ ♜ 
 ♟ ♟ ♟ ♟ ♟ ♟ ♟ ♟ 
