@@ -148,17 +148,10 @@ pub fn alphabeta_memo(
         return (None, alpha, 1);
     }
 
-    // Flag draw in case of threefold repetition
-    let zobrist_hash = position.to_zobrist_hash();
-    if memo.threefold_repetition(zobrist_hash) {
-        return (None, 0, 1);
-    }
-
     // Check for transposition table hit
-    if !memo.seen_position_before(zobrist_hash) {
-        if let Some(res) = memo.get_transposition_table(zobrist_hash, depth) {
-            return (res.0, res.1, 1);
-        }
+    let zobrist_hash = position.to_zobrist_hash();
+    if let Some(res) = memo.get_transposition_table(zobrist_hash, depth) {
+        return (res.0, res.1, 1);
     }
 
     // Cleanup tables if they get too big
@@ -225,9 +218,7 @@ pub fn alphabeta_memo(
     let mut count = 0;
     for (_, mov) in moves.iter().enumerate() {
         let new_position = position.make_move(&mov);
-        let new_position_hash = new_position.to_zobrist_hash();
 
-        memo.visit_position(new_position_hash);
         let (_, score, nodes) = alphabeta_memo(
             &new_position,
             depth - 1,
@@ -237,7 +228,6 @@ pub fn alphabeta_memo(
             original_depth,
             None,
         );
-        memo.leave_position(new_position_hash);
 
         let score = -score;
         count += nodes;

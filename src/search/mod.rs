@@ -14,14 +14,13 @@ use self::alphabeta::alphabeta_memo;
 
 pub type Depth = u8;
 
-const MAX_TABLE_SIZE: usize = 1_000_000;
+const MAX_TABLE_SIZE: usize = 64_000_000;
 const MAX_MATE_SCORE_DIFF: Score = 300;
 
 pub struct SearchMemo {
     pub killer_moves: HashMap<Depth, [Option<Move>; 2]>,
     pub hash_move: HashMap<ZobristHash, (Move, Depth)>,
     pub transposition_table: HashMap<ZobristHash, (Option<Move>, Score, Depth)>,
-    pub repetition_table: HashMap<ZobristHash, u8>,
     pub initial_instant: std::time::Instant,
     pub duration: Option<std::time::Duration>,
     pub stop_now: Option<Arc<AtomicBool>>,
@@ -36,7 +35,6 @@ impl SearchMemo {
             killer_moves: HashMap::new(),
             hash_move: HashMap::new(),
             transposition_table: HashMap::new(),
-            repetition_table: HashMap::new(),
             initial_instant: std::time::Instant::now(),
             duration: duration,
             stop_now,
@@ -63,31 +61,6 @@ impl SearchMemo {
             current_depth -= 1;
         }
         principal_variation
-    }
-
-    fn visit_position(&mut self, zobrist_hash: ZobristHash) {
-        let entry = self.repetition_table.entry(zobrist_hash).or_insert(0);
-        *entry += 1;
-    }
-
-    fn leave_position(&mut self, zobrist_hash: ZobristHash) {
-        let entry = self.repetition_table.entry(zobrist_hash).or_insert(0);
-        *entry -= 1;
-        if *entry == 0 {
-            self.repetition_table.remove(&zobrist_hash);
-        }
-    }
-
-    fn threefold_repetition(&self, zobrist_hash: ZobristHash) -> bool {
-        if let Some(entry) = self.repetition_table.get(&zobrist_hash) {
-            *entry >= 3
-        } else {
-            false
-        }
-    }
-
-    fn seen_position_before(&self, zobrist_hash: ZobristHash) -> bool {
-        self.repetition_table.contains_key(&zobrist_hash)
     }
 
     fn put_killer_move(&mut self, mov: &Move, depth: Depth) {
