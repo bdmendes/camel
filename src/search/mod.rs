@@ -131,7 +131,7 @@ impl SearchMemo {
         if let Some((mov, score, transp_depth)) =
             self.transposition_table.get(&zobrist_hash)
         {
-            if depth <= *transp_depth {
+            if depth < *transp_depth {
                 return Some((*mov, *score));
             }
         }
