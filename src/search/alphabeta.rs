@@ -1,4 +1,4 @@
-use super::{Depth, SearchMemo};
+use super::{Depth, Node, SearchMemo};
 use crate::{
     evaluation::{
         moves::evaluate_move,
@@ -84,7 +84,7 @@ pub fn alphabeta(
     position: &Position,
     depth: Depth,
     mut alpha: Score,
-    beta: Score,
+    mut beta: Score,
     memo: &mut SearchMemo,
     original_depth: Depth,
 ) -> (Option<Move>, Score, usize) {
@@ -95,8 +95,24 @@ pub fn alphabeta(
 
     // Check for transposition table hit
     let zobrist_hash = position.zobrist_hash();
-    if let Some(res) = memo.get_transposition_table(zobrist_hash, depth) {
-        return (res.0, res.1, 1);
+    if let Some(tt_entry) = memo.get_transposition_table(zobrist_hash, depth) {
+        match tt_entry.node {
+            Node::PVNode => return (None, tt_entry.score, 1),
+            Node::CutNode => {
+                if tt_entry.score > alpha {
+                    alpha = tt_entry.score;
+                }
+            }
+            Node::AllNode => {
+                if tt_entry.score < beta {
+                    beta = tt_entry.score;
+                }
+            }
+        }
+
+        if alpha >= beta {
+            return (None, tt_entry.score, 1);
+        }
     }
 
     // Enter quiescence search if depth is 0
@@ -166,6 +182,7 @@ pub fn alphabeta(
     });
 
     // Search moves
+    let original_alpha = alpha;
     let mut best_move = moves[0];
     let mut count = 0;
     for mov in &moves {
@@ -198,7 +215,19 @@ pub fn alphabeta(
     }
 
     memo.put_hash_move(zobrist_hash, &best_move, depth);
-    memo.put_transposition_table(zobrist_hash, depth, Some(best_move), alpha);
+    memo.put_transposition_table(
+        zobrist_hash,
+        depth,
+        Some(best_move),
+        alpha,
+        if alpha >= beta {
+            Node::CutNode
+        } else if original_alpha == alpha {
+            Node::AllNode
+        } else {
+            Node::PVNode
+        },
+    );
 
     (Some(best_move), alpha, count)
 }

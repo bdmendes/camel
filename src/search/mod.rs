@@ -17,10 +17,23 @@ pub type Depth = u8;
 const MAX_TABLE_SIZE: usize = 64_000_000;
 const MAX_MATE_SCORE_DIFF: Score = 300;
 
+pub enum Node {
+    PVNode,  // exact score
+    CutNode, // lower bound
+    AllNode, // upper bound
+}
+
+pub struct TranspositionEntry {
+    score: Score,
+    depth: Depth,
+    node: Node,
+    best_move: Option<Move>,
+}
+
 pub struct SearchMemo {
     pub killer_moves: HashMap<Depth, [Option<Move>; 2]>,
     pub hash_move: HashMap<ZobristHash, (Move, Depth)>,
-    pub transposition_table: HashMap<ZobristHash, (Option<Move>, Score, Depth)>,
+    pub transposition_table: HashMap<ZobristHash, TranspositionEntry>,
     pub branch_history: Vec<ZobristHash>,
     pub initial_instant: std::time::Instant,
     pub duration: Option<std::time::Duration>,
@@ -102,27 +115,48 @@ impl SearchMemo {
         depth: Depth,
         mov: Option<Move>,
         score: Score,
+        node: Node,
     ) {
-        let (transp_mov, transp_score, transp_depth) = self
-            .transposition_table
-            .entry(zobrist_hash)
-            .or_insert((mov, score, 0));
-        if depth <= *transp_depth {
+        // let (transp_mov, transp_score, transp_depth) = self
+        //     .transposition_table
+        //     .entry(zobrist_hash)
+        //     .or_insert((mov, score, 0));
+        // if depth <= *transp_depth {
+        //     return;
+        // }
+        // *transp_depth = depth;
+        // *transp_mov = mov;
+        // *transp_score = score;
+        if let Some(entry) = self.transposition_table.get_mut(&zobrist_hash) {
+            if depth <= entry.depth {
+                return;
+            }
+            entry.depth = depth;
+            entry.best_move = mov;
+            entry.score = score;
+            entry.node = node;
             return;
         }
-        *transp_depth = depth;
-        *transp_mov = mov;
-        *transp_score = score;
+
+        self.transposition_table.insert(
+            zobrist_hash,
+            TranspositionEntry {
+                score,
+                depth,
+                node,
+                best_move: mov,
+            },
+        );
     }
 
     fn get_transposition_table(
         &mut self,
         zobrist_hash: ZobristHash,
         depth: Depth,
-    ) -> Option<(Option<Move>, Score)> {
-        if let Some((mov, score, transp_depth)) = self.transposition_table.get(&zobrist_hash) {
-            if depth <= *transp_depth {
-                return Some((*mov, *score));
+    ) -> Option<&TranspositionEntry> {
+        if let Some(tt_entry) = self.transposition_table.get(&zobrist_hash) {
+            if depth <= tt_entry.depth {
+                return Some(tt_entry);
             }
         }
 
