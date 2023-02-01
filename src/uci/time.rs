@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::{
-    evaluation::evaluate_position,
+    evaluation::position::evaluate_position,
     position::{Color, Position},
 };
 

@@ -1,6 +1,10 @@
 use super::{Depth, SearchMemo};
 use crate::{
-    evaluation::{evaluate_game_over, evaluate_move, evaluate_position, Score},
+    evaluation::{
+        moves::evaluate_move,
+        position::{evaluate_game_over, evaluate_position},
+        Score,
+    },
     position::{moves::Move, zobrist::ZobristHash, Color, Position},
 };
 
