@@ -12,7 +12,7 @@ pub type Score = i32;
 pub const MATE_LOWER: Score = -90000;
 pub const MATE_UPPER: Score = 90000;
 
-const CENTIPAWN_ENTROPY: Score = 10;
+const CENTIPAWN_ENTROPY: Score = 5;
 
 const fn piece_value(piece: Piece) -> Score {
     match piece {

@@ -382,8 +382,8 @@ mod tests {
     #[test]
     fn search_endgame_opposition() {
         test_search(
-            "5k2/8/6K1/5P2/8/8/8/8 w - - 0 1",
-            9,
+            "5k2/8/6K1/5P2/8/8/8/8 w - - 0 20",
+            10,
             "g6f6",
             None,
             None,

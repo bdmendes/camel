@@ -5,8 +5,9 @@ use crate::{
 };
 
 const NULL_MOVE_REDUCTION: Depth = 3;
+const LATE_MOVE_REDUCTION: Depth = 1;
 const MAX_QS_DEPTH: Depth = 10;
-const OPENING_MOVE_THRESHOLD: u16 = 3;
+const OPENING_MOVE_THRESHOLD: u16 = 10;
 
 fn alphabeta_quiet(
     position: &Position,
@@ -157,11 +158,18 @@ pub fn alphabeta(
     // Search moves
     let mut best_move = moves[0];
     let mut count = 0;
-    for (_, mov) in moves.iter().enumerate() {
+    for (i, mov) in moves.iter().enumerate() {
         let new_position = position.make_move(&mov);
         let (_, score, nodes) = alphabeta(
             &new_position,
-            depth - 1,
+            if depth > LATE_MOVE_REDUCTION + 1
+                && depth == original_depth
+                && i > 3
+            {
+                depth - 1 - LATE_MOVE_REDUCTION
+            } else {
+                depth - 1
+            },
             -beta,
             -alpha,
             memo,
