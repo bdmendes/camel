@@ -90,7 +90,7 @@ pub fn alphabeta(
 
     // Check for transposition table hit
     let zobrist_hash = position.to_zobrist_hash();
-    if let Some(res) = memo.get_transposition_table(zobrist_hash, depth) {
+    if let Some(res) = memo.extract_transposition_table(zobrist_hash, depth) {
         return (res.0, res.1, 1);
     }
 

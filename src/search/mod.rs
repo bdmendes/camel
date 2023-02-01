@@ -123,16 +123,16 @@ impl SearchMemo {
         *transp_score = score;
     }
 
-    fn get_transposition_table(
+    fn extract_transposition_table(
         &mut self,
         zobrist_hash: ZobristHash,
         depth: Depth,
     ) -> Option<(Option<Move>, Score)> {
         if let Some((mov, score, transp_depth)) =
-            self.transposition_table.get(&zobrist_hash)
+            self.transposition_table.remove(&zobrist_hash)
         {
-            if depth < *transp_depth {
-                return Some((*mov, *score));
+            if depth <= transp_depth {
+                return Some((mov, score));
             }
         }
 
