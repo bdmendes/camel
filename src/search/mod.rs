@@ -5,7 +5,7 @@ use crate::{
     position::{moves::Move, zobrist::ZobristHash, Position},
 };
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{atomic::AtomicBool, Arc},
     time::{Duration, Instant},
 };
@@ -21,6 +21,7 @@ pub struct SearchMemo {
     pub killer_moves: HashMap<Depth, [Option<Move>; 2]>,
     pub hash_move: HashMap<ZobristHash, (Move, Depth)>,
     pub transposition_table: HashMap<ZobristHash, (Option<Move>, Score, Depth)>,
+    pub branch_history: HashSet<ZobristHash>,
     pub initial_instant: std::time::Instant,
     pub duration: Option<std::time::Duration>,
     pub stop_now: Option<Arc<AtomicBool>>,
@@ -35,6 +36,7 @@ impl SearchMemo {
             killer_moves: HashMap::new(),
             hash_move: HashMap::new(),
             transposition_table: HashMap::new(),
+            branch_history: HashSet::new(),
             initial_instant: std::time::Instant::now(),
             duration: duration,
             stop_now,
@@ -131,12 +133,24 @@ impl SearchMemo {
         if let Some((mov, score, transp_depth)) =
             self.transposition_table.get(&zobrist_hash)
         {
-            if depth < *transp_depth {
+            if depth <= *transp_depth {
                 return Some((*mov, *score));
             }
         }
 
         None
+    }
+
+    fn visit_position(&mut self, zobrist_hash: ZobristHash) {
+        self.branch_history.insert(zobrist_hash);
+    }
+
+    fn is_visited_position(&mut self, zobrist_hash: ZobristHash) -> bool {
+        self.branch_history.contains(&zobrist_hash)
+    }
+
+    fn leave_position(&mut self, zobrist_hash: ZobristHash) {
+        self.branch_history.remove(&zobrist_hash);
     }
 
     fn cleanup_tables(&mut self) {
