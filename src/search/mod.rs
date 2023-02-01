@@ -10,18 +10,17 @@ use std::{
     time::{Duration, Instant},
 };
 
-use self::alphabeta::alphabeta_memo;
+use self::alphabeta::alphabeta;
 
 pub type Depth = u8;
 
-const MAX_TABLE_SIZE: usize = 1_000_000;
+const MAX_TABLE_SIZE: usize = 64_000_000;
 const MAX_MATE_SCORE_DIFF: Score = 300;
 
 pub struct SearchMemo {
     pub killer_moves: HashMap<Depth, [Option<Move>; 2]>,
     pub hash_move: HashMap<ZobristHash, (Move, Depth)>,
     pub transposition_table: HashMap<ZobristHash, (Option<Move>, Score, Depth)>,
-    pub repetition_table: HashMap<ZobristHash, u8>,
     pub initial_instant: std::time::Instant,
     pub duration: Option<std::time::Duration>,
     pub stop_now: Option<Arc<AtomicBool>>,
@@ -36,7 +35,6 @@ impl SearchMemo {
             killer_moves: HashMap::new(),
             hash_move: HashMap::new(),
             transposition_table: HashMap::new(),
-            repetition_table: HashMap::new(),
             initial_instant: std::time::Instant::now(),
             duration: duration,
             stop_now,
@@ -63,31 +61,6 @@ impl SearchMemo {
             current_depth -= 1;
         }
         principal_variation
-    }
-
-    fn visit_position(&mut self, zobrist_hash: ZobristHash) {
-        let entry = self.repetition_table.entry(zobrist_hash).or_insert(0);
-        *entry += 1;
-    }
-
-    fn leave_position(&mut self, zobrist_hash: ZobristHash) {
-        let entry = self.repetition_table.entry(zobrist_hash).or_insert(0);
-        *entry -= 1;
-        if *entry == 0 {
-            self.repetition_table.remove(&zobrist_hash);
-        }
-    }
-
-    fn threefold_repetition(&self, zobrist_hash: ZobristHash) -> bool {
-        if let Some(entry) = self.repetition_table.get(&zobrist_hash) {
-            *entry >= 3
-        } else {
-            false
-        }
-    }
-
-    fn seen_position_before(&self, zobrist_hash: ZobristHash) -> bool {
-        self.repetition_table.contains_key(&zobrist_hash)
     }
 
     fn put_killer_move(&mut self, mov: &Move, depth: Depth) {
@@ -158,10 +131,11 @@ impl SearchMemo {
         if let Some((mov, score, transp_depth)) =
             self.transposition_table.get(&zobrist_hash)
         {
-            if depth <= *transp_depth {
+            if depth < *transp_depth {
                 return Some((*mov, *score));
             }
         }
+
         None
     }
 
@@ -234,7 +208,7 @@ pub fn search_iterative_deep(
     depth: Option<Depth>,
     duration: Option<std::time::Duration>,
     stop_now: Option<Arc<AtomicBool>>,
-    previous_moves: Option<&Vec<Move>>,
+    game_history: Option<&Vec<ZobristHash>>,
 ) -> (Option<Move>, Score, usize) {
     const MAX_ITERATIVE_DEPTH: Depth = 25;
     let max_depth = depth.unwrap_or(MAX_ITERATIVE_DEPTH);
@@ -242,28 +216,28 @@ pub fn search_iterative_deep(
 
     // First guaranteed search
     let start = Instant::now();
-    let (mut mov, mut score, mut nodes) = alphabeta_memo(
+    let (mut mov, mut score, mut nodes) = alphabeta(
         position,
         1,
         MATE_LOWER,
         MATE_UPPER,
         &mut memo,
         1,
-        previous_moves,
+        game_history,
     );
     print_iterative_info(position, &memo, 1, score, nodes, start.elapsed());
 
     // Time constrained iterative deepening
     for ply in 2..=max_depth {
         let start = Instant::now();
-        let (new_mov, new_score, new_nodes) = alphabeta_memo(
+        let (new_mov, new_score, new_nodes) = alphabeta(
             position,
             ply,
             MATE_LOWER,
             MATE_UPPER,
             &mut memo,
             ply,
-            previous_moves,
+            game_history,
         );
 
         if memo.should_stop_search() {
@@ -282,6 +256,8 @@ pub fn search_iterative_deep(
         mov = new_mov;
         score = new_score;
         nodes = new_nodes;
+
+        memo.cleanup_tables();
     }
 
     println!(
@@ -323,7 +299,7 @@ mod tests {
         }
 
         let now = std::time::Instant::now();
-        let (iter_mov, iter_score, iter_nodes) = alphabeta_memo(
+        let (iter_mov, iter_score, iter_nodes) = alphabeta(
             &position,
             depth,
             MATE_LOWER,
@@ -406,8 +382,8 @@ mod tests {
     #[test]
     fn search_endgame_opposition() {
         test_search(
-            "5k2/8/6K1/5P2/8/8/8/8 w - - 0 1",
-            9,
+            "5k2/8/6K1/5P2/8/8/8/8 w - - 0 20",
+            10,
             "g6f6",
             None,
             None,

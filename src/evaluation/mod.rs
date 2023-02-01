@@ -3,6 +3,7 @@ pub mod psqt;
 use self::psqt::psqt_value;
 use crate::position::{
     moves::{Move, MoveFlags},
+    zobrist::ZobristHash,
     Color, Piece, Position, Square, BOARD_SIZE,
 };
 
@@ -11,10 +12,9 @@ pub type Score = i32;
 pub const MATE_LOWER: Score = -90000;
 pub const MATE_UPPER: Score = 90000;
 
-const CENTIPAWN_ENTROPY: Score = 10;
+const CENTIPAWN_ENTROPY: Score = 5;
 
 const fn piece_value(piece: Piece) -> Score {
-    // Values from https://github.com/official-stockfish/Stockfish/blob/master/src/types.h
     match piece {
         Piece::WP | Piece::BP => 100,
         Piece::WN | Piece::BN => 310,
@@ -79,10 +79,25 @@ pub fn evaluate_game_over(
     position: &Position,
     moves: &Vec<Move>,
     distance_to_root: u8,
+    game_history: Option<&Vec<ZobristHash>>,
 ) -> Option<Score> {
     // Flag 50 move rule draws
     if position.info.half_move_number >= 100 {
         return Some(0);
+    }
+
+    // Flag 3-fold repetition draws
+    if let Some(game_history) = game_history {
+        let zobrist_hash = position.to_zobrist_hash();
+        let mut repetitions = 0;
+        for hash in game_history {
+            if *hash == zobrist_hash {
+                repetitions += 1;
+                if repetitions >= 3 {
+                    return Some(0);
+                }
+            }
+        }
     }
 
     // Stalemate and checkmate detection
@@ -97,7 +112,11 @@ pub fn evaluate_game_over(
     None
 }
 
-pub fn evaluate_position(position: &Position, opening_entropy: bool) -> Score {
+pub fn evaluate_position(
+    position: &Position,
+    opening_entropy: bool,
+    relative_to_current: bool,
+) -> Score {
     let mut score: Score = 0;
 
     // Count material and midgame ratio
@@ -138,7 +157,11 @@ pub fn evaluate_position(position: &Position, opening_entropy: bool) -> Score {
         score += rand::random::<Score>() % CENTIPAWN_ENTROPY;
     }
 
-    score
+    if relative_to_current && position.info.to_move == Color::Black {
+        -score
+    } else {
+        score
+    }
 }
 
 #[cfg(test)]
@@ -164,8 +187,13 @@ mod tests {
         let position =
             Position::from_fen("2k3R1/7R/8/8/8/4K3/8/8 b - - 0 1").unwrap();
         assert_eq!(
-            evaluate_game_over(&position, &position.legal_moves(false), 0)
-                .unwrap(),
+            evaluate_game_over(
+                &position,
+                &position.legal_moves(false),
+                0,
+                None
+            )
+            .unwrap(),
             MATE_LOWER
         );
     }
@@ -175,8 +203,13 @@ mod tests {
         let position =
             Position::from_fen("8/8/8/8/8/6Q1/8/4K2k b - - 0 1").unwrap();
         assert_eq!(
-            evaluate_game_over(&position, &position.legal_moves(false), 0)
-                .unwrap(),
+            evaluate_game_over(
+                &position,
+                &position.legal_moves(false),
+                0,
+                None
+            )
+            .unwrap(),
             0
         );
     }
@@ -184,7 +217,7 @@ mod tests {
     #[test]
     fn eval_starts_zero() {
         let position = Position::new();
-        assert_eq!(evaluate_position(&position, false), 0);
+        assert_eq!(evaluate_position(&position, false, false), 0);
     }
 
     #[test]
@@ -193,7 +226,7 @@ mod tests {
             "3r3k/1p1qQ1pp/p2P1n2/2p5/7B/P7/1P3PPP/4R1K1 w - - 5 26",
         )
         .unwrap();
-        let evaluation = evaluate_position(&position, false);
+        let evaluation = evaluate_position(&position, false, false);
         assert!(evaluation > 100 && evaluation < 300);
     }
 
@@ -204,9 +237,9 @@ mod tests {
         let king_at_corner_position =
             Position::from_fen("8/1K6/8/2q5/8/1k6/8/8 w - - 11 58").unwrap();
         let king_at_center_evaluation =
-            evaluate_position(&king_at_center_position, false);
+            evaluate_position(&king_at_center_position, false, false);
         let king_at_corner_evaluation =
-            evaluate_position(&king_at_corner_position, false);
+            evaluate_position(&king_at_corner_position, false, false);
         assert!(king_at_center_evaluation > king_at_corner_evaluation);
     }
 }

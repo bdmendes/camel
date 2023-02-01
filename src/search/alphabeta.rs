@@ -1,69 +1,13 @@
 use super::{Depth, SearchMemo};
 use crate::{
     evaluation::{evaluate_game_over, evaluate_move, evaluate_position, Score},
-    position::{moves::Move, Color, Piece, Position, BOARD_SIZE},
+    position::{moves::Move, zobrist::ZobristHash, Color, Position},
 };
 
 const NULL_MOVE_REDUCTION: Depth = 3;
+const LATE_MOVE_REDUCTION: Depth = 1;
 const MAX_QS_DEPTH: Depth = 10;
-const OPENING_MOVE_THRESHOLD: u16 = 5;
-const THREEFOLD_DRAW_EVAL_THRESHOLD: Score = 100;
-
-fn both_sides_have_pieces(position: &Position) -> bool {
-    let mut white_has_pieces = false;
-    let mut black_has_pieces = false;
-
-    for index in 0..BOARD_SIZE {
-        match position.board[index] {
-            None => {}
-            Some(piece) => {
-                if piece == Piece::WP
-                    || piece == Piece::BP
-                    || piece == Piece::WK
-                    || piece == Piece::BK
-                {
-                    continue;
-                }
-                match piece.color() {
-                    Color::White => white_has_pieces = true,
-                    Color::Black => black_has_pieces = true,
-                }
-                if white_has_pieces && black_has_pieces {
-                    return true;
-                }
-            }
-        }
-    }
-
-    false
-}
-
-fn should_skip_due_to_repetition(
-    mov: &Move,
-    previous_moves: Option<&Vec<Move>>,
-    position: &Position,
-) -> bool {
-    if let Some(previous_moves) = previous_moves {
-        let move_len = previous_moves.len();
-        if move_len < 8 {
-            return false;
-        }
-
-        let my_previous_moves =
-            (previous_moves[move_len - 8], previous_moves[move_len - 4]);
-        if mov != &my_previous_moves.0 || mov != &my_previous_moves.1 {
-            return false;
-        }
-
-        let my_evaluation = match position.info.to_move {
-            Color::White => evaluate_position(position, false),
-            Color::Black => -evaluate_position(position, false),
-        };
-        return my_evaluation > THREEFOLD_DRAW_EVAL_THRESHOLD;
-    }
-
-    false
-}
+const OPENING_MOVE_THRESHOLD: u16 = 10;
 
 fn alphabeta_quiet(
     position: &Position,
@@ -78,15 +22,11 @@ fn alphabeta_quiet(
     }
 
     // Calculate static evaluation and return if quiescence search depth is reached
-    let color_cof = match position.info.to_move {
-        Color::White => 1,
-        Color::Black => -1,
-    };
-    let static_evaluation = color_cof
-        * evaluate_position(
-            position,
-            position.info.full_move_number < OPENING_MOVE_THRESHOLD,
-        );
+    let static_evaluation = evaluate_position(
+        position,
+        position.info.full_move_number < OPENING_MOVE_THRESHOLD,
+        true,
+    );
     if depth <= 0 {
         return (static_evaluation, 1);
     }
@@ -134,35 +74,25 @@ fn alphabeta_quiet(
     (alpha, count)
 }
 
-pub fn alphabeta_memo(
+pub fn alphabeta(
     position: &Position,
     depth: Depth,
     mut alpha: Score,
     beta: Score,
     memo: &mut SearchMemo,
     original_depth: Depth,
-    previous_moves: Option<&Vec<Move>>,
+    game_history: Option<&Vec<ZobristHash>>,
 ) -> (Option<Move>, Score, usize) {
     // Check if the search should be stopped
     if memo.should_stop_search() {
         return (None, alpha, 1);
     }
 
-    // Flag draw in case of threefold repetition
-    let zobrist_hash = position.to_zobrist_hash();
-    if memo.threefold_repetition(zobrist_hash) {
-        return (None, 0, 1);
-    }
-
     // Check for transposition table hit
-    if !memo.seen_position_before(zobrist_hash) {
-        if let Some(res) = memo.get_transposition_table(zobrist_hash, depth) {
-            return (res.0, res.1, 1);
-        }
+    let zobrist_hash = position.to_zobrist_hash();
+    if let Some(res) = memo.get_transposition_table(zobrist_hash, depth) {
+        return (res.0, res.1, 1);
     }
-
-    // Cleanup tables if they get too big
-    memo.cleanup_tables();
 
     // Enter quiescence search if depth is 0
     if depth <= 0 {
@@ -173,20 +103,24 @@ pub fn alphabeta_memo(
 
     // When game is over, do not search
     let mut moves = position.legal_moves(false);
-    if let Some(score) =
-        evaluate_game_over(position, &moves, original_depth - depth)
-    {
+    if let Some(score) = evaluate_game_over(
+        position,
+        &moves,
+        original_depth - depth,
+        game_history,
+    ) {
         return (None, score as Score, 1);
     }
 
     // Null move pruning when not in check and zugzwang is not possible
     if depth != original_depth
         && depth > NULL_MOVE_REDUCTION
-        && both_sides_have_pieces(position)
+        && position.piece_count(Some(Color::White), None) > 0
+        && position.piece_count(Some(Color::Black), None) > 0
         && !position.is_check()
     {
         let new_position = position.make_null_move();
-        let (_, score, nodes) = alphabeta_memo(
+        let (_, score, nodes) = alphabeta(
             &new_position,
             depth - NULL_MOVE_REDUCTION,
             -beta,
@@ -195,6 +129,7 @@ pub fn alphabeta_memo(
             original_depth,
             None,
         );
+
         let score = -score;
         if score >= beta {
             return (None, beta, nodes);
@@ -223,30 +158,27 @@ pub fn alphabeta_memo(
     // Search moves
     let mut best_move = moves[0];
     let mut count = 0;
-    for (_, mov) in moves.iter().enumerate() {
+    for (i, mov) in moves.iter().enumerate() {
         let new_position = position.make_move(&mov);
-        let new_position_hash = new_position.to_zobrist_hash();
-
-        memo.visit_position(new_position_hash);
-        let (_, score, nodes) = alphabeta_memo(
+        let (_, score, nodes) = alphabeta(
             &new_position,
-            depth - 1,
+            if depth > LATE_MOVE_REDUCTION + 1
+                && depth == original_depth
+                && i > 3
+            {
+                depth - 1 - LATE_MOVE_REDUCTION
+            } else {
+                depth - 1
+            },
             -beta,
             -alpha,
             memo,
             original_depth,
             None,
         );
-        memo.leave_position(new_position_hash);
 
         let score = -score;
         count += nodes;
-
-        if moves.len() > 1
-            && should_skip_due_to_repetition(mov, previous_moves, &position)
-        {
-            continue;
-        }
 
         if score > alpha {
             best_move = *mov;

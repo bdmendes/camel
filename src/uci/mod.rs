@@ -12,7 +12,7 @@ use std::{
 };
 
 use crate::{
-    position::{moves::Move, Position},
+    position::{zobrist::ZobristHash, Position},
     search::{search_iterative_deep, Depth},
 };
 
@@ -51,7 +51,7 @@ pub struct EngineState {
     debug: bool,
     position: Position,
     stop: Arc<AtomicBool>,
-    moves: Vec<Move>,
+    game_history: Vec<ZobristHash>,
 }
 
 impl UCICommand {
@@ -177,7 +177,7 @@ impl EngineState {
             position: Position::new(),
             debug: false,
             stop: Arc::new(AtomicBool::new(false)),
-            moves: Vec::new(),
+            game_history: Vec::new(),
         }
     }
 
@@ -235,7 +235,7 @@ impl EngineState {
     fn handle_register(_code: &str) {}
 
     fn handle_newgame(&mut self) {
-        self.moves.clear();
+        self.game_history.clear();
     }
 
     fn handle_position(
@@ -258,13 +258,13 @@ impl EngineState {
             Position::new()
         };
 
-        self.moves.clear();
+        self.game_history.clear();
 
         for mov in moves {
             let legal_moves = self.position.legal_moves(false);
             if let Some(m) = legal_moves.iter().find(|m| m.to_string() == mov) {
                 self.position = self.position.make_move(m);
-                self.moves.push(m.clone());
+                self.game_history.push(self.position.to_zobrist_hash());
             } else {
                 println!("Invalid move: {}; stopping line before it", mov);
                 break;
@@ -299,14 +299,14 @@ impl EngineState {
             None => None,
         };
 
-        let previous_moves = self.moves.clone();
+        let game_history = self.game_history.clone();
         thread::spawn(move || {
             search_iterative_deep(
                 &position,
                 depth,
                 calc_move_time,
                 Some(stop_now),
-                Some(&previous_moves),
+                Some(&game_history),
             );
         });
     }
@@ -323,7 +323,7 @@ impl EngineState {
 
     fn handle_help() {
         println!("Camel is an UCI-compatible chess engine.");
-        println!("You such use a GUI such as Arena (Windows) or Scid (Linux/Mac) to play against it.");
+        println!("You may use a GUI such as Arena (Windows) or Scid (Linux/Mac) to play against it.");
         println!("In alternative, check the UCI protocol details at https://backscattering.de/chess/uci/.");
         println!("Camel is written in Rust and is open source. You can find the source code at https://github.com/bdmendes/camel.");
         println!("");
@@ -331,7 +331,9 @@ impl EngineState {
         println!("  help: display this help message");
         println!("  display: display the current position");
         println!("  move [long_algebraic_notation]: make a move in the current position");
-        println!("  automove: let the engine make a move in the current position (1 second time limit)");
+        println!(
+            "  automove: let the engine make a move in the current position (1 second time limit)"
+        );
         println!("  list: list all legal moves in the current position");
         println!("  fen: display the FEN of the current position");
     }

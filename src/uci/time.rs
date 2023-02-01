@@ -14,11 +14,7 @@ fn expected_remaining_moves(position: &Position) -> u32 {
 }
 
 fn get_duration_based_on_eval(position: &Position, time: Duration) -> Duration {
-    let static_eval = evaluate_position(position, false);
-    let our_eval = match position.info.to_move {
-        Color::White => static_eval,
-        Color::Black => -static_eval,
-    };
+    let our_eval = evaluate_position(position, false, true);
 
     let cof = if our_eval > 300 {
         20 - (std::cmp::min(our_eval / 100, 10)) as u32

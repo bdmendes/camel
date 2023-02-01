@@ -110,6 +110,29 @@ impl Position {
     pub fn is_check(&self) -> bool {
         moves::position_is_check(&self, self.info.to_move, None)
     }
+
+    pub fn piece_count(
+        &self,
+        color: Option<Color>,
+        piece: Option<Piece>,
+    ) -> usize {
+        let mut count = 0;
+        for square in 0..BOARD_SIZE {
+            match self.board[square] {
+                None => {}
+                Some(Piece::WP) | Some(Piece::BP) | Some(Piece::WK)
+                | Some(Piece::BK) => {}
+                Some(p) => {
+                    if color.is_none() || color.unwrap() == p.color() {
+                        if piece.is_none() || piece.unwrap() == p {
+                            count += 1;
+                        }
+                    }
+                }
+            }
+        }
+        count
+    }
 }
 
 impl fmt::Display for Position {
