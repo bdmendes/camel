@@ -14,6 +14,7 @@ fn alphabeta_quiet(
     mut alpha: Score,
     beta: Score,
     memo: &SearchMemo,
+    opening_entropy: bool,
 ) -> (Score, usize) {
     // Check if the search should be stopped
     if memo.should_stop_search() {
@@ -21,11 +22,7 @@ fn alphabeta_quiet(
     }
 
     // Calculate static evaluation and return if quiescence search depth is reached
-    let static_evaluation = evaluate_position(
-        position,
-        position.info.full_move_number < OPENING_MOVE_THRESHOLD,
-        true,
-    );
+    let static_evaluation = evaluate_position(position, opening_entropy, true);
     if depth <= 0 {
         return (static_evaluation, 1);
     }
@@ -57,8 +54,14 @@ fn alphabeta_quiet(
     let mut count = 0;
     for mov in &moves {
         let new_position = position.make_move(mov);
-        let (score, nodes) =
-            alphabeta_quiet(&new_position, depth - 1, -beta, -alpha, memo);
+        let (score, nodes) = alphabeta_quiet(
+            &new_position,
+            depth - 1,
+            -beta,
+            -alpha,
+            memo,
+            opening_entropy,
+        );
         let score = -score;
         count += nodes;
 
@@ -97,8 +100,15 @@ pub fn alphabeta(
 
     // Enter quiescence search if depth is 0
     if depth <= 0 {
-        let (score, nodes) =
-            alphabeta_quiet(position, MAX_QS_DEPTH, alpha, beta, memo);
+        let (score, nodes) = alphabeta_quiet(
+            position,
+            MAX_QS_DEPTH,
+            alpha,
+            beta,
+            memo,
+            (position.info.full_move_number * 2 - original_depth as u16)
+                < OPENING_MOVE_THRESHOLD,
+        );
         return (None, score, nodes);
     }
 
