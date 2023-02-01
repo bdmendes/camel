@@ -5,7 +5,7 @@ use crate::{
         position::{evaluate_game_over, evaluate_position},
         Score,
     },
-    position::{moves::Move, zobrist::ZobristHash, Color, Position},
+    position::{moves::Move, Color, Position},
 };
 
 const NULL_MOVE_REDUCTION: Depth = 3;
@@ -87,7 +87,6 @@ pub fn alphabeta(
     beta: Score,
     memo: &mut SearchMemo,
     original_depth: Depth,
-    game_history: Option<&Vec<ZobristHash>>,
 ) -> (Option<Move>, Score, usize) {
     // Check if the search should be stopped
     if memo.should_stop_search() {
@@ -95,11 +94,9 @@ pub fn alphabeta(
     }
 
     // Check for transposition table hit
-    let zobrist_hash = position.to_zobrist_hash();
-    if !memo.is_visited_position(zobrist_hash) {
-        if let Some(res) = memo.get_transposition_table(zobrist_hash, depth) {
-            return (res.0, res.1, 1);
-        }
+    let zobrist_hash = position.zobrist_hash();
+    if let Some(res) = memo.get_transposition_table(zobrist_hash, depth) {
+        return (res.0, res.1, 1);
     }
 
     // Enter quiescence search if depth is 0
@@ -117,8 +114,12 @@ pub fn alphabeta(
 
     // When game is over, do not search
     let mut moves = position.legal_moves(false);
-    if let Some(score) = evaluate_game_over(position, &moves, original_depth - depth, game_history)
-    {
+    if let Some(score) = evaluate_game_over(
+        position,
+        &moves,
+        original_depth - depth,
+        Some(&memo.branch_history),
+    ) {
         return (None, score as Score, 1);
     }
 
@@ -137,7 +138,6 @@ pub fn alphabeta(
             -alpha,
             memo,
             original_depth,
-            None,
         );
 
         let score = -score;
@@ -170,9 +170,8 @@ pub fn alphabeta(
     let mut count = 0;
     for mov in &moves {
         let new_position = position.make_move(&mov);
-        let new_zobrist_hash = new_position.to_zobrist_hash();
 
-        memo.visit_position(new_zobrist_hash);
+        memo.visit_position(new_position.zobrist_hash());
         let (_, score, nodes) = alphabeta(
             &new_position,
             depth - 1,
@@ -180,9 +179,8 @@ pub fn alphabeta(
             -alpha,
             memo,
             original_depth,
-            None,
         );
-        memo.leave_position(new_zobrist_hash);
+        memo.leave_position();
 
         let score = -score;
         count += nodes;

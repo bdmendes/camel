@@ -252,7 +252,7 @@ impl EngineState {
             let legal_moves = self.position.legal_moves(false);
             if let Some(m) = legal_moves.iter().find(|m| m.to_string() == mov) {
                 self.position = self.position.make_move(m);
-                self.game_history.push(self.position.to_zobrist_hash());
+                self.game_history.push(self.position.zobrist_hash());
             } else {
                 println!("Invalid move: {}; stopping line before it", mov);
                 break;
@@ -294,7 +294,7 @@ impl EngineState {
                 depth,
                 calc_move_time,
                 Some(stop_now),
-                Some(&game_history),
+                Some(game_history),
             );
         });
     }

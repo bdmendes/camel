@@ -95,7 +95,7 @@ impl Position {
         position_to_fen(&self, true)
     }
 
-    pub fn to_zobrist_hash(&self) -> ZobristHash {
+    pub fn zobrist_hash(&self) -> ZobristHash {
         zobrist::zobrist_hash_position(&self)
     }
 

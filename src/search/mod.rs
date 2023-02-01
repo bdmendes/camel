@@ -5,7 +5,7 @@ use crate::{
     position::{moves::Move, zobrist::ZobristHash, Position},
 };
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     sync::{atomic::AtomicBool, Arc},
     time::{Duration, Instant},
 };
@@ -21,21 +21,25 @@ pub struct SearchMemo {
     pub killer_moves: HashMap<Depth, [Option<Move>; 2]>,
     pub hash_move: HashMap<ZobristHash, (Move, Depth)>,
     pub transposition_table: HashMap<ZobristHash, (Option<Move>, Score, Depth)>,
-    pub branch_history: HashSet<ZobristHash>,
+    pub branch_history: Vec<ZobristHash>,
     pub initial_instant: std::time::Instant,
     pub duration: Option<std::time::Duration>,
     pub stop_now: Option<Arc<AtomicBool>>,
 }
 
 impl SearchMemo {
-    fn new(duration: Option<std::time::Duration>, stop_now: Option<Arc<AtomicBool>>) -> Self {
+    fn new(
+        duration: Option<std::time::Duration>,
+        stop_now: Option<Arc<AtomicBool>>,
+        game_history: Option<Vec<ZobristHash>>,
+    ) -> Self {
         Self {
             killer_moves: HashMap::new(),
             hash_move: HashMap::new(),
             transposition_table: HashMap::new(),
-            branch_history: HashSet::new(),
+            branch_history: game_history.unwrap_or_default(),
             initial_instant: std::time::Instant::now(),
-            duration: duration,
+            duration,
             stop_now,
         }
     }
@@ -45,7 +49,7 @@ impl SearchMemo {
         let mut current_position = position.clone();
         let mut current_depth = depth;
         while current_depth > 0 {
-            let entry = self.hash_move.get(&current_position.to_zobrist_hash());
+            let entry = self.hash_move.get(&current_position.zobrist_hash());
             if entry.is_none() {
                 break;
             }
@@ -126,15 +130,11 @@ impl SearchMemo {
     }
 
     fn visit_position(&mut self, zobrist_hash: ZobristHash) {
-        self.branch_history.insert(zobrist_hash);
+        self.branch_history.push(zobrist_hash);
     }
 
-    fn is_visited_position(&mut self, zobrist_hash: ZobristHash) -> bool {
-        self.branch_history.contains(&zobrist_hash)
-    }
-
-    fn leave_position(&mut self, zobrist_hash: ZobristHash) {
-        self.branch_history.remove(&zobrist_hash);
+    fn leave_position(&mut self) {
+        self.branch_history.pop();
     }
 
     fn cleanup_tables(&mut self) {
@@ -210,37 +210,23 @@ pub fn search_iterative_deep(
     depth: Option<Depth>,
     duration: Option<std::time::Duration>,
     stop_now: Option<Arc<AtomicBool>>,
-    game_history: Option<&Vec<ZobristHash>>,
+    game_history: Option<Vec<ZobristHash>>,
 ) -> (Option<Move>, Score, usize) {
     const MAX_ITERATIVE_DEPTH: Depth = 25;
     let max_depth = depth.unwrap_or(MAX_ITERATIVE_DEPTH);
-    let mut memo = SearchMemo::new(duration, stop_now.clone());
+    let mut memo = SearchMemo::new(duration, stop_now.clone(), game_history);
 
     // First guaranteed search
     let start = Instant::now();
-    let (mut mov, mut score, mut nodes) = alphabeta(
-        position,
-        1,
-        MATE_LOWER,
-        MATE_UPPER,
-        &mut memo,
-        1,
-        game_history,
-    );
+    let (mut mov, mut score, mut nodes) =
+        alphabeta(position, 1, MATE_LOWER, MATE_UPPER, &mut memo, 1);
     print_iterative_info(position, &memo, 1, score, nodes, start.elapsed());
 
     // Time constrained iterative deepening
     for ply in 2..=max_depth {
         let start = Instant::now();
-        let (new_mov, new_score, new_nodes) = alphabeta(
-            position,
-            ply,
-            MATE_LOWER,
-            MATE_UPPER,
-            &mut memo,
-            ply,
-            game_history,
-        );
+        let (new_mov, new_score, new_nodes) =
+            alphabeta(position, ply, MATE_LOWER, MATE_UPPER, &mut memo, ply);
 
         if memo.should_stop_search() {
             break;
@@ -299,9 +285,8 @@ mod tests {
             depth,
             MATE_LOWER,
             MATE_UPPER,
-            &mut SearchMemo::new(None, None),
+            &mut SearchMemo::new(None, None, None),
             depth,
-            None,
         );
         let elapsed = now.elapsed().as_millis();
         println!(

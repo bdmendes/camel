@@ -467,7 +467,7 @@ mod tests {
             return (1, vec![]);
         }
 
-        let zobrist_hash = position.to_zobrist_hash();
+        let zobrist_hash = position.zobrist_hash();
         if let Some((count, moves)) = memo.get(&(zobrist_hash, current_depth)) {
             return (*count, moves.to_vec());
         }

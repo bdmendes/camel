@@ -17,7 +17,7 @@ pub fn evaluate_game_over(
 
     // Flag 3-fold repetition draws
     if let Some(game_history) = game_history {
-        let zobrist_hash = position.to_zobrist_hash();
+        let zobrist_hash = position.zobrist_hash();
         let mut repetitions = 0;
         for hash in game_history {
             if *hash == zobrist_hash {
