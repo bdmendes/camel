@@ -15,11 +15,11 @@ pub fn evaluate_move(
         return MATE_UPPER;
     }
 
-    if killer_move {
-        return piece_value(Piece::WQ) + 1; // better than quiet moves, seemingly bad captures and promotions
-    }
-
     let mut score: Score = 0;
+
+    if killer_move {
+        score += piece_value(Piece::WQ); // better than quiet moves and bad captures
+    }
 
     if move_.promotion.is_some() {
         score += piece_value(move_.promotion.unwrap());
@@ -30,8 +30,7 @@ pub fn evaluate_move(
     if move_.flags.contains(MoveFlags::CAPTURE) {
         let moved_piece_value = piece_value(moved_piece);
         let captured_piece_value = piece_value(position.at(move_.to).unwrap());
-        score = 3 * captured_piece_value - moved_piece_value
-            + piece_value(Piece::WQ);
+        score = captured_piece_value - moved_piece_value + piece_value(Piece::WQ);
     }
 
     let start_psqt_value = psqt_value(moved_piece, move_.from, 0);

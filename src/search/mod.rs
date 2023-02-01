@@ -28,10 +28,7 @@ pub struct SearchMemo {
 }
 
 impl SearchMemo {
-    fn new(
-        duration: Option<std::time::Duration>,
-        stop_now: Option<Arc<AtomicBool>>,
-    ) -> Self {
+    fn new(duration: Option<std::time::Duration>, stop_now: Option<Arc<AtomicBool>>) -> Self {
         Self {
             killer_moves: HashMap::new(),
             hash_move: HashMap::new(),
@@ -43,11 +40,7 @@ impl SearchMemo {
         }
     }
 
-    fn get_principal_variation(
-        &self,
-        position: &Position,
-        depth: Depth,
-    ) -> Vec<Move> {
+    fn get_principal_variation(&self, position: &Position, depth: Depth) -> Vec<Move> {
         let mut principal_variation = Vec::new();
         let mut current_position = position.clone();
         let mut current_depth = depth;
@@ -66,8 +59,7 @@ impl SearchMemo {
     }
 
     fn put_killer_move(&mut self, mov: &Move, depth: Depth) {
-        let killer_moves =
-            self.killer_moves.entry(depth).or_insert([None, None]);
+        let killer_moves = self.killer_moves.entry(depth).or_insert([None, None]);
         if killer_moves[0] == None {
             killer_moves[0] = Some(*mov);
         } else if killer_moves[1] == None {
@@ -87,14 +79,8 @@ impl SearchMemo {
         killer_moves[0] == Some(*mov) || killer_moves[1] == Some(*mov)
     }
 
-    fn put_hash_move(
-        &mut self,
-        zobrist_hash: ZobristHash,
-        mov: &Move,
-        depth: Depth,
-    ) {
-        let (hash_mov, hash_depth) =
-            self.hash_move.entry(zobrist_hash).or_insert((*mov, 0));
+    fn put_hash_move(&mut self, zobrist_hash: ZobristHash, mov: &Move, depth: Depth) {
+        let (hash_mov, hash_depth) = self.hash_move.entry(zobrist_hash).or_insert((*mov, 0));
         if depth <= *hash_depth {
             return;
         }
@@ -130,9 +116,7 @@ impl SearchMemo {
         zobrist_hash: ZobristHash,
         depth: Depth,
     ) -> Option<(Option<Move>, Score)> {
-        if let Some((mov, score, transp_depth)) =
-            self.transposition_table.get(&zobrist_hash)
-        {
+        if let Some((mov, score, transp_depth)) = self.transposition_table.get(&zobrist_hash) {
             if depth <= *transp_depth {
                 return Some((*mov, *score));
             }
@@ -197,7 +181,11 @@ fn print_iterative_info(
         if distance_to_mate < MAX_MATE_SCORE_DIFF {
             format!(
                 "mate {}{}",
-                if score < 0 && distance_to_mate > 0 { "-" } else { "" },
+                if score < 0 && distance_to_mate > 0 {
+                    "-"
+                } else {
+                    ""
+                },
                 (distance_to_mate + 1) / 2
             )
         } else {
@@ -258,14 +246,7 @@ pub fn search_iterative_deep(
             break;
         }
 
-        print_iterative_info(
-            position,
-            &memo,
-            ply,
-            score,
-            nodes,
-            start.elapsed(),
-        );
+        print_iterative_info(position, &memo, ply, score, nodes, start.elapsed());
 
         mov = new_mov;
         score = new_score;

@@ -1,7 +1,6 @@
 use super::*;
 
-pub const START_FEN: &str =
-    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+pub const START_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 pub fn position_from_fen(fen: &str) -> Result<Position, String> {
     let mut position = Position {
@@ -39,8 +38,7 @@ pub fn position_from_fen(fen: &str) -> Result<Position, String> {
                     Ok(piece) => piece,
                     Err(msg) => return Err(msg),
                 };
-                position.board[Square::from_row_col(row, col).index] =
-                    Some(piece);
+                position.board[Square::from_row_col(row, col).index] = Some(piece);
                 col += 1;
             }
         }
@@ -58,18 +56,10 @@ pub fn position_from_fen(fen: &str) -> Result<Position, String> {
 
     for c in castling_rights.chars() {
         match c {
-            'K' => {
-                position.info.castling_rights |= CastlingRights::WHITE_KINGSIDE
-            }
-            'Q' => {
-                position.info.castling_rights |= CastlingRights::WHITE_QUEENSIDE
-            }
-            'k' => {
-                position.info.castling_rights |= CastlingRights::BLACK_KINGSIDE
-            }
-            'q' => {
-                position.info.castling_rights |= CastlingRights::BLACK_QUEENSIDE
-            }
+            'K' => position.info.castling_rights |= CastlingRights::WHITE_KINGSIDE,
+            'Q' => position.info.castling_rights |= CastlingRights::WHITE_QUEENSIDE,
+            'k' => position.info.castling_rights |= CastlingRights::BLACK_KINGSIDE,
+            'q' => position.info.castling_rights |= CastlingRights::BLACK_QUEENSIDE,
             '-' => break,
             _ => panic!("Invalid castling rights"),
         }
@@ -119,16 +109,32 @@ pub fn position_to_fen(position: &Position, omit_move_numbers: bool) -> String {
 
     fen.push(' ');
     let mut castling_rights = String::new();
-    if position.info.castling_rights.contains(CastlingRights::WHITE_KINGSIDE) {
+    if position
+        .info
+        .castling_rights
+        .contains(CastlingRights::WHITE_KINGSIDE)
+    {
         castling_rights.push('K');
     }
-    if position.info.castling_rights.contains(CastlingRights::WHITE_QUEENSIDE) {
+    if position
+        .info
+        .castling_rights
+        .contains(CastlingRights::WHITE_QUEENSIDE)
+    {
         castling_rights.push('Q');
     }
-    if position.info.castling_rights.contains(CastlingRights::BLACK_KINGSIDE) {
+    if position
+        .info
+        .castling_rights
+        .contains(CastlingRights::BLACK_KINGSIDE)
+    {
         castling_rights.push('k');
     }
-    if position.info.castling_rights.contains(CastlingRights::BLACK_QUEENSIDE) {
+    if position
+        .info
+        .castling_rights
+        .contains(CastlingRights::BLACK_QUEENSIDE)
+    {
         castling_rights.push('q');
     }
     if castling_rights.is_empty() {
@@ -164,8 +170,7 @@ mod tests {
 
     #[test]
     fn fen_midgame() {
-        let midgame_fen =
-            "r4rk1/pp1q1ppp/2n2b2/3Q4/8/2N5/PPP2PPP/R3K1NR b KQ - 0 14";
+        let midgame_fen = "r4rk1/pp1q1ppp/2n2b2/3Q4/8/2N5/PPP2PPP/R3K1NR b KQ - 0 14";
         let position = position_from_fen(midgame_fen).unwrap();
         assert_eq!(position_to_fen(&position, false), midgame_fen);
     }

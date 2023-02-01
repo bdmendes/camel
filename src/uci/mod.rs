@@ -121,8 +121,7 @@ impl UCICommand {
                     let token = token.unwrap();
                     match token.as_str() {
                         "depth" => {
-                            let value =
-                                tokens.pop_front().ok_or("No value found")?;
+                            let value = tokens.pop_front().ok_or("No value found")?;
                             depth = Some(
                                 value
                                     .parse::<u8>()
@@ -132,36 +131,32 @@ impl UCICommand {
                             );
                         }
                         "movetime" => {
-                            let value =
-                                tokens.pop_front().ok_or("No value found")?;
+                            let value = tokens.pop_front().ok_or("No value found")?;
                             move_time = Some(Duration::from_millis(
-                                value
-                                    .parse::<u64>()
-                                    .map_err(|_| "Invalid movetime value")?,
+                                value.parse::<u64>().map_err(|_| "Invalid movetime value")?,
                             ));
                         }
                         "wtime" => {
-                            let value =
-                                tokens.pop_front().ok_or("No value found")?;
+                            let value = tokens.pop_front().ok_or("No value found")?;
                             white_time = Some(Duration::from_millis(
-                                value
-                                    .parse::<u64>()
-                                    .map_err(|_| "Invalid wtime value")?,
+                                value.parse::<u64>().map_err(|_| "Invalid wtime value")?,
                             ));
                         }
                         "btime" => {
-                            let value =
-                                tokens.pop_front().ok_or("No value found")?;
+                            let value = tokens.pop_front().ok_or("No value found")?;
                             black_time = Some(Duration::from_millis(
-                                value
-                                    .parse::<u64>()
-                                    .map_err(|_| "Invalid btime value")?,
+                                value.parse::<u64>().map_err(|_| "Invalid btime value")?,
                             ));
                         }
                         _ => {}
                     }
                 }
-                Ok(UCICommand::Go { depth, move_time, white_time, black_time })
+                Ok(UCICommand::Go {
+                    depth,
+                    move_time,
+                    white_time,
+                    black_time,
+                })
             }
             "stop" => Ok(UCICommand::Stop),
             "ponderhit" => Ok(UCICommand::PonderHit),
@@ -187,20 +182,17 @@ impl EngineState {
             UCICommand::UCI => Self::handle_uci(),
             UCICommand::Debug(value) => self.handle_debug(value),
             UCICommand::IsReady => Self::handle_isready(),
-            UCICommand::SetOption(name, value) => {
-                Self::handle_setoption(&name, &value)
-            }
+            UCICommand::SetOption(name, value) => Self::handle_setoption(&name, &value),
             UCICommand::Register(code) => Self::handle_register(&code),
             UCICommand::UCINewGame => self.handle_newgame(),
-            UCICommand::PositionFen(fen, moves) => {
-                self.handle_position(Some(&fen), moves)
-            }
-            UCICommand::PositionStart(moves) => {
-                self.handle_position(None, moves)
-            }
-            UCICommand::Go { depth, move_time, white_time, black_time } => {
-                self.handle_go(depth, move_time, white_time, black_time)
-            }
+            UCICommand::PositionFen(fen, moves) => self.handle_position(Some(&fen), moves),
+            UCICommand::PositionStart(moves) => self.handle_position(None, moves),
+            UCICommand::Go {
+                depth,
+                move_time,
+                white_time,
+                black_time,
+            } => self.handle_go(depth, move_time, white_time, black_time),
             UCICommand::Stop => self.handle_stop(),
             UCICommand::PonderHit => Self::handle_ponderhit(),
             UCICommand::Quit => Self::handle_quit(),
@@ -238,11 +230,7 @@ impl EngineState {
         self.game_history.clear();
     }
 
-    fn handle_position(
-        &mut self,
-        fen: Option<&str>,
-        mut moves: VecDeque<String>,
-    ) {
+    fn handle_position(&mut self, fen: Option<&str>, mut moves: VecDeque<String>) {
         if !moves.is_empty() && moves[0] == "moves" {
             moves.pop_front();
         }
@@ -323,7 +311,9 @@ impl EngineState {
 
     fn handle_help() {
         println!("Camel is an UCI-compatible chess engine.");
-        println!("You may use a GUI such as Arena (Windows) or Scid (Linux/Mac) to play against it.");
+        println!(
+            "You may use a GUI such as Arena (Windows) or Scid (Linux/Mac) to play against it."
+        );
         println!("In alternative, check the UCI protocol details at https://backscattering.de/chess/uci/.");
         println!("Camel is written in Rust and is open source. You can find the source code at https://github.com/bdmendes/camel.");
         println!("");

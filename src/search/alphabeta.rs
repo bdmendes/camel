@@ -110,20 +110,15 @@ pub fn alphabeta(
             alpha,
             beta,
             memo,
-            (position.info.full_move_number * 2 - original_depth as u16)
-                < OPENING_MOVE_THRESHOLD,
+            (position.info.full_move_number * 2 - original_depth as u16) < OPENING_MOVE_THRESHOLD,
         );
         return (None, score, nodes);
     }
 
     // When game is over, do not search
     let mut moves = position.legal_moves(false);
-    if let Some(score) = evaluate_game_over(
-        position,
-        &moves,
-        original_depth - depth,
-        game_history,
-    ) {
+    if let Some(score) = evaluate_game_over(position, &moves, original_depth - depth, game_history)
+    {
         return (None, score as Score, 1);
     }
 

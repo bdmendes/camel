@@ -28,11 +28,7 @@ fn get_duration_based_on_eval(position: &Position, time: Duration) -> Duration {
     cof * time / (expected_remaining * 20)
 }
 
-pub fn get_duration(
-    position: &Position,
-    white_time: Duration,
-    black_time: Duration,
-) -> Duration {
+pub fn get_duration(position: &Position, white_time: Duration, black_time: Duration) -> Duration {
     let our_duration = match position.info.to_move {
         Color::White => white_time,
         Color::Black => black_time,
