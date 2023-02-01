@@ -5,7 +5,6 @@ use crate::{
 };
 
 const NULL_MOVE_REDUCTION: Depth = 3;
-const LATE_MOVE_REDUCTION: Depth = 1;
 const MAX_QS_DEPTH: Depth = 10;
 const OPENING_MOVE_THRESHOLD: u16 = 10;
 
@@ -90,8 +89,10 @@ pub fn alphabeta(
 
     // Check for transposition table hit
     let zobrist_hash = position.to_zobrist_hash();
-    if let Some(res) = memo.extract_transposition_table(zobrist_hash, depth) {
-        return (res.0, res.1, 1);
+    if !memo.is_visited_position(zobrist_hash) {
+        if let Some(res) = memo.get_transposition_table(zobrist_hash, depth) {
+            return (res.0, res.1, 1);
+        }
     }
 
     // Enter quiescence search if depth is 0
@@ -158,24 +159,21 @@ pub fn alphabeta(
     // Search moves
     let mut best_move = moves[0];
     let mut count = 0;
-    for (i, mov) in moves.iter().enumerate() {
+    for mov in &moves {
         let new_position = position.make_move(&mov);
+        let new_zobrist_hash = new_position.to_zobrist_hash();
+
+        memo.visit_position(new_zobrist_hash);
         let (_, score, nodes) = alphabeta(
             &new_position,
-            if depth > LATE_MOVE_REDUCTION + 1
-                && depth == original_depth
-                && i > 3
-            {
-                depth - 1 - LATE_MOVE_REDUCTION
-            } else {
-                depth - 1
-            },
+            depth - 1,
             -beta,
             -alpha,
             memo,
             original_depth,
             None,
         );
+        memo.leave_position(new_zobrist_hash);
 
         let score = -score;
         count += nodes;
