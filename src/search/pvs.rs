@@ -10,14 +10,14 @@ use crate::{
 
 const NULL_MOVE_REDUCTION: Depth = 3;
 const MAX_QS_DEPTH: Depth = 10;
-const OPENING_MOVE_THRESHOLD: u16 = 10;
+const OPENING_MOVE_THRESHOLD: u16 = 5;
 
 fn alphabeta_quiet(
     position: &Position,
     depth: Depth,
     mut alpha: Score,
     beta: Score,
-    memo: &SearchMemo,
+    memo: &mut SearchMemo,
     opening_entropy: bool,
 ) -> (Score, usize) {
     // Check if the search should be stopped
@@ -80,7 +80,40 @@ fn alphabeta_quiet(
     (alpha, count)
 }
 
-pub fn alphabeta(
+fn pvs_recurse(
+    position: &Position,
+    depth: Depth,
+    alpha: Score,
+    beta: Score,
+    memo: &mut SearchMemo,
+    original_depth: Depth,
+    zero_window_search: bool,
+) -> (Score, usize) {
+    let mut count = 0;
+
+    if zero_window_search {
+        let (_, score, nodes) = pvs(
+            position,
+            depth - 1,
+            -alpha - 1,
+            -alpha,
+            memo,
+            original_depth,
+        );
+        count += nodes;
+        let score = -score;
+        if score <= alpha || score >= beta {
+            return (score, count);
+        }
+    }
+
+    let (_, score, nodes) = pvs(position, depth - 1, -beta, -alpha, memo, original_depth);
+    count += nodes;
+    let score = -score;
+    return (score, count);
+}
+
+pub fn pvs(
     position: &Position,
     depth: Depth,
     mut alpha: Score,
@@ -147,7 +180,7 @@ pub fn alphabeta(
         && !position.is_check()
     {
         let new_position = position.make_null_move();
-        let (_, score, nodes) = alphabeta(
+        let (_, score, nodes) = pvs(
             &new_position,
             depth - NULL_MOVE_REDUCTION,
             -beta,
@@ -189,17 +222,18 @@ pub fn alphabeta(
         let new_position = position.make_move(&mov);
 
         memo.visit_position(new_position.zobrist_hash());
-        let (_, score, nodes) = alphabeta(
+        let (score, nodes) = pvs_recurse(
             &new_position,
-            depth - 1,
-            -beta,
-            -alpha,
+            depth,
+            alpha,
+            beta,
             memo,
             original_depth,
+            original_depth > 1 && depth > 1 && count > 0,
         );
         memo.leave_position();
 
-        let score = -score;
+        //let score = -score;
         count += nodes;
 
         if score > alpha {

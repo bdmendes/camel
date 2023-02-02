@@ -3,6 +3,8 @@ use crate::position::{Color, Piece, Square};
 
 type PieceSquareTable = [Score; 64];
 
+/* Values adapted from https://www.chessprogramming.org/Simplified_Evaluation_Function */
+
 const MIDGAME_KNIGHT_PSQT: PieceSquareTable = [
     -50, -40, -30, -30, -30, -30, -40, -50, //
     -40, -20, 0, 0, 0, 0, -20, -40, //

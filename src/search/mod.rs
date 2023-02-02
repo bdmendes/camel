@@ -1,4 +1,4 @@
-mod alphabeta;
+mod pvs;
 
 use crate::{
     evaluation::{Score, MATE_LOWER, MATE_UPPER},
@@ -10,13 +10,14 @@ use std::{
     time::{Duration, Instant},
 };
 
-use self::alphabeta::alphabeta;
+use self::pvs::pvs;
 
 pub type Depth = u8;
 
 const MAX_TABLE_SIZE: usize = 64_000_000;
 const MAX_MATE_SCORE_DIFF: Score = 300;
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Node {
     PVNode,  // exact score
     CutNode, // lower bound
@@ -117,18 +118,8 @@ impl SearchMemo {
         score: Score,
         node: Node,
     ) {
-        // let (transp_mov, transp_score, transp_depth) = self
-        //     .transposition_table
-        //     .entry(zobrist_hash)
-        //     .or_insert((mov, score, 0));
-        // if depth <= *transp_depth {
-        //     return;
-        // }
-        // *transp_depth = depth;
-        // *transp_mov = mov;
-        // *transp_score = score;
         if let Some(entry) = self.transposition_table.get_mut(&zobrist_hash) {
-            if depth <= entry.depth {
+            if depth < entry.depth || (depth == entry.depth && entry.node == Node::PVNode) {
                 return;
             }
             entry.depth = depth;
@@ -252,15 +243,14 @@ pub fn search_iterative_deep(
 
     // First guaranteed search
     let start = Instant::now();
-    let (mut mov, mut score, mut nodes) =
-        alphabeta(position, 1, MATE_LOWER, MATE_UPPER, &mut memo, 1);
+    let (mut mov, mut score, mut nodes) = pvs(position, 1, MATE_LOWER, MATE_UPPER, &mut memo, 1);
     print_iterative_info(position, &memo, 1, score, nodes, start.elapsed());
 
     // Time constrained iterative deepening
     for ply in 2..=max_depth {
         let start = Instant::now();
         let (new_mov, new_score, new_nodes) =
-            alphabeta(position, ply, MATE_LOWER, MATE_UPPER, &mut memo, ply);
+            pvs(position, ply, MATE_LOWER, MATE_UPPER, &mut memo, ply);
 
         if memo.should_stop_search() {
             break;
@@ -314,7 +304,7 @@ mod tests {
         }
 
         let now = std::time::Instant::now();
-        let (iter_mov, iter_score, iter_nodes) = alphabeta(
+        let (iter_mov, iter_score, iter_nodes) = pvs(
             &position,
             depth,
             MATE_LOWER,
