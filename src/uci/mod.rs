@@ -33,6 +33,8 @@ pub enum UCICommand {
         move_time: Option<Duration>,
         white_time: Option<Duration>,
         black_time: Option<Duration>,
+        white_increment: Option<Duration>,
+        black_increment: Option<Duration>,
     },
     Stop,
     PonderHit,
@@ -113,6 +115,8 @@ impl UCICommand {
                 let mut move_time = None;
                 let mut white_time = None;
                 let mut black_time = None;
+                let mut white_increment = None;
+                let mut black_increment = None;
                 loop {
                     let token = tokens.pop_front();
                     if token.is_none() {
@@ -148,6 +152,18 @@ impl UCICommand {
                                 value.parse::<u64>().map_err(|_| "Invalid btime value")?,
                             ));
                         }
+                        "winc" => {
+                            let value = tokens.pop_front().ok_or("No value found")?;
+                            white_increment = Some(Duration::from_millis(
+                                value.parse::<u64>().map_err(|_| "Invalid winc value")?,
+                            ));
+                        }
+                        "binc" => {
+                            let value = tokens.pop_front().ok_or("No value found")?;
+                            black_increment = Some(Duration::from_millis(
+                                value.parse::<u64>().map_err(|_| "Invalid binc value")?,
+                            ));
+                        }
                         _ => {}
                     }
                 }
@@ -156,6 +172,8 @@ impl UCICommand {
                     move_time,
                     white_time,
                     black_time,
+                    white_increment,
+                    black_increment,
                 })
             }
             "stop" => Ok(UCICommand::Stop),
@@ -192,7 +210,16 @@ impl EngineState {
                 move_time,
                 white_time,
                 black_time,
-            } => self.handle_go(depth, move_time, white_time, black_time),
+                white_increment,
+                black_increment,
+            } => self.handle_go(
+                depth,
+                move_time,
+                white_time,
+                black_time,
+                white_increment,
+                black_increment,
+            ),
             UCICommand::Stop => self.handle_stop(),
             UCICommand::PonderHit => Self::handle_ponderhit(),
             UCICommand::Quit => Self::handle_quit(),
@@ -266,6 +293,8 @@ impl EngineState {
         move_time: Option<Duration>,
         mut white_time: Option<Duration>,
         mut black_time: Option<Duration>,
+        white_increment: Option<Duration>,
+        black_increment: Option<Duration>,
     ) {
         self.stop.store(false, Ordering::Relaxed);
         let stop_now = self.stop.clone();
@@ -283,6 +312,8 @@ impl EngineState {
                 &position,
                 white_time.unwrap(),
                 black_time.unwrap(),
+                white_increment,
+                black_increment,
             )),
             None => None,
         };

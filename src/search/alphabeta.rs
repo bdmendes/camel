@@ -222,7 +222,7 @@ pub fn alphabeta(
         alpha,
         if alpha >= beta {
             Node::CutNode
-        } else if original_alpha == alpha {
+        } else if alpha <= original_alpha {
             Node::AllNode
         } else {
             Node::PVNode
