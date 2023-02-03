@@ -2,13 +2,15 @@ use super::{Depth, Node, SearchMemo};
 use crate::{
     evaluation::{
         moves::evaluate_move,
+        piece_value,
         position::{evaluate_game_over, evaluate_position},
         Score,
     },
-    position::{moves::Move, Color, Position},
+    position::{moves::Move, Color, Piece, Position},
 };
 
 const NULL_MOVE_REDUCTION: Depth = 3;
+const LATE_MOVE_REDUCTION: Depth = 2;
 const CHECK_EXTENSION: Depth = 1;
 const MAX_QS_DEPTH: Depth = 10;
 const OPENING_MOVE_THRESHOLD: u16 = 5;
@@ -198,13 +200,22 @@ pub fn pvs(
     let original_alpha = alpha;
     let mut best_move = moves[0];
     let mut count = 0;
-    for mov in &moves {
+    for (i, mov) in moves.iter().enumerate() {
         let new_position = position.make_move(&mov);
 
         memo.visit_position(new_position.zobrist_hash());
         let (score, nodes) = pvs_recurse(
             &new_position,
-            if is_check { depth + CHECK_EXTENSION } else { depth },
+            if is_check {
+                depth + CHECK_EXTENSION
+            } else if depth > LATE_MOVE_REDUCTION + 1
+                && beta - alpha < piece_value(Piece::WN) - piece_value(Piece::WP)
+                && i > 3
+            {
+                depth - LATE_MOVE_REDUCTION
+            } else {
+                depth
+            },
             alpha,
             beta,
             memo,

@@ -11,7 +11,7 @@ pub const MATE_UPPER: Score = 90000;
 
 const CENTIPAWN_ENTROPY: Score = 5;
 
-const fn piece_value(piece: Piece) -> Score {
+pub const fn piece_value(piece: Piece) -> Score {
     // Values adapted from https://www.chessprogramming.org/Simplified_Evaluation_Function
     match piece {
         Piece::WP | Piece::BP => 100,
