@@ -370,13 +370,8 @@ impl EngineState {
     }
 
     fn handle_auto_move(&mut self) {
-        let (mov, _, _) = search_iterative_deep(
-            &self.position,
-            None,
-            Some(Duration::from_secs(1)),
-            None,
-            None,
-        );
+        let (mov, _, _) =
+            search_iterative_deep(&self.position, None, Some(Duration::from_secs(1)), None, None);
         if let Some(m) = mov {
             self.position = self.position.make_move(&m);
             println!("{}", self.position);

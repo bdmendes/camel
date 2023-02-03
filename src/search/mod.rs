@@ -129,15 +129,8 @@ impl SearchMemo {
             return;
         }
 
-        self.transposition_table.insert(
-            zobrist_hash,
-            TranspositionEntry {
-                score,
-                depth,
-                node,
-                best_move: mov,
-            },
-        );
+        self.transposition_table
+            .insert(zobrist_hash, TranspositionEntry { score, depth, node, best_move: mov });
     }
 
     fn get_transposition_table(
@@ -206,11 +199,7 @@ fn print_iterative_info(
         if distance_to_mate < MAX_MATE_SCORE_DIFF {
             format!(
                 "mate {}{}",
-                if score < 0 && distance_to_mate > 0 {
-                    "-"
-                } else {
-                    ""
-                },
+                if score < 0 && distance_to_mate > 0 { "-" } else { "" },
                 (distance_to_mate + 1) / 2
             )
         } else {
@@ -267,11 +256,7 @@ pub fn search_iterative_deep(
 
     println!(
         "bestmove {}",
-        if mov.is_some() {
-            mov.unwrap().to_string()
-        } else {
-            "(none)".to_string()
-        }
+        if mov.is_some() { mov.unwrap().to_string() } else { "(none)".to_string() }
     );
     return (mov, score, nodes);
 }
@@ -294,10 +279,7 @@ mod tests {
         let (reg_mov, reg_score, reg_nodes) =
             search_iterative_deep(&position, Some(depth), None, None, None);
         let elapsed = now.elapsed().as_millis();
-        println!(
-            "[iterative] {}: {} nodes in {} ms at depth {}\n",
-            fen, reg_nodes, elapsed, depth
-        );
+        println!("[iterative] {}: {} nodes in {} ms at depth {}\n", fen, reg_nodes, elapsed, depth);
 
         if !test_regular {
             return;
@@ -313,10 +295,7 @@ mod tests {
             depth,
         );
         let elapsed = now.elapsed().as_millis();
-        println!(
-            "[regular] {}: {} nodes in {} ms at depth {}",
-            fen, iter_nodes, elapsed, depth
-        );
+        println!("[regular] {}: {} nodes in {} ms at depth {}", fen, iter_nodes, elapsed, depth);
 
         assert_eq!(reg_mov.unwrap().to_string(), expected_move);
         if let Some(expected_lower_score) = expected_lower_score {
@@ -337,14 +316,7 @@ mod tests {
 
     #[test]
     fn search_mate_in_1() {
-        test_search(
-            "3k4/6R1/8/7R/8/8/8/4k3 w - - 0 1",
-            5,
-            "h5h8",
-            Some(MATE_UPPER),
-            None,
-            false,
-        );
+        test_search("3k4/6R1/8/7R/8/8/8/4k3 w - - 0 1", 5, "h5h8", Some(MATE_UPPER), None, false);
     }
 
     #[test]
@@ -385,13 +357,6 @@ mod tests {
 
     #[test]
     fn search_endgame_opposition() {
-        test_search(
-            "5k2/8/6K1/5P2/8/8/8/8 w - - 0 20",
-            10,
-            "g6f6",
-            None,
-            None,
-            true,
-        );
+        test_search("5k2/8/6K1/5P2/8/8/8/8 w - - 0 20", 10, "g6f6", None, None, true);
     }
 }

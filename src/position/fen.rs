@@ -109,32 +109,16 @@ pub fn position_to_fen(position: &Position, omit_move_numbers: bool) -> String {
 
     fen.push(' ');
     let mut castling_rights = String::new();
-    if position
-        .info
-        .castling_rights
-        .contains(CastlingRights::WHITE_KINGSIDE)
-    {
+    if position.info.castling_rights.contains(CastlingRights::WHITE_KINGSIDE) {
         castling_rights.push('K');
     }
-    if position
-        .info
-        .castling_rights
-        .contains(CastlingRights::WHITE_QUEENSIDE)
-    {
+    if position.info.castling_rights.contains(CastlingRights::WHITE_QUEENSIDE) {
         castling_rights.push('Q');
     }
-    if position
-        .info
-        .castling_rights
-        .contains(CastlingRights::BLACK_KINGSIDE)
-    {
+    if position.info.castling_rights.contains(CastlingRights::BLACK_KINGSIDE) {
         castling_rights.push('k');
     }
-    if position
-        .info
-        .castling_rights
-        .contains(CastlingRights::BLACK_QUEENSIDE)
-    {
+    if position.info.castling_rights.contains(CastlingRights::BLACK_QUEENSIDE) {
         castling_rights.push('q');
     }
     if castling_rights.is_empty() {

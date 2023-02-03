@@ -59,14 +59,8 @@ fn alphabeta_quiet(
     let mut count = 0;
     for mov in &moves {
         let new_position = position.make_move(mov);
-        let (score, nodes) = alphabeta_quiet(
-            &new_position,
-            depth - 1,
-            -beta,
-            -alpha,
-            memo,
-            opening_entropy,
-        );
+        let (score, nodes) =
+            alphabeta_quiet(&new_position, depth - 1, -beta, -alpha, memo, opening_entropy);
         let score = -score;
         count += nodes;
 
@@ -93,14 +87,7 @@ fn pvs_recurse(
     let mut count = 0;
 
     if zero_window_search {
-        let (_, score, nodes) = pvs(
-            position,
-            depth - 1,
-            -alpha - 1,
-            -alpha,
-            memo,
-            original_depth,
-        );
+        let (_, score, nodes) = pvs(position, depth - 1, -alpha - 1, -alpha, memo, original_depth);
         count += nodes;
         let score = -score;
         if score <= alpha || score >= beta {
@@ -165,12 +152,9 @@ pub fn pvs(
 
     // When game is over, do not search
     let mut moves = position.legal_moves(false);
-    if let Some(score) = evaluate_game_over(
-        position,
-        &moves,
-        original_depth - depth,
-        Some(&memo.branch_history),
-    ) {
+    if let Some(score) =
+        evaluate_game_over(position, &moves, original_depth - depth, Some(&memo.branch_history))
+    {
         return (None, score as Score, 1);
     }
 
@@ -182,14 +166,8 @@ pub fn pvs(
         && !is_check
     {
         let new_position = position.make_null_move();
-        let (_, score, nodes) = pvs(
-            &new_position,
-            depth - NULL_MOVE_REDUCTION,
-            -beta,
-            -alpha,
-            memo,
-            original_depth,
-        );
+        let (_, score, nodes) =
+            pvs(&new_position, depth - NULL_MOVE_REDUCTION, -beta, -alpha, memo, original_depth);
 
         let score = -score;
         if score >= beta {
@@ -226,11 +204,7 @@ pub fn pvs(
         memo.visit_position(new_position.zobrist_hash());
         let (score, nodes) = pvs_recurse(
             &new_position,
-            if is_check {
-                depth + CHECK_EXTENSION
-            } else {
-                depth
-            },
+            if is_check { depth + CHECK_EXTENSION } else { depth },
             alpha,
             beta,
             memo,

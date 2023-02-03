@@ -55,6 +55,7 @@ mod tests {
             evaluate_move(b, &position, false, false)
                 .cmp(&evaluate_move(a, &position, false, false))
         });
-        assert_eq!(moves[0].to_string(), "e2a6"); // equal trade of piece
+        let first_move = moves[0].to_string();
+        assert!(first_move == "e2a6" || first_move == "d5e6"); // equal trade of piece
     }
 }

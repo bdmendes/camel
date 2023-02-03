@@ -110,23 +110,13 @@ impl Piece {
                 RIGHT + RIGHT + DOWN,
             ],
             Piece::WB | Piece::BB => &[UP + LEFT, UP + RIGHT, DOWN + LEFT, DOWN + RIGHT],
-            Piece::WQ | Piece::BQ | Piece::WK | Piece::BK => &[
-                UP,
-                DOWN,
-                LEFT,
-                RIGHT,
-                UP + LEFT,
-                UP + RIGHT,
-                DOWN + LEFT,
-                DOWN + RIGHT,
-            ],
+            Piece::WQ | Piece::BQ | Piece::WK | Piece::BK => {
+                &[UP, DOWN, LEFT, RIGHT, UP + LEFT, UP + RIGHT, DOWN + LEFT, DOWN + RIGHT]
+            }
         }
     }
 
     pub fn is_sliding(&self) -> bool {
-        !matches!(
-            self,
-            Piece::WP | Piece::BP | Piece::WK | Piece::BK | Piece::WN | Piece::BN
-        )
+        !matches!(self, Piece::WP | Piece::BP | Piece::WK | Piece::BK | Piece::WN | Piece::BN)
     }
 }
