@@ -1,19 +1,24 @@
-use super::{Depth, SearchMemo};
+use super::{Depth, Node, SearchMemo};
 use crate::{
-    evaluation::{evaluate_game_over, evaluate_move, evaluate_position, Score},
-    position::{moves::Move, zobrist::ZobristHash, Color, Position},
+    evaluation::{
+        moves::evaluate_move,
+        position::{evaluate_game_over, evaluate_position},
+        Score,
+    },
+    position::{moves::Move, Color, Position},
 };
 
 const NULL_MOVE_REDUCTION: Depth = 3;
+const CHECK_EXTENSION: Depth = 1;
 const MAX_QS_DEPTH: Depth = 10;
-const OPENING_MOVE_THRESHOLD: u16 = 10;
+const OPENING_MOVE_THRESHOLD: u16 = 5;
 
 fn alphabeta_quiet(
     position: &Position,
     depth: Depth,
     mut alpha: Score,
     beta: Score,
-    memo: &SearchMemo,
+    memo: &mut SearchMemo,
     opening_entropy: bool,
 ) -> (Score, usize) {
     // Check if the search should be stopped
@@ -54,14 +59,8 @@ fn alphabeta_quiet(
     let mut count = 0;
     for mov in &moves {
         let new_position = position.make_move(mov);
-        let (score, nodes) = alphabeta_quiet(
-            &new_position,
-            depth - 1,
-            -beta,
-            -alpha,
-            memo,
-            opening_entropy,
-        );
+        let (score, nodes) =
+            alphabeta_quiet(&new_position, depth - 1, -beta, -alpha, memo, opening_entropy);
         let score = -score;
         count += nodes;
 
@@ -76,14 +75,39 @@ fn alphabeta_quiet(
     (alpha, count)
 }
 
-pub fn alphabeta(
+fn pvs_recurse(
     position: &Position,
     depth: Depth,
-    mut alpha: Score,
+    alpha: Score,
     beta: Score,
     memo: &mut SearchMemo,
     original_depth: Depth,
-    game_history: Option<&Vec<ZobristHash>>,
+    zero_window_search: bool,
+) -> (Score, usize) {
+    let mut count = 0;
+
+    if zero_window_search {
+        let (_, score, nodes) = pvs(position, depth - 1, -alpha - 1, -alpha, memo, original_depth);
+        count += nodes;
+        let score = -score;
+        if score <= alpha || score >= beta {
+            return (score, count);
+        }
+    }
+
+    let (_, score, nodes) = pvs(position, depth - 1, -beta, -alpha, memo, original_depth);
+    count += nodes;
+    let score = -score;
+    return (score, count);
+}
+
+pub fn pvs(
+    position: &Position,
+    depth: Depth,
+    mut alpha: Score,
+    mut beta: Score,
+    memo: &mut SearchMemo,
+    original_depth: Depth,
 ) -> (Option<Move>, Score, usize) {
     // Check if the search should be stopped
     if memo.should_stop_search() {
@@ -91,35 +115,46 @@ pub fn alphabeta(
     }
 
     // Check for transposition table hit
-    let zobrist_hash = position.to_zobrist_hash();
-    if !memo.is_visited_position(zobrist_hash) {
-        if let Some(res) = memo.get_transposition_table(zobrist_hash, depth) {
-            return (res.0, res.1, 1);
+    let zobrist_hash = position.zobrist_hash();
+    if let Some(tt_entry) = memo.get_transposition_table(zobrist_hash, depth) {
+        match tt_entry.node {
+            Node::PVNode => return (None, tt_entry.score, 1),
+            Node::CutNode => {
+                if tt_entry.score > alpha {
+                    alpha = tt_entry.score;
+                }
+            }
+            Node::AllNode => {
+                if tt_entry.score < beta {
+                    beta = tt_entry.score;
+                }
+            }
+        }
+
+        if alpha >= beta {
+            return (None, tt_entry.score, 1);
         }
     }
 
-    // Enter quiescence search if depth is 0
-    if depth <= 0 {
+    // Enter quiescence search if depth is 0 and not in check
+    let is_check = position.is_check();
+    if depth <= 0 && !is_check {
         let (score, nodes) = alphabeta_quiet(
             position,
             MAX_QS_DEPTH,
             alpha,
             beta,
             memo,
-            (position.info.full_move_number * 2 - original_depth as u16)
-                < OPENING_MOVE_THRESHOLD,
+            (position.info.full_move_number * 2 - original_depth as u16) < OPENING_MOVE_THRESHOLD,
         );
         return (None, score, nodes);
     }
 
     // When game is over, do not search
     let mut moves = position.legal_moves(false);
-    if let Some(score) = evaluate_game_over(
-        position,
-        &moves,
-        original_depth - depth,
-        game_history,
-    ) {
+    if let Some(score) =
+        evaluate_game_over(position, &moves, original_depth - depth, Some(&memo.branch_history))
+    {
         return (None, score as Score, 1);
     }
 
@@ -128,18 +163,11 @@ pub fn alphabeta(
         && depth > NULL_MOVE_REDUCTION
         && position.piece_count(Some(Color::White), None) > 0
         && position.piece_count(Some(Color::Black), None) > 0
-        && !position.is_check()
+        && !is_check
     {
         let new_position = position.make_null_move();
-        let (_, score, nodes) = alphabeta(
-            &new_position,
-            depth - NULL_MOVE_REDUCTION,
-            -beta,
-            -alpha,
-            memo,
-            original_depth,
-            None,
-        );
+        let (_, score, nodes) =
+            pvs(&new_position, depth - NULL_MOVE_REDUCTION, -beta, -alpha, memo, original_depth);
 
         let score = -score;
         if score >= beta {
@@ -167,25 +195,24 @@ pub fn alphabeta(
     });
 
     // Search moves
+    let original_alpha = alpha;
     let mut best_move = moves[0];
     let mut count = 0;
     for mov in &moves {
         let new_position = position.make_move(&mov);
-        let new_zobrist_hash = new_position.to_zobrist_hash();
 
-        memo.visit_position(new_zobrist_hash);
-        let (_, score, nodes) = alphabeta(
+        memo.visit_position(new_position.zobrist_hash());
+        let (score, nodes) = pvs_recurse(
             &new_position,
-            depth - 1,
-            -beta,
-            -alpha,
+            if is_check { depth + CHECK_EXTENSION } else { depth },
+            alpha,
+            beta,
             memo,
             original_depth,
-            None,
+            original_depth > 1 && depth > 1 && count > 0,
         );
-        memo.leave_position(new_zobrist_hash);
+        memo.leave_position();
 
-        let score = -score;
         count += nodes;
 
         if score > alpha {
@@ -201,7 +228,19 @@ pub fn alphabeta(
     }
 
     memo.put_hash_move(zobrist_hash, &best_move, depth);
-    memo.put_transposition_table(zobrist_hash, depth, Some(best_move), alpha);
+    memo.put_transposition_table(
+        zobrist_hash,
+        depth,
+        Some(best_move),
+        alpha,
+        if alpha >= beta {
+            Node::CutNode
+        } else if alpha <= original_alpha {
+            Node::AllNode
+        } else {
+            Node::PVNode
+        },
+    );
 
     (Some(best_move), alpha, count)
 }

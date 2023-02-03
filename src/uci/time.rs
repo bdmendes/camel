@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::{
-    evaluation::evaluate_position,
+    evaluation::position::evaluate_position,
     position::{Color, Position},
 };
 
@@ -32,21 +32,28 @@ pub fn get_duration(
     position: &Position,
     white_time: Duration,
     black_time: Duration,
+    white_increment: Option<Duration>,
+    black_increment: Option<Duration>,
 ) -> Duration {
     let our_duration = match position.info.to_move {
         Color::White => white_time,
         Color::Black => black_time,
     };
+    let our_increment = match position.info.to_move {
+        Color::White => white_increment,
+        Color::Black => black_increment,
+    };
 
-    // Play fast if we have no time
-    if our_duration < Duration::from_secs(1) {
-        return Duration::from_millis(10);
+    let standard_move_time = get_duration_based_on_eval(position, our_duration);
+
+    if let Some(our_increment) = our_increment {
+        if our_increment > Duration::from_millis(100) {
+            let new_move_time = standard_move_time + our_increment;
+            if new_move_time < our_duration {
+                return new_move_time - Duration::from_millis(100);
+            }
+        }
     }
 
-    // Play fast on the first move
-    if position.info.full_move_number == 1 {
-        return Duration::from_millis(500);
-    }
-
-    get_duration_based_on_eval(position, our_duration)
+    standard_move_time
 }

@@ -37,18 +37,8 @@ pub enum Piece {
 impl Piece {
     pub fn color(&self) -> Color {
         match self {
-            Piece::WP
-            | Piece::WR
-            | Piece::WN
-            | Piece::WB
-            | Piece::WQ
-            | Piece::WK => Color::White,
-            Piece::BP
-            | Piece::BR
-            | Piece::BN
-            | Piece::BB
-            | Piece::BQ
-            | Piece::BK => Color::Black,
+            Piece::WP | Piece::WR | Piece::WN | Piece::WB | Piece::WQ | Piece::WK => Color::White,
+            Piece::BP | Piece::BR | Piece::BN | Piece::BB | Piece::BQ | Piece::BK => Color::Black,
         }
     }
 
@@ -119,31 +109,14 @@ impl Piece {
                 RIGHT + RIGHT + UP,
                 RIGHT + RIGHT + DOWN,
             ],
-            Piece::WB | Piece::BB => {
-                &[UP + LEFT, UP + RIGHT, DOWN + LEFT, DOWN + RIGHT]
+            Piece::WB | Piece::BB => &[UP + LEFT, UP + RIGHT, DOWN + LEFT, DOWN + RIGHT],
+            Piece::WQ | Piece::BQ | Piece::WK | Piece::BK => {
+                &[UP, DOWN, LEFT, RIGHT, UP + LEFT, UP + RIGHT, DOWN + LEFT, DOWN + RIGHT]
             }
-            Piece::WQ | Piece::BQ | Piece::WK | Piece::BK => &[
-                UP,
-                DOWN,
-                LEFT,
-                RIGHT,
-                UP + LEFT,
-                UP + RIGHT,
-                DOWN + LEFT,
-                DOWN + RIGHT,
-            ],
         }
     }
 
     pub fn is_sliding(&self) -> bool {
-        !matches!(
-            self,
-            Piece::WP
-                | Piece::BP
-                | Piece::WK
-                | Piece::BK
-                | Piece::WN
-                | Piece::BN
-        )
+        !matches!(self, Piece::WP | Piece::BP | Piece::WK | Piece::BK | Piece::WN | Piece::BN)
     }
 }

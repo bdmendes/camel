@@ -4,15 +4,14 @@ use rand::Rng;
 
 pub type ZobristHash = u64;
 
-static ZOBRIST_NUMBERS: Lazy<[ZobristHash; 12 * BOARD_SIZE]> =
-    Lazy::new(|| {
-        let mut rng = rand::thread_rng();
-        let mut zobrist_numbers = [0; 12 * BOARD_SIZE];
-        for i in 0..(12 * BOARD_SIZE) {
-            zobrist_numbers[i] = rng.gen();
-        }
-        zobrist_numbers
-    });
+static ZOBRIST_NUMBERS: Lazy<[ZobristHash; 12 * BOARD_SIZE]> = Lazy::new(|| {
+    let mut rng = rand::thread_rng();
+    let mut zobrist_numbers = [0; 12 * BOARD_SIZE];
+    for i in 0..(12 * BOARD_SIZE) {
+        zobrist_numbers[i] = rng.gen();
+    }
+    zobrist_numbers
+});
 
 fn zobrist_number(piece: Piece, square: Square) -> ZobristHash {
     let square_index = square.index;
