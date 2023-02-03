@@ -2,7 +2,7 @@ mod pvs;
 
 use crate::{
     evaluation::{Score, MATE_LOWER, MATE_UPPER},
-    position::{moves::Move, zobrist::ZobristHash, Position},
+    position::{moves::Move, zobrist::ZobristHash, Color, Position},
 };
 use std::{
     collections::HashMap,
@@ -32,7 +32,7 @@ pub struct TranspositionEntry {
 }
 
 pub struct SearchMemo {
-    pub killer_moves: HashMap<Depth, [Option<Move>; 2]>,
+    pub history_table: [[[Score; 64]; 64]; 2], // [color][from][to]
     pub hash_move: HashMap<ZobristHash, (Move, Depth)>,
     pub transposition_table: HashMap<ZobristHash, TranspositionEntry>,
     pub branch_history: Vec<ZobristHash>,
@@ -48,7 +48,7 @@ impl SearchMemo {
         game_history: Option<Vec<ZobristHash>>,
     ) -> Self {
         Self {
-            killer_moves: HashMap::new(),
+            history_table: [[[0; 64]; 64]; 2],
             hash_move: HashMap::new(),
             transposition_table: HashMap::new(),
             branch_history: game_history.unwrap_or_default(),
@@ -74,27 +74,6 @@ impl SearchMemo {
             current_depth -= 1;
         }
         principal_variation
-    }
-
-    fn put_killer_move(&mut self, mov: &Move, depth: Depth) {
-        let killer_moves = self.killer_moves.entry(depth).or_insert([None, None]);
-        if killer_moves[0] == None {
-            killer_moves[0] = Some(*mov);
-        } else if killer_moves[1] == None {
-            killer_moves[1] = Some(*mov);
-        } else if Some(*mov) == killer_moves[0] {
-            killer_moves[1] = Some(*mov);
-        } else {
-            killer_moves[0] = Some(*mov);
-        }
-    }
-
-    fn get_killer_moves(&mut self, depth: Depth) -> [Option<Move>; 2] {
-        *self.killer_moves.entry(depth).or_insert([None, None])
-    }
-
-    fn is_killer_move(mov: &Move, killer_moves: [Option<Move>; 2]) -> bool {
-        killer_moves[0] == Some(*mov) || killer_moves[1] == Some(*mov)
     }
 
     fn put_hash_move(&mut self, zobrist_hash: ZobristHash, mov: &Move, depth: Depth) {
@@ -155,10 +134,20 @@ impl SearchMemo {
         self.branch_history.pop();
     }
 
+    fn put_history_table(&mut self, mov: &Move, color: Color, depth: Depth) {
+        let from = mov.from.index;
+        let to = mov.to.index;
+        let depth = std::cmp::min(0, depth);
+        self.history_table[color as usize][from][to] = (depth * depth) as Score;
+    }
+
+    fn get_history_value(&self, mov: &Move, color: Color) -> Score {
+        let from = mov.from.index;
+        let to = mov.to.index;
+        self.history_table[color as usize][from][to]
+    }
+
     fn cleanup_tables(&mut self) {
-        if self.killer_moves.len() > MAX_TABLE_SIZE {
-            self.killer_moves.clear();
-        }
         if self.hash_move.len() > MAX_TABLE_SIZE {
             self.hash_move.clear();
         }

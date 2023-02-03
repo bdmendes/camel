@@ -8,18 +8,14 @@ use super::{piece_value, psqt::psqt_value, Score, MATE_UPPER};
 pub fn evaluate_move(
     move_: &Move,
     position: &Position,
-    killer_move: bool,
+    history_value: Score,
     hash_move: bool,
 ) -> Score {
     if hash_move {
         return MATE_UPPER;
     }
 
-    let mut score: Score = 0;
-
-    if killer_move {
-        score += piece_value(Piece::WQ); // better than quiet moves and bad captures
-    }
+    let mut score = 0;
 
     if move_.promotion.is_some() {
         score += piece_value(move_.promotion.unwrap());
@@ -33,9 +29,15 @@ pub fn evaluate_move(
         score = captured_piece_value - moved_piece_value + piece_value(Piece::WQ);
     }
 
-    let start_psqt_value = psqt_value(moved_piece, move_.from, 0);
-    let end_psqt_value = psqt_value(moved_piece, move_.to, 0);
-    score += end_psqt_value - start_psqt_value;
+    if score == 0 {
+        if history_value == 0 {
+            let start_psqt_value = psqt_value(moved_piece, move_.from, 0);
+            let end_psqt_value = psqt_value(moved_piece, move_.to, 0);
+            score += end_psqt_value - start_psqt_value;
+        } else {
+            score += history_value + 100;
+        }
+    }
 
     score
 }
@@ -52,8 +54,7 @@ mod tests {
         .unwrap();
         let mut moves = position.legal_moves(false);
         moves.sort_by(|a, b| {
-            evaluate_move(b, &position, false, false)
-                .cmp(&evaluate_move(a, &position, false, false))
+            evaluate_move(b, &position, 0, false).cmp(&evaluate_move(a, &position, 0, false))
         });
         let first_move = moves[0].to_string();
         assert!(first_move == "e2a6" || first_move == "d5e6"); // equal trade of piece

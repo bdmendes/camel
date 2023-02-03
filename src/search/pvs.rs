@@ -40,8 +40,8 @@ fn alphabeta_quiet(
     // Generate and sort non-quiet moves
     let mut moves = position.legal_moves(true);
     moves.sort_unstable_by(|a, b| {
-        let a_value = evaluate_move(a, &position, false, false);
-        let b_value = evaluate_move(b, &position, false, false);
+        let a_value = evaluate_move(a, &position, 0, false);
+        let b_value = evaluate_move(b, &position, 0, false);
         b_value.cmp(&a_value)
     });
 
@@ -176,19 +176,18 @@ pub fn pvs(
     }
 
     // Sort moves by heuristic value + killer move + hash move
-    let killer_moves = memo.get_killer_moves(depth);
     let hash_move = memo.hash_move.get(&zobrist_hash).map(|(mov, _)| mov);
     moves.sort_unstable_by(|a, b| {
         let a_value = evaluate_move(
             a,
             &position,
-            SearchMemo::is_killer_move(a, killer_moves),
+            memo.get_history_value(a, position.info.to_move),
             SearchMemo::is_hash_move(a, hash_move),
         );
         let b_value = evaluate_move(
             b,
             &position,
-            SearchMemo::is_killer_move(b, killer_moves),
+            memo.get_history_value(b, position.info.to_move),
             SearchMemo::is_hash_move(b, hash_move),
         );
         b_value.cmp(&a_value)
@@ -220,7 +219,7 @@ pub fn pvs(
             alpha = score;
             if alpha >= beta {
                 if !mov.is_tactical() {
-                    memo.put_killer_move(mov, depth);
+                    memo.put_history_table(mov, position.info.to_move, depth);
                 }
                 break;
             }
