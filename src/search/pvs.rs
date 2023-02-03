@@ -9,6 +9,7 @@ use crate::{
 };
 
 const NULL_MOVE_REDUCTION: Depth = 3;
+const CHECK_EXTENSION: Depth = 1;
 const MAX_QS_DEPTH: Depth = 10;
 const OPENING_MOVE_THRESHOLD: u16 = 5;
 
@@ -148,8 +149,9 @@ pub fn pvs(
         }
     }
 
-    // Enter quiescence search if depth is 0
-    if depth <= 0 {
+    // Enter quiescence search if depth is 0 and not in check
+    let is_check = position.is_check();
+    if depth <= 0 && !is_check {
         let (score, nodes) = alphabeta_quiet(
             position,
             MAX_QS_DEPTH,
@@ -177,7 +179,7 @@ pub fn pvs(
         && depth > NULL_MOVE_REDUCTION
         && position.piece_count(Some(Color::White), None) > 0
         && position.piece_count(Some(Color::Black), None) > 0
-        && !position.is_check()
+        && !is_check
     {
         let new_position = position.make_null_move();
         let (_, score, nodes) = pvs(
@@ -224,7 +226,11 @@ pub fn pvs(
         memo.visit_position(new_position.zobrist_hash());
         let (score, nodes) = pvs_recurse(
             &new_position,
-            depth,
+            if is_check {
+                depth + CHECK_EXTENSION
+            } else {
+                depth
+            },
             alpha,
             beta,
             memo,
@@ -233,7 +239,6 @@ pub fn pvs(
         );
         memo.leave_position();
 
-        //let score = -score;
         count += nodes;
 
         if score > alpha {
