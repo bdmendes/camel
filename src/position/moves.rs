@@ -54,8 +54,9 @@ fn generate_regular_moves_from_square(
     square: Square,
     directions: &[isize],
     only_captures: bool,
+    faker_piece: Option<Piece>,
 ) -> SmallMoveVec {
-    let piece = position.board[square].unwrap();
+    let piece = faker_piece.unwrap_or(position.board[square].unwrap());
     let color = piece.color();
     let slides = piece.is_sliding();
     let mut moves = SmallMoveVec::new();
@@ -92,18 +93,20 @@ fn generate_regular_moves_from_square(
     moves
 }
 
-fn pseudo_legal_moves_from_square(
+pub fn pseudo_legal_moves_from_square(
     position: &Position,
     square: Square,
     only_tactical: bool,
+    faker_piece: Option<Piece>,
 ) -> SmallMoveVec {
-    let piece = position.board[square].unwrap();
+    let piece = faker_piece.unwrap_or(position.board[square].unwrap());
     let color = piece.color();
     let mut moves = generate_regular_moves_from_square(
         position,
         square,
         piece.unchecked_directions(),
         only_tactical,
+        faker_piece,
     );
 
     match piece {
@@ -236,7 +239,12 @@ pub fn pseudo_legal_moves(position: &Position, to_move: Color, only_tactical: bo
             if piece.color() != to_move {
                 continue;
             }
-            moves.extend(pseudo_legal_moves_from_square(position, index.into(), only_tactical));
+            moves.extend(pseudo_legal_moves_from_square(
+                position,
+                index.into(),
+                only_tactical,
+                None,
+            ));
         }
     }
     moves
