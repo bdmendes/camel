@@ -1,9 +1,6 @@
 use std::time::Duration;
 
-use crate::{
-    evaluation::position::evaluate_position,
-    position::{Color, Position},
-};
+use crate::position::{Color, Position};
 
 fn expected_remaining_moves(position: &Position) -> u32 {
     const TYPICAL_MOVES_PER_GAME: u16 = 50;
@@ -14,16 +11,8 @@ fn expected_remaining_moves(position: &Position) -> u32 {
 }
 
 fn get_duration_based_on_eval(position: &Position, time: Duration) -> Duration {
-    let our_eval = evaluate_position(position, false, true);
-
-    let cof = if our_eval > 300 {
-        20 - (std::cmp::min(our_eval / 100, 10)) as u32
-    } else if our_eval < -300 {
-        20
-    } else {
-        std::cmp::min(15 + (position.full_move_number / 5) as u32, 20)
-    };
-
+    let number_available_moves = position.legal_moves(false).len() + 1;
+    let cof = 10 + (std::cmp::min(number_available_moves / 3, 10)) as u32;
     let expected_remaining = expected_remaining_moves(position);
     cof * time / (expected_remaining * 20)
 }

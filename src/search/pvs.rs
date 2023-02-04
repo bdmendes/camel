@@ -2,10 +2,11 @@ use super::{Depth, Node, SearchMemo};
 use crate::{
     evaluation::{
         moves::evaluate_move,
+        piece_value,
         position::{evaluate_game_over, evaluate_position},
         Score,
     },
-    position::{moves::Move, Color, Position},
+    position::{moves::Move, Color, Piece, Position},
 };
 
 const NULL_MOVE_REDUCTION: Depth = 3;
@@ -13,7 +14,7 @@ const CHECK_EXTENSION: Depth = 1;
 const MAX_QS_DEPTH: Depth = 10;
 const OPENING_MOVE_THRESHOLD: u16 = 5;
 
-fn alphabeta_quiet(
+fn quiesce_search(
     position: &Position,
     depth: Depth,
     mut alpha: Score,
@@ -35,6 +36,11 @@ fn alphabeta_quiet(
     // Alpha-beta prune based on static evaluation
     if static_evaluation >= beta {
         return (beta, 1);
+    }
+
+    // Delta pruning: prune if this capture sequence cannot improve the score
+    if static_evaluation < alpha - piece_value(Piece::WQ) {
+        return (alpha, 1);
     }
 
     // Generate and sort non-quiet moves
@@ -60,7 +66,7 @@ fn alphabeta_quiet(
     for mov in &moves {
         let new_position = position.make_move(mov);
         let (score, nodes) =
-            alphabeta_quiet(&new_position, depth - 1, -beta, -alpha, memo, opening_entropy);
+            quiesce_search(&new_position, depth - 1, -beta, -alpha, memo, opening_entropy);
         let score = -score;
         count += nodes;
 
@@ -139,7 +145,7 @@ pub fn pvs(
     // Enter quiescence search if depth is 0 and not in check
     let is_check = position.is_check();
     if depth <= 0 && !is_check {
-        let (score, nodes) = alphabeta_quiet(
+        let (score, nodes) = quiesce_search(
             position,
             MAX_QS_DEPTH,
             alpha,
@@ -161,9 +167,9 @@ pub fn pvs(
     // Null move pruning when not in check and zugzwang is not possible
     if depth != original_depth
         && depth > NULL_MOVE_REDUCTION
+        && !is_check
         && position.piece_count(Some(Color::White), None) > 0
         && position.piece_count(Some(Color::Black), None) > 0
-        && !is_check
     {
         let new_position = position.make_null_move();
         let (_, score, nodes) =
@@ -209,7 +215,7 @@ pub fn pvs(
             beta,
             memo,
             original_depth,
-            original_depth > 1 && depth > 1 && count > 0,
+            count > 0,
         );
         memo.leave_position();
 

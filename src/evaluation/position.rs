@@ -70,13 +70,13 @@ fn evaluate_pawn_structure(position: &Position) -> Score {
         score -= match white_pawns[col] {
             0 => 0,
             1 => 0,
-            2 => 20,
+            2 => 10,
             _ => 40,
         };
         score += match black_pawns[col] {
             0 => 0,
             1 => 0,
-            2 => 20,
+            2 => 10,
             _ => 40,
         };
 
@@ -84,30 +84,30 @@ fn evaluate_pawn_structure(position: &Position) -> Score {
         if white_pawns[col] > 0 {
             if col == 0 {
                 if white_pawns[col + 1] == 0 {
-                    score -= 10;
+                    score -= 5;
                 }
             } else if col == 7 {
                 if white_pawns[col - 1] == 0 {
-                    score -= 10;
+                    score -= 5;
                 }
             } else {
                 if white_pawns[col - 1] == 0 && white_pawns[col + 1] == 0 {
-                    score -= 10;
+                    score -= 5;
                 }
             }
         }
         if black_pawns[col] > 0 {
             if col == 0 {
                 if black_pawns[col + 1] == 0 {
-                    score += 10;
+                    score += 5;
                 }
             } else if col == 7 {
                 if black_pawns[col - 1] == 0 {
-                    score += 10;
+                    score += 5;
                 }
             } else {
                 if black_pawns[col - 1] == 0 && black_pawns[col + 1] == 0 {
-                    score += 10;
+                    score += 5;
                 }
             }
         }
@@ -175,7 +175,10 @@ pub fn evaluate_position(
                 ) =>
             {
                 let king_mobility = king_mobility(position, index.into(), Color::White);
-                score -= king_mobility * 20 * (midgame_ratio as Score) / 255;
+                score -= std::cmp::min(10, std::cmp::max(0, king_mobility - 3))
+                    * 10
+                    * (midgame_ratio as Score)
+                    / 255;
             }
             Some(Piece::BK)
                 if !position.castling_rights.intersects(
@@ -183,7 +186,10 @@ pub fn evaluate_position(
                 ) =>
             {
                 let king_mobility = king_mobility(position, index.into(), Color::Black);
-                score += king_mobility * 20 * (midgame_ratio as Score) / 255;
+                score += std::cmp::min(10, std::cmp::max(0, king_mobility - 3))
+                    * 10
+                    * (midgame_ratio as Score)
+                    / 255;
             }
             _ => (),
         }
