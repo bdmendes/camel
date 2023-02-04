@@ -3,9 +3,12 @@ pub mod moves;
 pub mod piece;
 pub mod zobrist;
 
-use self::fen::{position_from_fen, position_to_fen, START_FEN};
 pub use self::piece::{Color, Piece};
 use self::zobrist::ZobristHash;
+use self::{
+    fen::{position_from_fen, position_to_fen, START_FEN},
+    moves::Move,
+};
 use bitflags::bitflags;
 use std::fmt;
 
@@ -127,7 +130,7 @@ impl Position {
         zobrist::zobrist_hash_position(&self)
     }
 
-    pub fn legal_moves(&self, only_non_quiet: bool) -> Vec<moves::Move> {
+    pub fn legal_moves(&self, only_non_quiet: bool) -> Vec<Move> {
         moves::legal_moves(&self, only_non_quiet)
     }
 

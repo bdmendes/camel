@@ -1,4 +1,4 @@
-use crate::position::{moves::Move, zobrist::ZobristHash, Color, Position, Square, BOARD_SIZE};
+use crate::position::{moves::Move, zobrist::ZobristHash, Color, Position, BOARD_SIZE};
 
 use super::{
     piece_midgame_ratio_gain, piece_value, psqt::psqt_value, Score, CENTIPAWN_ENTROPY, MATE_LOWER,

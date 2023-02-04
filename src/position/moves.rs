@@ -3,6 +3,7 @@ use super::{
     CastlingRights, Position, Square, BOARD_SIZE, ROW_SIZE,
 };
 use bitflags::bitflags;
+use smallvec::SmallVec;
 use std::fmt;
 
 bitflags! {
@@ -36,6 +37,8 @@ impl fmt::Display for Move {
     }
 }
 
+type SmallMoveVec = SmallVec<[Move; 16]>;
+
 impl Move {
     pub fn new(from: Square, to: Square, flags: MoveFlags) -> Move {
         Move { from, to, flags, promotion: None }
@@ -51,15 +54,11 @@ fn generate_regular_moves_from_square(
     square: Square,
     directions: &[isize],
     only_captures: bool,
-) -> Vec<Move> {
+) -> SmallMoveVec {
     let piece = position.board[square].unwrap();
     let color = piece.color();
     let slides = piece.is_sliding();
-    let mut moves = Vec::with_capacity(if slides && !only_captures {
-        directions.len() * 5
-    } else {
-        directions.len()
-    });
+    let mut moves = SmallMoveVec::new();
 
     for &offset in directions {
         let mut current_offset = offset;
@@ -97,7 +96,7 @@ fn pseudo_legal_moves_from_square(
     position: &Position,
     square: Square,
     only_tactical: bool,
-) -> Vec<Move> {
+) -> SmallMoveVec {
     let piece = position.board[square].unwrap();
     let color = piece.color();
     let mut moves = generate_regular_moves_from_square(
@@ -136,7 +135,7 @@ fn pseudo_legal_moves_from_square(
                 let mut move_ = &mut moves[i];
                 let row = move_.to.row();
                 if row == 0 || row == 7 {
-                    let mut under_promotion_moves = Vec::<Move>::with_capacity(3);
+                    let mut under_promotion_moves = SmallVec::<[Move; 3]>::new();
                     let promotion_pieces = if color == Color::White {
                         [Piece::WQ, Piece::WR, Piece::WB, Piece::WN]
                     } else {
@@ -231,7 +230,7 @@ fn pseudo_legal_moves_from_square(
 }
 
 pub fn pseudo_legal_moves(position: &Position, to_move: Color, only_tactical: bool) -> Vec<Move> {
-    let mut moves = Vec::with_capacity(if position.half_move_number < 30 { 32 } else { 16 });
+    let mut moves = Vec::with_capacity(BOARD_SIZE);
     for index in 0..BOARD_SIZE {
         if let Some(piece) = position.board[index] {
             if piece.color() != to_move {
