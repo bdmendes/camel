@@ -51,7 +51,7 @@ pub fn evaluate_position(
     // Count material and midgame ratio
     let mut midgame_ratio = 0;
     for index in 0..BOARD_SIZE {
-        match position.at(Square { index }) {
+        match position.board[index] {
             None => (),
             Some(piece) => {
                 let piece_value = piece_value(piece);
@@ -68,10 +68,10 @@ pub fn evaluate_position(
 
     // Add positional score
     for index in 0..BOARD_SIZE {
-        match position.at(Square { index }) {
+        match position.board[index] {
             None => (),
             Some(piece) => {
-                let psqt_value = psqt_value(piece, Square { index }, endgame_ratio);
+                let psqt_value = psqt_value(piece, index.into(), endgame_ratio);
                 score += match piece.color() {
                     Color::White => psqt_value,
                     Color::Black => -psqt_value,

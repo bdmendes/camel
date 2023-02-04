@@ -4,7 +4,7 @@ pub const START_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq 
 
 pub fn position_from_fen(fen: &str) -> Result<Position, String> {
     let mut position = Position {
-        board: [Option::None; BOARD_SIZE],
+        board: Board([Option::None; BOARD_SIZE]),
         to_move: Color::White,
         castling_rights: CastlingRights::empty(),
         en_passant_square: None,
@@ -36,7 +36,7 @@ pub fn position_from_fen(fen: &str) -> Result<Position, String> {
                     Ok(piece) => piece,
                     Err(msg) => return Err(msg),
                 };
-                position.board[Square::from_row_col(row, col).index] = Some(piece);
+                position.board[Square::from_row_col(row, col)] = Some(piece);
                 col += 1;
             }
         }
@@ -80,7 +80,7 @@ pub fn position_to_fen(position: &Position, omit_move_numbers: bool) -> String {
     for row in (0..8).rev() {
         let mut empty = 0;
         for col in 0..8 {
-            match position.at(Square::from_row_col(row, col)) {
+            match position.board[Square::from_row_col(row, col)] {
                 None => empty += 1,
                 Some(piece) => {
                     if empty > 0 {

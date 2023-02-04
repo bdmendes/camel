@@ -112,8 +112,8 @@ pub fn psqt_value(piece: Piece, square: Square, endgame_ratio: u8) -> Score {
         Piece::WK | Piece::BK => (MIDGAME_KING_PSQT, ENDGAME_KING_PSQT),
     };
 
-    let midgame_value = midgame_psqt[psqt_square.index];
-    let endgame_value = endgame_psqt[psqt_square.index];
+    let midgame_value = midgame_psqt[psqt_square.0 as usize];
+    let endgame_value = endgame_psqt[psqt_square.0 as usize];
 
     if endgame_ratio == 0 || midgame_value == endgame_value {
         midgame_value

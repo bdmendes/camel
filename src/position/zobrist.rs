@@ -14,8 +14,7 @@ static ZOBRIST_NUMBERS: Lazy<[ZobristHash; 12 * BOARD_SIZE]> = Lazy::new(|| {
 });
 
 fn zobrist_number(piece: Piece, square: Square) -> ZobristHash {
-    let square_index = square.index;
-    let index = piece as usize * 64 + square_index;
+    let index: usize = piece as usize * 64 + square.0 as usize;
     ZOBRIST_NUMBERS[index]
 }
 
@@ -24,8 +23,8 @@ pub fn zobrist_hash_position(position: &Position) -> ZobristHash {
 
     // Hash the pieces
     for index in 0..BOARD_SIZE {
-        let square = Square { index };
-        if let Some(piece) = position.at(square) {
+        let square = index.into();
+        if let Some(piece) = position.board[square] {
             hash ^= zobrist_number(piece, square);
         }
     }
@@ -43,7 +42,7 @@ pub fn zobrist_hash_position(position: &Position) -> ZobristHash {
 
     // Hash the en passant square
     if let Some(square) = position.en_passant_square {
-        hash |= (square.index as ZobristHash) << 5;
+        hash |= (square.0 as ZobristHash) << 5;
     }
 
     hash
