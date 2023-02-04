@@ -1,6 +1,6 @@
 use super::{
     piece::{Color, Piece, DOWN, UP},
-    CastlingRights, Position, PositionInfo, Square, BOARD_SIZE, ROW_SIZE,
+    CastlingRights, Position, Square, BOARD_SIZE, ROW_SIZE,
 };
 use bitflags::bitflags;
 use std::fmt;
@@ -124,7 +124,7 @@ fn pseudo_legal_moves_from_square(
                     can_advance_two && !jumped_piece
                 } else {
                     move_.flags.contains(MoveFlags::CAPTURE)
-                        || matches!(position.info.en_passant_square,
+                        || matches!(position.en_passant_square,
                             Some(en_passant_square) if
                                 move_.to == en_passant_square)
                 }
@@ -153,7 +153,7 @@ fn pseudo_legal_moves_from_square(
                         under_promotion_moves.push(promotion_move);
                     }
                     moves.extend(under_promotion_moves);
-                } else if let Some(en_passant_square) = position.info.en_passant_square {
+                } else if let Some(en_passant_square) = position.en_passant_square {
                     if move_.to == en_passant_square {
                         move_.flags |= MoveFlags::ENPASSANT;
                     }
@@ -186,7 +186,7 @@ fn pseudo_legal_moves_from_square(
                         false => CastlingRights::BLACK_QUEENSIDE,
                     },
                 };
-                if !position.info.castling_rights.contains(castle_rights) {
+                if !position.castling_rights.contains(castle_rights) {
                     continue;
                 }
 
@@ -231,7 +231,7 @@ fn pseudo_legal_moves_from_square(
 }
 
 pub fn pseudo_legal_moves(position: &Position, to_move: Color, only_tactical: bool) -> Vec<Move> {
-    let mut moves = Vec::with_capacity(if position.info.half_move_number < 30 { 32 } else { 16 });
+    let mut moves = Vec::with_capacity(if position.half_move_number < 30 { 32 } else { 16 });
     for index in 0..BOARD_SIZE {
         if let Some(piece) = position.board[index] {
             if piece.color() != to_move {
@@ -244,7 +244,7 @@ pub fn pseudo_legal_moves(position: &Position, to_move: Color, only_tactical: bo
 }
 
 pub fn legal_moves(position: &Position, only_non_quiet: bool) -> Vec<Move> {
-    let mut moves = pseudo_legal_moves(position, position.info.to_move, only_non_quiet);
+    let mut moves = pseudo_legal_moves(position, position.to_move, only_non_quiet);
 
     moves.retain(|move_| {
         let castle_passent_squares = if move_.flags.contains(MoveFlags::CASTLE) {
@@ -255,7 +255,7 @@ pub fn legal_moves(position: &Position, only_non_quiet: bool) -> Vec<Move> {
 
         // Do not allow moves that leave the player in check
         let new_position = make_move(position, move_);
-        !position_is_check(&new_position, position.info.to_move, castle_passent_squares)
+        !position_is_check(&new_position, position.to_move, castle_passent_squares)
     });
 
     moves
@@ -294,7 +294,7 @@ pub fn make_move(position: &Position, move_: &Move) -> Position {
 
     // En passant
     if move_.flags.contains(MoveFlags::ENPASSANT) {
-        let capture_square = match position.info.to_move {
+        let capture_square = match position.to_move {
             Color::White => move_.to.index as isize + DOWN,
             Color::Black => move_.to.index as isize + UP,
         };
@@ -307,7 +307,7 @@ pub fn make_move(position: &Position, move_: &Move) -> Position {
     }
 
     // Castling
-    let mut new_castling_rights = position.info.castling_rights;
+    let mut new_castling_rights = position.castling_rights;
     let piece = position.at(move_.from).unwrap();
     if move_.flags.contains(MoveFlags::CASTLE) {
         if piece == Piece::WK {
@@ -361,33 +361,31 @@ pub fn make_move(position: &Position, move_: &Move) -> Position {
 
     Position {
         board: new_board,
-        info: PositionInfo {
-            to_move: position.info.to_move.opposite(),
-            castling_rights: new_castling_rights,
-            en_passant_square: match position.at(move_.from) {
-                Some(Piece::WP) | Some(Piece::BP) => {
-                    if (move_.from.row() == 1 && move_.to.row() == 3)
-                        || (move_.from.row() == 6 && move_.to.row() == 4)
-                    {
-                        Some(Square { index: (move_.to.index + move_.from.index) / 2 })
-                    } else {
-                        None
-                    }
+        to_move: position.to_move.opposite(),
+        castling_rights: new_castling_rights,
+        en_passant_square: match position.at(move_.from) {
+            Some(Piece::WP) | Some(Piece::BP) => {
+                if (move_.from.row() == 1 && move_.to.row() == 3)
+                    || (move_.from.row() == 6 && move_.to.row() == 4)
+                {
+                    Some(Square { index: (move_.to.index + move_.from.index) / 2 })
+                } else {
+                    None
                 }
-                _ => None,
-            },
-            half_move_number: if move_.flags.contains(MoveFlags::CAPTURE)
-                || matches!(position.at(move_.from).unwrap(), Piece::WP | Piece::BP)
-            {
-                0
-            } else {
-                position.info.half_move_number + 1
-            },
-            full_move_number: if position.info.to_move == Color::Black {
-                position.info.full_move_number + 1
-            } else {
-                position.info.full_move_number
-            },
+            }
+            _ => None,
+        },
+        half_move_number: if move_.flags.contains(MoveFlags::CAPTURE)
+            || matches!(position.at(move_.from).unwrap(), Piece::WP | Piece::BP)
+        {
+            0
+        } else {
+            position.half_move_number + 1
+        },
+        full_move_number: if position.to_move == Color::Black {
+            position.full_move_number + 1
+        } else {
+            position.full_move_number
         },
     }
 }
@@ -395,13 +393,11 @@ pub fn make_move(position: &Position, move_: &Move) -> Position {
 pub fn make_null_move(position: &Position) -> Position {
     Position {
         board: position.board,
-        info: PositionInfo {
-            to_move: position.info.to_move.opposite(),
-            castling_rights: position.info.castling_rights,
-            en_passant_square: None,
-            half_move_number: position.info.half_move_number,
-            full_move_number: position.info.full_move_number,
-        },
+        to_move: position.to_move.opposite(),
+        castling_rights: position.castling_rights,
+        en_passant_square: None,
+        half_move_number: position.half_move_number,
+        full_move_number: position.full_move_number,
     }
 }
 

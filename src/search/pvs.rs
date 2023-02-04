@@ -145,7 +145,7 @@ pub fn pvs(
             alpha,
             beta,
             memo,
-            (position.info.full_move_number * 2 - original_depth as u16) < OPENING_MOVE_THRESHOLD,
+            (position.full_move_number * 2 - original_depth as u16) < OPENING_MOVE_THRESHOLD,
         );
         return (None, score, nodes);
     }

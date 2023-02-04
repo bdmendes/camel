@@ -7,10 +7,10 @@ use crate::{
 
 fn expected_remaining_moves(position: &Position) -> u32 {
     const TYPICAL_MOVES_PER_GAME: u16 = 50;
-    if position.info.full_move_number > TYPICAL_MOVES_PER_GAME - 10 {
+    if position.full_move_number > TYPICAL_MOVES_PER_GAME - 10 {
         return 10;
     }
-    (TYPICAL_MOVES_PER_GAME - position.info.full_move_number) as u32
+    (TYPICAL_MOVES_PER_GAME - position.full_move_number) as u32
 }
 
 fn get_duration_based_on_eval(position: &Position, time: Duration) -> Duration {
@@ -21,7 +21,7 @@ fn get_duration_based_on_eval(position: &Position, time: Duration) -> Duration {
     } else if our_eval < -300 {
         20
     } else {
-        std::cmp::min(15 + (position.info.full_move_number / 5) as u32, 20)
+        std::cmp::min(15 + (position.full_move_number / 5) as u32, 20)
     };
 
     let expected_remaining = expected_remaining_moves(position);
@@ -35,11 +35,11 @@ pub fn get_duration(
     white_increment: Option<Duration>,
     black_increment: Option<Duration>,
 ) -> Duration {
-    let our_duration = match position.info.to_move {
+    let our_duration = match position.to_move {
         Color::White => white_time,
         Color::Black => black_time,
     };
-    let our_increment = match position.info.to_move {
+    let our_increment = match position.to_move {
         Color::White => white_increment,
         Color::Black => black_increment,
     };

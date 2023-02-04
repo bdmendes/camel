@@ -11,7 +11,7 @@ pub fn evaluate_game_over(
     game_history: Option<&Vec<ZobristHash>>,
 ) -> Option<Score> {
     // Flag 50 move rule draws
-    if position.info.half_move_number >= 100 {
+    if position.half_move_number >= 100 {
         return Some(0);
     }
 
@@ -85,7 +85,7 @@ pub fn evaluate_position(
         score += rand::random::<Score>() % CENTIPAWN_ENTROPY;
     }
 
-    if relative_to_current && position.info.to_move == Color::Black {
+    if relative_to_current && position.to_move == Color::Black {
         -score
     } else {
         score
