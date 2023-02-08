@@ -25,11 +25,11 @@ pub fn evaluate_move(
         score += piece_value(move_.promotion.unwrap());
     }
 
-    let moved_piece = position.at(move_.from).unwrap();
+    let moved_piece = position.board[move_.from].unwrap();
 
     if move_.flags.contains(MoveFlags::CAPTURE) {
         let moved_piece_value = piece_value(moved_piece);
-        let captured_piece_value = piece_value(position.at(move_.to).unwrap());
+        let captured_piece_value = piece_value(position.board[move_.to].unwrap());
         score = captured_piece_value - moved_piece_value + piece_value(Piece::WQ);
     }
 

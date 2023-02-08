@@ -190,7 +190,7 @@ impl EngineState {
             position: Position::new(),
             debug: false,
             stop: Arc::new(AtomicBool::new(false)),
-            game_history: Vec::new(),
+            game_history: Vec::with_capacity(100),
         }
     }
 

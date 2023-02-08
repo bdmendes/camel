@@ -1,4 +1,8 @@
-use crate::position::{moves::Move, zobrist::ZobristHash, Color, Position, Square, BOARD_SIZE};
+use crate::position::{
+    moves::{pseudo_legal_moves_from_square, Move},
+    zobrist::ZobristHash,
+    CastlingRights, Color, Piece, Position, Square, BOARD_SIZE,
+};
 
 use super::{
     piece_midgame_ratio_gain, piece_value, psqt::psqt_value, Score, CENTIPAWN_ENTROPY, MATE_LOWER,
@@ -11,7 +15,7 @@ pub fn evaluate_game_over(
     game_history: Option<&Vec<ZobristHash>>,
 ) -> Option<Score> {
     // Flag 50 move rule draws
-    if position.info.half_move_number >= 100 {
+    if position.half_move_number >= 100 {
         return Some(0);
     }
 
@@ -41,6 +45,87 @@ pub fn evaluate_game_over(
     None
 }
 
+fn evaluate_pawn_structure(position: &Position) -> Score {
+    let mut white_pawns: [u8; 8] = [0; 8];
+    let mut black_pawns: [u8; 8] = [0; 8];
+
+    let mut score = 0;
+
+    for index in 0..BOARD_SIZE {
+        match position.board[index] {
+            Some(Piece::WP) => {
+                let col = index % 8;
+                white_pawns[col] += 1;
+            }
+            Some(Piece::BP) => {
+                let col = index % 8;
+                black_pawns[col] += 1;
+            }
+            _ => (),
+        }
+    }
+
+    for col in 0..8 {
+        // Penalty for doubled pawns
+        score -= match white_pawns[col] {
+            0 => 0,
+            1 => 0,
+            2 => 10,
+            _ => 40,
+        };
+        score += match black_pawns[col] {
+            0 => 0,
+            1 => 0,
+            2 => 10,
+            _ => 40,
+        };
+
+        // Penalty for isolated pawns
+        if white_pawns[col] > 0 {
+            if col == 0 {
+                if white_pawns[col + 1] == 0 {
+                    score -= 5;
+                }
+            } else if col == 7 {
+                if white_pawns[col - 1] == 0 {
+                    score -= 5;
+                }
+            } else {
+                if white_pawns[col - 1] == 0 && white_pawns[col + 1] == 0 {
+                    score -= 5;
+                }
+            }
+        }
+        if black_pawns[col] > 0 {
+            if col == 0 {
+                if black_pawns[col + 1] == 0 {
+                    score += 5;
+                }
+            } else if col == 7 {
+                if black_pawns[col - 1] == 0 {
+                    score += 5;
+                }
+            } else {
+                if black_pawns[col - 1] == 0 && black_pawns[col + 1] == 0 {
+                    score += 5;
+                }
+            }
+        }
+    }
+
+    score
+}
+
+fn king_mobility(position: &Position, king_square: Square, color: Color) -> Score {
+    let faker_queen = match color {
+        Color::White => Piece::WQ,
+        Color::Black => Piece::BQ,
+    };
+    let faker_moves =
+        pseudo_legal_moves_from_square(position, king_square, false, Some(faker_queen));
+    faker_moves.len() as Score
+}
+
 pub fn evaluate_position(
     position: &Position,
     opening_entropy: bool,
@@ -51,7 +136,7 @@ pub fn evaluate_position(
     // Count material and midgame ratio
     let mut midgame_ratio = 0;
     for index in 0..BOARD_SIZE {
-        match position.at(Square { index }) {
+        match position.board[index] {
             None => (),
             Some(piece) => {
                 let piece_value = piece_value(piece);
@@ -64,14 +149,15 @@ pub fn evaluate_position(
         }
     }
     midgame_ratio = std::cmp::min(midgame_ratio, u8::MAX as Score);
-    let endgame_ratio = 255 - midgame_ratio as u8;
+    let midgame_ratio = midgame_ratio as u8;
+    let endgame_ratio = 255 - midgame_ratio;
 
     // Add positional score
     for index in 0..BOARD_SIZE {
-        match position.at(Square { index }) {
+        match position.board[index] {
             None => (),
             Some(piece) => {
-                let psqt_value = psqt_value(piece, Square { index }, endgame_ratio);
+                let psqt_value = psqt_value(piece, index.into(), endgame_ratio);
                 score += match piece.color() {
                     Color::White => psqt_value,
                     Color::Black => -psqt_value,
@@ -80,12 +166,44 @@ pub fn evaluate_position(
         }
     }
 
+    // Add king safety
+    for index in 0..BOARD_SIZE {
+        match position.board[index] {
+            Some(Piece::WK)
+                if !position.castling_rights.intersects(
+                    CastlingRights::WHITE_KINGSIDE | CastlingRights::WHITE_QUEENSIDE,
+                ) =>
+            {
+                let king_mobility = king_mobility(position, index.into(), Color::White);
+                score -= std::cmp::min(10, std::cmp::max(0, king_mobility - 3))
+                    * 10
+                    * (midgame_ratio as Score)
+                    / 255;
+            }
+            Some(Piece::BK)
+                if !position.castling_rights.intersects(
+                    CastlingRights::BLACK_KINGSIDE | CastlingRights::BLACK_QUEENSIDE,
+                ) =>
+            {
+                let king_mobility = king_mobility(position, index.into(), Color::Black);
+                score += std::cmp::min(10, std::cmp::max(0, king_mobility - 3))
+                    * 10
+                    * (midgame_ratio as Score)
+                    / 255;
+            }
+            _ => (),
+        }
+    }
+
+    // Add pawn structure considerations
+    score += evaluate_pawn_structure(position);
+
     // Add entropy to avoid playing the same opening moves every time
     if opening_entropy {
         score += rand::random::<Score>() % CENTIPAWN_ENTROPY;
     }
 
-    if relative_to_current && position.info.to_move == Color::Black {
+    if relative_to_current && position.to_move == Color::Black {
         -score
     } else {
         score
@@ -95,6 +213,12 @@ pub fn evaluate_position(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn eval_king_mobility() {
+        let position = Position::from_fen("1k6/p1p2p1p/P7/2P5/2KBrnP1/7P/8/7R w - - 1 36").unwrap();
+        assert_eq!(king_mobility(&position, Square::from_algebraic("c4"), Color::White), 14);
+    }
 
     #[test]
     fn eval_checkmate() {
