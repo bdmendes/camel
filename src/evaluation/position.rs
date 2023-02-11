@@ -82,33 +82,27 @@ fn evaluate_pawn_structure(position: &Position) -> Score {
 
         // Penalty for isolated pawns
         if white_pawns[col] > 0 {
-            if col == 0 {
-                if white_pawns[col + 1] == 0 {
-                    score -= 5;
-                }
+            let isolated = if col == 0 {
+                white_pawns[col + 1] == 0
             } else if col == 7 {
-                if white_pawns[col - 1] == 0 {
-                    score -= 5;
-                }
+                white_pawns[col - 1] == 0
             } else {
-                if white_pawns[col - 1] == 0 && white_pawns[col + 1] == 0 {
-                    score -= 5;
-                }
+                white_pawns[col - 1] == 0 && white_pawns[col + 1] == 0
+            };
+            if isolated {
+                score -= 5;
             }
         }
         if black_pawns[col] > 0 {
-            if col == 0 {
-                if black_pawns[col + 1] == 0 {
-                    score += 5;
-                }
+            let isolated = if col == 0 {
+                black_pawns[col + 1] == 0
             } else if col == 7 {
-                if black_pawns[col - 1] == 0 {
-                    score += 5;
-                }
+                black_pawns[col - 1] == 0
             } else {
-                if black_pawns[col - 1] == 0 && black_pawns[col + 1] == 0 {
-                    score += 5;
-                }
+                black_pawns[col - 1] == 0 && black_pawns[col + 1] == 0
+            };
+            if isolated {
+                score += 5;
             }
         }
     }
@@ -167,6 +161,17 @@ pub fn evaluate_position(
     }
 
     // Add king safety
+    let king_penalty = |king_mobility: Score| {
+        let res = match king_mobility {
+            0..=2 => 0,
+            3..=4 => 10,
+            5..=6 => 20,
+            7..=8 => 30,
+            9..=10 => 40,
+            _ => 50,
+        };
+        res * (midgame_ratio as Score) / 255
+    };
     for index in 0..BOARD_SIZE {
         match position.board[index] {
             Some(Piece::WK)
@@ -174,22 +179,14 @@ pub fn evaluate_position(
                     CastlingRights::WHITE_KINGSIDE | CastlingRights::WHITE_QUEENSIDE,
                 ) =>
             {
-                let king_mobility = king_mobility(position, index.into(), Color::White);
-                score -= std::cmp::min(10, std::cmp::max(0, king_mobility - 3))
-                    * 10
-                    * (midgame_ratio as Score)
-                    / 255;
+                score -= king_penalty(king_mobility(position, index.into(), Color::White));
             }
             Some(Piece::BK)
                 if !position.castling_rights.intersects(
                     CastlingRights::BLACK_KINGSIDE | CastlingRights::BLACK_QUEENSIDE,
                 ) =>
             {
-                let king_mobility = king_mobility(position, index.into(), Color::Black);
-                score += std::cmp::min(10, std::cmp::max(0, king_mobility - 3))
-                    * 10
-                    * (midgame_ratio as Score)
-                    / 255;
+                score += king_penalty(king_mobility(position, index.into(), Color::Black))
             }
             _ => (),
         }

@@ -6,7 +6,8 @@ use crate::{
 };
 use std::{
     collections::HashMap,
-    sync::{atomic::AtomicBool, Arc},
+    sync::{atomic::AtomicBool, Arc, RwLock},
+    thread,
     time::{Duration, Instant},
 };
 
@@ -24,6 +25,7 @@ pub enum Node {
     AllNode, // upper bound
 }
 
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub struct TranspositionEntry {
     score: Score,
     depth: Depth,
@@ -31,27 +33,40 @@ pub struct TranspositionEntry {
     best_move: Option<Move>,
 }
 
-pub struct SearchMemo {
+pub struct SearchHash {
     pub killer_moves: HashMap<Depth, [Option<Move>; 2]>,
     pub hash_move: HashMap<ZobristHash, (Move, Depth)>,
     pub transposition_table: HashMap<ZobristHash, TranspositionEntry>,
+}
+
+pub struct SearchMemo {
+    pub hash: Arc<RwLock<SearchHash>>,
     pub branch_history: Vec<ZobristHash>,
     pub initial_instant: std::time::Instant,
     pub duration: Option<std::time::Duration>,
     pub stop_now: Option<Arc<AtomicBool>>,
 }
 
+impl SearchHash {
+    fn new() -> Self {
+        Self {
+            killer_moves: HashMap::with_capacity(MAX_TABLE_SIZE),
+            hash_move: HashMap::with_capacity(MAX_TABLE_SIZE),
+            transposition_table: HashMap::with_capacity(MAX_TABLE_SIZE),
+        }
+    }
+}
+
 impl SearchMemo {
     fn new(
+        hash: Arc<RwLock<SearchHash>>,
         duration: Option<std::time::Duration>,
         stop_now: Option<Arc<AtomicBool>>,
-        game_history: Option<Vec<ZobristHash>>,
+        game_history: Vec<ZobristHash>,
     ) -> Self {
         Self {
-            killer_moves: HashMap::new(),
-            hash_move: HashMap::new(),
-            transposition_table: HashMap::new(),
-            branch_history: game_history.unwrap_or_default(),
+            hash: Arc::clone(&hash),
+            branch_history: game_history,
             initial_instant: std::time::Instant::now(),
             duration,
             stop_now,
@@ -63,7 +78,8 @@ impl SearchMemo {
         let mut current_position = position.clone();
         let mut current_depth = depth;
         while current_depth > 0 {
-            let entry = self.hash_move.get(&current_position.zobrist_hash());
+            let hash = self.hash.read().unwrap();
+            let entry = hash.hash_move.get(&current_position.zobrist_hash());
             if entry.is_none() {
                 break;
             }
@@ -77,7 +93,8 @@ impl SearchMemo {
     }
 
     fn put_killer_move(&mut self, mov: &Move, depth: Depth) {
-        let killer_moves = self.killer_moves.entry(depth).or_insert([None, None]);
+        let mut hash = self.hash.write().unwrap();
+        let killer_moves = hash.killer_moves.entry(depth).or_insert([None, None]);
         if killer_moves[0] == None {
             killer_moves[0] = Some(*mov);
         } else if killer_moves[1] == None {
@@ -90,7 +107,7 @@ impl SearchMemo {
     }
 
     fn get_killer_moves(&mut self, depth: Depth) -> [Option<Move>; 2] {
-        *self.killer_moves.entry(depth).or_insert([None, None])
+        *self.hash.write().unwrap().killer_moves.entry(depth).or_insert([None, None])
     }
 
     fn is_killer_move(mov: &Move, killer_moves: [Option<Move>; 2]) -> bool {
@@ -98,7 +115,8 @@ impl SearchMemo {
     }
 
     fn put_hash_move(&mut self, zobrist_hash: ZobristHash, mov: &Move, depth: Depth) {
-        let (hash_mov, hash_depth) = self.hash_move.entry(zobrist_hash).or_insert((*mov, 0));
+        let mut hash = self.hash.write().unwrap();
+        let (hash_mov, hash_depth) = hash.hash_move.entry(zobrist_hash).or_insert((*mov, 0));
         if depth <= *hash_depth {
             return;
         }
@@ -106,8 +124,12 @@ impl SearchMemo {
         *hash_mov = *mov;
     }
 
-    fn is_hash_move(mov: &Move, hash_move: Option<&Move>) -> bool {
-        hash_move == Some(mov)
+    fn is_hash_move(mov: &Move, hash_move: Option<Move>) -> bool {
+        hash_move == Some(*mov)
+    }
+
+    fn get_hash_move(&mut self, zobrist_hash: ZobristHash) -> Option<Move> {
+        self.hash.write().unwrap().hash_move.get(&zobrist_hash).map(|(mov, _)| *mov)
     }
 
     fn put_transposition_table(
@@ -118,7 +140,7 @@ impl SearchMemo {
         score: Score,
         node: Node,
     ) {
-        if let Some(entry) = self.transposition_table.get_mut(&zobrist_hash) {
+        if let Some(entry) = self.hash.write().unwrap().transposition_table.get_mut(&zobrist_hash) {
             if depth < entry.depth || (depth == entry.depth && entry.node == Node::PVNode) {
                 return;
             }
@@ -129,7 +151,10 @@ impl SearchMemo {
             return;
         }
 
-        self.transposition_table
+        self.hash
+            .write()
+            .unwrap()
+            .transposition_table
             .insert(zobrist_hash, TranspositionEntry { score, depth, node, best_move: mov });
     }
 
@@ -137,10 +162,11 @@ impl SearchMemo {
         &mut self,
         zobrist_hash: ZobristHash,
         depth: Depth,
-    ) -> Option<&TranspositionEntry> {
-        if let Some(tt_entry) = self.transposition_table.get(&zobrist_hash) {
+    ) -> Option<TranspositionEntry> {
+        let hash = self.hash.read().unwrap();
+        if let Some(tt_entry) = hash.transposition_table.get(&zobrist_hash) {
             if depth <= tt_entry.depth {
-                return Some(tt_entry);
+                return Some(*tt_entry);
             }
         }
 
@@ -156,14 +182,15 @@ impl SearchMemo {
     }
 
     fn cleanup_tables(&mut self) {
-        if self.killer_moves.len() > MAX_TABLE_SIZE {
-            self.killer_moves.clear();
+        let mut hash = self.hash.write().unwrap();
+        if hash.killer_moves.len() > MAX_TABLE_SIZE {
+            hash.killer_moves.clear();
         }
-        if self.hash_move.len() > MAX_TABLE_SIZE {
-            self.hash_move.clear();
+        if hash.hash_move.len() > MAX_TABLE_SIZE {
+            hash.hash_move.clear();
         }
-        if self.transposition_table.len() > MAX_TABLE_SIZE {
-            self.transposition_table.clear();
+        if hash.transposition_table.len() > MAX_TABLE_SIZE {
+            hash.transposition_table.clear();
         }
     }
 
@@ -227,19 +254,39 @@ pub fn search_iterative_deep(
     game_history: Option<Vec<ZobristHash>>,
 ) -> (Option<Move>, Score, usize) {
     const MAX_ITERATIVE_DEPTH: Depth = 25;
+    let game_history = game_history.unwrap_or_default();
     let max_depth = depth.unwrap_or(MAX_ITERATIVE_DEPTH);
-    let mut memo = SearchMemo::new(duration, stop_now.clone(), game_history);
+    let hash = Arc::new(RwLock::new(SearchHash::new()));
 
     // First guaranteed search
     let start = Instant::now();
-    let (mut mov, mut score, mut nodes) = pvs(position, 1, MATE_LOWER, MATE_UPPER, &mut memo, 1);
+    let mut memo = SearchMemo::new(hash.clone(), duration, stop_now.clone(), game_history.clone());
+    let (mut mov, mut score, mut nodes) =
+        pvs(position, 1, MATE_LOWER, MATE_UPPER, &mut memo, 1, true);
     print_iterative_info(position, &memo, 1, score, nodes, start.elapsed());
 
     // Time constrained iterative deepening
     for ply in 2..=max_depth {
         let start = Instant::now();
+
+        // Lazy SMP search
+        for _ in 1..num_cpus::get() {
+            let position = position.clone();
+            let hash = hash.clone();
+            let duration = duration;
+            let stop_now = stop_now.clone();
+            let game_history = game_history.clone();
+            thread::spawn(move || {
+                let mut memo = SearchMemo::new(hash, duration, stop_now, game_history);
+                pvs(&position, ply, MATE_LOWER, MATE_UPPER, &mut memo, ply, false);
+            });
+        }
+
+        // Main search
+        let mut memo =
+            SearchMemo::new(hash.clone(), duration, stop_now.clone(), game_history.clone());
         let (new_mov, new_score, new_nodes) =
-            pvs(position, ply, MATE_LOWER, MATE_UPPER, &mut memo, ply);
+            pvs(position, ply, MATE_LOWER, MATE_UPPER, &mut memo, ply, true);
 
         if memo.should_stop_search() {
             break;
@@ -286,14 +333,10 @@ mod tests {
         }
 
         let now = std::time::Instant::now();
-        let (iter_mov, iter_score, iter_nodes) = pvs(
-            &position,
-            depth,
-            MATE_LOWER,
-            MATE_UPPER,
-            &mut SearchMemo::new(None, None, None),
-            depth,
-        );
+        let hash = Arc::new(RwLock::new(SearchHash::new()));
+        let mut memo = SearchMemo::new(hash, None, None, vec![]);
+        let (iter_mov, iter_score, iter_nodes) =
+            pvs(&position, depth, MATE_LOWER, MATE_UPPER, &mut memo, depth, true);
         let elapsed = now.elapsed().as_millis();
         println!("[regular] {}: {} nodes in {} ms at depth {}", fen, iter_nodes, elapsed, depth);
 

@@ -1,3 +1,5 @@
+use rand::Rng;
+
 use super::{Depth, Node, SearchMemo};
 use crate::{
     evaluation::{
@@ -88,12 +90,14 @@ fn pvs_recurse(
     beta: Score,
     memo: &mut SearchMemo,
     original_depth: Depth,
+    deterministic: bool,
     zero_window_search: bool,
 ) -> (Score, usize) {
     let mut count = 0;
 
     if zero_window_search {
-        let (_, score, nodes) = pvs(position, depth - 1, -alpha - 1, -alpha, memo, original_depth);
+        let (_, score, nodes) =
+            pvs(position, depth - 1, -alpha - 1, -alpha, memo, original_depth, deterministic);
         count += nodes;
         let score = -score;
         if score <= alpha || score >= beta {
@@ -101,7 +105,8 @@ fn pvs_recurse(
         }
     }
 
-    let (_, score, nodes) = pvs(position, depth - 1, -beta, -alpha, memo, original_depth);
+    let (_, score, nodes) =
+        pvs(position, depth - 1, -beta, -alpha, memo, original_depth, deterministic);
     count += nodes;
     let score = -score;
     return (score, count);
@@ -114,6 +119,7 @@ pub fn pvs(
     mut beta: Score,
     memo: &mut SearchMemo,
     original_depth: Depth,
+    deterministic: bool,
 ) -> (Option<Move>, Score, usize) {
     // Check if the search should be stopped
     if memo.should_stop_search() {
@@ -172,8 +178,15 @@ pub fn pvs(
         && position.piece_count(Some(Color::Black), None) > 0
     {
         let new_position = position.make_null_move();
-        let (_, score, nodes) =
-            pvs(&new_position, depth - NULL_MOVE_REDUCTION, -beta, -alpha, memo, original_depth);
+        let (_, score, nodes) = pvs(
+            &new_position,
+            depth - NULL_MOVE_REDUCTION,
+            -beta,
+            -alpha,
+            memo,
+            original_depth,
+            true,
+        );
 
         let score = -score;
         if score >= beta {
@@ -183,20 +196,24 @@ pub fn pvs(
 
     // Sort moves by heuristic value + killer move + hash move
     let killer_moves = memo.get_killer_moves(depth);
-    let hash_move = memo.hash_move.get(&zobrist_hash).map(|(mov, _)| mov);
+    let hash_move = memo.get_hash_move(zobrist_hash);
     moves.sort_unstable_by(|a, b| {
-        let a_value = evaluate_move(
+        let mut a_value = evaluate_move(
             a,
             &position,
             SearchMemo::is_killer_move(a, killer_moves),
             SearchMemo::is_hash_move(a, hash_move),
         );
-        let b_value = evaluate_move(
+        let mut b_value = evaluate_move(
             b,
             &position,
             SearchMemo::is_killer_move(b, killer_moves),
             SearchMemo::is_hash_move(b, hash_move),
         );
+        if !deterministic {
+            a_value += rand::thread_rng().gen::<Score>() % 200;
+            b_value += rand::thread_rng().gen::<Score>() % 200;
+        }
         b_value.cmp(&a_value)
     });
 
@@ -215,6 +232,7 @@ pub fn pvs(
             beta,
             memo,
             original_depth,
+            deterministic,
             count > 0,
         );
         memo.leave_position();
