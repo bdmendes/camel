@@ -1,5 +1,7 @@
 mod pvs;
 
+use smallvec::SmallVec;
+
 use crate::{
     evaluation::{Score, MATE_LOWER, MATE_UPPER},
     position::{moves::Move, zobrist::ZobristHash, Position},
@@ -270,16 +272,18 @@ pub fn search_iterative_deep(
         let start = Instant::now();
 
         // Lazy SMP search
+        let mut threads = SmallVec::<[_; 8]>::new();
         for _ in 1..num_cpus::get() {
             let position = position.clone();
             let hash = hash.clone();
             let duration = duration;
             let stop_now = stop_now.clone();
             let game_history = game_history.clone();
-            thread::spawn(move || {
+            let thread = thread::spawn(move || {
                 let mut memo = SearchMemo::new(hash, duration, stop_now, game_history);
                 pvs(&position, ply, MATE_LOWER, MATE_UPPER, &mut memo, ply, false);
             });
+            threads.push(thread);
         }
 
         // Main search
@@ -288,8 +292,18 @@ pub fn search_iterative_deep(
         let (new_mov, new_score, new_nodes) =
             pvs(position, ply, MATE_LOWER, MATE_UPPER, &mut memo, ply, true);
 
-        if memo.should_stop_search() {
+        // Kill secondary threads and exit if we should stop searching
+        let should_stop_search = memo.should_stop_search();
+        if stop_now.is_some() {
+            stop_now.as_ref().unwrap().store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        for thread in threads {
+            thread.join().unwrap();
+        }
+        if should_stop_search {
             break;
+        } else {
+            stop_now.as_ref().unwrap().store(false, std::sync::atomic::Ordering::Relaxed);
         }
 
         print_iterative_info(position, &memo, ply, score, nodes, start.elapsed());
