@@ -16,8 +16,8 @@ pub fn piece_value(piece: Piece) -> Score {
     match piece {
         Piece::WP | Piece::BP => 100,
         Piece::WN | Piece::BN => 310,
-        Piece::WB | Piece::BB => 330,
-        Piece::WR | Piece::BR => 480,
+        Piece::WB | Piece::BB => 320,
+        Piece::WR | Piece::BR => 500,
         Piece::WQ | Piece::BQ => 900,
         _ => 0,
     }
