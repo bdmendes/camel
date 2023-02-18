@@ -10,12 +10,12 @@ use std::{
     time::{Duration, Instant},
 };
 
-use self::pvs::pvs;
+pub use self::pvs::pvs;
 
 pub type Depth = u8;
 
 const MAX_TABLE_SIZE: usize = 64_000_000;
-const MAX_MATE_SCORE_DIFF: Score = 300;
+pub const MAX_MATE_SCORE_DIFF: Score = 300;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Node {
@@ -42,7 +42,7 @@ pub struct SearchMemo {
 }
 
 impl SearchMemo {
-    fn new(
+    pub fn new(
         duration: Option<std::time::Duration>,
         stop_now: Option<Arc<AtomicBool>>,
         game_history: Option<Vec<ZobristHash>>,
@@ -196,7 +196,7 @@ fn print_iterative_info(
     print!(
         "info depth {} score {} time {} nodes {} nps {}",
         depth,
-        if distance_to_mate < MAX_MATE_SCORE_DIFF {
+        if distance_to_mate < (depth + 1) as Score {
             format!(
                 "mate {}{}",
                 if score < 0 && distance_to_mate > 0 { "-" } else { "" },
@@ -259,104 +259,4 @@ pub fn search_iterative_deep(
         if mov.is_some() { mov.unwrap().to_string() } else { "(none)".to_string() }
     );
     return (mov, score, nodes);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn test_search(
-        fen: &str,
-        depth: Depth,
-        expected_move: &str,
-        expected_lower_score: Option<Score>,
-        expected_upper_score: Option<Score>,
-        test_regular: bool,
-    ) {
-        let position = Position::from_fen(fen).unwrap();
-
-        let now = std::time::Instant::now();
-        let (reg_mov, reg_score, reg_nodes) =
-            search_iterative_deep(&position, Some(depth), None, None, None);
-        let elapsed = now.elapsed().as_millis();
-        println!("[iterative] {}: {} nodes in {} ms at depth {}\n", fen, reg_nodes, elapsed, depth);
-
-        if !test_regular {
-            return;
-        }
-
-        let now = std::time::Instant::now();
-        let (iter_mov, iter_score, iter_nodes) = pvs(
-            &position,
-            depth,
-            MATE_LOWER,
-            MATE_UPPER,
-            &mut SearchMemo::new(None, None, None),
-            depth,
-        );
-        let elapsed = now.elapsed().as_millis();
-        println!("[regular] {}: {} nodes in {} ms at depth {}", fen, iter_nodes, elapsed, depth);
-
-        assert_eq!(reg_mov.unwrap().to_string(), expected_move);
-        if let Some(expected_lower_score) = expected_lower_score {
-            assert!(reg_score >= expected_lower_score - MAX_MATE_SCORE_DIFF);
-        }
-        if let Some(expected_upper_score) = expected_upper_score {
-            assert!(reg_score <= expected_upper_score + MAX_MATE_SCORE_DIFF);
-        }
-
-        assert_eq!(iter_mov.unwrap().to_string(), expected_move);
-        if let Some(expected_lower_score) = expected_lower_score {
-            assert!(iter_score >= expected_lower_score - MAX_MATE_SCORE_DIFF);
-        }
-        if let Some(expected_upper_score) = expected_upper_score {
-            assert!(iter_score <= expected_upper_score + MAX_MATE_SCORE_DIFF);
-        }
-    }
-
-    #[test]
-    fn search_mate_in_1() {
-        test_search("3k4/6R1/8/7R/8/8/8/4k3 w - - 0 1", 5, "h5h8", Some(MATE_UPPER), None, false);
-    }
-
-    #[test]
-    fn search_forced_capture() {
-        test_search(
-            "r2N2k1/p1R3pp/8/1pP5/1b2p1bP/4P3/4BPP1/3K3R b - - 0 24",
-            4,
-            "a8d8",
-            None,
-            None,
-            false,
-        );
-    }
-
-    #[test]
-    fn search_trapped_knight() {
-        test_search(
-            "r2B1rk1/pp1n1pp1/2p1p1p1/8/3P4/5N1P/PPP3P1/R2nR1K1 w - - 0 15",
-            4,
-            "d8e7",
-            None,
-            None,
-            false,
-        );
-    }
-
-    #[test]
-    fn search_check_combination() {
-        test_search(
-            "4r2k/1p4p1/3P3p/P1P5/4b3/1Bq5/6PP/3QR1K1 b - - 11 41",
-            4,
-            "c3c5",
-            None,
-            None,
-            false,
-        );
-    }
-
-    #[test]
-    fn search_endgame_opposition() {
-        test_search("5k2/8/6K1/5P2/8/8/8/8 w - - 0 20", 10, "g6f6", None, None, true);
-    }
 }

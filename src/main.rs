@@ -1,7 +1,4 @@
-pub mod evaluation;
-pub mod position;
-pub mod search;
-pub mod uci;
+use camel::uci;
 
 fn uci_loop() {
     let mut state = uci::EngineState::new();
