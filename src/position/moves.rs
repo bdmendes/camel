@@ -1,6 +1,7 @@
 use super::{
     piece::{Color, Piece, DOWN, UP},
-    CastlingRights, Position, Square, BOARD_SIZE, ROW_SIZE,
+    square::ROW_SIZE,
+    CastlingRights, Position, Square, BOARD_SIZE,
 };
 use bitflags::bitflags;
 use smallvec::SmallVec;

@@ -1,7 +1,8 @@
 use crate::position::{
     moves::{pseudo_legal_moves_from_square, Move},
+    square::{Square, BOARD_SIZE},
     zobrist::ZobristHash,
-    CastlingRights, Color, Piece, Position, Square, BOARD_SIZE,
+    CastlingRights, Color, Piece, Position,
 };
 
 use super::{

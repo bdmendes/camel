@@ -1,9 +1,13 @@
+pub mod board;
 pub mod fen;
 pub mod moves;
 pub mod piece;
+pub mod square;
 pub mod zobrist;
 
+use self::board::Board;
 pub use self::piece::{Color, Piece};
+use self::square::{Square, BOARD_SIZE};
 use self::zobrist::ZobristHash;
 use self::{
     fen::{position_from_fen, position_to_fen, START_FEN},
@@ -12,61 +16,12 @@ use self::{
 use bitflags::bitflags;
 use std::fmt;
 
-pub const ROW_SIZE: usize = 8;
-pub const BOARD_SIZE: usize = ROW_SIZE * ROW_SIZE;
-
-#[derive(Copy, Clone, PartialEq, Debug, Eq, Hash)]
-pub struct Square(pub u8);
-
-impl From<usize> for Square {
-    fn from(index: usize) -> Self {
-        Square(index as u8)
-    }
-}
-
-impl From<Square> for usize {
-    fn from(square: Square) -> Self {
-        square.0 as usize
-    }
-}
-
 bitflags! {
     pub struct CastlingRights: u8 {
         const WHITE_KINGSIDE = 0b0001;
         const WHITE_QUEENSIDE = 0b0010;
         const BLACK_KINGSIDE = 0b0100;
         const BLACK_QUEENSIDE = 0b1000;
-    }
-}
-
-#[derive(Copy, Clone, PartialEq, Debug, Eq, Hash)]
-pub struct Board([Option<Piece>; 64]);
-
-impl std::ops::Index<Square> for Board {
-    type Output = Option<Piece>;
-
-    fn index(&self, index: Square) -> &Self::Output {
-        &self.0[index.0 as usize]
-    }
-}
-
-impl std::ops::IndexMut<Square> for Board {
-    fn index_mut(&mut self, index: Square) -> &mut Self::Output {
-        &mut self.0[index.0 as usize]
-    }
-}
-
-impl std::ops::Index<usize> for Board {
-    type Output = Option<Piece>;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
-
-impl std::ops::IndexMut<usize> for Board {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
     }
 }
 
@@ -78,34 +33,6 @@ pub struct Position {
     pub en_passant_square: Option<Square>,
     pub half_move_number: u8,
     pub full_move_number: u16,
-}
-
-impl Square {
-    pub fn to_algebraic(&self) -> String {
-        let mut algebraic = String::new();
-        algebraic.push(('a' as u8 + self.0 % ROW_SIZE as u8) as char);
-        algebraic.push(('1' as u8 + self.0 / ROW_SIZE as u8) as char);
-        algebraic
-    }
-
-    pub fn from_algebraic(algebraic: &str) -> Square {
-        let mut chars = algebraic.chars();
-        let col = chars.next().unwrap_or('a') as u8 - ('a' as u8);
-        let row = chars.next().unwrap_or('1') as u8 - ('1' as u8);
-        Square(row * ROW_SIZE as u8 + col)
-    }
-
-    pub fn from_row_col(row: usize, col: usize) -> Square {
-        (row * ROW_SIZE + col).into()
-    }
-
-    pub fn row(&self) -> usize {
-        (self.0 / ROW_SIZE as u8) as usize
-    }
-
-    pub fn col(&self) -> usize {
-        (self.0 % ROW_SIZE as u8) as usize
-    }
 }
 
 impl Position {

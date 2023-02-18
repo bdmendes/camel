@@ -1,5 +1,5 @@
 use super::Score;
-use crate::position::{Color, Piece, Square};
+use crate::position::{square::Square, Color, Piece};
 
 type PieceSquareTable = [Score; 64];
 
