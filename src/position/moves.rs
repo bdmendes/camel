@@ -253,6 +253,18 @@ pub fn pseudo_legal_moves(position: &Position, to_move: Color, only_tactical: bo
 
 pub fn legal_moves(position: &Position, only_non_quiet: bool) -> Vec<Move> {
     let mut moves = pseudo_legal_moves(position, position.to_move, only_non_quiet);
+    let king_index = position.board.0.iter().position(|piece| {
+        piece
+            == &Some(match position.to_move {
+                Color::White => Piece::WK,
+                Color::Black => Piece::BK,
+            })
+    });
+    let king_square = match king_index {
+        Some(index) => Square(index as u8),
+        None => return moves,
+    };
+    let is_check = position_is_check(position, position.to_move, None);
 
     moves.retain(|move_| {
         let castle_passent_squares = if move_.flags.contains(MoveFlags::CASTLE) {
@@ -261,9 +273,17 @@ pub fn legal_moves(position: &Position, only_non_quiet: bool) -> Vec<Move> {
             None
         };
 
-        // Do not allow moves that leave the player in check
         let new_position = make_move(position, move_);
-        !position_is_check(&new_position, position.to_move, castle_passent_squares)
+
+        let is_king_move = matches!(position.board[move_.from], Some(Piece::WK) | Some(Piece::BK));
+        let was_blocking_king = !is_king_move
+            && (move_.from.row() == king_square.row()
+                || move_.from.col() == king_square.col()
+                || move_.from.same_diagonal(king_square));
+        if is_king_move || was_blocking_king || is_check {
+            return !position_is_check(&new_position, position.to_move, castle_passent_squares);
+        }
+        true
     });
 
     moves
@@ -489,7 +509,7 @@ mod tests {
 
     /* Taken from https://gist.github.com/peterellisjones/8c46c28141c162d1d8a0f0badbc9cff9 */
     #[test]
-    fn perft_gh_1() {
+    fn perft_gh_01() {
         perft("r6r/1b2k1bq/8/8/7B/8/8/R3K2R b KQ - 3 2", 1, 8);
     }
 

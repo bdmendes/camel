@@ -42,4 +42,10 @@ impl Square {
     pub fn col(&self) -> usize {
         (self.0 % ROW_SIZE as u8) as usize
     }
+
+    pub fn same_diagonal(&self, other: Square) -> bool {
+        let row_diff = (self.row() as isize - other.row() as isize).abs();
+        let col_diff = (self.col() as isize - other.col() as isize).abs();
+        row_diff == col_diff
+    }
 }
