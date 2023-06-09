@@ -1,16 +1,17 @@
 use bitflags::bitflags;
 use num_enum::TryFromPrimitive;
 
-use self::board::Board;
+use self::{board::Board, fen::position_from_fen};
 
 mod board;
+mod fen;
 
 #[rustfmt::skip]
 #[repr(u8)]
-#[derive(TryFromPrimitive)]
+#[derive(TryFromPrimitive, Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Square {
-    A1, B1, C1, D1, E1, F1, G1, H1,
-    A2, B2, C2, D2, E2, F2, G2, H2,
+    A1 = 0, B1 = 1, C1, D1, E1, F1, G1, H1,
+    A2 = 8, B2, C2, D2, E2, F2, G2, H2,
     A3, B3, C3, D3, E3, F3, G3, H3,
     A4, B4, C4, D4, E4, F4, G4, H4,
     A5, B5, C5, D5, E5, F5, G5, H5,
@@ -47,13 +48,35 @@ impl std::str::FromStr for Square {
     }
 }
 
+impl ToString for Square {
+    fn to_string(&self) -> String {
+        let file = match (*self as u8) % 8 {
+            0 => 'a',
+            1 => 'b',
+            2 => 'c',
+            3 => 'd',
+            4 => 'e',
+            5 => 'f',
+            6 => 'g',
+            7 => 'h',
+            _ => unreachable!(),
+        };
+
+        let rank = (*self as u8) / 8 + 1;
+
+        format!("{}{}", file, rank)
+    }
+}
+
+#[derive(TryFromPrimitive, Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[repr(u8)]
 pub enum Color {
-    White,
-    Black,
+    White = 0,
+    Black = 1,
 }
 
 bitflags! {
-    struct CastlingRights: u8 {
+    pub struct CastlingRights: u8 {
         const WHITE_KINGSIDE = 0b0001;
         const WHITE_QUEENSIDE = 0b0010;
         const BLACK_KINGSIDE = 0b0100;
@@ -61,11 +84,17 @@ bitflags! {
     }
 }
 
-struct Position {
+pub struct Position {
     board: Board,
     side_to_move: Color,
     en_passant_square: Option<Square>,
     castling_rights: CastlingRights,
-    fullmove_number: u16,
     halfmove_clock: u8,
+    fullmove_number: u16,
+}
+
+impl Position {
+    pub fn from_fen(fen: &str) -> Result<Position, ()> {
+        position_from_fen(fen)
+    }
 }
