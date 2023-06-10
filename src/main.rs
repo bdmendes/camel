@@ -1,3 +1,4 @@
+mod moves;
 mod position;
 
 fn main() {

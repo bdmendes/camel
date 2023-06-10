@@ -7,12 +7,12 @@ pub type Bitboard = u64;
 #[derive(TryFromPrimitive, Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum Piece {
-    King,
     Queen,
     Rook,
     Bishop,
     Knight,
     Pawn,
+    King,
 }
 
 #[derive(Hash, PartialEq)]
