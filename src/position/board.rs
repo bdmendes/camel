@@ -15,6 +15,7 @@ pub enum Piece {
     Pawn,
 }
 
+#[derive(Hash, PartialEq)]
 pub struct Board {
     pub pieces: [Bitboard; 6],
     pub occupancy: [Bitboard; 2],
@@ -25,10 +26,10 @@ impl Board {
         Board { pieces: [0; 6], occupancy: [0; 2] }
     }
 
-    pub fn set_piece(&mut self, piece: Piece, square: Square, color: Color) {
+    pub fn set_square(&mut self, square: Square, piece: Piece, color: Color) {
+        self.clear_square(square);
         self.pieces[piece as usize] |= 1 << (square as u8);
         self.occupancy[color as usize] |= 1 << (square as u8);
-        self.occupancy[((color as usize) + 1) % 2] &= !(1 << (square as u8));
     }
 
     pub fn clear_square(&mut self, square: Square) {
@@ -43,7 +44,18 @@ impl Board {
     pub fn at(&self, square: Square) -> Option<(Piece, Color)> {
         for (piece, bitboard) in self.pieces.iter().enumerate() {
             if bitboard & (1 << (square as u8)) != 0 {
-                return Some((Piece::try_from(piece as u8).unwrap(), Color::White));
+                let color = if self.occupancy[Color::White as usize] & (1 << (square as u8)) != 0 {
+                    debug_assert!(
+                        self.occupancy[Color::Black as usize] & (1 << (square as u8)) == 0
+                    );
+                    Color::White
+                } else {
+                    debug_assert!(
+                        self.occupancy[Color::Black as usize] & (1 << (square as u8)) != 0
+                    );
+                    Color::Black
+                };
+                return Some((Piece::try_from(piece as u8).unwrap(), color));
             }
         }
         None
@@ -72,6 +84,7 @@ impl std::fmt::Display for Board {
                     Some((Piece::Pawn, Color::Black)) => '♟',
                     None => '-',
                 });
+                board.push(' ');
             }
             board.push('\n');
         }
@@ -87,7 +100,7 @@ mod tests {
     fn set_clear() {
         let mut board = Board::new();
 
-        board.set_piece(Piece::King, Square::E1, Color::White);
+        board.set_square(Square::E1, Piece::King, Color::White);
 
         assert_eq!(board.pieces[Piece::King as usize], 1 << Square::E1 as u8);
         assert_eq!(board.occupancy[Color::White as usize], 1 << Square::E1 as u8);
@@ -105,6 +118,7 @@ mod tests {
         let mut board = Board::new();
 
         board.pieces[Piece::King as usize] = 1 << Square::E1 as u8;
+        board.occupancy[Color::White as usize] = 1 << Square::E1 as u8;
 
         assert_eq!(board.at(Square::E1), Some((Piece::King, Color::White)));
         assert_eq!(board.at(Square::E2), None);
