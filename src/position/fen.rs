@@ -1,7 +1,8 @@
 use std::str::FromStr;
 
 use super::{
-    board::{Bitboard, Board, Piece},
+    bitboard::Bitboard,
+    board::{Board, Piece},
     CastlingRights, Color, Position, Square,
 };
 
@@ -15,8 +16,8 @@ pub fn board_from_fen(board_fen: &str) -> Result<Board, ()> {
     let mut rank = 7;
     let mut file = 0;
 
-    let mut pieces: [Bitboard; 6] = [0; 6];
-    let mut occupancy: [Bitboard; 2] = [0; 2];
+    let mut pieces: [Bitboard; 6] = Default::default();
+    let mut occupancy: [Bitboard; 2] = Default::default();
 
     while let Some(c) = chars.next() {
         match c {
@@ -39,9 +40,9 @@ pub fn board_from_fen(board_fen: &str) -> Result<Board, ()> {
                     'k' => Piece::King,
                     _ => unreachable!(),
                 };
-                let square = rank * 8 + file;
-                pieces[piece as usize] |= 1 << square;
-                occupancy[color as usize] |= 1 << square;
+                let square = Square::try_from(rank * 8 + file).unwrap();
+                pieces[piece as usize].set(square);
+                occupancy[color as usize].set(square);
                 file += 1;
             }
             _ => {}

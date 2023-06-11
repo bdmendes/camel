@@ -1,16 +1,15 @@
-use std::ops::BitOrAssign;
-
 use crate::position::{
-    board::{Bitboard, Board, Piece},
+    bitboard::Bitboard,
+    board::{Board, Piece},
     Color,
 };
 
-use super::{Move, MoveDirection, MoveFlag};
+use super::{AttackMap, Move, MoveDirection, MoveFlag};
 
-const KNIGHT_ATTACKS: [Bitboard; 64] = init_knight_attacks();
+const KNIGHT_ATTACKS: AttackMap = init_knight_attacks();
 
-const fn init_knight_attacks() -> [Bitboard; 64] {
-    let mut attacks = [0; 64];
+const fn init_knight_attacks() -> AttackMap {
+    let mut attacks: AttackMap = [Bitboard::new(0); 64];
 
     let mut square = 0;
     while square < 64 {
@@ -50,7 +49,7 @@ const fn init_knight_attacks() -> [Bitboard; 64] {
             bb |= 1 << (square + MoveDirection::NORTH * 2 + MoveDirection::WEST);
         }
 
-        attacks[square as usize] = bb;
+        attacks[square as usize] = Bitboard::new(bb);
         square += 1
     }
 
@@ -63,17 +62,11 @@ pub fn generate_knight_moves(board: &Board, color: Color, moves: &mut Vec<Move>,
 
     let mut knights = board.pieces_bb(Piece::Knight) & occupancy_us;
 
-    while knights != 0 {
-        let from_square = knights.trailing_zeros() as usize;
-        knights &= knights - 1;
+    while let Some(from_square) = knights.pop_lsb() {
+        let mut attacks = KNIGHT_ATTACKS[from_square as usize] & !occupancy_us;
 
-        let mut attacks = KNIGHT_ATTACKS[from_square] & !occupancy_us;
-
-        while attacks != 0 {
-            let to_square = attacks.trailing_zeros() as usize;
-            attacks &= attacks - 1;
-
-            let flag = if occupancy_them & (1 << to_square) != 0 {
+        while let Some(to_square) = attacks.pop_lsb() {
+            let flag = if occupancy_them.is_set(to_square) {
                 MoveFlag::Capture
             } else {
                 if quiesce {
@@ -82,7 +75,7 @@ pub fn generate_knight_moves(board: &Board, color: Color, moves: &mut Vec<Move>,
                 MoveFlag::Quiet
             };
 
-            moves.push(Move::new_raw(from_square, to_square, flag));
+            moves.push(Move::new(from_square, to_square, flag));
         }
     }
 }

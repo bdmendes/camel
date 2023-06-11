@@ -1,8 +1,10 @@
 use num_enum::TryFromPrimitive;
 
-use crate::position::square::Square;
+use crate::position::{bitboard::Bitboard, square::Square};
 
 pub mod knight;
+
+pub type AttackMap = [Bitboard; 64];
 
 pub struct MoveDirection;
 
@@ -75,14 +77,6 @@ pub struct Move {
 impl Move {
     pub fn new(from: Square, to: Square, flag: MoveFlag) -> Self {
         Move { data: (from as u16) | ((to as u16) << 6) | ((flag as u16) << 12) }
-    }
-
-    pub fn new_raw(from_square: usize, to_square: usize, flag: MoveFlag) -> Self {
-        Move::new(
-            Square::try_from(from_square as u8).unwrap(),
-            Square::try_from(to_square as u8).unwrap(),
-            flag,
-        )
     }
 
     pub fn from(&self) -> Square {

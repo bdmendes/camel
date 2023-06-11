@@ -7,6 +7,7 @@ use self::{
     square::Square,
 };
 
+pub mod bitboard;
 pub mod board;
 pub mod fen;
 pub mod square;

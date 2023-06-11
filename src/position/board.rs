@@ -1,8 +1,6 @@
 use num_enum::TryFromPrimitive;
 
-use super::{fen::board_from_fen, Color, Square};
-
-pub type Bitboard = u64;
+use super::{bitboard::Bitboard, fen::board_from_fen, Color, Square};
 
 #[derive(TryFromPrimitive, Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
@@ -32,31 +30,27 @@ impl Board {
 
     pub fn set_square(&mut self, square: Square, piece: Piece, color: Color) {
         self.clear_square(square);
-        self.pieces[piece as usize] |= 1 << (square as u8);
-        self.occupancy[color as usize] |= 1 << (square as u8);
+        self.pieces[piece as usize].set(square);
+        self.occupancy[color as usize].set(square);
     }
 
     pub fn clear_square(&mut self, square: Square) {
         for piece in &mut self.pieces {
-            *piece &= !(1 << (square as u8));
+            piece.clear(square);
         }
         for occupancy in &mut self.occupancy {
-            *occupancy &= !(1 << (square as u8));
+            occupancy.clear(square);
         }
     }
 
     pub fn piece_at(&self, square: Square) -> Option<(Piece, Color)> {
         for (piece, bitboard) in self.pieces.iter().enumerate() {
-            if bitboard & (1 << (square as u8)) != 0 {
-                let color = if self.occupancy[Color::White as usize] & (1 << (square as u8)) != 0 {
-                    debug_assert!(
-                        self.occupancy[Color::Black as usize] & (1 << (square as u8)) == 0
-                    );
+            if bitboard.is_set(square) {
+                let color = if self.occupancy_bb(Color::White).is_set(square) {
+                    debug_assert!(!self.occupancy_bb(Color::Black).is_set(square));
                     Color::White
                 } else {
-                    debug_assert!(
-                        self.occupancy[Color::Black as usize] & (1 << (square as u8)) != 0
-                    );
+                    debug_assert!(self.occupancy_bb(Color::Black).is_set(square));
                     Color::Black
                 };
                 return Some((Piece::try_from(piece as u8).unwrap(), color));
@@ -66,10 +60,10 @@ impl Board {
     }
 
     pub fn color_at(&self, square: Square) -> Option<Color> {
-        if self.occupancy[Color::White as usize] & (1 << (square as u8)) != 0 {
-            debug_assert!(self.occupancy[Color::Black as usize] & (1 << (square as u8)) == 0);
+        if self.occupancy[Color::White as usize].is_set(square) {
+            debug_assert!(!self.occupancy_bb(Color::Black).is_set(square));
             Some(Color::White)
-        } else if self.occupancy[Color::Black as usize] & (1 << (square as u8)) != 0 {
+        } else if self.occupancy_bb(Color::Black).is_set(square) {
             Some(Color::Black)
         } else {
             None
@@ -129,23 +123,23 @@ mod tests {
 
         board.set_square(Square::E1, Piece::King, Color::White);
 
-        assert_eq!(board.pieces[Piece::King as usize], 1 << Square::E1 as u8);
-        assert_eq!(board.occupancy[Color::White as usize], 1 << Square::E1 as u8);
-        assert_eq!(board.occupancy[Color::Black as usize], 0);
+        assert_eq!(*board.pieces[Piece::King as usize], 1 << Square::E1 as u8);
+        assert_eq!(*board.occupancy[Color::White as usize], 1 << Square::E1 as u8);
+        assert_eq!(*board.occupancy[Color::Black as usize], 0);
 
         board.clear_square(Square::E1);
 
-        assert_eq!(board.pieces[Piece::King as usize], 0);
-        assert_eq!(board.occupancy[Color::White as usize], 0);
-        assert_eq!(board.occupancy[Color::Black as usize], 0);
+        assert_eq!(*board.pieces[Piece::King as usize], 0);
+        assert_eq!(*board.occupancy[Color::White as usize], 0);
+        assert_eq!(*board.occupancy[Color::Black as usize], 0);
     }
 
     #[test]
     fn at() {
         let mut board = Board::default();
 
-        board.pieces[Piece::King as usize] = 1 << Square::E1 as u8;
-        board.occupancy[Color::White as usize] = 1 << Square::E1 as u8;
+        *board.pieces[Piece::King as usize] = 1 << Square::E1 as u8;
+        *board.occupancy[Color::White as usize] = 1 << Square::E1 as u8;
 
         assert_eq!(board.piece_at(Square::E1), Some((Piece::King, Color::White)));
         assert_eq!(board.piece_at(Square::E2), None);
