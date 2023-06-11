@@ -38,12 +38,12 @@ bitflags! {
 }
 
 pub struct Position {
-    board: Board,
-    side_to_move: Color,
-    en_passant_square: Option<Square>,
-    castling_rights: CastlingRights,
-    halfmove_clock: u8,
-    fullmove_number: u16,
+    pub board: Board,
+    pub side_to_move: Color,
+    pub en_passant_square: Option<Square>,
+    pub castling_rights: CastlingRights,
+    pub halfmove_clock: u8,
+    pub fullmove_number: u16,
 }
 
 impl Position {

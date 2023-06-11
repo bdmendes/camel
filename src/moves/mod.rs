@@ -2,6 +2,17 @@ use num_enum::TryFromPrimitive;
 
 use crate::position::square::Square;
 
+pub mod knight;
+
+pub struct MoveDirection;
+
+impl MoveDirection {
+    pub const NORTH: i8 = 8;
+    pub const SOUTH: i8 = -8;
+    pub const EAST: i8 = 1;
+    pub const WEST: i8 = -1;
+}
+
 #[derive(TryFromPrimitive, Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum MoveFlag {
@@ -56,6 +67,7 @@ impl MoveFlag {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Move {
     data: u16,
 }
@@ -63,6 +75,14 @@ pub struct Move {
 impl Move {
     pub fn new(from: Square, to: Square, flag: MoveFlag) -> Self {
         Move { data: (from as u16) | ((to as u16) << 6) | ((flag as u16) << 12) }
+    }
+
+    pub fn new_raw(from_square: usize, to_square: usize, flag: MoveFlag) -> Self {
+        Move::new(
+            Square::try_from(from_square as u8).unwrap(),
+            Square::try_from(to_square as u8).unwrap(),
+            flag,
+        )
     }
 
     pub fn from(&self) -> Square {

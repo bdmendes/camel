@@ -1,6 +1,6 @@
 use num_enum::TryFromPrimitive;
 
-use super::{Color, Square};
+use super::{fen::board_from_fen, Color, Square};
 
 pub type Bitboard = u64;
 
@@ -24,6 +24,10 @@ pub struct Board {
 impl Board {
     pub fn new(pieces: [Bitboard; 6], occupancy: [Bitboard; 2]) -> Self {
         Board { pieces, occupancy }
+    }
+
+    pub fn from_fen(board_fen: &str) -> Result<Board, ()> {
+        board_from_fen(board_fen)
     }
 
     pub fn set_square(&mut self, square: Square, piece: Piece, color: Color) {

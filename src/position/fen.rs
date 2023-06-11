@@ -9,7 +9,7 @@ pub const START_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq 
 pub const KIWIPETE_FEN: &str =
     "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
 
-fn board_from_fen(board_fen: &str) -> Result<Board, ()> {
+pub fn board_from_fen(board_fen: &str) -> Result<Board, ()> {
     let mut chars = board_fen.chars();
 
     let mut rank = 7;
@@ -20,6 +20,7 @@ fn board_from_fen(board_fen: &str) -> Result<Board, ()> {
 
     while let Some(c) = chars.next() {
         match c {
+            ' ' => break,
             '1'..='8' => {
                 file += (c as u8) - ('0' as u8);
             }
