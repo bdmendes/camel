@@ -48,7 +48,7 @@ fn board_from_fen(board_fen: &str) -> Result<Board, ()> {
     }
 
     if rank == 0 && file == 8 {
-        Ok(Board { pieces, occupancy })
+        Ok(Board::new(pieces, occupancy))
     } else {
         Err(())
     }
@@ -116,7 +116,7 @@ fn board_to_fen(board: &Board) -> String {
 
             let square = rank * 8 + file;
 
-            let piece = match board.at(Square::try_from(square).unwrap()) {
+            let piece = match board.piece_at(Square::try_from(square).unwrap()) {
                 Some((Piece::Pawn, Color::White)) => 'P',
                 Some((Piece::Pawn, Color::Black)) => 'p',
                 Some((Piece::Knight, Color::White)) => 'N',
@@ -288,7 +288,7 @@ mod tests {
 
         for (i, piece) in pieces_map.iter().enumerate() {
             let square = Square::try_from(i as u8).unwrap();
-            assert_eq!(position.board.at(square), *piece);
+            assert_eq!(position.board.piece_at(square), *piece);
         }
     }
 

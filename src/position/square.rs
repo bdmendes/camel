@@ -42,8 +42,8 @@ impl std::str::FromStr for Square {
     }
 }
 
-impl ToString for Square {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for Square {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let file = match (*self as u8) % 8 {
             0 => 'a',
             1 => 'b',
@@ -58,6 +58,40 @@ impl ToString for Square {
 
         let rank = (*self as u8) / 8 + 1;
 
-        format!("{}{}", file, rank)
+        write!(f, "{}{}", file, rank)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn fails_when_string_is_invalid() {
+        assert!(Square::from_str("").is_err());
+        assert!(Square::from_str("a").is_err());
+        assert!(Square::from_str("a9").is_err());
+        assert!(Square::from_str("i1").is_err());
+    }
+
+    #[test]
+    fn parses_string() {
+        assert_eq!(Square::from_str("a1"), Ok(Square::A1));
+        assert_eq!(Square::from_str("a8"), Ok(Square::A8));
+        assert_eq!(Square::from_str("h1"), Ok(Square::H1));
+        assert_eq!(Square::from_str("h8"), Ok(Square::H8));
+        assert_eq!(Square::from_str("e4"), Ok(Square::E4));
+        assert_eq!(Square::from_str("d5"), Ok(Square::D5));
+    }
+
+    #[test]
+    fn write_reflexive() {
+        assert_eq!(Square::A1.to_string(), "a1");
+        assert_eq!(Square::A8.to_string(), "a8");
+        assert_eq!(Square::H1.to_string(), "h1");
+        assert_eq!(Square::H8.to_string(), "h8");
+        assert_eq!(Square::E4.to_string(), "e4");
+        assert_eq!(Square::D5.to_string(), "d5");
     }
 }

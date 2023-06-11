@@ -15,15 +15,15 @@ pub enum Piece {
     King,
 }
 
-#[derive(Hash, PartialEq)]
+#[derive(Default, Hash, PartialEq)]
 pub struct Board {
-    pub pieces: [Bitboard; 6],
-    pub occupancy: [Bitboard; 2],
+    pieces: [Bitboard; 6],
+    occupancy: [Bitboard; 2],
 }
 
 impl Board {
-    pub fn new() -> Self {
-        Board { pieces: [0; 6], occupancy: [0; 2] }
+    pub fn new(pieces: [Bitboard; 6], occupancy: [Bitboard; 2]) -> Self {
+        Board { pieces, occupancy }
     }
 
     pub fn set_square(&mut self, square: Square, piece: Piece, color: Color) {
@@ -41,7 +41,7 @@ impl Board {
         }
     }
 
-    pub fn at(&self, square: Square) -> Option<(Piece, Color)> {
+    pub fn piece_at(&self, square: Square) -> Option<(Piece, Color)> {
         for (piece, bitboard) in self.pieces.iter().enumerate() {
             if bitboard & (1 << (square as u8)) != 0 {
                 let color = if self.occupancy[Color::White as usize] & (1 << (square as u8)) != 0 {
@@ -60,6 +60,29 @@ impl Board {
         }
         None
     }
+
+    pub fn color_at(&self, square: Square) -> Option<Color> {
+        if self.occupancy[Color::White as usize] & (1 << (square as u8)) != 0 {
+            debug_assert!(self.occupancy[Color::Black as usize] & (1 << (square as u8)) == 0);
+            Some(Color::White)
+        } else if self.occupancy[Color::Black as usize] & (1 << (square as u8)) != 0 {
+            Some(Color::Black)
+        } else {
+            None
+        }
+    }
+
+    pub fn occupancy_bb_all(&self) -> Bitboard {
+        self.occupancy[0] | self.occupancy[1]
+    }
+
+    pub fn occupancy_bb(&self, color: Color) -> Bitboard {
+        self.occupancy[color as usize]
+    }
+
+    pub fn pieces_bb(&self, piece: Piece) -> Bitboard {
+        self.pieces[piece as usize]
+    }
 }
 
 impl std::fmt::Display for Board {
@@ -68,7 +91,7 @@ impl std::fmt::Display for Board {
         for rank in (0..8).rev() {
             for file in 0..8 {
                 let square = Square::try_from(rank * 8 + file).unwrap();
-                let piece = self.at(square);
+                let piece = self.piece_at(square);
                 board.push(match piece {
                     Some((Piece::King, Color::White)) => '♔',
                     Some((Piece::Queen, Color::White)) => '♕',
@@ -98,7 +121,7 @@ mod tests {
 
     #[test]
     fn set_clear() {
-        let mut board = Board::new();
+        let mut board = Board::default();
 
         board.set_square(Square::E1, Piece::King, Color::White);
 
@@ -115,12 +138,15 @@ mod tests {
 
     #[test]
     fn at() {
-        let mut board = Board::new();
+        let mut board = Board::default();
 
         board.pieces[Piece::King as usize] = 1 << Square::E1 as u8;
         board.occupancy[Color::White as usize] = 1 << Square::E1 as u8;
 
-        assert_eq!(board.at(Square::E1), Some((Piece::King, Color::White)));
-        assert_eq!(board.at(Square::E2), None);
+        assert_eq!(board.piece_at(Square::E1), Some((Piece::King, Color::White)));
+        assert_eq!(board.piece_at(Square::E2), None);
+
+        assert_eq!(board.color_at(Square::E1), Some(Color::White));
+        assert_eq!(board.color_at(Square::E2), None);
     }
 }

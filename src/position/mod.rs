@@ -18,6 +18,15 @@ pub enum Color {
     Black = 1,
 }
 
+impl Color {
+    pub fn opposite(&self) -> Self {
+        match self {
+            Color::White => Color::Black,
+            Color::Black => Color::White,
+        }
+    }
+}
+
 bitflags! {
     #[derive(Hash, PartialEq, Debug)]
     pub struct CastlingRights: u8 {
