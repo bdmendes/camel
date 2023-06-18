@@ -1,28 +1,23 @@
 use num_enum::TryFromPrimitive;
 
-use crate::position::{bitboard::Bitboard, square::Square};
+use crate::position::square::Square;
 
-pub mod knight;
-
-pub type AttackMap = [Bitboard; 64];
-
-pub struct MoveDirection;
-
-impl MoveDirection {
-    pub const NORTH: i8 = 8;
-    pub const SOUTH: i8 = -8;
-    pub const EAST: i8 = 1;
-    pub const WEST: i8 = -1;
-}
+pub mod attacks;
+pub mod gen;
 
 #[derive(TryFromPrimitive, Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum MoveFlag {
+    // Regular
     Quiet = 0b0000,
-    DoublePawnPush = 0b0001,
+    Capture = 0b0001,
+
+    // King specials
     KingCastle = 0b0010,
     QueenCastle = 0b0011,
-    Capture = 0b0100,
+
+    // Pawn specials
+    DoublePawnPush = 0b0100,
     EnPassantCapture = 0b0101,
     KnightPromotion = 0b0110,
     BishopPromotion = 0b0111,

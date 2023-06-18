@@ -31,4 +31,8 @@ impl Bitboard {
     pub fn is_set(&self, square: Square) -> bool {
         self.0 & (1 << (square as u8)) != 0
     }
+
+    pub const fn raw(&self) -> u64 {
+        self.0
+    }
 }

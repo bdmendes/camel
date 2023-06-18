@@ -1,0 +1,83 @@
+use crate::position::{
+    bitboard::Bitboard,
+    board::{Board, Piece},
+    square::Square,
+    Color, Position,
+};
+
+use super::{
+    attacks::{king::generate_king_castles, knight::KNIGHT_ATTACKS, pawn::generate_pawn_moves},
+    Move, MoveFlag,
+};
+
+pub type AttackMap = [Bitboard; 64];
+
+pub struct MoveDirection;
+
+impl MoveDirection {
+    pub const NORTH: i8 = 8;
+    pub const SOUTH: i8 = -8;
+    pub const EAST: i8 = 1;
+    pub const WEST: i8 = -1;
+}
+
+pub fn piece_attacks(piece: Piece, square: Square) -> Bitboard {
+    match piece {
+        Piece::Knight => KNIGHT_ATTACKS[square as usize],
+        _ => todo!(),
+    }
+}
+
+pub fn generate_regular_moves<const QUIESCE: bool>(
+    board: &Board,
+    piece: Piece,
+    color: Color,
+    moves: &mut Vec<Move>,
+) {
+    let occupancy_us = board.occupancy_bb(color);
+    let occupancy_them = board.occupancy_bb(color.opposite());
+
+    let mut knights = board.pieces_bb(piece) & occupancy_us;
+
+    while let Some(from_square) = knights.pop_lsb() {
+        let mut attacks = piece_attacks(piece, from_square) & !occupancy_us;
+
+        while let Some(to_square) = attacks.pop_lsb() {
+            let flag = if occupancy_them.is_set(to_square) {
+                MoveFlag::Capture
+            } else {
+                if QUIESCE {
+                    continue;
+                }
+                MoveFlag::Quiet
+            };
+
+            moves.push(Move::new(from_square, to_square, flag));
+        }
+    }
+}
+
+pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Position) -> Vec<Move> {
+    let mut moves = Vec::new();
+
+    for piece in [Piece::Knight, Piece::Bishop, Piece::King, Piece::Queen, Piece::Rook].iter() {
+        generate_regular_moves::<QUIESCE>(
+            &position.board,
+            *piece,
+            position.side_to_move,
+            moves.as_mut(),
+        );
+    }
+
+    generate_pawn_moves::<QUIESCE>(&position.board, moves.as_mut());
+
+    if QUIESCE {
+        generate_king_castles(position, moves.as_mut());
+    }
+
+    if !PSEUDO {
+        moves.retain(|m| true); // TODO: check if move is legal
+    }
+
+    moves
+}

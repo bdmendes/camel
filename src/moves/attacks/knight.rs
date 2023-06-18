@@ -1,12 +1,9 @@
-use crate::position::{
-    bitboard::Bitboard,
-    board::{Board, Piece},
-    Color,
+use crate::{
+    moves::gen::{AttackMap, MoveDirection},
+    position::bitboard::Bitboard,
 };
 
-use super::{AttackMap, Move, MoveDirection, MoveFlag};
-
-const KNIGHT_ATTACKS: AttackMap = init_knight_attacks();
+pub const KNIGHT_ATTACKS: AttackMap = init_knight_attacks();
 
 const fn init_knight_attacks() -> AttackMap {
     let mut attacks: AttackMap = [Bitboard::new(0); 64];
@@ -56,35 +53,25 @@ const fn init_knight_attacks() -> AttackMap {
     attacks
 }
 
-pub fn generate_knight_moves(board: &Board, color: Color, moves: &mut Vec<Move>, quiesce: bool) {
-    let occupancy_us = board.occupancy_bb(color);
-    let occupancy_them = board.occupancy_bb(color.opposite());
-
-    let mut knights = board.pieces_bb(Piece::Knight) & occupancy_us;
-
-    while let Some(from_square) = knights.pop_lsb() {
-        let mut attacks = KNIGHT_ATTACKS[from_square as usize] & !occupancy_us;
-
-        while let Some(to_square) = attacks.pop_lsb() {
-            let flag = if occupancy_them.is_set(to_square) {
-                MoveFlag::Capture
-            } else {
-                if quiesce {
-                    continue;
-                }
-                MoveFlag::Quiet
-            };
-
-            moves.push(Move::new(from_square, to_square, flag));
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::position::{fen::KIWIPETE_FEN, square::Square};
+    use crate::{
+        moves::{gen::generate_regular_moves, Move, MoveFlag},
+        position::{
+            board::{Board, Piece},
+            fen::KIWIPETE_FEN,
+            square::Square,
+            Color,
+        },
+    };
 
-    use super::*;
+    fn generate_knight_moves<const QUIESCE: bool>(
+        board: &Board,
+        color: Color,
+        moves: &mut Vec<Move>,
+    ) {
+        generate_regular_moves::<QUIESCE>(board, Piece::Knight, color, moves);
+    }
 
     #[test]
     fn center_clean() {
@@ -94,7 +81,7 @@ mod tests {
         board.set_square(Square::E4, Piece::Knight, us_color);
 
         let mut moves = Vec::new();
-        generate_knight_moves(&board, us_color, &mut moves, false);
+        generate_knight_moves::<false>(&board, us_color, &mut moves);
 
         assert_eq!(moves.len(), 8);
 
@@ -122,7 +109,7 @@ mod tests {
         board.set_square(Square::A8, Piece::Knight, us_color);
 
         let mut moves = Vec::new();
-        generate_knight_moves(&board, us_color, &mut moves, false);
+        generate_knight_moves::<false>(&board, us_color, &mut moves);
 
         let expected_moves = vec![
             Move::new(Square::A8, Square::B6, MoveFlag::Quiet),
@@ -142,7 +129,7 @@ mod tests {
         let us_color = Color::White;
 
         let mut moves = Vec::new();
-        generate_knight_moves(&board, us_color, &mut moves, false);
+        generate_knight_moves::<false>(&board, us_color, &mut moves);
 
         let expected_moves = [
             Move::new(Square::E5, Square::G4, MoveFlag::Quiet),
@@ -171,7 +158,7 @@ mod tests {
         let us_color = Color::White;
 
         let mut moves = Vec::new();
-        generate_knight_moves(&board, us_color, &mut moves, true);
+        generate_knight_moves::<true>(&board, us_color, &mut moves);
 
         let expected_moves = [
             Move::new(Square::E5, Square::G6, MoveFlag::Capture),
