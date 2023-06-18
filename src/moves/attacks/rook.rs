@@ -3,11 +3,7 @@ use crate::{
     position::{bitboard::Bitboard, square::Square},
 };
 
-type RookAttackMap = [Bitboard; 4096 * 64];
-
-const ROOK_BLOCKERS_MASK: AttackMap = init_rook_blockers_mask();
-
-const fn rook_attacks_from_square<const REMOVE_CORNERS: bool>(
+pub const fn rook_attacks_from_square<const REMOVE_CORNERS: bool>(
     square: i32,
     occupancy: Option<Bitboard>,
 ) -> Bitboard {
@@ -63,7 +59,7 @@ const fn rook_attacks_from_square<const REMOVE_CORNERS: bool>(
     Bitboard::new(bb)
 }
 
-const fn init_rook_blockers_mask() -> AttackMap {
+pub const fn init_rook_blockers_mask() -> AttackMap {
     let mut blockers_mask: AttackMap = [Bitboard::new(0); 64];
 
     let mut square = 0;
@@ -153,6 +149,7 @@ mod tests {
     #[test]
     fn rook_on_center_mask() {
         let square = Square::E4;
+        let blockers_mask = init_rook_blockers_mask();
 
         let expected_squares = [
             Square::E5,
@@ -167,7 +164,7 @@ mod tests {
             Square::G4,
         ];
 
-        let mut rook_atacks = ROOK_BLOCKERS_MASK[square as usize];
+        let mut rook_atacks = blockers_mask[square as usize];
         let mut found_count = 0;
         while let Some(square) = rook_atacks.pop_lsb() {
             println!("{}", square);
