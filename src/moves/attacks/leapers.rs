@@ -1,12 +1,31 @@
-use crate::{
-    moves::gen::{AttackMap, MoveDirection},
-    position::bitboard::Bitboard,
-};
+use crate::{moves::gen::MoveDirection, position::bitboard::Bitboard};
 
-pub const KNIGHT_ATTACKS: AttackMap = init_knight_attacks();
+pub type LeaperAttackMap = [Bitboard; 64];
 
-const fn init_knight_attacks() -> AttackMap {
-    let mut attacks: AttackMap = [Bitboard::new(0); 64];
+pub static KNIGHT_ATTACKS: LeaperAttackMap = init_leaper_attacks(&[
+    MoveDirection::NORTH + 2 * MoveDirection::WEST,
+    MoveDirection::NORTH + 2 * MoveDirection::EAST,
+    MoveDirection::SOUTH + 2 * MoveDirection::WEST,
+    MoveDirection::SOUTH + 2 * MoveDirection::EAST,
+    2 * MoveDirection::NORTH + MoveDirection::WEST,
+    2 * MoveDirection::NORTH + MoveDirection::EAST,
+    2 * MoveDirection::SOUTH + MoveDirection::WEST,
+    2 * MoveDirection::SOUTH + MoveDirection::EAST,
+]);
+
+pub static KING_ATTACKS: LeaperAttackMap = init_leaper_attacks(&[
+    MoveDirection::NORTH,
+    MoveDirection::NORTH + MoveDirection::EAST,
+    MoveDirection::EAST,
+    MoveDirection::SOUTH + MoveDirection::EAST,
+    MoveDirection::SOUTH,
+    MoveDirection::SOUTH + MoveDirection::WEST,
+    MoveDirection::WEST,
+    MoveDirection::NORTH + MoveDirection::WEST,
+]);
+
+const fn init_leaper_attacks(move_directions: &[i8]) -> LeaperAttackMap {
+    let mut attacks: LeaperAttackMap = [Bitboard::new(0); 64];
 
     let mut square = 0;
     while square < 64 {
@@ -14,36 +33,14 @@ const fn init_knight_attacks() -> AttackMap {
         let rank = square / 8;
         let mut bb = 0;
 
-        if file >= 1 && rank >= 2 {
-            bb |= 1 << (square + MoveDirection::SOUTH * 2 + MoveDirection::WEST);
-        }
-
-        if file >= 2 && rank >= 1 {
-            bb |= 1 << (square + MoveDirection::SOUTH + MoveDirection::WEST * 2);
-        }
-
-        if file <= 5 && rank >= 1 {
-            bb |= 1 << (square + MoveDirection::SOUTH + MoveDirection::EAST * 2);
-        }
-
-        if file <= 6 && rank >= 2 {
-            bb |= 1 << (square + MoveDirection::SOUTH * 2 + MoveDirection::EAST);
-        }
-
-        if file <= 6 && rank <= 5 {
-            bb |= 1 << (square + MoveDirection::NORTH * 2 + MoveDirection::EAST);
-        }
-
-        if file <= 5 && rank <= 6 {
-            bb |= 1 << (square + MoveDirection::NORTH + MoveDirection::EAST * 2);
-        }
-
-        if file >= 2 && rank <= 6 {
-            bb |= 1 << (square + MoveDirection::NORTH + MoveDirection::WEST * 2);
-        }
-
-        if file >= 1 && rank <= 5 {
-            bb |= 1 << (square + MoveDirection::NORTH * 2 + MoveDirection::WEST);
+        let mut i = 0;
+        while i < move_directions.len() {
+            let target_square = square + move_directions[i];
+            let target_square_file = target_square % 8;
+            if target_square >= 0 && target_square < 64 && (target_square_file - file).abs() <= 2 {
+                bb |= 1 << target_square;
+            }
+            i += 1;
         }
 
         attacks[square as usize] = Bitboard::new(bb);
@@ -74,7 +71,7 @@ mod tests {
     }
 
     #[test]
-    fn center_clean() {
+    fn center_clean_knight() {
         let mut board = Board::default();
         let us_color = Color::White;
 
@@ -102,7 +99,7 @@ mod tests {
     }
 
     #[test]
-    fn top_left() {
+    fn top_left_knight() {
         let mut board = Board::default();
         let us_color = Color::White;
 
@@ -124,7 +121,7 @@ mod tests {
     }
 
     #[test]
-    fn kiwipete_regular() {
+    fn kiwipete_regular_knight() {
         let board = Board::from_fen(KIWIPETE_FEN).unwrap();
         let us_color = Color::White;
 
@@ -153,7 +150,7 @@ mod tests {
     }
 
     #[test]
-    fn kiwipete_quiesce() {
+    fn kiwipete_quiesce_knight() {
         let board = Board::from_fen(KIWIPETE_FEN).unwrap();
         let us_color = Color::White;
 

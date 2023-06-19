@@ -4,7 +4,6 @@ use crate::position::square::Square;
 
 pub mod attacks;
 pub mod gen;
-mod magics;
 
 #[derive(TryFromPrimitive, Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]

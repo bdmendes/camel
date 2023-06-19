@@ -6,11 +6,11 @@ use crate::position::{
 };
 
 use super::{
-    attacks::{king::generate_king_castles, knight::KNIGHT_ATTACKS, pawn::generate_pawn_moves},
+    attacks::{
+        leapers::KNIGHT_ATTACKS, specials::generate_king_castles, specials::generate_pawn_moves,
+    },
     Move, MoveFlag,
 };
-
-pub type AttackMap = [Bitboard; 64];
 
 pub struct MoveDirection;
 
@@ -21,7 +21,7 @@ impl MoveDirection {
     pub const WEST: i8 = -1;
 }
 
-pub fn piece_attacks(piece: Piece, square: Square) -> Bitboard {
+pub fn piece_attacks(piece: Piece, square: Square, occupancy: Bitboard) -> Bitboard {
     match piece {
         Piece::Knight => KNIGHT_ATTACKS[square as usize],
         _ => todo!(),
@@ -34,13 +34,14 @@ pub fn generate_regular_moves<const QUIESCE: bool>(
     color: Color,
     moves: &mut Vec<Move>,
 ) {
+    let occupancy = board.occupancy_bb_all();
     let occupancy_us = board.occupancy_bb(color);
     let occupancy_them = board.occupancy_bb(color.opposite());
 
     let mut knights = board.pieces_bb(piece) & occupancy_us;
 
     while let Some(from_square) = knights.pop_lsb() {
-        let mut attacks = piece_attacks(piece, from_square) & !occupancy_us;
+        let mut attacks = piece_attacks(piece, from_square, occupancy) & !occupancy_us;
 
         while let Some(to_square) = attacks.pop_lsb() {
             let flag = if occupancy_them.is_set(to_square) {
@@ -69,14 +70,14 @@ pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Positi
         );
     }
 
-    generate_pawn_moves::<QUIESCE>(&position.board, moves.as_mut());
+    generate_pawn_moves::<QUIESCE>(&position, moves.as_mut());
 
-    if QUIESCE {
+    if !QUIESCE {
         generate_king_castles(position, moves.as_mut());
     }
 
     if !PSEUDO {
-        moves.retain(|m| true); // TODO: check if move is legal
+        moves.retain(|m| true); // TODO: check if move is legal (king attacked or castle and king passent)
     }
 
     moves

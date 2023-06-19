@@ -2,7 +2,7 @@ use derive_more::{BitAnd, BitOr, Deref, DerefMut, Not};
 
 use super::square::Square;
 
-#[derive(Default, Debug, Hash, PartialEq, BitOr, BitAnd, Not, Deref, DerefMut, Copy, Clone)]
+#[derive(Default, Debug, Hash, PartialEq, BitOr, BitAnd, Not, Deref, DerefMut, Copy, Clone, Eq)]
 pub struct Bitboard(u64);
 
 impl Bitboard {
