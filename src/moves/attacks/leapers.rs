@@ -30,7 +30,6 @@ const fn init_leaper_attacks(move_directions: &[i8]) -> LeaperAttackMap {
     let mut square = 0;
     while square < 64 {
         let file = square % 8;
-        let rank = square / 8;
         let mut bb = 0;
 
         let mut i = 0;

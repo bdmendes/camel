@@ -203,7 +203,6 @@ mod tests {
         let mut rook_atacks = blockers_mask[square as usize];
         let mut found_count = 0;
         while let Some(square) = rook_atacks.pop_lsb() {
-            println!("{}", square);
             assert!(expected_squares.contains(&square));
             found_count += 1;
         }

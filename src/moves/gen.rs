@@ -7,7 +7,12 @@ use crate::position::{
 
 use super::{
     attacks::{
-        leapers::KNIGHT_ATTACKS, specials::generate_king_castles, specials::generate_pawn_moves,
+        leapers::{KING_ATTACKS, KNIGHT_ATTACKS},
+        magics::magic_index,
+        magics::BISHOP_MAGICS,
+        magics::ROOK_MAGICS,
+        specials::generate_king_castles,
+        specials::generate_pawn_moves,
     },
     Move, MoveFlag,
 };
@@ -24,7 +29,22 @@ impl MoveDirection {
 pub fn piece_attacks(piece: Piece, square: Square, occupancy: Bitboard) -> Bitboard {
     match piece {
         Piece::Knight => KNIGHT_ATTACKS[square as usize],
-        _ => todo!(),
+        Piece::King => KING_ATTACKS[square as usize],
+        Piece::Rook => {
+            let magic = &ROOK_MAGICS.get().unwrap()[square as usize];
+            let index = magic_index(magic, occupancy);
+            magic.attacks[index]
+        }
+        Piece::Bishop => {
+            let magic = &BISHOP_MAGICS.get().unwrap()[square as usize];
+            let index = magic_index(magic, occupancy);
+            magic.attacks[index]
+        }
+        Piece::Queen => {
+            piece_attacks(Piece::Rook, square, occupancy)
+                | piece_attacks(Piece::Bishop, square, occupancy)
+        }
+        Piece::Pawn => todo!(),
     }
 }
 
@@ -38,9 +58,9 @@ pub fn generate_regular_moves<const QUIESCE: bool>(
     let occupancy_us = board.occupancy_bb(color);
     let occupancy_them = board.occupancy_bb(color.opposite());
 
-    let mut knights = board.pieces_bb(piece) & occupancy_us;
+    let mut pieces = board.pieces_bb(piece) & occupancy_us;
 
-    while let Some(from_square) = knights.pop_lsb() {
+    while let Some(from_square) = pieces.pop_lsb() {
         let mut attacks = piece_attacks(piece, from_square, occupancy) & !occupancy_us;
 
         while let Some(to_square) = attacks.pop_lsb() {

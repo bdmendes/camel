@@ -1,6 +1,8 @@
+use moves::attacks::magics::init_magics;
+
 mod moves;
 mod position;
 
 fn main() {
-    println!("Hello, world!");
+    init_magics();
 }
