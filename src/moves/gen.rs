@@ -1,10 +1,3 @@
-use crate::position::{
-    bitboard::Bitboard,
-    board::{Board, Piece},
-    square::Square,
-    Color, Position,
-};
-
 use super::{
     attacks::{
         leapers::{KING_ATTACKS, KNIGHT_ATTACKS},
@@ -15,6 +8,12 @@ use super::{
         specials::generate_pawn_moves,
     },
     Move, MoveFlag,
+};
+use crate::position::{
+    bitboard::Bitboard,
+    board::{Board, Piece},
+    square::Square,
+    Color, Position,
 };
 
 pub struct MoveDirection;
@@ -31,12 +30,12 @@ pub fn piece_attacks(piece: Piece, square: Square, occupancy: Bitboard) -> Bitbo
         Piece::Knight => KNIGHT_ATTACKS[square as usize],
         Piece::King => KING_ATTACKS[square as usize],
         Piece::Rook => {
-            let magic = &ROOK_MAGICS.get().unwrap()[square as usize];
+            let magic = &ROOK_MAGICS[square as usize];
             let index = magic_index(magic, occupancy);
             magic.attacks[index]
         }
         Piece::Bishop => {
-            let magic = &BISHOP_MAGICS.get().unwrap()[square as usize];
+            let magic = &BISHOP_MAGICS[square as usize];
             let index = magic_index(magic, occupancy);
             magic.attacks[index]
         }

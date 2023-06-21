@@ -1,18 +1,15 @@
+use super::sliders::{slider_attacks_from_square, BISHOP_MOVE_DIRECTIONS, ROOK_MOVE_DIRECTIONS};
+use crate::position::{bitboard::Bitboard, board::Piece, square::Square};
+use once_cell::sync::Lazy;
+use rand::Rng;
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex, OnceLock},
+    sync::{Arc, Mutex},
     thread,
 };
 
-use tinyrand::{Rand, Seeded, StdRand};
-use tinyrand_std::ClockSeed;
-
-use crate::position::{bitboard::Bitboard, board::Piece, square::Square};
-
-use super::sliders::{slider_attacks_from_square, BISHOP_MOVE_DIRECTIONS, ROOK_MOVE_DIRECTIONS};
-
-pub static ROOK_MAGICS: OnceLock<[SquareMagic; 64]> = OnceLock::new();
-pub static BISHOP_MAGICS: OnceLock<[SquareMagic; 64]> = OnceLock::new();
+pub static ROOK_MAGICS: Lazy<[SquareMagic; 64]> = Lazy::new(|| find_magics(Piece::Rook));
+pub static BISHOP_MAGICS: Lazy<[SquareMagic; 64]> = Lazy::new(|| find_magics(Piece::Bishop));
 
 #[derive(Debug, Default)]
 pub struct SquareMagic {
@@ -39,12 +36,10 @@ fn bitsets(bitboard: Bitboard) -> Vec<Bitboard> {
 }
 
 fn sparse_random() -> Bitboard {
-    let seed = ClockSeed::default().next_u64();
-    let mut rand = StdRand::seed(seed);
-
-    let r1 = rand.next_u64();
-    let r2 = rand.next_u64();
-    let r3 = rand.next_u64();
+    let mut rng = rand::thread_rng();
+    let r1 = rng.gen::<u64>();
+    let r2 = rng.gen::<u64>();
+    let r3 = rng.gen::<u64>();
 
     Bitboard::new(r1 & r2 & r3)
 }
@@ -59,19 +54,19 @@ fn find_magic(square: Square, piece: Piece) -> SquareMagic {
         },
         None,
     );
-
     let shift = blockers_mask.count_ones() as u8;
     let bitsets = bitsets(blockers_mask);
-
     let mut cached_moves: HashMap<Bitboard, Bitboard> = HashMap::new();
 
+    let mut magic = SquareMagic {
+        blockers_mask,
+        shift,
+        magic_number: Bitboard::new(0),
+        attacks: vec![Bitboard::new(0); 1 << shift],
+    };
+
     loop {
-        let mut magic = SquareMagic {
-            blockers_mask,
-            shift,
-            magic_number: sparse_random(),
-            attacks: vec![Bitboard::new(0); 1 << shift],
-        };
+        magic.magic_number = sparse_random();
 
         let mut found_collision = false;
         let mut used = vec![false; 1 << shift];
@@ -130,11 +125,6 @@ pub fn magic_index(magic: &SquareMagic, occupancy: Bitboard) -> usize {
     let blockers = occupancy & magic.blockers_mask;
     let hash = blockers.wrapping_mul(magic.magic_number.raw());
     (hash >> (64 - magic.shift)) as usize
-}
-
-pub fn init_magics() {
-    ROOK_MAGICS.set(find_magics(Piece::Rook)).unwrap();
-    BISHOP_MAGICS.set(find_magics(Piece::Bishop)).unwrap();
 }
 
 #[cfg(test)]
