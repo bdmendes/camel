@@ -1,6 +1,7 @@
-use crate::{moves::gen::MoveDirection, position::bitboard::Bitboard};
-
-pub type BlockersMask = [Bitboard; 64];
+use crate::{
+    moves::gen::MoveDirection,
+    position::{bitboard::Bitboard, square::Square},
+};
 
 pub const ROOK_MOVE_DIRECTIONS: [i8; 4] =
     [MoveDirection::NORTH, MoveDirection::EAST, MoveDirection::SOUTH, MoveDirection::WEST];
@@ -13,7 +14,7 @@ pub const BISHOP_MOVE_DIRECTIONS: [i8; 4] = [
 ];
 
 pub const fn slider_attacks_from_square<const REMOVE_EDGES: bool>(
-    square: i8,
+    square: Square,
     move_directions: &[i8],
     occupancy: Option<Bitboard>,
 ) -> Bitboard {
@@ -22,6 +23,7 @@ pub const fn slider_attacks_from_square<const REMOVE_EDGES: bool>(
         Some(occupancy) => occupancy.raw(),
         None => 0,
     };
+    let square = square as i8;
     let square_file = square % 8;
     let square_rank = square / 8;
 
@@ -61,31 +63,34 @@ pub const fn slider_attacks_from_square<const REMOVE_EDGES: bool>(
     Bitboard::new(bb)
 }
 
-pub const fn init_slider_blockers_mask(move_directions: &[i8]) -> BlockersMask {
-    let mut blockers_mask: BlockersMask = [Bitboard::new(0); 64];
-
-    let mut square = 0;
-    while square < 64 {
-        blockers_mask[square as usize] =
-            slider_attacks_from_square::<true>(square, move_directions, None);
-        square += 1;
-    }
-
-    blockers_mask
-}
-
 #[cfg(test)]
 mod tests {
     use crate::position::square::Square;
 
     use super::*;
 
+    fn slider_blockers_mask(move_directions: &[i8]) -> [Bitboard; 64] {
+        let mut blockers_mask = [Bitboard::new(0); 64];
+
+        let mut square = 0;
+        while square < 64 {
+            blockers_mask[square as usize] = slider_attacks_from_square::<true>(
+                Square::try_from(square).unwrap(),
+                move_directions,
+                None,
+            );
+            square += 1;
+        }
+
+        blockers_mask
+    }
+
     fn rook_moves(square: Square, occupancy: Option<Bitboard>) -> Bitboard {
-        slider_attacks_from_square::<false>(square as i8, &ROOK_MOVE_DIRECTIONS, occupancy)
+        slider_attacks_from_square::<false>(square, &ROOK_MOVE_DIRECTIONS, occupancy)
     }
 
     fn bishop_moves(square: Square, occupancy: Option<Bitboard>) -> Bitboard {
-        slider_attacks_from_square::<false>(square as i8, &BISHOP_MOVE_DIRECTIONS, occupancy)
+        slider_attacks_from_square::<false>(square, &BISHOP_MOVE_DIRECTIONS, occupancy)
     }
 
     #[test]
@@ -156,7 +161,7 @@ mod tests {
     #[test]
     fn rook_on_center_mask() {
         let square = Square::E4;
-        let blockers_mask = init_slider_blockers_mask(&ROOK_MOVE_DIRECTIONS);
+        let blockers_mask = slider_blockers_mask(&ROOK_MOVE_DIRECTIONS);
 
         let expected_squares = [
             Square::E5,
@@ -184,7 +189,7 @@ mod tests {
     #[test]
     fn rook_on_corner_mask() {
         let square = Square::B1;
-        let blockers_mask = init_slider_blockers_mask(&ROOK_MOVE_DIRECTIONS);
+        let blockers_mask = slider_blockers_mask(&ROOK_MOVE_DIRECTIONS);
 
         let expected_squares = [
             Square::B2,

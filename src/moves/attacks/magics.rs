@@ -9,13 +9,7 @@ use tinyrand_std::ClockSeed;
 
 use crate::position::{bitboard::Bitboard, board::Piece, square::Square};
 
-use super::sliders::{
-    init_slider_blockers_mask, slider_attacks_from_square, BlockersMask, BISHOP_MOVE_DIRECTIONS,
-    ROOK_MOVE_DIRECTIONS,
-};
-
-static ROOK_BLOCKERS_MASK: BlockersMask = init_slider_blockers_mask(&ROOK_MOVE_DIRECTIONS);
-static BISHOP_BLOCKERS_MASK: BlockersMask = init_slider_blockers_mask(&BISHOP_MOVE_DIRECTIONS);
+use super::sliders::{slider_attacks_from_square, BISHOP_MOVE_DIRECTIONS, ROOK_MOVE_DIRECTIONS};
 
 pub static ROOK_MAGICS: OnceLock<[SquareMagic; 64]> = OnceLock::new();
 pub static BISHOP_MAGICS: OnceLock<[SquareMagic; 64]> = OnceLock::new();
@@ -56,11 +50,15 @@ fn sparse_random() -> Bitboard {
 }
 
 fn find_magic(square: Square, piece: Piece) -> SquareMagic {
-    let blockers_mask = match piece {
-        Piece::Rook => ROOK_BLOCKERS_MASK[square as usize],
-        Piece::Bishop => BISHOP_BLOCKERS_MASK[square as usize],
-        _ => panic!("Only rooks and bishops can have magic bitboards"),
-    };
+    let blockers_mask = slider_attacks_from_square::<true>(
+        square,
+        match piece {
+            Piece::Rook => &ROOK_MOVE_DIRECTIONS,
+            Piece::Bishop => &BISHOP_MOVE_DIRECTIONS,
+            _ => unreachable!(),
+        },
+        None,
+    );
 
     let shift = blockers_mask.count_ones() as u8;
     let bitsets = bitsets(blockers_mask);
@@ -82,7 +80,7 @@ fn find_magic(square: Square, piece: Piece) -> SquareMagic {
             let index = magic_index(&magic, *bitset);
             let moves = *cached_moves.entry(*bitset).or_insert_with(|| {
                 slider_attacks_from_square::<false>(
-                    square as i8,
+                    square,
                     if piece == Piece::Rook {
                         &ROOK_MOVE_DIRECTIONS
                     } else {
