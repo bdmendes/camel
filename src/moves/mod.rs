@@ -13,8 +13,8 @@ pub enum MoveFlag {
     Capture = 0b0001,
 
     // King specials
-    KingCastle = 0b0010,
-    QueenCastle = 0b0011,
+    KingsideCastle = 0b0010,
+    QueensideCastle = 0b0011,
 
     // Pawn specials
     DoublePawnPush = 0b0100,
@@ -32,7 +32,9 @@ pub enum MoveFlag {
 impl MoveFlag {
     pub fn is_quiet(&self) -> bool {
         match self {
-            Self::Quiet | Self::DoublePawnPush | Self::KingCastle | Self::QueenCastle => true,
+            Self::Quiet | Self::DoublePawnPush | Self::KingsideCastle | Self::QueensideCastle => {
+                true
+            }
             _ => false,
         }
     }
