@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 use derive_more::{BitAnd, BitOr, Deref, DerefMut, Not};
 
 use super::square::Square;
@@ -34,5 +36,30 @@ impl Bitboard {
 
     pub const fn raw(&self) -> u64 {
         self.0
+    }
+
+    pub const fn shift(&self, shift_value: i8) -> Self {
+        if shift_value >= 0 {
+            Bitboard(self.0 << shift_value)
+        } else {
+            Bitboard(self.0 >> -shift_value)
+        }
+    }
+}
+
+impl Display for Bitboard {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let bb = self.0;
+        for rank in (0..8).rev() {
+            for file in 0..8 {
+                if bb & (1 << (rank * 8 + file)) != 0 {
+                    write!(f, "1")?;
+                } else {
+                    write!(f, "0")?;
+                }
+            }
+            write!(f, "\n")?;
+        }
+        Ok(())
     }
 }

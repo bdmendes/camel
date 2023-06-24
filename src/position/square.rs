@@ -14,6 +14,16 @@ pub enum Square {
     A8, B8, C8, D8, E8, F8, G8, H8,
 }
 
+impl Square {
+    pub const fn rank(self) -> u8 {
+        (self as u8) / 8
+    }
+
+    pub const fn file(self) -> u8 {
+        (self as u8) % 8
+    }
+}
+
 impl std::str::FromStr for Square {
     type Err = ();
 

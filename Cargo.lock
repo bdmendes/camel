@@ -22,7 +22,7 @@ checksum = "6776fc96284a0bb647b615056fc496d1fe1644a7ab01829818a6d91cae888b84"
 
 [[package]]
 name = "camel"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "array-init",
  "bitflags",
