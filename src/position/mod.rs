@@ -29,7 +29,7 @@ impl Color {
 }
 
 bitflags! {
-    #[derive(Hash, PartialEq, Debug)]
+    #[derive(Hash, PartialEq, Debug, Copy, Clone)]
     pub struct CastlingRights: u8 {
         const WHITE_KINGSIDE = 0b0001;
         const WHITE_QUEENSIDE = 0b0010;
@@ -38,6 +38,7 @@ bitflags! {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
 pub struct Position {
     pub board: Board,
     pub side_to_move: Color,

@@ -7,8 +7,10 @@ use super::{
 };
 
 pub const START_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-pub const KIWIPETE_FEN: &str =
+pub const KIWIPETE_WHITE_FEN: &str =
     "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+pub const KIWIPETE_BLACK_FEN: &str =
+    "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1";
 
 pub fn board_from_fen(board_fen: &str) -> Result<Board, ()> {
     let mut chars = board_fen.chars();
@@ -105,17 +107,14 @@ pub fn position_from_fen(fen: &str) -> Result<Position, ()> {
 fn board_to_fen(board: &Board) -> String {
     let mut fen = String::new();
 
-    let mut empty_squares = 0;
     for rank in (0..8).rev() {
-        for file in 0..8 {
-            if file == 0 && rank != 7 {
-                if empty_squares > 0 {
-                    fen.push_str(&empty_squares.to_string());
-                    empty_squares = 0;
-                }
-                fen.push('/');
-            }
+        let mut empty_squares = 0;
 
+        if rank != 7 {
+            fen.push('/');
+        }
+
+        for file in 0..8 {
             let square = rank * 8 + file;
 
             let piece = match board.piece_at(Square::try_from(square).unwrap()) {
@@ -143,6 +142,10 @@ fn board_to_fen(board: &Board) -> String {
                 }
                 fen.push(piece);
             }
+        }
+
+        if empty_squares > 0 {
+            fen.push_str(&empty_squares.to_string());
         }
     }
 
@@ -219,7 +222,7 @@ mod tests {
 
     #[test]
     fn parses_board() {
-        let position = position_from_fen(KIWIPETE_FEN).unwrap();
+        let position = position_from_fen(KIWIPETE_WHITE_FEN).unwrap();
 
         let pieces_map = [
             Some((Rook, White)),   // a1
@@ -296,7 +299,7 @@ mod tests {
 
     #[test]
     fn parses_position_info() {
-        let position = position_from_fen(KIWIPETE_FEN).unwrap();
+        let position = position_from_fen(KIWIPETE_WHITE_FEN).unwrap();
 
         assert_eq!(position.side_to_move, White);
         assert_eq!(
@@ -313,7 +316,7 @@ mod tests {
 
     #[test]
     fn to_fen_reflexive() {
-        let position = position_from_fen(KIWIPETE_FEN).unwrap();
-        assert_eq!(position_to_fen(&position), KIWIPETE_FEN);
+        let position = position_from_fen(KIWIPETE_WHITE_FEN).unwrap();
+        assert_eq!(position_to_fen(&position), KIWIPETE_WHITE_FEN);
     }
 }

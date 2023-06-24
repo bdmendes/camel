@@ -43,7 +43,7 @@ pub fn piece_attacks(piece: Piece, square: Square, occupancy: Bitboard) -> Bitbo
             piece_attacks(Piece::Rook, square, occupancy)
                 | piece_attacks(Piece::Bishop, square, occupancy)
         }
-        Piece::Pawn => todo!(),
+        Piece::Pawn => unimplemented!("Pawn attacks are handled separately"),
     }
 }
 
@@ -100,4 +100,25 @@ pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Positi
     }
 
     moves
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::position::{fen::KIWIPETE_WHITE_FEN, Position};
+
+    #[test]
+    fn kiwipete_pseudo_regular() {
+        let position = Position::from_fen(KIWIPETE_WHITE_FEN).unwrap();
+        let moves = super::generate_moves::<false, true>(&position);
+
+        assert_eq!(moves.len(), 48);
+    }
+
+    #[test]
+    fn kiwipete_pseudo_quiesce() {
+        let position = Position::from_fen(KIWIPETE_WHITE_FEN).unwrap();
+        let moves = super::generate_moves::<true, true>(&position);
+
+        assert_eq!(moves.len(), 8);
+    }
 }

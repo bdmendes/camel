@@ -1,10 +1,40 @@
 use crate::{
     moves::{gen::MoveDirection, Move, MoveFlag},
-    position::{bitboard::Bitboard, board::Piece, square::Square, CastlingRights, Color, Position},
+    position::{
+        bitboard::Bitboard,
+        board::{Board, Piece},
+        square::Square,
+        CastlingRights, Color, Position,
+    },
 };
 
 const PAWN_WEST_EDGE_FILE: Bitboard = Bitboard::new(0x01_01_01_01_01_01_01_01);
 const PAWN_EAST_EDGE_FILE: Bitboard = Bitboard::new(0x80_80_80_80_80_80_80_80);
+
+pub fn pawn_attacks(board: &Board, color: Color) -> Bitboard {
+    let mut attacks = Bitboard::new(0);
+
+    let our_pawns = board.pieces_bb(Piece::Pawn) & board.occupancy_bb(color);
+    let occupancy_them = board.occupancy_bb(color.opposite());
+
+    let direction = if color == Color::White { MoveDirection::NORTH } else { MoveDirection::SOUTH };
+
+    // West capture
+    let mut west_pawns =
+        (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST) & occupancy_them;
+    while let Some(to_square) = west_pawns.pop_lsb() {
+        attacks.set(to_square);
+    }
+
+    // East capture
+    let mut east_pawns =
+        (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST) & occupancy_them;
+    while let Some(to_square) = east_pawns.pop_lsb() {
+        attacks.set(to_square);
+    }
+
+    attacks
+}
 
 pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, mut moves: &mut Vec<Move>) {
     let occupancy = position.board.occupancy_bb_all();

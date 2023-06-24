@@ -55,7 +55,7 @@ mod tests {
         moves::{gen::generate_regular_moves, Move, MoveFlag},
         position::{
             board::{Board, Piece},
-            fen::KIWIPETE_FEN,
+            fen::KIWIPETE_WHITE_FEN,
             square::Square,
             Color,
         },
@@ -121,7 +121,7 @@ mod tests {
 
     #[test]
     fn kiwipete_regular_knight() {
-        let board = Board::from_fen(KIWIPETE_FEN).unwrap();
+        let board = Board::from_fen(KIWIPETE_WHITE_FEN).unwrap();
         let us_color = Color::White;
 
         let mut moves = Vec::new();
@@ -150,7 +150,7 @@ mod tests {
 
     #[test]
     fn kiwipete_quiesce_knight() {
-        let board = Board::from_fen(KIWIPETE_FEN).unwrap();
+        let board = Board::from_fen(KIWIPETE_WHITE_FEN).unwrap();
         let us_color = Color::White;
 
         let mut moves = Vec::new();

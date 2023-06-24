@@ -15,5 +15,4 @@ once_cell = "1.18.0"
 opt-level = 1
 
 [profile.release]
-lto = "fat"
-codegen-units = 1
+lto = "thin"

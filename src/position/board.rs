@@ -13,7 +13,7 @@ pub enum Piece {
     King,
 }
 
-#[derive(Default, Hash, PartialEq)]
+#[derive(Default, Hash, PartialEq, Copy, Clone, Debug)]
 pub struct Board {
     pieces: [Bitboard; 6],
     occupancy: [Bitboard; 2],
