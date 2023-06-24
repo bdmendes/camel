@@ -1,6 +1,8 @@
 use bitflags::bitflags;
 use num_enum::TryFromPrimitive;
 
+use crate::moves::{gen::generate_moves, make_move, Move};
+
 use self::{
     board::Board,
     fen::{position_from_fen, position_to_fen},
@@ -55,6 +57,14 @@ impl Position {
 
     pub fn to_fen(&self) -> String {
         position_to_fen(self)
+    }
+
+    pub fn make_move(&self, mov: Move) -> Self {
+        make_move(self, mov)
+    }
+
+    pub fn moves<const QUIESCE: bool>(&self) -> Vec<Move> {
+        generate_moves::<QUIESCE, false>(self)
     }
 }
 

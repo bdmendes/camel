@@ -13,7 +13,7 @@ pub const BISHOP_MOVE_DIRECTIONS: [i8; 4] = [
     MoveDirection::NORTH + MoveDirection::WEST,
 ];
 
-pub const fn slider_attacks_from_square<const REMOVE_EDGES: bool>(
+pub fn slider_attacks_from_square<const REMOVE_EDGES: bool>(
     square: Square,
     move_directions: &[i8],
     occupancy: Option<Bitboard>,
@@ -29,13 +29,17 @@ pub const fn slider_attacks_from_square<const REMOVE_EDGES: bool>(
 
     let mut i = 0;
     while i < move_directions.len() {
-        let mut multiplier = 1;
+        let mut last_file = square_file;
+        let mut offset = move_directions[i];
         loop {
-            let target_square = square + move_directions[i] * multiplier;
+            let target_square = square + offset;
             let target_square_file = target_square % 8;
             let target_square_rank = target_square / 8;
 
-            if target_square < 0 || target_square >= 64 {
+            if target_square < 0
+                || target_square >= 64
+                || (target_square_file - last_file).abs() > 2
+            {
                 break;
             }
 
@@ -54,7 +58,8 @@ pub const fn slider_attacks_from_square<const REMOVE_EDGES: bool>(
                 break;
             }
 
-            multiplier += 1;
+            offset += move_directions[i];
+            last_file = target_square_file;
         }
 
         i += 1;
@@ -65,7 +70,7 @@ pub const fn slider_attacks_from_square<const REMOVE_EDGES: bool>(
 
 #[cfg(test)]
 mod tests {
-    use crate::position::square::Square;
+    use crate::position::{square::Square, Position};
 
     use super::*;
 
@@ -245,5 +250,30 @@ mod tests {
         }
 
         assert_eq!(found_count, expected_squares.len());
+    }
+
+    #[test]
+    fn rook_attacks_complex() {
+        let position = Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ").unwrap();
+
+        let mut expected_attacks = Bitboard::new(0);
+        expected_attacks.set(Square::H6);
+        expected_attacks.set(Square::H7);
+        expected_attacks.set(Square::H8);
+        expected_attacks.set(Square::H4);
+        expected_attacks.set(Square::G5);
+        expected_attacks.set(Square::F5);
+        expected_attacks.set(Square::E5);
+        expected_attacks.set(Square::D5);
+        expected_attacks.set(Square::C5);
+        expected_attacks.set(Square::B5);
+
+        let attacks = slider_attacks_from_square::<false>(
+            Square::H5,
+            &ROOK_MOVE_DIRECTIONS,
+            Some(position.board.occupancy_bb_all()),
+        );
+
+        assert_eq!(attacks, expected_attacks);
     }
 }
