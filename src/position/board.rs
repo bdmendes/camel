@@ -2,6 +2,11 @@ use num_enum::TryFromPrimitive;
 
 use super::{bitboard::Bitboard, fen::board_from_fen, Color, Square};
 
+pub const PIECES: [Piece; 5] =
+    [Piece::Queen, Piece::Rook, Piece::Bishop, Piece::Knight, Piece::King];
+pub const PIECES_WITH_PAWN: [Piece; 6] =
+    [Piece::Queen, Piece::Rook, Piece::Bishop, Piece::Knight, Piece::Pawn, Piece::King];
+
 #[derive(TryFromPrimitive, Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum Piece {

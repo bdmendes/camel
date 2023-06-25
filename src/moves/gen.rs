@@ -13,7 +13,7 @@ use super::{
 };
 use crate::position::{
     bitboard::Bitboard,
-    board::{Board, Piece},
+    board::{Board, Piece, PIECES},
     square::Square,
     Color, Position,
 };
@@ -27,30 +27,29 @@ impl MoveDirection {
     pub const WEST: i8 = -1;
 }
 
-const PIECES: [Piece; 5] = [Piece::Queen, Piece::Rook, Piece::Bishop, Piece::Knight, Piece::King];
-
 pub fn color_is_checking(board: &Board, color: Color) -> bool {
-    if let Some(king_square) =
-        (board.pieces_bb(Piece::King) & board.occupancy_bb(color.opposite())).pop_lsb()
-    {
-        square_is_attacked(&board, king_square, color)
-    } else {
-        false
-    }
+    let mut checked_king = board.pieces_bb(Piece::King) & board.occupancy_bb(color.opposite());
+    checked_king
+        .pop_lsb()
+        .map_or(false, |king_square| color_attacks_square(board, king_square, color))
 }
 
-pub fn square_is_attacked(board: &Board, square: Square, color: Color) -> bool {
+pub fn color_attacks_square(board: &Board, square: Square, color: Color) -> bool {
     if pawn_attacks(board, color).is_set(square) {
         return true;
     }
 
     let occupancy = board.occupancy_bb_all();
-    let occupancy_us = board.occupancy_bb(color);
 
-    for piece in PIECES.iter() {
-        let mut bb = board.pieces_bb(*piece) & occupancy_us;
-        while let Some(from_square) = bb.pop_lsb() {
-            if piece_attacks(*piece, from_square, occupancy).is_set(square) {
+    let mut super_piece_attacks = (piece_attacks(Piece::Queen, square, occupancy)
+        | piece_attacks(Piece::Knight, square, occupancy))
+        & board.occupancy_bb(color);
+
+    while let Some(target_square) = super_piece_attacks.pop_lsb() {
+        let piece = board.piece_at(target_square).unwrap().0;
+        if piece != Piece::Pawn {
+            let target_piece_attacks = piece_attacks(piece, target_square, occupancy);
+            if target_piece_attacks.is_set(square) {
                 return true;
             }
         }
@@ -208,11 +207,11 @@ mod tests {
     fn square_is_attacked() {
         let position = Position::from_fen(KIWIPETE_WHITE_FEN).unwrap();
 
-        assert!(super::square_is_attacked(&position.board, super::Square::E4, Color::Black));
-        assert!(super::square_is_attacked(&position.board, super::Square::G2, Color::Black));
-        assert!(super::square_is_attacked(&position.board, super::Square::A6, Color::White));
-        assert!(!super::square_is_attacked(&position.board, super::Square::C7, Color::White));
-        assert!(!super::square_is_attacked(&position.board, super::Square::B4, Color::White));
+        assert!(super::color_attacks_square(&position.board, super::Square::E4, Color::Black));
+        assert!(super::color_attacks_square(&position.board, super::Square::G2, Color::Black));
+        assert!(super::color_attacks_square(&position.board, super::Square::A6, Color::White));
+        assert!(!super::color_attacks_square(&position.board, super::Square::C7, Color::White));
+        assert!(!super::color_attacks_square(&position.board, super::Square::B4, Color::White));
     }
 
     #[test]
