@@ -22,6 +22,12 @@ impl Square {
     pub const fn file(self) -> u8 {
         (self as u8) % 8
     }
+
+    pub fn flip(self) -> Square {
+        let file = self.file();
+        let rank = 7 - self.rank();
+        Square::try_from(rank * 8 + file).unwrap()
+    }
 }
 
 impl std::str::FromStr for Square {
@@ -76,6 +82,18 @@ impl std::fmt::Display for Square {
 mod tests {
     use super::*;
     use std::str::FromStr;
+
+    #[test]
+    fn flip_square() {
+        assert_eq!(Square::A1.flip(), Square::A8);
+        assert_eq!(Square::A8.flip(), Square::A1);
+        assert_eq!(Square::H1.flip(), Square::H8);
+        assert_eq!(Square::H8.flip(), Square::H1);
+        assert_eq!(Square::E4.flip(), Square::E5);
+        assert_eq!(Square::E5.flip(), Square::E4);
+        assert_eq!(Square::D3.flip(), Square::D6);
+        assert_eq!(Square::D6.flip(), Square::D3);
+    }
 
     #[test]
     fn fails_when_string_is_invalid() {

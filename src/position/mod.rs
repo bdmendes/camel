@@ -31,6 +31,13 @@ impl Color {
             Color::Black => Color::White,
         }
     }
+
+    pub fn sign(&self) -> i16 {
+        match self {
+            Color::White => 1,
+            Color::Black => -1,
+        }
+    }
 }
 
 bitflags! {

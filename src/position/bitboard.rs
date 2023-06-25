@@ -45,6 +45,10 @@ impl Bitboard {
             Bitboard(self.0 >> -shift_value)
         }
     }
+
+    pub const fn is_empty(&self) -> bool {
+        self.0 == 0
+    }
 }
 
 impl Display for Bitboard {

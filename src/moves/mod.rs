@@ -92,6 +92,16 @@ impl Move {
     pub fn flag(&self) -> MoveFlag {
         MoveFlag::try_from((self.data >> 12) as u8).unwrap()
     }
+
+    pub fn promotion_piece(&self) -> Option<Piece> {
+        match self.flag() {
+            MoveFlag::KnightPromotion | MoveFlag::KnightPromotionCapture => Some(Piece::Knight),
+            MoveFlag::BishopPromotion | MoveFlag::BishopPromotionCapture => Some(Piece::Bishop),
+            MoveFlag::RookPromotion | MoveFlag::RookPromotionCapture => Some(Piece::Rook),
+            MoveFlag::QueenPromotion | MoveFlag::QueenPromotionCapture => Some(Piece::Queen),
+            _ => None,
+        }
+    }
 }
 
 impl std::fmt::Display for Move {
