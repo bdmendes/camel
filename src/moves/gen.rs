@@ -1,3 +1,5 @@
+use std::{collections::HashMap, hash::Hash};
+
 use super::{
     attacks::{
         leapers::{KING_ATTACKS, KNIGHT_ATTACKS},
@@ -7,7 +9,7 @@ use super::{
         specials::generate_king_castles,
         specials::{generate_pawn_moves, pawn_attacks},
     },
-    make_move, Move, MoveFlag,
+    make_move, Move, MoveFlag, MoveVec,
 };
 use crate::position::{
     bitboard::Bitboard,
@@ -71,7 +73,7 @@ pub fn generate_regular_moves<const QUIESCE: bool>(
     board: &Board,
     piece: Piece,
     color: Color,
-    moves: &mut Vec<Move>,
+    moves: &mut MoveVec,
 ) {
     let occupancy = board.occupancy_bb_all();
     let occupancy_us = board.occupancy_bb(color);
@@ -97,50 +99,27 @@ pub fn generate_regular_moves<const QUIESCE: bool>(
     }
 }
 
-pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Position) -> Vec<Move> {
-    let mut moves = Vec::new();
+pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Position) -> MoveVec {
+    let mut moves = MoveVec::new();
 
     for piece in [Piece::Knight, Piece::Bishop, Piece::King, Piece::Queen, Piece::Rook].iter() {
         generate_regular_moves::<QUIESCE>(
             &position.board,
             *piece,
             position.side_to_move,
-            moves.as_mut(),
+            &mut moves,
         );
     }
 
-    generate_pawn_moves::<QUIESCE>(&position, moves.as_mut());
+    generate_pawn_moves::<QUIESCE>(&position, &mut moves);
 
     if !QUIESCE {
-        generate_king_castles(position, moves.as_mut());
+        generate_king_castles(position, &mut moves);
     }
 
     if !PSEUDO {
         moves.retain(|mov| match mov.flag() {
-            MoveFlag::KingsideCastle => match position.side_to_move {
-                Color::White => {
-                    !square_is_attacked(&position.board, Square::E1, Color::Black)
-                        && !square_is_attacked(&position.board, Square::F1, Color::Black)
-                        && !square_is_attacked(&position.board, Square::G1, Color::Black)
-                }
-                Color::Black => {
-                    !square_is_attacked(&position.board, Square::E8, Color::White)
-                        && !square_is_attacked(&position.board, Square::F8, Color::White)
-                        && !square_is_attacked(&position.board, Square::G8, Color::White)
-                }
-            },
-            MoveFlag::QueensideCastle => match position.side_to_move {
-                Color::White => {
-                    !square_is_attacked(&position.board, Square::E1, Color::Black)
-                        && !square_is_attacked(&position.board, Square::D1, Color::Black)
-                        && !square_is_attacked(&position.board, Square::C1, Color::Black)
-                }
-                Color::Black => {
-                    !square_is_attacked(&position.board, Square::E8, Color::White)
-                        && !square_is_attacked(&position.board, Square::D8, Color::White)
-                        && !square_is_attacked(&position.board, Square::C8, Color::White)
-                }
-            },
+            MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => true,
             _ => {
                 let new_position = make_move(position, *mov);
                 let king_square = (new_position.board.pieces_bb(Piece::King)
@@ -157,6 +136,41 @@ pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Positi
     }
 
     moves
+}
+
+pub fn perft<const HASH: bool>(position: &Position, depth: u8) -> u64 {
+    perft_internal::<HASH>(position, depth, &mut HashMap::new())
+}
+
+fn perft_internal<const HASH: bool>(
+    position: &Position,
+    depth: u8,
+    cache: &mut HashMap<(Position, u8), u64>,
+) -> u64 {
+    if depth == 0 {
+        return 1;
+    }
+
+    if HASH {
+        if let Some(nodes) = cache.get(&(*position, depth)) {
+            return *nodes;
+        }
+    }
+
+    let mut nodes = 0;
+
+    let moves = generate_moves::<false, false>(position);
+
+    for mov in moves {
+        let new_position = make_move(position, mov);
+        nodes += perft_internal::<HASH>(&new_position, depth - 1, cache);
+    }
+
+    if HASH {
+        cache.insert((position.clone(), depth), nodes);
+    }
+
+    nodes
 }
 
 #[cfg(test)]

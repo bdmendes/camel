@@ -1,5 +1,8 @@
 use crate::{
-    moves::{gen::MoveDirection, Move, MoveFlag},
+    moves::{
+        gen::{square_is_attacked, MoveDirection},
+        Move, MoveFlag, MoveVec,
+    },
     position::{
         bitboard::Bitboard,
         board::{Board, Piece},
@@ -36,7 +39,7 @@ pub fn pawn_attacks(board: &Board, color: Color) -> Bitboard {
     attacks
 }
 
-pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, mut moves: &mut Vec<Move>) {
+pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, mut moves: &mut MoveVec) {
     let occupancy = position.board.occupancy_bb_all();
     let occupancy_them = position.board.occupancy_bb(position.side_to_move.opposite())
         | position.en_passant_square.map_or(Bitboard::new(0), |sq| Bitboard::new(1 << sq as u8));
@@ -108,7 +111,7 @@ pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, mut moves: 
 fn push_pawn_move<const QUIESCE: bool>(
     occupancy: Bitboard,
     en_passant_square: Option<Square>,
-    moves: &mut Vec<Move>,
+    moves: &mut MoveVec,
     from_square: Square,
     to_square: Square,
 ) {
@@ -137,7 +140,7 @@ fn push_pawn_move<const QUIESCE: bool>(
 
 fn push_pawn_promotion(
     occupancy: Bitboard,
-    moves: &mut Vec<Move>,
+    moves: &mut MoveVec,
     from_square: Square,
     to_square: Square,
 ) {
@@ -168,19 +171,22 @@ fn push_pawn_promotion(
     ));
 }
 
-pub fn generate_king_castles(position: &Position, moves: &mut Vec<Move>) {
+pub fn generate_king_castles(position: &Position, moves: &mut MoveVec) {
     match position.side_to_move {
-        Color::White => generate_white_king_castles(position, moves.as_mut()),
-        Color::Black => generate_black_king_castles(position, moves.as_mut()),
+        Color::White => generate_white_king_castles(position, moves),
+        Color::Black => generate_black_king_castles(position, moves),
     }
 }
 
-fn generate_white_king_castles(position: &Position, moves: &mut Vec<Move>) {
+fn generate_white_king_castles(position: &Position, moves: &mut MoveVec) {
     if position.castling_rights.contains(CastlingRights::WHITE_KINGSIDE)
         && position.board.piece_at(Square::E1) == Some((Piece::King, Color::White))
         && position.board.piece_at(Square::H1) == Some((Piece::Rook, Color::White))
         && position.board.piece_at(Square::F1) == None
         && position.board.piece_at(Square::G1) == None
+        && !square_is_attacked(&position.board, Square::E1, Color::Black)
+        && !square_is_attacked(&position.board, Square::F1, Color::Black)
+        && !square_is_attacked(&position.board, Square::G1, Color::Black)
     {
         moves.push(Move::new(Square::E1, Square::G1, MoveFlag::KingsideCastle));
     }
@@ -191,17 +197,23 @@ fn generate_white_king_castles(position: &Position, moves: &mut Vec<Move>) {
         && position.board.piece_at(Square::B1) == None
         && position.board.piece_at(Square::C1) == None
         && position.board.piece_at(Square::D1) == None
+        && !square_is_attacked(&position.board, Square::E1, Color::Black)
+        && !square_is_attacked(&position.board, Square::D1, Color::Black)
+        && !square_is_attacked(&position.board, Square::C1, Color::Black)
     {
         moves.push(Move::new(Square::E1, Square::C1, MoveFlag::QueensideCastle));
     }
 }
 
-fn generate_black_king_castles(position: &Position, moves: &mut Vec<Move>) {
+fn generate_black_king_castles(position: &Position, moves: &mut MoveVec) {
     if position.castling_rights.contains(CastlingRights::BLACK_KINGSIDE)
         && position.board.piece_at(Square::E8) == Some((Piece::King, Color::Black))
         && position.board.piece_at(Square::H8) == Some((Piece::Rook, Color::Black))
         && position.board.piece_at(Square::F8) == None
         && position.board.piece_at(Square::G8) == None
+        && !square_is_attacked(&position.board, Square::E8, Color::White)
+        && !square_is_attacked(&position.board, Square::F8, Color::White)
+        && !square_is_attacked(&position.board, Square::G8, Color::White)
     {
         moves.push(Move::new(Square::E8, Square::G8, MoveFlag::KingsideCastle));
     }
@@ -212,6 +224,9 @@ fn generate_black_king_castles(position: &Position, moves: &mut Vec<Move>) {
         && position.board.piece_at(Square::B8) == None
         && position.board.piece_at(Square::C8) == None
         && position.board.piece_at(Square::D8) == None
+        && !square_is_attacked(&position.board, Square::E8, Color::White)
+        && !square_is_attacked(&position.board, Square::D8, Color::White)
+        && !square_is_attacked(&position.board, Square::C8, Color::White)
     {
         moves.push(Move::new(Square::E8, Square::C8, MoveFlag::QueensideCastle));
     }
@@ -220,7 +235,7 @@ fn generate_black_king_castles(position: &Position, moves: &mut Vec<Move>) {
 #[cfg(test)]
 mod tests {
     use crate::{
-        moves::{attacks::specials::generate_pawn_moves, Move, MoveFlag},
+        moves::{attacks::specials::generate_pawn_moves, Move, MoveFlag, MoveVec},
         position::{square::Square, Position},
     };
 
@@ -251,7 +266,7 @@ mod tests {
             Move::new(Square::H4, Square::H5, MoveFlag::Quiet),
         ];
 
-        let mut moves = Vec::new();
+        let mut moves = MoveVec::new();
         generate_pawn_moves::<false>(&position, &mut moves);
 
         for mov in &moves {
@@ -287,7 +302,7 @@ mod tests {
             Move::new(Square::A5, Square::B4, MoveFlag::Capture),
         ];
 
-        let mut moves = Vec::new();
+        let mut moves = MoveVec::new();
         generate_pawn_moves::<false>(&position, &mut moves);
 
         for mov in &moves {
@@ -307,8 +322,8 @@ mod tests {
             Move::new(Square::E1, Square::C1, MoveFlag::QueensideCastle),
         ];
 
-        let mut moves = Vec::new();
-        generate_king_castles(&position, moves.as_mut());
+        let mut moves = MoveVec::new();
+        generate_king_castles(&position, &mut moves);
 
         for mov in &moves {
             assert!(expected_moves.contains(&mov));
@@ -327,8 +342,8 @@ mod tests {
             Move::new(Square::E8, Square::C8, MoveFlag::QueensideCastle),
         ];
 
-        let mut moves = Vec::new();
-        generate_king_castles(&position, moves.as_mut());
+        let mut moves = MoveVec::new();
+        generate_king_castles(&position, &mut moves);
 
         for mov in &moves {
             assert!(expected_moves.contains(&mov));
@@ -342,8 +357,8 @@ mod tests {
         let position =
             Position::from_fen("r3k2r/pppppppp/8/8/8/8/PPPPPPPP/1R2K1NR w Kkq - 0 1").unwrap();
 
-        let mut moves = Vec::new();
-        generate_king_castles(&position, moves.as_mut());
+        let mut moves = MoveVec::new();
+        generate_king_castles(&position, &mut moves);
 
         assert_eq!(moves.len(), 0);
     }

@@ -1,4 +1,5 @@
 use num_enum::TryFromPrimitive;
+use smallvec::SmallVec;
 
 use crate::position::{board::Piece, square::Square, CastlingRights, Color, Position};
 
@@ -6,6 +7,8 @@ use self::gen::MoveDirection;
 
 pub mod attacks;
 pub mod gen;
+
+pub type MoveVec = SmallVec<[Move; 64]>;
 
 #[derive(TryFromPrimitive, Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]

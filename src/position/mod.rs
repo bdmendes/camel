@@ -1,7 +1,7 @@
 use bitflags::bitflags;
 use num_enum::TryFromPrimitive;
 
-use crate::moves::{gen::generate_moves, make_move, Move};
+use crate::moves::{gen::generate_moves, make_move, Move, MoveVec};
 
 use self::{
     board::Board,
@@ -63,7 +63,7 @@ impl Position {
         make_move(self, mov)
     }
 
-    pub fn moves<const QUIESCE: bool>(&self) -> Vec<Move> {
+    pub fn moves<const QUIESCE: bool>(&self) -> MoveVec {
         generate_moves::<QUIESCE, false>(self)
     }
 }
@@ -85,3 +85,5 @@ impl PartialEq for Position {
             && self.castling_rights == other.castling_rights
     }
 }
+
+impl Eq for Position {}

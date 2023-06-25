@@ -44,13 +44,21 @@ impl Board {
     }
 
     pub fn piece_at(&self, square: Square) -> Option<(Piece, Color)> {
+        let occupancy = self.occupancy_bb_all();
+        if !occupancy.is_set(square) {
+            return None;
+        }
+
+        let occupancy_white = self.occupancy_bb(Color::White);
+        let occupancy_black = self.occupancy_bb(Color::Black);
+
         for (piece, bitboard) in self.pieces.iter().enumerate() {
             if bitboard.is_set(square) {
-                let color = if self.occupancy_bb(Color::White).is_set(square) {
-                    debug_assert!(!self.occupancy_bb(Color::Black).is_set(square));
+                let color = if occupancy_white.is_set(square) {
+                    debug_assert!(!occupancy_black.is_set(square));
                     Color::White
                 } else {
-                    debug_assert!(self.occupancy_bb(Color::Black).is_set(square));
+                    debug_assert!(occupancy_black.is_set(square));
                     Color::Black
                 };
                 return Some((Piece::try_from(piece as u8).unwrap(), color));
