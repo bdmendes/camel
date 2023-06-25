@@ -118,7 +118,7 @@ fn push_pawn_move<const QUIESCE: bool>(
     let is_promotion = to_square.rank() == 0 || to_square.rank() == 7;
 
     if is_promotion {
-        push_pawn_promotion(occupancy, moves, from_square, to_square);
+        push_pawn_promotion::<QUIESCE>(occupancy, moves, from_square, to_square);
     } else {
         let is_capture = occupancy.is_set(to_square) || en_passant_square == Some(to_square);
         if QUIESCE && !is_capture {
@@ -138,7 +138,7 @@ fn push_pawn_move<const QUIESCE: bool>(
     }
 }
 
-fn push_pawn_promotion(
+fn push_pawn_promotion<const QUIESCE: bool>(
     occupancy: Bitboard,
     moves: &mut MoveVec,
     from_square: Square,
@@ -151,6 +151,10 @@ fn push_pawn_promotion(
         to_square,
         if is_capture { MoveFlag::QueenPromotionCapture } else { MoveFlag::QueenPromotion },
     ));
+
+    if QUIESCE {
+        return;
+    }
 
     moves.push(Move::new(
         from_square,

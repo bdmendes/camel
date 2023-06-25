@@ -127,6 +127,11 @@ pub fn magic_index(magic: &SquareMagic, occupancy: Bitboard) -> usize {
     (hash >> (64 - magic.shift)) as usize
 }
 
+pub fn init_magics() {
+    Lazy::force(&ROOK_MAGICS);
+    Lazy::force(&BISHOP_MAGICS);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

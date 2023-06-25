@@ -2,7 +2,19 @@ use camel::{moves::gen::perft, position::Position};
 
 fn expect_perft(fen: &str, depth: u8, nodes: u64) {
     let position = Position::from_fen(fen).unwrap();
-    let (res, _) = perft::<true>(&position, depth);
+
+    let time = std::time::Instant::now();
+    let (res, _) = perft::<true, false>(&position, depth);
+    let elapsed = time.elapsed().as_millis();
+
+    println!(
+        "\nDepth {}: {} in {} ms [{:.3} Mnps]",
+        depth,
+        res,
+        elapsed,
+        res as f64 / 1000.0 / (elapsed + 1) as f64
+    );
+
     assert_eq!(res, nodes);
 }
 

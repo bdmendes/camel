@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::Hash};
+use std::collections::HashMap;
 
 use super::{
     attacks::{
@@ -122,15 +122,18 @@ pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Positi
             MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => true,
             _ => {
                 let new_position = make_move(position, *mov);
-                let king_square = (new_position.board.pieces_bb(Piece::King)
+                if let Some(king_square) = (new_position.board.pieces_bb(Piece::King)
                     & new_position.board.occupancy_bb(position.side_to_move))
                 .pop_lsb()
-                .unwrap();
-                !square_is_attacked(
-                    &new_position.board,
-                    king_square,
-                    position.side_to_move.opposite(),
-                )
+                {
+                    !square_is_attacked(
+                        &new_position.board,
+                        king_square,
+                        position.side_to_move.opposite(),
+                    )
+                } else {
+                    true
+                }
             }
         });
     }
@@ -138,11 +141,14 @@ pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Positi
     moves
 }
 
-pub fn perft<const HASH: bool>(position: &Position, depth: u8) -> (u64, Vec<(Move, u64)>) {
-    perft_internal::<HASH>(position, depth, &mut HashMap::new())
+pub fn perft<const HASH: bool, const SILENT: bool>(
+    position: &Position,
+    depth: u8,
+) -> (u64, Vec<(Move, u64)>) {
+    perft_internal::<HASH, SILENT>(position, depth, &mut HashMap::new())
 }
 
-fn perft_internal<const HASH: bool>(
+fn perft_internal<const HASH: bool, const SILENT: bool>(
     position: &Position,
     depth: u8,
     cache: &mut HashMap<(Position, u8), (u64, Vec<(Move, u64)>)>,
@@ -164,9 +170,13 @@ fn perft_internal<const HASH: bool>(
 
     for mov in moves {
         let new_position = make_move(position, mov);
-        let (count, _) = perft_internal::<HASH>(&new_position, depth - 1, cache);
+        let (count, _) = perft_internal::<HASH, true>(&new_position, depth - 1, cache);
         nodes += count;
         res.push((mov, count));
+
+        if !SILENT {
+            println!("{}: {}", mov, count);
+        }
     }
 
     if HASH {
