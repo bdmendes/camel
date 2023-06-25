@@ -138,39 +138,42 @@ pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Positi
     moves
 }
 
-pub fn perft<const HASH: bool>(position: &Position, depth: u8) -> u64 {
+pub fn perft<const HASH: bool>(position: &Position, depth: u8) -> (u64, Vec<(Move, u64)>) {
     perft_internal::<HASH>(position, depth, &mut HashMap::new())
 }
 
 fn perft_internal<const HASH: bool>(
     position: &Position,
     depth: u8,
-    cache: &mut HashMap<(Position, u8), u64>,
-) -> u64 {
+    cache: &mut HashMap<(Position, u8), (u64, Vec<(Move, u64)>)>,
+) -> (u64, Vec<(Move, u64)>) {
     if depth == 0 {
-        return 1;
+        return (1, vec![]);
     }
 
     if HASH {
-        if let Some(nodes) = cache.get(&(*position, depth)) {
-            return *nodes;
+        if let Some(res) = cache.get(&(*position, depth)) {
+            return res.clone();
         }
     }
 
-    let mut nodes = 0;
-
     let moves = generate_moves::<false, false>(position);
+
+    let mut nodes = 0;
+    let mut res = Vec::with_capacity(moves.len());
 
     for mov in moves {
         let new_position = make_move(position, mov);
-        nodes += perft_internal::<HASH>(&new_position, depth - 1, cache);
+        let (count, _) = perft_internal::<HASH>(&new_position, depth - 1, cache);
+        nodes += count;
+        res.push((mov, count));
     }
 
     if HASH {
-        cache.insert((position.clone(), depth), nodes);
+        cache.insert((position.clone(), depth), (nodes, res.clone()));
     }
 
-    nodes
+    (nodes, res)
 }
 
 #[cfg(test)]

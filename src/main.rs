@@ -1,11 +1,9 @@
+use camel::*;
 use moves::attacks::magics::{BISHOP_MAGICS, ROOK_MAGICS};
-use once_cell::sync::Lazy;
+use moves::gen::perft;
 use position::{fen::KIWIPETE_WHITE_FEN, Position};
 
-use crate::moves::gen::perft;
-
-mod moves;
-mod position;
+use once_cell::sync::Lazy;
 
 fn main() {
     Lazy::force(&ROOK_MAGICS);
@@ -14,7 +12,7 @@ fn main() {
     let position = Position::from_fen(KIWIPETE_WHITE_FEN).unwrap();
     for depth in 1..=5 {
         let time = std::time::Instant::now();
-        let nodes = perft::<false>(&position, depth);
+        let (nodes, _) = perft::<true>(&position, depth);
         let elapsed = time.elapsed().as_millis();
         println!(
             "Depth {}: {} in {} ms [{:.3} Mnps]",
