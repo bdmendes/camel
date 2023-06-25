@@ -1,7 +1,10 @@
 use bitflags::bitflags;
 use num_enum::TryFromPrimitive;
 
-use crate::moves::{gen::generate_moves, make_move, Move, MoveVec};
+use crate::moves::{
+    gen::{color_is_checking, generate_moves},
+    make_move, Move, MoveVec,
+};
 
 use self::{
     board::Board,
@@ -65,6 +68,10 @@ impl Position {
 
     pub fn moves<const QUIESCE: bool>(&self) -> MoveVec {
         generate_moves::<QUIESCE, false>(self)
+    }
+
+    pub fn is_check(&self) -> bool {
+        color_is_checking(&self.board, self.side_to_move.opposite())
     }
 }
 

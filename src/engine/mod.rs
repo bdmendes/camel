@@ -16,7 +16,7 @@ impl Engine {
         let position = self.position.clone();
         thread::spawn(move || {
             let time = std::time::Instant::now();
-            let (nodes, _) = perft::<true, false>(&position, depth);
+            let (nodes, _) = perft::<true, true, false>(&position, depth);
             let elapsed = time.elapsed().as_millis();
             println!(
                 "Depth {}: {} in {} ms [{:.3} Mnps]",

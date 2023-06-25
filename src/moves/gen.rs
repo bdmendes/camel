@@ -27,6 +27,18 @@ impl MoveDirection {
     pub const WEST: i8 = -1;
 }
 
+const PIECES: [Piece; 5] = [Piece::Queen, Piece::Rook, Piece::Bishop, Piece::Knight, Piece::King];
+
+pub fn color_is_checking(board: &Board, color: Color) -> bool {
+    if let Some(king_square) =
+        (board.pieces_bb(Piece::King) & board.occupancy_bb(color.opposite())).pop_lsb()
+    {
+        square_is_attacked(&board, king_square, color)
+    } else {
+        false
+    }
+}
+
 pub fn square_is_attacked(board: &Board, square: Square, color: Color) -> bool {
     if pawn_attacks(board, color).is_set(square) {
         return true;
@@ -35,7 +47,7 @@ pub fn square_is_attacked(board: &Board, square: Square, color: Color) -> bool {
     let occupancy = board.occupancy_bb_all();
     let occupancy_us = board.occupancy_bb(color);
 
-    for piece in [Piece::Knight, Piece::King, Piece::Rook, Piece::Bishop, Piece::Queen].iter() {
+    for piece in PIECES.iter() {
         let mut bb = board.pieces_bb(*piece) & occupancy_us;
         while let Some(from_square) = bb.pop_lsb() {
             if piece_attacks(*piece, from_square, occupancy).is_set(square) {
@@ -102,7 +114,7 @@ pub fn generate_regular_moves<const QUIESCE: bool>(
 pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Position) -> MoveVec {
     let mut moves = MoveVec::new();
 
-    for piece in [Piece::Knight, Piece::Bishop, Piece::King, Piece::Queen, Piece::Rook].iter() {
+    for piece in PIECES.iter() {
         generate_regular_moves::<QUIESCE>(
             &position.board,
             *piece,
@@ -122,18 +134,7 @@ pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Positi
             MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => true,
             _ => {
                 let new_position = make_move(position, *mov);
-                if let Some(king_square) = (new_position.board.pieces_bb(Piece::King)
-                    & new_position.board.occupancy_bb(position.side_to_move))
-                .pop_lsb()
-                {
-                    !square_is_attacked(
-                        &new_position.board,
-                        king_square,
-                        position.side_to_move.opposite(),
-                    )
-                } else {
-                    true
-                }
+                !color_is_checking(&new_position.board, new_position.side_to_move)
             }
         });
     }
@@ -141,14 +142,19 @@ pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Positi
     moves
 }
 
-pub fn perft<const HASH: bool, const SILENT: bool>(
+pub fn perft<const BULK_AT_HORIZON: bool, const HASH: bool, const SILENT: bool>(
     position: &Position,
     depth: u8,
 ) -> (u64, Vec<(Move, u64)>) {
-    perft_internal::<HASH, SILENT>(position, depth, &mut HashMap::new())
+    perft_internal::<true, BULK_AT_HORIZON, HASH, SILENT>(position, depth, &mut HashMap::new())
 }
 
-fn perft_internal<const HASH: bool, const SILENT: bool>(
+fn perft_internal<
+    const ROOT: bool,
+    const BULK_AT_HORIZON: bool,
+    const HASH: bool,
+    const SILENT: bool,
+>(
     position: &Position,
     depth: u8,
     cache: &mut HashMap<(Position, u8), (u64, Vec<(Move, u64)>)>,
@@ -165,14 +171,22 @@ fn perft_internal<const HASH: bool, const SILENT: bool>(
 
     let moves = generate_moves::<false, false>(position);
 
+    if BULK_AT_HORIZON && depth == 1 {
+        return (moves.len() as u64, vec![]);
+    }
+
     let mut nodes = 0;
-    let mut res = Vec::with_capacity(moves.len());
+    let mut res = if ROOT { Vec::with_capacity(moves.len()) } else { Vec::new() };
 
     for mov in moves {
         let new_position = make_move(position, mov);
-        let (count, _) = perft_internal::<HASH, true>(&new_position, depth - 1, cache);
+        let (count, _) =
+            perft_internal::<false, BULK_AT_HORIZON, HASH, true>(&new_position, depth - 1, cache);
         nodes += count;
-        res.push((mov, count));
+
+        if ROOT {
+            res.push((mov, count));
+        }
 
         if !SILENT {
             println!("{}: {}", mov, count);

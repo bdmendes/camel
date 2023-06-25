@@ -4,7 +4,7 @@ fn expect_perft(fen: &str, depth: u8, nodes: u64) {
     let position = Position::from_fen(fen).unwrap();
 
     let time = std::time::Instant::now();
-    let (res, _) = perft::<true, false>(&position, depth);
+    let (res, _) = perft::<true, true, false>(&position, depth);
     let elapsed = time.elapsed().as_millis();
 
     println!(
