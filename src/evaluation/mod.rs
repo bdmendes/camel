@@ -12,7 +12,7 @@ mod psqt;
 pub type ValueScore = i16;
 
 pub enum Score {
-    IsMated(Color),
+    Mate(Color, u8),
     Value(ValueScore),
 }
 
@@ -55,7 +55,7 @@ pub fn evaluate_position(position: &Position) -> ValueScore {
         while let Some(square) = bb.pop_lsb() {
             let color = position.board.color_at(square).unwrap();
             score += piece_value(*piece) * color.sign();
-            score += psqt_value(*piece, square, color, endgame_ratio);
+            score += psqt_value(*piece, square, color, endgame_ratio) * color.sign();
         }
     }
 
@@ -66,7 +66,7 @@ pub fn evaluate_move(position: &Position, mov: Move) -> ValueScore {
     let mut score = 0;
 
     if mov.flag().is_capture() {
-        let captured_piece = position.board.piece_at(mov.to()).unwrap().0;
+        let captured_piece = position.board.piece_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
         score += piece_value(captured_piece) + 100;
     }
 

@@ -1,8 +1,10 @@
 use std::{process::Command, thread};
 
 use camel::{
+    evaluation::Score,
     moves::gen::perft,
     position::{fen::START_FEN, Position},
+    search::{alphabeta, table::SearchTable, Depth},
 };
 
 mod uci;
@@ -36,6 +38,24 @@ impl Engine {
             println!("Illegal move: {}", mov_str);
         }
     }
+
+    fn do_search(&mut self, depth: u8) {
+        let mut table = SearchTable::new();
+        let position = self.position.clone();
+        thread::spawn(move || {
+            let score = alphabeta(&position, depth as Depth, &mut table);
+            let hash_move = table.get_hash_move(&position);
+            let score_str = match score {
+                Score::Value(score) => format!("{:.2}", score as f64 / 100.0),
+                Score::Mate(_, score) => format!("Mate in {}", score),
+            };
+            println!(
+                "score: {}, move: {}",
+                score_str,
+                hash_move.map_or_else(|| "none".to_string(), |v| v.to_string())
+            );
+        });
+    }
 }
 
 pub fn uci_loop() {
@@ -51,9 +71,12 @@ pub fn uci_loop() {
         }
 
         match uci::parse_uci_command(input) {
+            // Standard commands
             Ok(uci::UCICommand::Position { position }) => {
                 engine.position = position;
             }
+            Ok(uci::UCICommand::Go { depth }) => engine.do_search(depth),
+            // Custom commands
             Ok(uci::UCICommand::Perft { depth }) => engine.do_perft(depth),
             Ok(uci::UCICommand::DoMove { mov_str }) => engine.do_move(&mov_str),
             Ok(uci::UCICommand::Display) => {

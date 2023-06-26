@@ -5,6 +5,7 @@ use camel::position::{fen::START_FEN, Position};
 pub enum UCICommand {
     // Standard commands
     Position { position: Position },
+    Go { depth: u8 },
     // Custom commands
     Perft { depth: u8 },
     DoMove { mov_str: String },
@@ -25,9 +26,10 @@ pub fn parse_uci_command(command: &str) -> Result<UCICommand, ()> {
     match command.unwrap() {
         // Standard commands
         "position" => parse_position(&mut words),
+        "go" => parse_go(&mut words),
         // Custom commands
-        "perft" => parse_perft(words),
-        "domove" | "m" => parse_domove(words),
+        "perft" => parse_perft(&mut words),
+        "domove" | "m" => parse_domove(&mut words),
         "display" | "d" => Ok(UCICommand::Display),
         "allmoves" | "l" => Ok(UCICommand::AllMoves),
         "clear" | "c" => Ok(UCICommand::Clear),
@@ -76,12 +78,26 @@ fn parse_position(words: &mut VecDeque<&str>) -> Result<UCICommand, ()> {
     Ok(UCICommand::Position { position })
 }
 
-pub fn parse_perft(mut words: VecDeque<&str>) -> Result<UCICommand, ()> {
+fn parse_go(words: &mut VecDeque<&str>) -> Result<UCICommand, ()> {
+    while let Some(word) = words.pop_front() {
+        match word {
+            "depth" => {
+                let depth = words.pop_front().ok_or(())?.parse::<u8>().map_err(|_| ())?;
+                return Ok(UCICommand::Go { depth });
+            }
+            _ => (),
+        }
+    }
+
+    Err(())
+}
+
+fn parse_perft(words: &mut VecDeque<&str>) -> Result<UCICommand, ()> {
     let depth = words.pop_front().ok_or(())?.parse::<u8>().map_err(|_| ())?;
     Ok(UCICommand::Perft { depth })
 }
 
-pub fn parse_domove(mut words: VecDeque<&str>) -> Result<UCICommand, ()> {
+fn parse_domove(words: &mut VecDeque<&str>) -> Result<UCICommand, ()> {
     let mov_str = words.pop_front().ok_or(())?.to_string();
     Ok(UCICommand::DoMove { mov_str })
 }
