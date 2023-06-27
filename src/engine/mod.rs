@@ -15,6 +15,7 @@ pub enum Command {
     DoMove { mov_str: String },
     Display,
     AllMoves,
+    Help,
     Clear,
     Quit,
 }
@@ -38,7 +39,7 @@ pub fn uci_loop() {
         if let Ok(command) = parse_command(input) {
             execute_command(&command, &mut engine);
         } else {
-            println!("Unknown command: {}", input);
+            println!("Invalid command: {}. Type 'help' to know more.", input);
         }
     }
 }

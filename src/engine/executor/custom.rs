@@ -34,6 +34,22 @@ pub fn execute_all_moves(position: &Position) {
     println!();
 }
 
+pub fn execute_help() {
+    println!("================================================================================");
+    println!("Camel is a UCI-compatible chess engine, primarily meant to be used inside a GUI.");
+    println!("You can review the UCI standard in https://backscattering.de/chess/uci/.");
+    println!("Camel also bundles support for custom commands, for debugging purposes:");
+    println!("   'perft <depth>': count nodes searched from current position until given depth");
+    println!("   'domove <move>': perform given move in uci notation on the current board");
+    println!("   'list': list legal moves available on the current position");
+    println!("   'display': print current position");
+    println!("   'help': print this help message");
+    println!("   'clear': clear the screen");
+    println!("   'quit': exit the program");
+    println!("For more information, please visit https://github.com/bdmendes/camel/.");
+    println!("================================================================================");
+}
+
 pub fn execute_clear() {
     if !std::process::Command::new("clear").status().unwrap().success() {
         std::process::Command::new("cls");

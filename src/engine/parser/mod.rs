@@ -25,6 +25,7 @@ pub fn parse_command(input: &str) -> Result<Command, ()> {
         "domove" | "m" => parse_domove(&mut words),
         "display" | "d" => Ok(Command::Display),
         "allmoves" | "l" => Ok(Command::AllMoves),
+        "help" | "h" => Ok(Command::Help),
         "clear" | "c" => Ok(Command::Clear),
         "quit" | "q" => Ok(Command::Quit),
         _ => Err(()),
