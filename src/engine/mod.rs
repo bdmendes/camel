@@ -4,6 +4,7 @@ use self::{executor::execute_command, parser::parse_command};
 
 mod executor;
 mod parser;
+mod time;
 
 pub enum Command {
     // Standard UCI commands
@@ -37,7 +38,7 @@ pub fn uci_loop() {
         }
 
         if let Ok(command) = parse_command(input) {
-            execute_command(&command, &mut engine);
+            execute_command(command, &mut engine);
         } else {
             println!("Invalid command: {}. Type 'help' to know more.", input);
         }

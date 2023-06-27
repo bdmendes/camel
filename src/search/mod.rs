@@ -1,97 +1,53 @@
 use crate::{
-    evaluation::{evaluate_move, evaluate_position, Score, ValueScore},
-    position::{Color, Position},
+    evaluation::{Score, ValueScore},
+    position::Position,
 };
 
 use self::table::SearchTable;
 
+pub mod pvs;
 pub mod table;
 
 pub type Depth = i16;
 
-fn quiesce(position: &Position, mut alpha: ValueScore, beta: ValueScore) -> ValueScore {
-    let stand_pat = evaluate_position(position);
-    if stand_pat >= beta {
-        return beta;
-    }
-    if alpha < stand_pat {
-        alpha = stand_pat;
-    }
-
-    let moves = position.moves::<true>();
-
-    for mov in moves.iter() {
-        let score = -quiesce(&position.make_move(*mov), -beta, -alpha);
-        if score >= beta {
-            return beta;
-        }
-        if score > alpha {
-            alpha = score;
-        }
-    }
-
-    alpha
-}
-
-fn alphabeta_internal(
+fn print_iter_info(
     position: &Position,
     depth: Depth,
-    mut alpha: ValueScore,
-    beta: ValueScore,
+    score: Score,
+    count: usize,
+    elapsed: u128,
     table: &mut SearchTable,
-) -> ValueScore {
-    let is_check = position.is_check();
+) {
+    let nps = (count as f64 / ((elapsed + 1) as f64 / 1000.0)) as usize;
+    print!("info depth {} time {} nodes {} nps {}", depth, elapsed, count, nps);
 
-    if depth <= 0 && !is_check {
-        return quiesce(position, alpha, beta);
-    }
-
-    let mut moves = position.moves::<false>();
-    if moves.is_empty() {
-        return if is_check { ValueScore::MIN + 1 + depth } else { 0 };
-    }
-
-    let hash_move = table.get_hash_move(position);
-    moves.sort_unstable_by_key(move |mov| {
-        if hash_move.is_some() && mov == &hash_move.unwrap() {
-            return ValueScore::MAX;
+    match score {
+        Score::Value(score) => {
+            print!(" score cp {}", score);
         }
-        evaluate_move(position, *mov)
-    });
-
-    let mut best_move = moves[0];
-
-    for mov in moves.iter() {
-        let score = -alphabeta_internal(
-            &position.make_move(*mov),
-            if is_check { depth } else { depth - 1 },
-            -beta,
-            -alpha,
-            table,
-        );
-
-        if score >= beta {
-            return beta;
-        }
-        if score > alpha {
-            best_move = *mov;
-            alpha = score;
+        Score::Mate(_, moves) => {
+            print!(" score mate {}", moves);
         }
     }
 
-    table.insert_hash_move(*position, best_move, depth);
-
-    alpha
+    let pv = table.get_pv(position, depth);
+    print!(" pv");
+    for mov in pv {
+        print!(" {}", mov);
+    }
+    println!();
 }
 
-pub fn alphabeta(position: &Position, depth: Depth, table: &mut SearchTable) -> Score {
-    let score = alphabeta_internal(position, depth, ValueScore::MIN + 1, ValueScore::MAX, table);
-    if score.abs() > ValueScore::MAX - depth - 1 {
-        Score::Mate(
-            if score > 0 { Color::White } else { Color::Black },
-            ((ValueScore::MAX - score.abs()) / 2) as u8,
-        )
-    } else {
-        Score::Value(score)
+pub fn search_iter(position: &Position, depth: Depth, table: &mut SearchTable) {
+    for d in 1..=depth {
+        let time = std::time::Instant::now();
+        let (score, count) = pvs::search(position, d, table);
+        let elapsed = time.elapsed().as_millis();
+        print_iter_info(position, d, score, count, elapsed, table);
+    }
+
+    let best_move = table.get_hash_move(position);
+    if let Some(mov) = best_move {
+        println!("bestmove {}", mov);
     }
 }

@@ -80,6 +80,12 @@ impl Position {
     pub fn is_check(&self) -> bool {
         color_is_checking(&self.board, self.side_to_move.opposite())
     }
+
+    pub fn make_null_move(&self) -> Self {
+        let mut position = self.clone();
+        position.side_to_move = position.side_to_move.opposite();
+        position
+    }
 }
 
 impl std::hash::Hash for Position {

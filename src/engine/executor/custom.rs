@@ -1,6 +1,6 @@
 use std::thread;
 
-use camel::{moves::gen::perft, position::Position};
+use camel::{evaluation::position::evaluate_position, moves::gen::perft, position::Position};
 
 pub fn execute_perft(depth: u8, position: &Position) {
     let position = position.clone();
@@ -24,6 +24,7 @@ pub fn execute_do_move(mov_str: &str, position: &mut Position) {
 pub fn execute_display(position: &Position) {
     print!("{}", position.board);
     println!("{}", position.to_fen());
+    println!("Static evaluation: {}", evaluate_position(position));
 }
 
 pub fn execute_all_moves(position: &Position) {
