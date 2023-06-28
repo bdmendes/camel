@@ -11,7 +11,7 @@ pub enum Score {
     Value(ValueScore),
 }
 
-fn piece_value(piece: Piece) -> ValueScore {
+pub fn piece_value(piece: Piece) -> ValueScore {
     match piece {
         Piece::Pawn => 100,
         Piece::Knight => 320,

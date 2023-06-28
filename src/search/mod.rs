@@ -1,7 +1,4 @@
-use crate::{
-    evaluation::{Score, ValueScore},
-    position::Position,
-};
+use crate::{evaluation::Score, position::Position};
 
 use self::table::SearchTable;
 
@@ -19,19 +16,20 @@ fn print_iter_info(
     table: &mut SearchTable,
 ) {
     let nps = (count as f64 / ((elapsed + 1) as f64 / 1000.0)) as usize;
-    print!("info depth {} time {} nodes {} nps {}", depth, elapsed, count, nps);
+    print!("info depth {} ", depth);
 
     match score {
         Score::Value(score) => {
-            print!(" score cp {}", score);
+            print!("score cp {} ", score);
         }
         Score::Mate(_, moves) => {
-            print!(" score mate {}", moves);
+            print!("score mate {} ", moves);
         }
     }
 
+    println!("time {} nodes {} nps {} pv", elapsed, count, nps);
+
     let pv = table.get_pv(position, depth);
-    print!(" pv");
     for mov in pv {
         print!(" {}", mov);
     }

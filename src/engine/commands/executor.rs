@@ -1,6 +1,26 @@
 use std::thread;
 
-use camel::{evaluation::position::evaluate_position, moves::gen::perft, position::Position};
+use camel::{
+    evaluation::position::evaluate_position,
+    moves::gen::perft,
+    position::Position,
+    search::{search_iter, table::SearchTable, Depth},
+};
+
+use crate::engine::Engine;
+
+pub fn execute_position(new_position: &Position, engine: &mut Engine) {
+    engine.position = new_position.clone();
+}
+
+pub fn execute_go(depth: u8, engine: &mut Engine) {
+    let position = engine.position.clone();
+    let mut table = SearchTable::new();
+
+    thread::spawn(move || {
+        search_iter(&position, depth as Depth, &mut table);
+    });
+}
 
 pub fn execute_perft(depth: u8, position: &Position) {
     let position = position.clone();

@@ -1,6 +1,11 @@
 use crate::{
-    evaluation::{moves::evaluate_move, position::evaluate_position, Score, ValueScore},
-    position::{Color, Position},
+    evaluation::{
+        moves::{evaluate_move, static_exchange_evaluation},
+        piece_value,
+        position::evaluate_position,
+        Score, ValueScore,
+    },
+    position::{board::Piece, Color, Position},
 };
 
 use super::{
@@ -10,18 +15,33 @@ use super::{
 
 const MIN_SCORE: ValueScore = ValueScore::MIN + 1;
 const NULL_MOVE_REDUCTION: Depth = 3;
+const CHECK_EXTENSION: Depth = 1;
 
 fn quiesce(position: &Position, mut alpha: ValueScore, beta: ValueScore) -> (ValueScore, usize) {
-    let stand_pat = evaluate_position(position) * position.side_to_move.sign();
-    if stand_pat >= beta {
+    let static_evaluation = evaluate_position(position) * position.side_to_move.sign();
+
+    // Beta cutoff: position is too good
+    if static_evaluation >= beta {
         return (beta, 1);
     }
-    if alpha < stand_pat {
-        alpha = stand_pat;
+
+    // Delta pruning: sequence cannot improve the score
+    if static_evaluation < alpha.saturating_sub(piece_value(Piece::Queen)) {
+        return (alpha, 1);
     }
 
+    // Generate only non-quiet moves
     let mut moves = position.moves::<true>();
-    moves.sort_by_cached_key(|mov| -evaluate_move(position, *mov));
+    moves.retain(|m| m.flag().is_promotion() || static_exchange_evaluation(*position, *m) > 0);
+    moves.sort_by_cached_key(|m| -evaluate_move::<false>(position, *m));
+
+    // Stable position reached
+    if moves.is_empty() {
+        return (static_evaluation, 1);
+    }
+
+    // Standing pat: captures are not forced
+    alpha = alpha.max(static_evaluation);
 
     let mut count = 0;
     for mov in moves.iter() {
@@ -29,11 +49,12 @@ fn quiesce(position: &Position, mut alpha: ValueScore, beta: ValueScore) -> (Val
         let score = -score;
         count += nodes;
 
-        if score >= beta {
-            return (beta, count);
-        }
         if score > alpha {
             alpha = score;
+
+            if score >= beta {
+                break;
+            }
         }
     }
 
@@ -42,7 +63,7 @@ fn quiesce(position: &Position, mut alpha: ValueScore, beta: ValueScore) -> (Val
 
 fn pvs_recurse(
     position: &Position,
-    new_depth: Depth,
+    depth: Depth,
     alpha: ValueScore,
     beta: ValueScore,
     table: &mut SearchTable,
@@ -52,7 +73,7 @@ fn pvs_recurse(
     let mut count = 0;
 
     if do_null {
-        let (score, nodes) = pvs(position, new_depth, -alpha - 1, -alpha, table, original_depth);
+        let (score, nodes) = pvs(position, depth - 1, -alpha - 1, -alpha, table, original_depth);
         count += nodes;
         let score = -score;
         if score <= alpha || score >= beta {
@@ -60,7 +81,7 @@ fn pvs_recurse(
         }
     }
 
-    let (score, nodes) = pvs(position, new_depth, -beta, -alpha, table, original_depth);
+    let (score, nodes) = pvs(position, depth - 1, -beta, -alpha, table, original_depth);
     count += nodes;
     (-score, count)
 }
@@ -82,13 +103,7 @@ fn pvs(
         }
     }
 
-    // Early beta cutoff
-    if alpha >= beta {
-        return (alpha, 1);
-    }
-
     // Max depth reached; search for quiet position
-    // Since quiesce does not consider checks, do not enter it while in check
     let is_check = position.is_check();
     if depth <= 0 && !is_check {
         return quiesce(position, alpha, beta);
@@ -96,7 +111,7 @@ fn pvs(
 
     let mut moves = position.moves::<false>();
 
-    // Check for checkmate or stalemate
+    // Detect checkmate or stalemate
     if moves.is_empty() {
         let score = if is_check { MIN_SCORE + original_depth - depth } else { 0 };
         return (score, 1);
@@ -133,12 +148,12 @@ fn pvs(
     let killer_moves = table.get_killers(depth);
     moves.sort_by_cached_key(move |mov| {
         if hash_move.is_some() && mov == &hash_move.unwrap() {
-            return ValueScore::MIN;
+            return ValueScore::MIN; // hash move first
         }
         if Some(*mov) == killer_moves[0] || Some(*mov) == killer_moves[1] {
-            return 0;
+            return -piece_value(Piece::Queen); // immediately after hash and good tactical moves
         }
-        -evaluate_move(position, *mov)
+        -evaluate_move::<false>(position, *mov)
     });
 
     let original_alpha = alpha;
@@ -147,7 +162,7 @@ fn pvs(
     for (i, mov) in moves.iter().enumerate() {
         let (score, nodes) = pvs_recurse(
             &position.make_move(*mov),
-            if is_check { depth } else { depth - 1 },
+            if is_check { depth + CHECK_EXTENSION } else { depth },
             alpha,
             beta,
             table,
@@ -160,13 +175,13 @@ fn pvs(
         if score > alpha {
             best_move = *mov;
             alpha = score;
-        }
 
-        if score >= beta {
-            if mov.flag().is_quiet() {
-                table.put_killer_move(depth, *mov);
+            if score >= beta {
+                if mov.flag().is_quiet() {
+                    table.put_killer_move(depth, *mov);
+                }
+                break;
             }
-            break;
         }
     }
 

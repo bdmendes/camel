@@ -14,7 +14,3 @@ smallvec = "1.10.0"
 
 [profile.dev]
 opt-level = 1
-
-[profile.release]
-lto = "fat"
-codegen-units = 1
