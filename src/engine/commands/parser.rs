@@ -7,6 +7,7 @@ use super::Command;
 pub fn parse_position(words: &mut VecDeque<&str>) -> Result<Command, ()> {
     let mut fen = String::new();
     let mut position = Position::from_fen(START_FEN).unwrap();
+    let mut game_history = Vec::new();
 
     while let Some(word) = words.pop_front() {
         match word {
@@ -31,6 +32,7 @@ pub fn parse_position(words: &mut VecDeque<&str>) -> Result<Command, ()> {
                     let actual_moves = position.moves::<false>();
                     if let Some(mov) = actual_moves.iter().find(|mov| mov.to_string() == mov_str) {
                         position = position.make_move(*mov);
+                        game_history.push(position);
                     } else {
                         return Err(());
                     }
@@ -41,7 +43,7 @@ pub fn parse_position(words: &mut VecDeque<&str>) -> Result<Command, ()> {
         }
     }
 
-    Ok(Command::Position { position })
+    Ok(Command::Position { position, game_history })
 }
 
 pub fn parse_go(words: &mut VecDeque<&str>) -> Result<Command, String> {

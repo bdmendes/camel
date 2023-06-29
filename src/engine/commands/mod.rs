@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use self::{
     executor::{
         execute_all_moves, execute_clear, execute_display, execute_do_move, execute_go,
-        execute_help, execute_perft, execute_position, execute_quit,
+        execute_help, execute_perft, execute_position, execute_quit, execute_stop,
     },
     parser::{parse_domove, parse_go, parse_perft, parse_position},
 };
@@ -24,6 +24,23 @@ pub fn parse_command(input: &str) -> Result<Command, ()> {
     match command.unwrap() {
         "position" => parse_position(&mut words),
         "go" => parse_go(&mut words).map_or(Result::Err(()), |cmd| Result::Ok(cmd)),
+        "stop" => Ok(Command::Stop),
+        "uci" => Ok(Command::UCI),
+        "debug" => {
+            if let Some(word) = words.pop_front() {
+                if word == "on" {
+                    Ok(Command::Debug(true))
+                } else if word == "off" {
+                    Ok(Command::Debug(false))
+                } else {
+                    Err(())
+                }
+            } else {
+                Err(())
+            }
+        }
+        "isready" => Ok(Command::IsReady),
+        "ucinewgame" => Ok(Command::UCINewGame),
         "perft" => parse_perft(&mut words),
         "domove" | "m" => parse_domove(&mut words),
         "display" | "d" => Ok(Command::Display),
@@ -37,8 +54,30 @@ pub fn parse_command(input: &str) -> Result<Command, ()> {
 
 pub fn execute_command(command: Command, engine: &mut Engine) {
     match command {
-        Command::Position { position } => execute_position(&position, engine),
-        Command::Go { depth, .. } => execute_go(depth.unwrap_or(5), engine),
+        Command::Position { position, game_history } => {
+            execute_position(&position, &game_history, engine)
+        }
+        Command::Go {
+            depth,
+            move_time,
+            white_time,
+            black_time,
+            white_increment,
+            black_increment,
+        } => execute_go(
+            engine,
+            depth,
+            move_time,
+            white_time,
+            black_time,
+            white_increment,
+            black_increment,
+        ),
+        Command::Stop => execute_stop(engine),
+        Command::UCI => println!("id name Camel\nid author Bruno Mendes\nuciok"),
+        Command::Debug(_) => (),
+        Command::IsReady => println!("readyok"),
+        Command::UCINewGame => (),
         Command::Perft { depth } => execute_perft(depth, &engine.position),
         Command::DoMove { mov_str } => execute_do_move(&mov_str, &mut engine.position),
         Command::Display => execute_display(&engine.position),

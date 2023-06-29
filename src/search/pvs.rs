@@ -14,8 +14,18 @@ const MIN_SCORE: ValueScore = ValueScore::MIN + 1;
 const NULL_MOVE_REDUCTION: Depth = 3;
 const CHECK_EXTENSION: Depth = 1;
 
-fn quiesce(position: &Position, mut alpha: ValueScore, beta: ValueScore) -> (ValueScore, usize) {
+fn quiesce(
+    position: &Position,
+    mut alpha: ValueScore,
+    beta: ValueScore,
+    table: &SearchTable,
+) -> (ValueScore, usize) {
     let static_evaluation = evaluate_position(position) * position.side_to_move.sign();
+
+    // Time limit reached
+    if table.should_stop_search() {
+        return (static_evaluation, 1);
+    }
 
     // Beta cutoff: position is too good
     if static_evaluation >= beta {
@@ -41,7 +51,7 @@ fn quiesce(position: &Position, mut alpha: ValueScore, beta: ValueScore) -> (Val
 
     let mut count = 0;
     for mov in moves.iter() {
-        let (score, nodes) = quiesce(&position.make_move(*mov), -beta, -alpha);
+        let (score, nodes) = quiesce(&position.make_move(*mov), -beta, -alpha, table);
         let score = -score;
         count += nodes;
 
@@ -99,6 +109,11 @@ fn pvs(
         }
     }
 
+    // Time limit reached
+    if table.should_stop_search() {
+        return (alpha, 1);
+    }
+
     // Beta cutoff: position is too good
     if alpha >= beta {
         return (alpha, 1);
@@ -107,15 +122,17 @@ fn pvs(
     // Max depth reached; search for quiet position
     let is_check = position.is_check();
     if depth <= 0 && !is_check {
-        return quiesce(position, alpha, beta);
+        return quiesce(position, alpha, beta, table);
     }
 
     let mut moves = position.moves::<false>();
 
-    // Detect checkmate or stalemate
+    // Detect checkmate, stalemate and threefold repetition
     if moves.is_empty() {
         let score = if is_check { MIN_SCORE + original_depth - depth } else { 0 };
         return (score, 1);
+    } else if table.is_threefold_repetition(position) {
+        return (0, 1);
     }
 
     let mut count = 0;
@@ -161,8 +178,11 @@ fn pvs(
     let mut best_move = moves[0];
 
     for (i, mov) in moves.iter().enumerate() {
+        let new_position = position.make_move(*mov);
+
+        table.visit_position(&new_position);
         let (score, nodes) = pvs_recurse(
-            &position.make_move(*mov),
+            &new_position,
             if is_check { depth + CHECK_EXTENSION } else { depth },
             alpha,
             beta,
@@ -170,6 +190,7 @@ fn pvs(
             original_depth,
             i > 0,
         );
+        table.leave_position();
 
         count += nodes;
 
@@ -186,20 +207,22 @@ fn pvs(
         }
     }
 
-    table.insert_entry(
-        position,
-        TTEntry {
-            depth,
-            score: if alpha <= original_alpha {
-                TTScore::UpperBound(alpha)
-            } else if alpha >= beta {
-                TTScore::LowerBound(alpha)
-            } else {
-                TTScore::Exact(alpha)
+    if !table.should_stop_search() {
+        table.insert_entry(
+            position,
+            TTEntry {
+                depth,
+                score: if alpha <= original_alpha {
+                    TTScore::UpperBound(alpha)
+                } else if alpha >= beta {
+                    TTScore::LowerBound(alpha)
+                } else {
+                    TTScore::Exact(alpha)
+                },
+                best_move: Some(best_move),
             },
-            best_move: Some(best_move),
-        },
-    );
+        );
+    }
 
     (alpha, count)
 }
@@ -210,7 +233,7 @@ pub fn search(position: &Position, depth: Depth, table: &mut SearchTable) -> (Sc
         (
             Score::Mate(
                 if score > 0 { Color::White } else { Color::Black },
-                ((ValueScore::MAX - 1 - score.abs()) / 2) as u8,
+                ((ValueScore::MAX - score.abs()) / 2) as u8 + 1,
             ),
             count,
         )

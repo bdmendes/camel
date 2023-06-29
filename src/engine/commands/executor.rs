@@ -1,4 +1,4 @@
-use std::thread;
+use std::{collections::HashMap, sync::atomic::Ordering, thread, time::Duration};
 
 use camel::{
     evaluation::position::evaluate_position,
@@ -7,19 +7,67 @@ use camel::{
     search::{search_iter, table::SearchTable, Depth},
 };
 
-use crate::engine::Engine;
+const MAX_DEPTH: Depth = 25;
 
-pub fn execute_position(new_position: &Position, engine: &mut Engine) {
+use crate::engine::{time::get_duration, Engine};
+
+pub fn execute_position(
+    new_position: &Position,
+    game_history: &Vec<Position>,
+    engine: &mut Engine,
+) {
     engine.position = new_position.clone();
+    engine.game_history = game_history.clone();
 }
 
-pub fn execute_go(depth: u8, engine: &mut Engine) {
+pub fn execute_go(
+    engine: &mut Engine,
+    depth: Option<u8>,
+    move_time: Option<Duration>,
+    mut white_time: Option<Duration>,
+    mut black_time: Option<Duration>,
+    white_increment: Option<Duration>,
+    black_increment: Option<Duration>,
+) {
+    engine.stop.store(false, Ordering::Relaxed);
+    let stop_now = engine.stop.clone();
+
     let position = engine.position.clone();
-    let mut table = SearchTable::new();
+
+    if white_time.is_some() && black_time.is_none() {
+        black_time = white_time;
+    } else if black_time.is_some() && white_time.is_none() {
+        white_time = black_time;
+    }
+
+    let calc_move_time = match move_time {
+        Some(t) => Some(t),
+        None if white_time.is_some() => Some(get_duration(
+            &position,
+            white_time.unwrap(),
+            black_time.unwrap(),
+            white_increment,
+            black_increment,
+        )),
+        None => None,
+    };
+
+    let mut table = SearchTable {
+        transposition: HashMap::new(),
+        killer_moves: HashMap::new(),
+        branch_history: engine.game_history.clone(),
+        initial_instant: Some(std::time::Instant::now()),
+        move_time: calc_move_time,
+        stop_now: Some(stop_now),
+    };
 
     thread::spawn(move || {
-        search_iter(&position, depth as Depth, &mut table);
+        search_iter(&position, depth.map_or_else(|| MAX_DEPTH, |d| d as Depth), &mut table);
     });
+}
+
+pub fn execute_stop(engine: &mut Engine) {
+    engine.stop.store(true, Ordering::Relaxed);
 }
 
 pub fn execute_perft(depth: u8, position: &Position) {

@@ -27,7 +27,7 @@ fn print_iter_info(
         }
     }
 
-    println!("time {} nodes {} nps {} pv", elapsed, count, nps);
+    print!("time {} nodes {} nps {} pv", elapsed, count, nps);
 
     let pv = table.get_pv(position, depth);
     for mov in pv {
@@ -40,6 +40,11 @@ pub fn search_iter(position: &Position, depth: Depth, table: &mut SearchTable) {
     for d in 1..=depth {
         let time = std::time::Instant::now();
         let (score, count) = pvs::search(position, d, table);
+
+        if table.should_stop_search() {
+            break;
+        }
+
         let elapsed = time.elapsed().as_millis();
         print_iter_info(position, d, score, count, elapsed, table);
     }

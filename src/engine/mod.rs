@@ -1,4 +1,7 @@
-use std::time::Duration;
+use std::{
+    sync::{atomic::AtomicBool, Arc},
+    time::Duration,
+};
 
 use camel::position::{fen::START_FEN, Position};
 
@@ -11,6 +14,7 @@ pub enum Command {
     // Standard UCI commands
     Position {
         position: Position,
+        game_history: Vec<Position>,
     },
     Go {
         depth: Option<u8>,
@@ -20,6 +24,11 @@ pub enum Command {
         white_increment: Option<Duration>,
         black_increment: Option<Duration>,
     },
+    Stop,
+    UCI,
+    Debug(bool),
+    IsReady,
+    UCINewGame,
 
     // Custom commands
     Perft {
@@ -37,10 +46,16 @@ pub enum Command {
 
 pub struct Engine {
     pub position: Position,
+    pub game_history: Vec<Position>,
+    pub stop: Arc<AtomicBool>,
 }
 
 pub fn uci_loop() {
-    let mut engine = Engine { position: Position::from_fen(START_FEN).unwrap() };
+    let mut engine = Engine {
+        position: Position::from_fen(START_FEN).unwrap(),
+        stop: Arc::new(AtomicBool::new(false)),
+        game_history: Vec::new(),
+    };
 
     loop {
         let mut input = String::new();
