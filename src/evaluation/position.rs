@@ -1,6 +1,6 @@
 use crate::position::{
     board::{Piece, PIECES},
-    Position,
+    Color, Position,
 };
 
 use super::{piece_value, psqt::psqt_value, ValueScore};
@@ -26,11 +26,42 @@ fn endgame_ratio(position: &Position) -> u8 {
     255 - midgame_ratio
 }
 
+fn evaluate_pawn_structure(position: &Position) -> ValueScore {
+    let mut score = 0;
+    let white_pawn_structure = position.board.pawn_structure(Color::White);
+    let black_pawn_structure = position.board.pawn_structure(Color::Black);
+
+    for file in 0..8 {
+        for color in &[Color::White, Color::Black] {
+            let structure =
+                if *color == Color::White { &white_pawn_structure } else { &black_pawn_structure };
+
+            let is_isolated = structure[file] > 0
+                && (file == 0 || structure[file - 1] == 0)
+                && (file == 7 || structure[file + 1] == 0);
+            if is_isolated {
+                score -= 10 * color.sign();
+            }
+
+            let doubled_penalty = match structure[file] {
+                0 => 0,
+                1 => 0,
+                2 => 10,
+                _ => 30,
+            };
+            score -= doubled_penalty * color.sign() * (if is_isolated { 3 } else { 1 });
+        }
+    }
+
+    score
+}
+
 pub fn evaluate_position(position: &Position) -> ValueScore {
     let mut score = 0;
 
     let endgame_ratio = endgame_ratio(position);
-    // println!("endgame_ratio: {}", endgame_ratio);
+
+    score += evaluate_pawn_structure(position);
 
     for piece in PIECES.iter() {
         let mut bb = position.board.pieces_bb(*piece);
@@ -38,11 +69,6 @@ pub fn evaluate_position(position: &Position) -> ValueScore {
             let color = position.board.color_at(square).unwrap();
             score += piece_value(*piece) * color.sign();
             score += psqt_value(*piece, square, color, endgame_ratio) * color.sign();
-            // println!(
-            //     "{} {}",
-            //     square as u8,
-            //     psqt_value(*piece, square, color, endgame_ratio) * color.sign()
-            // );
         }
     }
 
