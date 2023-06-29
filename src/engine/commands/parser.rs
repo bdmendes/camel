@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, time::Duration};
 
 use camel::position::{fen::START_FEN, Position};
 
@@ -44,18 +44,62 @@ pub fn parse_position(words: &mut VecDeque<&str>) -> Result<Command, ()> {
     Ok(Command::Position { position })
 }
 
-pub fn parse_go(words: &mut VecDeque<&str>) -> Result<Command, ()> {
-    while let Some(word) = words.pop_front() {
+pub fn parse_go(words: &mut VecDeque<&str>) -> Result<Command, String> {
+    let mut depth = None;
+    let mut move_time = None;
+    let mut white_time = None;
+    let mut black_time = None;
+    let mut white_increment = None;
+    let mut black_increment = None;
+
+    loop {
+        let word = words.pop_front();
+        if word.is_none() {
+            break;
+        }
+        let word = word.unwrap();
         match word {
             "depth" => {
-                let depth = words.pop_front().ok_or(())?.parse::<u8>().map_err(|_| ())?;
-                return Ok(Command::Go { depth });
+                let value = words.pop_front().ok_or("No value found")?;
+                depth = Some(
+                    value.parse::<u8>().map_err(|_| "Invalid depth value")?.try_into().unwrap(),
+                );
             }
-            _ => (),
+            "movetime" => {
+                let value = words.pop_front().ok_or("No value found")?;
+                move_time = Some(Duration::from_millis(
+                    value.parse::<u64>().map_err(|_| "Invalid movetime value")?,
+                ));
+            }
+            "wtime" => {
+                let value = words.pop_front().ok_or("No value found")?;
+                white_time = Some(Duration::from_millis(
+                    value.parse::<u64>().map_err(|_| "Invalid wtime value")?,
+                ));
+            }
+            "btime" => {
+                let value = words.pop_front().ok_or("No value found")?;
+                black_time = Some(Duration::from_millis(
+                    value.parse::<u64>().map_err(|_| "Invalid btime value")?,
+                ));
+            }
+            "winc" => {
+                let value = words.pop_front().ok_or("No value found")?;
+                white_increment = Some(Duration::from_millis(
+                    value.parse::<u64>().map_err(|_| "Invalid winc value")?,
+                ));
+            }
+            "binc" => {
+                let value = words.pop_front().ok_or("No value found")?;
+                black_increment = Some(Duration::from_millis(
+                    value.parse::<u64>().map_err(|_| "Invalid binc value")?,
+                ));
+            }
+            _ => {}
         }
     }
 
-    Err(())
+    Ok(Command::Go { depth, move_time, white_time, black_time, white_increment, black_increment })
 }
 
 pub fn parse_perft(words: &mut VecDeque<&str>) -> Result<Command, ()> {

@@ -59,10 +59,7 @@ pub fn evaluate_move<const SSE: bool>(position: &Position, mov: Move) -> ValueSc
 
     if mov.flag().is_promotion() {
         let promoted_piece = mov.promotion_piece().unwrap();
-        score += match promoted_piece {
-            Piece::Queen => 900,
-            _ => -300,
-        };
+        score += piece_value(promoted_piece);
     }
 
     let piece = position.board.piece_at(mov.from()).unwrap().0;
@@ -111,5 +108,21 @@ mod tests {
             super::static_exchange_evaluation(position, mov),
             piece_value(Piece::Pawn) - piece_value(Piece::Queen)
         )
+    }
+
+    #[test]
+    fn eval_move_heuristic_value() {
+        let position = Position::from_fen(
+            "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+        )
+        .unwrap();
+        let mut moves = position.moves::<false>();
+        moves.sort_by(|a, b| {
+            super::evaluate_move::<false>(&position, *b)
+                .cmp(&super::evaluate_move::<false>(&position, *a))
+        });
+
+        let first_move = moves[0].to_string();
+        assert!(first_move == "e2a6" || first_move == "d5e6"); // equal trade of piece
     }
 }

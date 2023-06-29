@@ -1,9 +1,6 @@
 use crate::{
     evaluation::{
-        moves::{evaluate_move, static_exchange_evaluation},
-        piece_value,
-        position::evaluate_position,
-        Score, ValueScore,
+        moves::evaluate_move, piece_value, position::evaluate_position, Score, ValueScore,
     },
     position::{board::Piece, Color, Position},
 };
@@ -32,7 +29,6 @@ fn quiesce(position: &Position, mut alpha: ValueScore, beta: ValueScore) -> (Val
 
     // Generate only non-quiet moves
     let mut moves = position.moves::<true>();
-    moves.retain(|m| m.flag().is_promotion() || static_exchange_evaluation(*position, *m) > 0);
     moves.sort_by_cached_key(|m| -evaluate_move::<false>(position, *m));
 
     // Stable position reached
@@ -103,6 +99,11 @@ fn pvs(
         }
     }
 
+    // Beta cutoff: position is too good
+    if alpha >= beta {
+        return (alpha, 1);
+    }
+
     // Max depth reached; search for quiet position
     let is_check = position.is_check();
     if depth <= 0 && !is_check {
@@ -129,7 +130,7 @@ fn pvs(
         let (score, nodes) = pvs(
             &position.make_null_move(),
             depth - NULL_MOVE_REDUCTION,
-            alpha,
+            -beta,
             -alpha,
             table,
             original_depth,
@@ -139,7 +140,7 @@ fn pvs(
         let score = -score;
 
         if score >= beta {
-            return (score, count);
+            return (beta, count);
         }
     }
 
@@ -148,10 +149,10 @@ fn pvs(
     let killer_moves = table.get_killers(depth);
     moves.sort_by_cached_key(move |mov| {
         if hash_move.is_some() && mov == &hash_move.unwrap() {
-            return ValueScore::MIN; // hash move first
+            return ValueScore::MIN;
         }
         if Some(*mov) == killer_moves[0] || Some(*mov) == killer_moves[1] {
-            return -piece_value(Piece::Queen); // immediately after hash and good tactical moves
+            return -piece_value(Piece::Queen);
         }
         -evaluate_move::<false>(position, *mov)
     });
@@ -189,7 +190,7 @@ fn pvs(
         position,
         TTEntry {
             depth,
-            score: if alpha == original_alpha {
+            score: if alpha <= original_alpha {
                 TTScore::UpperBound(alpha)
             } else if alpha >= beta {
                 TTScore::LowerBound(alpha)

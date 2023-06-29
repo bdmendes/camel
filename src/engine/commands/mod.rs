@@ -23,7 +23,7 @@ pub fn parse_command(input: &str) -> Result<Command, ()> {
 
     match command.unwrap() {
         "position" => parse_position(&mut words),
-        "go" => parse_go(&mut words),
+        "go" => parse_go(&mut words).map_or(Result::Err(()), |cmd| Result::Ok(cmd)),
         "perft" => parse_perft(&mut words),
         "domove" | "m" => parse_domove(&mut words),
         "display" | "d" => Ok(Command::Display),
@@ -38,7 +38,7 @@ pub fn parse_command(input: &str) -> Result<Command, ()> {
 pub fn execute_command(command: Command, engine: &mut Engine) {
     match command {
         Command::Position { position } => execute_position(&position, engine),
-        Command::Go { depth } => execute_go(depth, engine),
+        Command::Go { depth, .. } => execute_go(depth.unwrap_or(5), engine),
         Command::Perft { depth } => execute_perft(depth, &engine.position),
         Command::DoMove { mov_str } => execute_do_move(&mov_str, &mut engine.position),
         Command::Display => execute_display(&engine.position),

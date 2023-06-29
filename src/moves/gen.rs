@@ -13,7 +13,7 @@ use super::{
 };
 use crate::position::{
     bitboard::Bitboard,
-    board::{Board, Piece, PIECES},
+    board::{Board, Piece, PIECES_NO_PAWN},
     square::Square,
     Color, Position,
 };
@@ -113,7 +113,7 @@ pub fn generate_regular_moves<const QUIESCE: bool>(
 pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Position) -> MoveVec {
     let mut moves = MoveVec::new();
 
-    for piece in PIECES.iter() {
+    for piece in PIECES_NO_PAWN.iter() {
         generate_regular_moves::<QUIESCE>(
             &position.board,
             *piece,

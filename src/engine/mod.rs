@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use camel::position::{fen::START_FEN, Position};
 
 use self::commands::{execute_command, parse_command};
@@ -7,12 +9,25 @@ mod time;
 
 pub enum Command {
     // Standard UCI commands
-    Position { position: Position },
-    Go { depth: u8 },
+    Position {
+        position: Position,
+    },
+    Go {
+        depth: Option<u8>,
+        move_time: Option<Duration>,
+        white_time: Option<Duration>,
+        black_time: Option<Duration>,
+        white_increment: Option<Duration>,
+        black_increment: Option<Duration>,
+    },
 
     // Custom commands
-    Perft { depth: u8 },
-    DoMove { mov_str: String },
+    Perft {
+        depth: u8,
+    },
+    DoMove {
+        mov_str: String,
+    },
     Display,
     AllMoves,
     Help,
