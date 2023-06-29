@@ -14,3 +14,8 @@ smallvec = "1.10.0"
 
 [profile.dev]
 opt-level = 1
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
