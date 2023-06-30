@@ -8,10 +8,10 @@ use super::{piece_value, psqt::psqt_value, ValueScore};
 fn piece_endgame_ratio(piece: Piece) -> u8 {
     match piece {
         Piece::Pawn => 4,
-        Piece::Knight => 8,
-        Piece::Bishop => 8,
+        Piece::Knight => 10,
+        Piece::Bishop => 10,
         Piece::Rook => 16,
-        Piece::Queen => 32,
+        Piece::Queen => 30,
         Piece::King => 0,
     }
 }

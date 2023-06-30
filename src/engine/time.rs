@@ -45,5 +45,9 @@ pub fn get_duration(
         }
     }
 
+    if standard_move_time < Duration::from_secs(1) {
+        return Duration::from_millis(20);
+    }
+
     standard_move_time
 }
