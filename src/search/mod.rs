@@ -22,8 +22,13 @@ fn print_iter_info(
         Score::Value(score) => {
             print!("score cp {} ", score);
         }
-        Score::Mate(_, moves) => {
-            print!("score mate {} ", moves);
+        Score::Mate(color, moves) => {
+            if color == position.side_to_move {
+                print!("score mate {} ", moves);
+            } else {
+                let moves = moves as i16;
+                print!("score mate {} ", -moves);
+            }
         }
     }
 
@@ -47,6 +52,10 @@ pub fn search_iter(position: &Position, depth: Depth, table: &mut SearchTable) {
 
         let elapsed = time.elapsed().as_millis();
         print_iter_info(position, d, score, count, elapsed, table);
+
+        if matches!(score, Score::Mate(_, _)) {
+            break;
+        }
     }
 
     let best_move = table.get_hash_move(position);

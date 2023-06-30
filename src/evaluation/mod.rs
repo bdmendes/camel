@@ -6,6 +6,7 @@ mod psqt;
 
 pub type ValueScore = i16;
 
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Score {
     Mate(Color, u8),
     Value(ValueScore),

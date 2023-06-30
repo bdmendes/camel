@@ -19,7 +19,7 @@ fn piece_endgame_ratio(piece: Piece) -> u8 {
     }
 }
 
-fn endgame_ratio(position: &Position) -> u8 {
+pub fn endgame_ratio(position: &Position) -> u8 {
     let mut midgame_ratio: u8 = 0;
     for piece in PIECES.iter() {
         let bb = position.board.pieces_bb(*piece);

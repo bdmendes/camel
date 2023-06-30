@@ -232,7 +232,7 @@ pub fn search(position: &Position, depth: Depth, table: &mut SearchTable) -> (Sc
     if score.abs() >= ValueScore::MAX - depth - 1 {
         (
             Score::Mate(
-                if score > 0 { Color::White } else { Color::Black },
+                if score > 0 { position.side_to_move } else { position.side_to_move.opposite() },
                 ((ValueScore::MAX - score.abs()) / 2) as u8 + 1,
             ),
             count,
