@@ -131,7 +131,7 @@ fn pvs(
     if moves.is_empty() {
         let score = if is_check { MIN_SCORE + original_depth - depth } else { 0 };
         return (score, 1);
-    } else if table.is_threefold_repetition(position) {
+    } else if position.halfmove_clock >= 50 || table.is_threefold_repetition(position) {
         return (0, 1);
     }
 

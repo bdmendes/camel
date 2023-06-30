@@ -1,6 +1,9 @@
-use crate::position::{
-    board::{Piece, PIECES},
-    Color, Position,
+use crate::{
+    moves::gen::piece_attacks,
+    position::{
+        board::{Piece, PIECES},
+        CastlingRights, Color, Position,
+    },
 };
 
 use super::{piece_value, psqt::psqt_value, ValueScore};
@@ -56,12 +59,48 @@ fn evaluate_pawn_structure(position: &Position) -> ValueScore {
     score
 }
 
+fn evaluate_king_mobility(position: &Position, endgame_ratio: u8) -> ValueScore {
+    let mut score = 0;
+    let midgame_ratio = 255 - endgame_ratio as ValueScore;
+
+    for color in &[Color::White, Color::Black] {
+        let can_castle = match color {
+            Color::White => {
+                position.castling_rights.contains(CastlingRights::WHITE_KINGSIDE)
+                    || position.castling_rights.contains(CastlingRights::WHITE_QUEENSIDE)
+            }
+            Color::Black => {
+                position.castling_rights.contains(CastlingRights::BLACK_KINGSIDE)
+                    || position.castling_rights.contains(CastlingRights::BLACK_QUEENSIDE)
+            }
+        };
+        if can_castle {
+            continue;
+        }
+
+        let king_square = (position.board.pieces_bb(Piece::King)
+            & position.board.occupancy_bb(*color))
+        .pop_lsb()
+        .unwrap();
+        let queen_attacks =
+            piece_attacks(Piece::Queen, king_square, position.board.occupancy_bb_all());
+        score -= std::cmp::max(10, std::cmp::min(0, queen_attacks.count_ones() as ValueScore - 3))
+            * 10
+            * color.sign()
+            * midgame_ratio
+            / 255;
+    }
+
+    score
+}
+
 pub fn evaluate_position(position: &Position) -> ValueScore {
     let mut score = 0;
 
     let endgame_ratio = endgame_ratio(position);
 
     score += evaluate_pawn_structure(position);
+    score += evaluate_king_mobility(position, endgame_ratio);
 
     for piece in PIECES.iter() {
         let mut bb = position.board.pieces_bb(*piece);

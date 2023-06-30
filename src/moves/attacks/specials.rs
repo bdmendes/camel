@@ -18,20 +18,17 @@ pub fn pawn_attacks(board: &Board, color: Color) -> Bitboard {
     let mut attacks = Bitboard::new(0);
 
     let our_pawns = board.pieces_bb(Piece::Pawn) & board.occupancy_bb(color);
-    let occupancy_them = board.occupancy_bb(color.opposite());
 
     let direction = if color == Color::White { MoveDirection::NORTH } else { MoveDirection::SOUTH };
 
     // West capture
-    let mut west_pawns =
-        (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST) & occupancy_them;
+    let mut west_pawns = (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST);
     while let Some(to_square) = west_pawns.pop_lsb() {
         attacks.set(to_square);
     }
 
     // East capture
-    let mut east_pawns =
-        (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST) & occupancy_them;
+    let mut east_pawns = (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST);
     while let Some(to_square) = east_pawns.pop_lsb() {
         attacks.set(to_square);
     }
@@ -360,6 +357,18 @@ mod tests {
     fn castle_blocked_white() {
         let position =
             Position::from_fen("r3k2r/pppppppp/8/8/8/8/PPPPPPPP/1R2K1NR w Kkq - 0 1").unwrap();
+
+        let mut moves = MoveVec::new();
+        generate_king_castles(&position, &mut moves);
+
+        assert_eq!(moves.len(), 0);
+    }
+
+    #[test]
+    fn castle_blocked_black() {
+        let position =
+            Position::from_fen("r3kbnr/pP3ppp/n3p3/q2pN2b/8/2N5/PPP1PP1P/R1BQKB1R b KQkq - 0 1")
+                .unwrap();
 
         let mut moves = MoveVec::new();
         generate_king_castles(&position, &mut moves);

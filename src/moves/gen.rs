@@ -204,7 +204,7 @@ mod tests {
     use crate::position::{fen::KIWIPETE_WHITE_FEN, Color, Position};
 
     #[test]
-    fn square_is_attacked() {
+    fn square_is_attacked_1() {
         let position = Position::from_fen(KIWIPETE_WHITE_FEN).unwrap();
 
         assert!(super::color_attacks_square(&position.board, super::Square::E4, Color::Black));
@@ -212,6 +212,14 @@ mod tests {
         assert!(super::color_attacks_square(&position.board, super::Square::A6, Color::White));
         assert!(!super::color_attacks_square(&position.board, super::Square::C7, Color::White));
         assert!(!super::color_attacks_square(&position.board, super::Square::B4, Color::White));
+    }
+
+    #[test]
+    fn square_is_attacked_2() {
+        let position =
+            Position::from_fen("r3kbnr/pP3ppp/n3p3/q2pN2b/8/2N5/PPP1PP1P/R1BQKB1R b KQkq - 0 1")
+                .unwrap();
+        assert!(super::color_attacks_square(&position.board, super::Square::C8, Color::White));
     }
 
     #[test]
