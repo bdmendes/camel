@@ -230,10 +230,11 @@ fn pvs(
 pub fn search(position: &Position, depth: Depth, table: &mut SearchTable) -> (Score, usize) {
     let (score, count) = pvs(position, depth, ValueScore::MIN + 1, ValueScore::MAX, table, depth);
     if score.abs() >= ValueScore::MAX - depth - 1 {
+        let plys_to_mate = (ValueScore::MAX - score.abs()) as u8;
         (
             Score::Mate(
                 if score > 0 { position.side_to_move } else { position.side_to_move.opposite() },
-                ((ValueScore::MAX - score.abs()) / 2) as u8 + 1,
+                if score > 0 { (plys_to_mate + 1) / 2 + 1 } else { (plys_to_mate + 1) / 2 },
             ),
             count,
         )
