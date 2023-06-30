@@ -116,6 +116,18 @@ impl SearchTable {
         }
     }
 
+    pub fn remaining_time(&self) -> Option<Duration> {
+        if let Some(move_time) = self.move_time {
+            let elapsed = self.initial_instant.unwrap().elapsed();
+            if elapsed >= move_time {
+                return Some(Duration::from_secs(0));
+            }
+            Some(move_time - elapsed)
+        } else {
+            None
+        }
+    }
+
     pub fn visit_position(&mut self, position: &Position) {
         self.branch_history.push(position.clone());
     }

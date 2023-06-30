@@ -42,6 +42,8 @@ fn print_iter_info(
 }
 
 pub fn search_iter(position: &Position, depth: Depth, table: &mut SearchTable) {
+    let one_legal_move = position.moves::<false>().len() == 1;
+
     for d in 1..=depth {
         let time = std::time::Instant::now();
         let (score, count) = pvs::search(position, d, table);
@@ -53,7 +55,10 @@ pub fn search_iter(position: &Position, depth: Depth, table: &mut SearchTable) {
         let elapsed = time.elapsed().as_millis();
         print_iter_info(position, d, score, count, elapsed, table);
 
-        if matches!(score, Score::Mate(_, _)) {
+        if one_legal_move
+            || matches!(score, Score::Mate(_, _))
+            || elapsed > table.remaining_time().map_or(elapsed, |t| t.as_millis() as u128)
+        {
             break;
         }
     }

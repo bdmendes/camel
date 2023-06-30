@@ -1,27 +1,21 @@
 use std::time::Duration;
 
-use camel::evaluation::position::endgame_ratio;
-
 use crate::position::{Color, Position};
 
-fn expected_remaining_moves(position: &Position) -> u32 {
-    let endgame_ratio = endgame_ratio(position);
-    let midgame_ratio = 255 - endgame_ratio;
-    let expected = midgame_ratio as f32 / 5.0;
-    std::cmp::max(10, expected as u32)
-}
+const TYPICAL_GAME_MOVES: u16 = 50;
 
 fn get_duration_based_on_moves(position: &Position, time: Duration) -> Duration {
-    let number_available_moves = position.moves::<false>().len();
+    let expected_remaining_moves =
+        std::cmp::max(10, TYPICAL_GAME_MOVES.saturating_sub(position.fullmove_number));
+    let regular_time = time / expected_remaining_moves as u32;
 
-    if number_available_moves <= 1 {
-        return Duration::from_millis(100);
+    let parabole_function = |x: f32| 0.01 * (250.0 - (x - 20.0) * (x - 20.0));
+    let parabole_factor = parabole_function(position.fullmove_number as f32);
+    if parabole_factor < 1.0 {
+        regular_time
+    } else {
+        regular_time.mul_f32(parabole_factor)
     }
-
-    let number_available_moves = number_available_moves + 1;
-    let cof = 10 + (std::cmp::min(number_available_moves / 3, 10)) as u32;
-    let expected_remaining = expected_remaining_moves(position);
-    cof * time / (expected_remaining * 20)
 }
 
 pub fn get_duration(
@@ -43,10 +37,10 @@ pub fn get_duration(
     let standard_move_time = get_duration_based_on_moves(position, our_duration);
 
     if let Some(our_increment) = our_increment {
-        if our_increment > Duration::from_millis(100) {
+        if our_increment > Duration::from_millis(200) {
             let new_move_time = standard_move_time + our_increment - Duration::from_millis(100);
             if new_move_time < our_duration {
-                return new_move_time - Duration::from_millis(100);
+                return new_move_time - Duration::from_millis(200);
             }
         }
     }
