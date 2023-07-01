@@ -52,6 +52,15 @@ fn quiesce(
 
     let mut count = 0;
     for mov in moves.iter() {
+        // Delta prune move if it cannot improve the score
+        if mov.flag().is_capture() {
+            let captured_piece =
+                position.board.piece_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
+            if static_evaluation + piece_value(captured_piece) + 100 < alpha {
+                continue;
+            }
+        }
+
         let (score, nodes) = quiesce(&position.make_move(*mov), -beta, -alpha, constraint);
         let score = -score;
         count += nodes;
@@ -140,7 +149,7 @@ fn pvs(
     if moves.is_empty() {
         let score = if is_check { MIN_SCORE + original_depth - depth } else { 0 };
         return (score, 1);
-    } else if position.halfmove_clock >= 50 {
+    } else if position.halfmove_clock >= 100 {
         return (0, 1);
     }
 
@@ -251,7 +260,7 @@ pub fn search(
         (
             Score::Mate(
                 if score > 0 { position.side_to_move } else { position.side_to_move.opposite() },
-                if score > 0 { (plys_to_mate + 1) / 2 + 1 } else { (plys_to_mate + 1) / 2 },
+                if score > 0 { plys_to_mate / 2 + 1 } else { (plys_to_mate + 1) / 2 },
             ),
             count,
         )
