@@ -34,19 +34,19 @@ pub fn get_duration(
         Color::Black => black_increment,
     };
 
-    let standard_move_time = get_duration_based_on_moves(position, our_duration);
-
-    if let Some(our_increment) = our_increment {
-        if our_increment > Duration::from_millis(200) {
-            let new_move_time = standard_move_time + our_increment - Duration::from_millis(100);
-            if new_move_time < our_duration {
-                return new_move_time - Duration::from_millis(200);
-            }
-        }
-    }
+    let mut standard_move_time = get_duration_based_on_moves(position, our_duration);
 
     if standard_move_time < Duration::from_secs(1) {
-        return Duration::from_millis(20);
+        standard_move_time = Duration::from_millis(15);
+    }
+
+    if let Some(our_increment) = our_increment {
+        if our_increment > Duration::from_millis(500) {
+            let new_move_time = standard_move_time + our_increment;
+            if new_move_time < our_duration {
+                return new_move_time - Duration::from_millis(500);
+            }
+        }
     }
 
     standard_move_time

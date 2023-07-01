@@ -52,12 +52,16 @@ pub fn search_iter(position: &Position, depth: Depth, table: &mut SearchTable) {
             break;
         }
 
-        let elapsed = time.elapsed().as_millis();
-        print_iter_info(position, d, score, count, elapsed, table);
+        let elapsed = time.elapsed();
+        print_iter_info(position, d, score, count, elapsed.as_millis(), table);
 
-        if one_legal_move
-            || matches!(score, Score::Mate(_, _))
-            || elapsed > table.remaining_time().map_or(elapsed, |t| t.as_millis() as u128)
+        if one_legal_move || matches!(score, Score::Mate(_, _)) {
+            break;
+        }
+
+        let estimated_next_move_time = elapsed * 2;
+        if estimated_next_move_time
+            > table.remaining_time().unwrap_or_else(|| estimated_next_move_time)
         {
             break;
         }
