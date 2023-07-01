@@ -1,10 +1,14 @@
-use std::{collections::HashMap, sync::atomic::Ordering, thread, time::Duration};
+use std::{
+    sync::{atomic::Ordering, Arc},
+    thread,
+    time::Duration,
+};
 
 use camel::{
     evaluation::position::evaluate_position,
     moves::gen::perft,
-    position::Position,
-    search::{search_iter, table::SearchTable, Depth},
+    position::{fen::START_FEN, Position},
+    search::{constraint::SearchConstraint, search_iter, Depth},
 };
 
 const MAX_DEPTH: Depth = 25;
@@ -21,7 +25,7 @@ pub fn execute_position(
 }
 
 pub fn execute_go(
-    engine: &mut Engine,
+    engine: &'static mut Engine,
     depth: Option<u8>,
     move_time: Option<Duration>,
     mut white_time: Option<Duration>,
@@ -29,9 +33,9 @@ pub fn execute_go(
     white_increment: Option<Duration>,
     black_increment: Option<Duration>,
 ) {
-    engine.stop.store(false, Ordering::Relaxed);
-    let stop_now = engine.stop.clone();
-
+    if !engine.stop.load(Ordering::Relaxed) {
+        return;
+    }
     let position = engine.position.clone();
 
     if white_time.is_some() && black_time.is_none() {
@@ -52,22 +56,39 @@ pub fn execute_go(
         None => None,
     };
 
-    let mut table = SearchTable {
-        transposition: HashMap::new(),
-        killer_moves: HashMap::new(),
+    let stop_now = engine.stop.clone();
+
+    let mut constraint = SearchConstraint {
         branch_history: engine.game_history.clone(),
         initial_instant: Some(std::time::Instant::now()),
         move_time: calc_move_time,
-        stop_now: Some(stop_now),
+        stop_now: Some(stop_now.clone()),
     };
 
     thread::spawn(move || {
-        search_iter(&position, depth.map_or_else(|| MAX_DEPTH, |d| d as Depth), &mut table);
+        engine.table.write().unwrap().cleanup();
+        stop_now.store(false, Ordering::Relaxed);
+        search_iter(
+            &position,
+            depth.map_or_else(|| MAX_DEPTH, |d| d as Depth),
+            Arc::clone(&engine.table),
+            &mut constraint,
+        );
+        stop_now.store(true, Ordering::Relaxed);
     });
 }
 
 pub fn execute_stop(engine: &mut Engine) {
+    if engine.stop.load(Ordering::Relaxed) {
+        return;
+    }
     engine.stop.store(true, Ordering::Relaxed);
+}
+
+pub fn execute_uci_new_game(engine: &mut Engine) {
+    engine.table.write().unwrap().cleanup();
+    engine.position = Position::from_fen(START_FEN).unwrap();
+    engine.game_history = Vec::new();
 }
 
 pub fn execute_perft(depth: u8, position: &Position) {

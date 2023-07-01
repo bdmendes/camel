@@ -6,6 +6,7 @@ use crate::{
 };
 
 use super::{
+    constraint::SearchConstraint,
     table::{SearchTable, TTEntry, TTScore},
     Depth,
 };
@@ -18,12 +19,12 @@ fn quiesce(
     position: &Position,
     mut alpha: ValueScore,
     beta: ValueScore,
-    table: &SearchTable,
+    constraint: &SearchConstraint,
 ) -> (ValueScore, usize) {
     let static_evaluation = evaluate_position(position) * position.side_to_move.sign();
 
     // Time limit reached
-    if table.should_stop_search() {
+    if constraint.should_stop_search() {
         return (static_evaluation, 1);
     }
 
@@ -51,7 +52,7 @@ fn quiesce(
 
     let mut count = 0;
     for mov in moves.iter() {
-        let (score, nodes) = quiesce(&position.make_move(*mov), -beta, -alpha, table);
+        let (score, nodes) = quiesce(&position.make_move(*mov), -beta, -alpha, constraint);
         let score = -score;
         count += nodes;
 
@@ -73,13 +74,15 @@ fn pvs_recurse(
     alpha: ValueScore,
     beta: ValueScore,
     table: &mut SearchTable,
+    constraint: &mut SearchConstraint,
     original_depth: Depth,
     do_null: bool,
 ) -> (ValueScore, usize) {
     let mut count = 0;
 
     if do_null {
-        let (score, nodes) = pvs(position, depth - 1, -alpha - 1, -alpha, table, original_depth);
+        let (score, nodes) =
+            pvs(position, depth - 1, -alpha - 1, -alpha, table, constraint, original_depth);
         count += nodes;
         let score = -score;
         if score <= alpha || score >= beta {
@@ -87,7 +90,7 @@ fn pvs_recurse(
         }
     }
 
-    let (score, nodes) = pvs(position, depth - 1, -beta, -alpha, table, original_depth);
+    let (score, nodes) = pvs(position, depth - 1, -beta, -alpha, table, constraint, original_depth);
     count += nodes;
     (-score, count)
 }
@@ -98,6 +101,7 @@ fn pvs(
     mut alpha: ValueScore,
     mut beta: ValueScore,
     table: &mut SearchTable,
+    constraint: &mut SearchConstraint,
     original_depth: Depth,
 ) -> (ValueScore, usize) {
     // Get known score from transposition table
@@ -110,7 +114,7 @@ fn pvs(
     }
 
     // Time limit reached
-    if table.should_stop_search() {
+    if constraint.should_stop_search() {
         return (alpha, 1);
     }
 
@@ -122,7 +126,7 @@ fn pvs(
     // Max depth reached; search for quiet position
     let is_check = position.is_check();
     if depth <= 0 && !is_check {
-        return quiesce(position, alpha, beta, table);
+        return quiesce(position, alpha, beta, constraint);
     }
 
     let mut moves = position.moves::<false>();
@@ -131,7 +135,7 @@ fn pvs(
     if moves.is_empty() {
         let score = if is_check { MIN_SCORE + original_depth - depth } else { 0 };
         return (score, 1);
-    } else if position.halfmove_clock >= 50 || table.is_threefold_repetition(position) {
+    } else if position.halfmove_clock >= 50 || constraint.is_threefold_repetition(position) {
         return (0, 1);
     }
 
@@ -150,6 +154,7 @@ fn pvs(
             -beta,
             -alpha,
             table,
+            constraint,
             original_depth,
         );
 
@@ -180,17 +185,18 @@ fn pvs(
     for (i, mov) in moves.iter().enumerate() {
         let new_position = position.make_move(*mov);
 
-        table.visit_position(&new_position);
+        constraint.visit_position(&new_position);
         let (score, nodes) = pvs_recurse(
             &new_position,
             if is_check { depth + CHECK_EXTENSION } else { depth },
             alpha,
             beta,
             table,
+            constraint,
             original_depth,
             i > 0,
         );
-        table.leave_position();
+        constraint.leave_position();
 
         count += nodes;
 
@@ -207,7 +213,7 @@ fn pvs(
         }
     }
 
-    if !table.should_stop_search() {
+    if !constraint.should_stop_search() {
         table.insert_entry(
             position,
             TTEntry {
@@ -227,8 +233,14 @@ fn pvs(
     (alpha, count)
 }
 
-pub fn search(position: &Position, depth: Depth, table: &mut SearchTable) -> (Score, usize) {
-    let (score, count) = pvs(position, depth, ValueScore::MIN + 1, ValueScore::MAX, table, depth);
+pub fn search(
+    position: &Position,
+    depth: Depth,
+    table: &mut SearchTable,
+    constraint: &mut SearchConstraint,
+) -> (Score, usize) {
+    let (score, count) =
+        pvs(position, depth, ValueScore::MIN + 1, ValueScore::MAX, table, constraint, depth);
     if score.abs() >= ValueScore::MAX - depth - 1 {
         let plys_to_mate = (ValueScore::MAX - score.abs()) as u8;
         (

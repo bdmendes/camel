@@ -1,7 +1,10 @@
+use std::sync::{Arc, RwLock};
+
 use crate::{evaluation::Score, position::Position};
 
-use self::table::SearchTable;
+use self::{constraint::SearchConstraint, table::SearchTable};
 
+pub mod constraint;
 pub mod pvs;
 pub mod table;
 
@@ -41,14 +44,20 @@ fn print_iter_info(
     println!();
 }
 
-pub fn search_iter(position: &Position, depth: Depth, table: &mut SearchTable) {
+pub fn search_iter(
+    position: &Position,
+    depth: Depth,
+    table: Arc<RwLock<SearchTable>>,
+    constraint: &mut SearchConstraint,
+) {
     let one_legal_move = position.moves::<false>().len() == 1;
+    let table = &mut *table.write().unwrap();
 
     for d in 1..=depth {
         let time = std::time::Instant::now();
-        let (score, count) = pvs::search(position, d, table);
+        let (score, count) = pvs::search(position, d, table, constraint);
 
-        if table.should_stop_search() {
+        if constraint.should_stop_search() {
             break;
         }
 
@@ -59,10 +68,7 @@ pub fn search_iter(position: &Position, depth: Depth, table: &mut SearchTable) {
             break;
         }
 
-        let estimated_next_move_time = elapsed * 2;
-        if estimated_next_move_time
-            > table.remaining_time().unwrap_or_else(|| estimated_next_move_time)
-        {
+        if elapsed > constraint.remaining_time().unwrap_or_else(|| elapsed) {
             break;
         }
     }

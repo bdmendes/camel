@@ -4,6 +4,7 @@ use self::{
     executor::{
         execute_all_moves, execute_clear, execute_display, execute_do_move, execute_go,
         execute_help, execute_perft, execute_position, execute_quit, execute_stop,
+        execute_uci_new_game,
     },
     parser::{parse_domove, parse_go, parse_perft, parse_position},
 };
@@ -26,19 +27,7 @@ pub fn parse_command(input: &str) -> Result<Command, ()> {
         "go" => parse_go(&mut words).map_or(Result::Err(()), |cmd| Result::Ok(cmd)),
         "stop" => Ok(Command::Stop),
         "uci" => Ok(Command::UCI),
-        "debug" => {
-            if let Some(word) = words.pop_front() {
-                if word == "on" {
-                    Ok(Command::Debug(true))
-                } else if word == "off" {
-                    Ok(Command::Debug(false))
-                } else {
-                    Err(())
-                }
-            } else {
-                Err(())
-            }
-        }
+        "debug" => Ok(Command::Debug(true)),
         "isready" => Ok(Command::IsReady),
         "ucinewgame" => Ok(Command::UCINewGame),
         "perft" => parse_perft(&mut words),
@@ -52,7 +41,7 @@ pub fn parse_command(input: &str) -> Result<Command, ()> {
     }
 }
 
-pub fn execute_command(command: Command, engine: &mut Engine) {
+pub fn execute_command(command: Command, engine: &'static mut Engine) {
     match command {
         Command::Position { position, game_history } => {
             execute_position(&position, &game_history, engine)
@@ -77,7 +66,7 @@ pub fn execute_command(command: Command, engine: &mut Engine) {
         Command::UCI => println!("id name Camel\nid author Bruno Mendes\nuciok"),
         Command::Debug(_) => (),
         Command::IsReady => println!("readyok"),
-        Command::UCINewGame => (),
+        Command::UCINewGame => execute_uci_new_game(engine),
         Command::Perft { depth } => execute_perft(depth, &engine.position),
         Command::DoMove { mov_str } => execute_do_move(&mov_str, &mut engine.position),
         Command::Display => execute_display(&engine.position),
