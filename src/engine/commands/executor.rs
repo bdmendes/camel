@@ -1,14 +1,10 @@
-use std::{
-    sync::{atomic::Ordering, Arc},
-    thread,
-    time::Duration,
-};
+use std::{sync::atomic::Ordering, thread, time::Duration};
 
 use camel::{
     evaluation::position::evaluate_position,
     moves::gen::perft,
     position::{fen::START_FEN, Position},
-    search::{constraint::SearchConstraint, search_iter, Depth},
+    search::{constraint::SearchConstraint, search_iter, table::SearchTable, Depth},
 };
 
 const MAX_DEPTH: Depth = 25;
@@ -25,7 +21,7 @@ pub fn execute_position(
 }
 
 pub fn execute_go(
-    engine: &'static mut Engine,
+    engine: &mut Engine,
     depth: Option<u8>,
     move_time: Option<Duration>,
     mut white_time: Option<Duration>,
@@ -66,12 +62,11 @@ pub fn execute_go(
     };
 
     thread::spawn(move || {
-        engine.table.write().unwrap().cleanup();
         stop_now.store(false, Ordering::Relaxed);
         search_iter(
             &position,
             depth.map_or_else(|| MAX_DEPTH, |d| d as Depth),
-            Arc::clone(&engine.table),
+            &mut SearchTable::new(),
             &mut constraint,
         );
         stop_now.store(true, Ordering::Relaxed);
@@ -86,7 +81,6 @@ pub fn execute_stop(engine: &mut Engine) {
 }
 
 pub fn execute_uci_new_game(engine: &mut Engine) {
-    engine.table.write().unwrap().cleanup();
     engine.position = Position::from_fen(START_FEN).unwrap();
     engine.game_history = Vec::new();
 }

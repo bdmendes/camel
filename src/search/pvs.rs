@@ -113,11 +113,6 @@ fn pvs(
     constraint: &mut SearchConstraint,
     original_depth: Depth,
 ) -> (ValueScore, usize) {
-    // Detect threefold repetition
-    if constraint.is_threefold_repetition(position) {
-        return (0, 1);
-    }
-
     // Get known score from transposition table
     if let Some(tt_entry) = table.get_table_score(position, depth) {
         match tt_entry {
@@ -145,11 +140,11 @@ fn pvs(
 
     let mut moves = position.moves::<false>();
 
-    // Detect checkmate and stalemate
+    // Detect checkmate and draw
     if moves.is_empty() {
         let score = if is_check { MIN_SCORE + original_depth - depth } else { 0 };
         return (score, 1);
-    } else if position.halfmove_clock >= 100 {
+    } else if position.halfmove_clock >= 100 || constraint.is_threefold_repetition(position) {
         return (0, 1);
     }
 

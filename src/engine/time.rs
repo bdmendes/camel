@@ -11,11 +11,8 @@ fn get_duration_based_on_moves(position: &Position, time: Duration) -> Duration 
 
     let parabole_function = |x: f32| 0.01 * (250.0 - (x - 20.0) * (x - 20.0));
     let parabole_factor = parabole_function(position.fullmove_number as f32);
-    if parabole_factor < 1.0 {
-        regular_time
-    } else {
-        regular_time.mul_f32(parabole_factor)
-    }
+
+    regular_time.mul_f32(parabole_factor.max(0.8))
 }
 
 pub fn get_duration(

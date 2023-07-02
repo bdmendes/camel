@@ -41,7 +41,7 @@ pub fn parse_command(input: &str) -> Result<Command, ()> {
     }
 }
 
-pub fn execute_command(command: Command, engine: &'static mut Engine) {
+pub fn execute_command(command: Command, engine: &mut Engine) {
     match command {
         Command::Position { position, game_history } => {
             execute_position(&position, &game_history, engine)

@@ -1,8 +1,5 @@
-use std::sync::{Arc, RwLock};
-
-use crate::{evaluation::Score, position::Position};
-
 use self::{constraint::SearchConstraint, table::SearchTable};
+use crate::{evaluation::Score, position::Position};
 
 pub mod constraint;
 pub mod pvs;
@@ -47,11 +44,10 @@ fn print_iter_info(
 pub fn search_iter(
     position: &Position,
     depth: Depth,
-    table: Arc<RwLock<SearchTable>>,
+    table: &mut SearchTable,
     constraint: &mut SearchConstraint,
 ) {
     let one_legal_move = position.moves::<false>().len() == 1;
-    let table = &mut *table.write().unwrap();
 
     for d in 1..=depth {
         let time = std::time::Instant::now();

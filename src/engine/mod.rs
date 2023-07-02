@@ -1,15 +1,9 @@
+use self::commands::{execute_command, parse_command};
+use camel::position::{fen::START_FEN, Position};
 use std::{
-    sync::{atomic::AtomicBool, Arc, RwLock},
+    sync::{atomic::AtomicBool, Arc},
     time::Duration,
 };
-
-use camel::{
-    position::{fen::START_FEN, Position},
-    search::table::SearchTable,
-};
-use once_cell::sync::Lazy;
-
-use self::commands::{execute_command, parse_command};
 
 mod commands;
 mod time;
@@ -52,16 +46,14 @@ pub struct Engine {
     pub position: Position,
     pub game_history: Vec<Position>,
     pub stop: Arc<AtomicBool>,
-    pub table: Arc<RwLock<SearchTable>>,
 }
 
 pub fn uci_loop() {
-    static mut ENGINE: Lazy<Engine> = Lazy::new(|| Engine {
+    let mut engine = Engine {
         position: Position::from_fen(START_FEN).unwrap(),
         stop: Arc::new(AtomicBool::new(true)),
         game_history: Vec::new(),
-        table: Arc::new(RwLock::new(SearchTable::new())),
-    });
+    };
 
     loop {
         let mut input = String::new();
@@ -73,9 +65,7 @@ pub fn uci_loop() {
         }
 
         if let Ok(command) = parse_command(input) {
-            unsafe {
-                execute_command(command, &mut ENGINE);
-            }
+            execute_command(command, &mut engine);
         } else {
             println!("Invalid command. Type 'help' to know more.");
         }
