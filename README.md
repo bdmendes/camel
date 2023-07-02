@@ -21,7 +21,7 @@ Camel is a chess engine written from scratch in Rust. It aims to achieve a high 
 Make sure you have an updated [Rust](https://www.rust-lang.org/learn/get-started) environment on your machine. For best results, compile with LLVM optimizations enabled:
 
 <pre>
-  cargo build --release
+  $ cargo build --release
 </pre>
 
 ## Testing
@@ -29,10 +29,12 @@ Make sure you have an updated [Rust](https://www.rust-lang.org/learn/get-started
 You can probe the integrity of the engine by running the test suite, which includes [perft](https://www.chessprogramming.org/Perft_Results) and other unit tests:
 
 <pre>
-    cargo test
+  $ cargo test
 </pre>
 
-Upon developing, to be able to claim a statistically significant improvement over the last version, it is recommended to setup a tournament between the two versions, using an utility such as [fast-chess](https://github.com/Disservin/fast-chess). It is also possible and fun to deploy the engine to [lichess](https://lichess.org/), through the [lichess-bot bridge](https://github.com/lichess-bot-devs/lichess-bot), although the [Elo](https://en.wikipedia.org/wiki/Elo_rating_system) might not represent the engine's true strength, since it will mostly be based on matchmaking against other engines.
+Upon development, to be able to claim a statistically significant improvement over the last version, it is recommended to set up a tournament between the two versions, using a utility such as [fast-chess](https://github.com/Disservin/fast-chess) or [cutechess-cli](https://github.com/cutechess/cutechess).
+
+It is also possible and fun to deploy the engine to [lichess](https://lichess.org/), through the [lichess-bot bridge](https://github.com/lichess-bot-devs/lichess-bot). Please note, however, that the obtained [Glicko](https://lichess.org/page/rating-systems) rating is not directly comparable to [FIDE](https://en.wikipedia.org/wiki/FIDE)'s due to different player pools.
 
 ## Usage
 
@@ -79,7 +81,7 @@ Type `help` to see the available commands.
 
 <img src="readme_assets/components.svg" width="400">
 
-Camel uses domain-specific techniques to achieve higher performance. The board is represented using [bitboards](https://www.chessprogramming.org/Bitboards) and the move generation is aided by [magics](https://www.chessprogramming.org/Magic_Bitboards). The search is based on [alpha-beta pruning](https://www.chessprogramming.org/Alpha-Beta), enhanced with a [transposition table](https://www.chessprogramming.org/Transposition_Table) and [extension](https://www.chessprogramming.org/Extensions) and [reduction](https://www.chessprogramming.org/Reductions) techniques. [Iterative deepening](https://www.chessprogramming.org/Iterative_Deepening) enables the time management framework.
+Camel uses domain-specific techniques to achieve higher performance. The board is represented using [bitboards](https://www.chessprogramming.org/Bitboards) and the move generation is aided by [magics](https://www.chessprogramming.org/Magic_Bitboards). The search is based on [alpha-beta pruning](https://www.chessprogramming.org/Alpha-Beta), enhanced with a [transposition table](https://www.chessprogramming.org/Transposition_Table) and [extension](https://www.chessprogramming.org/Extensions) and [reduction](https://www.chessprogramming.org/Reductions) schemas. [Iterative deepening](https://www.chessprogramming.org/Iterative_Deepening) enables the time management framework.
 
 Dive into the [chess programming wiki](https://www.chessprogramming.org/Main_Page) to learn more about these techniques.
 
@@ -90,7 +92,9 @@ Camel is licensed under the [GNU General Public License v3.0](./LICENSE.md). You
 ## Credits
 
 - [@biromiro](https://github.com/biromiro): for designing the cute camel logo.
-- [Chess Programming Wiki](https://www.chessprogramming.org/Main_Page): a great resource for chess programming.
+- [Chess Programming Wiki](https://www.chessprogramming.org/Main_Page): for the great explanations on the state of the art.
+- [Lichess](https://lichess.org/): for the friendly bot API.
+- [Fast-Chess](https://github.com/Disservin/fast-chess): for a lightweight, dependency-free way to set up engine matches.
 
 ## Why Camel?
 
