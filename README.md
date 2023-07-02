@@ -14,6 +14,16 @@ Camel is a chess engine written from scratch in Rust. It aims to achieve a high 
 
 Camel is on [lichess](https://lichess.org/@/camel_bot), through the [lichess-bot bridge](https://github.com/lichess-bot-devs/lichess-bot).
 
+## Testing
+
+You can probe the integrity of the engine by running the test suite, which includes [perft](https://www.chessprogramming.org/Perft_Results) and other unit tests:
+
+<pre>
+    cargo test
+</pre>
+
+Upon developing, to be able to claim a statistically significant improvement over the last version, it is recommended to setup a [tournament](https://www.chessprogramming.org/Chess_Tournaments) between the two versions, using an utility such as [fast-chess](https://github.com/Disservin/fast-chess). It is also possible and fun to deploy the engine to [lichess](https://lichess.org/), through the [lichess-bot bridge](https://github.com/lichess-bot-devs/lichess-bot), although the [Elo](https://en.wikipedia.org/wiki/Elo_rating_system) might not represent the engine's true strength, since it will mostly be based on matchmaking against other engines.
+
 ## How to use it
 
 Camel is an [UCI-compatible](https://backscattering.de/chess/uci/) chess engine, which means it can be used with any chess GUI that supports the UCI protocol, such as [Scid](https://flathub.org/apps/details/io.github.benini.scid). Alternatively, you can explore it through the interactive CLI, which builds on top of the UCI protocol, allowing you to visualize the board, make a move of your own, query legal moves and ask the engine to move.
