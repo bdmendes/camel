@@ -32,7 +32,7 @@ You can probe the integrity of the engine by running the test suite, which inclu
     cargo test
 </pre>
 
-Upon developing, to be able to claim a statistically significant improvement over the last version, it is recommended to setup a [tournament](https://www.chessprogramming.org/Chess_Tournaments) between the two versions, using an utility such as [fast-chess](https://github.com/Disservin/fast-chess). It is also possible and fun to deploy the engine to [lichess](https://lichess.org/), through the [lichess-bot bridge](https://github.com/lichess-bot-devs/lichess-bot), although the [Elo](https://en.wikipedia.org/wiki/Elo_rating_system) might not represent the engine's true strength, since it will mostly be based on matchmaking against other engines.
+Upon developing, to be able to claim a statistically significant improvement over the last version, it is recommended to setup a tournament between the two versions, using an utility such as [fast-chess](https://github.com/Disservin/fast-chess). It is also possible and fun to deploy the engine to [lichess](https://lichess.org/), through the [lichess-bot bridge](https://github.com/lichess-bot-devs/lichess-bot), although the [Elo](https://en.wikipedia.org/wiki/Elo_rating_system) might not represent the engine's true strength, since it will mostly be based on matchmaking against other engines.
 
 ## Usage
 
