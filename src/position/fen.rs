@@ -1,141 +1,201 @@
-use super::*;
+use std::str::FromStr;
+
+use super::{
+    bitboard::Bitboard,
+    board::{Board, Piece},
+    CastlingRights, Color, Position, Square,
+};
 
 pub const START_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+pub const KIWIPETE_WHITE_FEN: &str =
+    "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+pub const KIWIPETE_BLACK_FEN: &str =
+    "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1";
 
-pub fn position_from_fen(fen: &str) -> Result<Position, String> {
-    let mut position = Position {
-        board: Board([Option::None; BOARD_SIZE]),
-        to_move: Color::White,
-        castling_rights: CastlingRights::empty(),
-        en_passant_square: None,
-        half_move_number: 0,
-        full_move_number: 0,
-    };
+pub fn board_from_fen(board_fen: &str) -> Result<Board, ()> {
+    let mut chars = board_fen.chars();
 
-    let mut fen_iter = fen.split_whitespace();
-    let board = fen_iter.next().unwrap_or("");
-    let next_to_move = fen_iter.next().unwrap_or("w");
-    let castling_rights = fen_iter.next().unwrap_or("-");
-    let en_passant_square = fen_iter.next().unwrap_or("-");
-    let half_move_number = fen_iter.next().unwrap_or("0");
-    let full_move_number = fen_iter.next().unwrap_or("1");
+    let mut rank = 7;
+    let mut file = 0;
 
-    let mut row: usize = 7;
-    let mut col: usize = 0;
-    for c in board.chars() {
+    let mut pieces: [Bitboard; 6] = Default::default();
+    let mut occupancy: [Bitboard; 2] = Default::default();
+
+    while let Some(c) = chars.next() {
         match c {
-            '/' => {
-                row -= 1;
-                col = 0;
-            }
+            ' ' => break,
             '1'..='8' => {
-                col += (c as u8 - ('0' as u8)) as usize;
+                file += (c as u8) - ('0' as u8);
             }
-            _ => {
-                let piece = match Piece::from_char(c) {
-                    Ok(piece) => piece,
-                    Err(msg) => return Err(msg),
+            '/' => {
+                rank -= 1;
+                file = 0;
+            }
+            'p' | 'P' | 'n' | 'N' | 'b' | 'B' | 'r' | 'R' | 'q' | 'Q' | 'k' | 'K' => {
+                let color = if c.is_lowercase() { Color::Black } else { Color::White };
+                let piece = match c.to_ascii_lowercase() {
+                    'p' => Piece::Pawn,
+                    'n' => Piece::Knight,
+                    'b' => Piece::Bishop,
+                    'r' => Piece::Rook,
+                    'q' => Piece::Queen,
+                    'k' => Piece::King,
+                    _ => unreachable!(),
                 };
-                position.board[Square::from_row_col(row, col)] = Some(piece);
-                col += 1;
+                let square = Square::try_from(rank * 8 + file).unwrap();
+                pieces[piece as usize].set(square);
+                occupancy[color as usize].set(square);
+                file += 1;
             }
+            _ => {}
         }
     }
 
-    if col != 8 || row != 0 {
-        return Err("Insufficient board information".to_owned());
+    if rank == 0 && file == 8 {
+        Ok(Board::new(pieces, occupancy))
+    } else {
+        Err(())
     }
-
-    position.to_move = match next_to_move {
-        "w" => Color::White,
-        "b" => Color::Black,
-        _ => return Err("Invalid next to move".to_owned()),
-    };
-
-    for c in castling_rights.chars() {
-        match c {
-            'K' => position.castling_rights |= CastlingRights::WHITE_KINGSIDE,
-            'Q' => position.castling_rights |= CastlingRights::WHITE_QUEENSIDE,
-            'k' => position.castling_rights |= CastlingRights::BLACK_KINGSIDE,
-            'q' => position.castling_rights |= CastlingRights::BLACK_QUEENSIDE,
-            '-' => break,
-            _ => panic!("Invalid castling rights"),
-        }
-    }
-
-    position.en_passant_square = match en_passant_square {
-        "-" => None,
-        _ => Some(Square::from_algebraic(en_passant_square)),
-    };
-
-    position.half_move_number = half_move_number.parse().unwrap_or(0);
-    position.full_move_number = full_move_number.parse().unwrap_or(1);
-
-    Ok(position)
 }
 
-pub fn position_to_fen(position: &Position, omit_move_numbers: bool) -> String {
-    let mut fen = String::new();
+pub fn position_from_fen(fen: &str) -> Result<Position, ()> {
+    let mut fen_iter = fen.split_whitespace();
 
-    for row in (0..8).rev() {
-        let mut empty = 0;
-        for col in 0..8 {
-            match position.board[Square::from_row_col(row, col)] {
-                None => empty += 1,
-                Some(piece) => {
-                    if empty > 0 {
-                        fen.push((empty + ('0' as u8)) as char);
-                        empty = 0;
-                    }
-                    fen.push(piece.to_char());
-                }
-            }
-        }
-        if empty > 0 {
-            fen.push((empty + ('0' as u8)) as char);
-        }
-        if row > 0 {
-            fen.push('/');
+    let board_fen = fen_iter.next().ok_or(())?;
+    let board = board_from_fen(board_fen)?;
+
+    let side_to_move = match fen_iter.next() {
+        Some("w") => Color::White,
+        Some("b") => Color::Black,
+        _ => return Err(()),
+    };
+
+    let mut castling_rights_fen = fen_iter.next().ok_or(())?.chars();
+    let mut castling_rights = CastlingRights::empty();
+    while let Some(c) = castling_rights_fen.next() {
+        match c {
+            ' ' => break,
+            'K' => castling_rights |= CastlingRights::WHITE_KINGSIDE,
+            'Q' => castling_rights |= CastlingRights::WHITE_QUEENSIDE,
+            'k' => castling_rights |= CastlingRights::BLACK_KINGSIDE,
+            'q' => castling_rights |= CastlingRights::BLACK_QUEENSIDE,
+            '-' => break,
+            _ => return Err(()),
         }
     }
 
+    let en_passant_square_fen = fen_iter.next().ok_or(())?;
+    let en_passant_square = match en_passant_square_fen {
+        "-" => None,
+        _ => Square::from_str(en_passant_square_fen).ok(),
+    };
+
+    let halfmove_clock: u8 = fen_iter.next().unwrap_or("0").parse().ok().ok_or(())?;
+
+    let fullmove_number: u16 = fen_iter.next().unwrap_or("1").parse().ok().ok_or(())?;
+
+    Ok(Position {
+        board,
+        side_to_move,
+        castling_rights,
+        en_passant_square,
+        halfmove_clock,
+        fullmove_number,
+    })
+}
+
+fn board_to_fen(board: &Board) -> String {
+    let mut fen = String::new();
+
+    for rank in (0..8).rev() {
+        let mut empty_squares = 0;
+
+        if rank != 7 {
+            fen.push('/');
+        }
+
+        for file in 0..8 {
+            let square = rank * 8 + file;
+
+            let piece = match board.piece_at(Square::try_from(square).unwrap()) {
+                Some((Piece::Pawn, Color::White)) => 'P',
+                Some((Piece::Pawn, Color::Black)) => 'p',
+                Some((Piece::Knight, Color::White)) => 'N',
+                Some((Piece::Knight, Color::Black)) => 'n',
+                Some((Piece::Bishop, Color::White)) => 'B',
+                Some((Piece::Bishop, Color::Black)) => 'b',
+                Some((Piece::Rook, Color::White)) => 'R',
+                Some((Piece::Rook, Color::Black)) => 'r',
+                Some((Piece::Queen, Color::White)) => 'Q',
+                Some((Piece::Queen, Color::Black)) => 'q',
+                Some((Piece::King, Color::White)) => 'K',
+                Some((Piece::King, Color::Black)) => 'k',
+                None => ' ',
+            };
+
+            if piece == ' ' {
+                empty_squares += 1;
+            } else {
+                if empty_squares > 0 {
+                    fen.push_str(&empty_squares.to_string());
+                    empty_squares = 0;
+                }
+                fen.push(piece);
+            }
+        }
+
+        if empty_squares > 0 {
+            fen.push_str(&empty_squares.to_string());
+        }
+    }
+
+    fen
+}
+
+pub fn position_to_fen(position: &Position) -> String {
+    let mut fen = String::new();
+
+    fen.push_str(&board_to_fen(&position.board));
+
     fen.push(' ');
-    fen.push(match position.to_move {
-        Color::White => 'w',
-        Color::Black => 'b',
+
+    fen.push_str(match position.side_to_move {
+        Color::White => "w",
+        Color::Black => "b",
     });
 
     fen.push(' ');
-    let mut castling_rights = String::new();
-    if position.castling_rights.contains(CastlingRights::WHITE_KINGSIDE) {
-        castling_rights.push('K');
+
+    if position.castling_rights.is_empty() {
+        fen.push('-');
+    } else {
+        if position.castling_rights.contains(CastlingRights::WHITE_KINGSIDE) {
+            fen.push('K');
+        }
+        if position.castling_rights.contains(CastlingRights::WHITE_QUEENSIDE) {
+            fen.push('Q');
+        }
+        if position.castling_rights.contains(CastlingRights::BLACK_KINGSIDE) {
+            fen.push('k');
+        }
+        if position.castling_rights.contains(CastlingRights::BLACK_QUEENSIDE) {
+            fen.push('q');
+        }
     }
-    if position.castling_rights.contains(CastlingRights::WHITE_QUEENSIDE) {
-        castling_rights.push('Q');
-    }
-    if position.castling_rights.contains(CastlingRights::BLACK_KINGSIDE) {
-        castling_rights.push('k');
-    }
-    if position.castling_rights.contains(CastlingRights::BLACK_QUEENSIDE) {
-        castling_rights.push('q');
-    }
-    if castling_rights.is_empty() {
-        castling_rights.push('-');
-    }
-    fen.push_str(castling_rights.as_str());
 
     fen.push(' ');
-    match position.en_passant_square {
-        None => fen.push('-'),
-        Some(square) => fen.push_str(&square.to_algebraic()),
-    }
 
-    if !omit_move_numbers {
-        fen.push(' ');
-        fen.push_str(position.half_move_number.to_string().as_str());
-        fen.push(' ');
-        fen.push_str(&position.full_move_number.to_string());
-    }
+    fen.push_str(
+        &position.en_passant_square.map(|sq| sq.to_string()).unwrap_or_else(|| "-".to_string()),
+    );
+
+    fen.push(' ');
+
+    fen.push_str(&position.halfmove_clock.to_string());
+
+    fen.push(' ');
+
+    fen.push_str(&position.fullmove_number.to_string());
 
     fen
 }
@@ -143,17 +203,120 @@ pub fn position_to_fen(position: &Position, omit_move_numbers: bool) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::position::fen::Piece::*;
+    use crate::position::Color::*;
 
     #[test]
-    fn fen_start() {
-        let position = position_from_fen(START_FEN).unwrap();
-        assert_eq!(position_to_fen(&position, false), START_FEN);
+    fn fails_when_fen_is_invalid() {
+        let invalid_fens = [
+            "pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", // missing a rank
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR - KQkq - 0 1", // missing side to move
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w",   // missing castling rights
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq", // missing en passant square
+        ];
+
+        for fen in &invalid_fens {
+            assert!(position_from_fen(fen).is_err());
+        }
     }
 
     #[test]
-    fn fen_midgame() {
-        let midgame_fen = "r4rk1/pp1q1ppp/2n2b2/3Q4/8/2N5/PPP2PPP/R3K1NR b KQ - 0 14";
-        let position = position_from_fen(midgame_fen).unwrap();
-        assert_eq!(position_to_fen(&position, false), midgame_fen);
+    fn parses_board() {
+        let position = position_from_fen(KIWIPETE_WHITE_FEN).unwrap();
+
+        let pieces_map = [
+            Some((Rook, White)),   // a1
+            None,                  // b1
+            None,                  // c1
+            None,                  // d1
+            Some((King, White)),   // e1
+            None,                  // f1
+            None,                  // g1
+            Some((Rook, White)),   // h1
+            Some((Pawn, White)),   // a2
+            Some((Pawn, White)),   // b2
+            Some((Pawn, White)),   // c2
+            Some((Bishop, White)), // d2
+            Some((Bishop, White)), // e2
+            Some((Pawn, White)),   // f2
+            Some((Pawn, White)),   // g2
+            Some((Pawn, White)),   // h2
+            None,                  // a3
+            None,                  // b3
+            Some((Knight, White)), // c3
+            None,                  // d3
+            None,                  // e3
+            Some((Queen, White)),  // f3
+            None,                  // g3
+            Some((Pawn, Black)),   // h3
+            None,                  // a4
+            Some((Pawn, Black)),   // b4
+            None,                  // c4
+            None,                  // d4
+            Some((Pawn, White)),   // e4
+            None,                  // f4
+            None,                  // g4
+            None,                  // h4
+            None,                  // a5
+            None,                  // b5
+            None,                  // c5
+            Some((Pawn, White)),   // d5
+            Some((Knight, White)), // e5
+            None,                  // f5
+            None,                  // g5
+            None,                  // h5
+            Some((Bishop, Black)), // a6
+            Some((Knight, Black)), // b6
+            None,                  // c6
+            None,                  // d6
+            Some((Pawn, Black)),   // e6
+            Some((Knight, Black)), // f6
+            Some((Pawn, Black)),   // g6
+            None,                  // h6
+            Some((Pawn, Black)),   // a7
+            None,                  // b7
+            Some((Pawn, Black)),   // c7
+            Some((Pawn, Black)),   // d7
+            Some((Queen, Black)),  // e7
+            Some((Pawn, Black)),   // f7
+            Some((Bishop, Black)), // g7
+            None,                  // h7
+            Some((Rook, Black)),   // a8
+            None,                  // b8
+            None,                  // c8
+            None,                  // d8
+            Some((King, Black)),   // e8
+            None,                  // f8
+            None,                  // g8
+            Some((Rook, Black)),   // h8
+        ];
+
+        for (i, piece) in pieces_map.iter().enumerate() {
+            let square = Square::try_from(i as u8).unwrap();
+            assert_eq!(position.board.piece_at(square), *piece);
+        }
+    }
+
+    #[test]
+    fn parses_position_info() {
+        let position = position_from_fen(KIWIPETE_WHITE_FEN).unwrap();
+
+        assert_eq!(position.side_to_move, White);
+        assert_eq!(
+            position.castling_rights,
+            CastlingRights::WHITE_KINGSIDE
+                | CastlingRights::WHITE_QUEENSIDE
+                | CastlingRights::BLACK_KINGSIDE
+                | CastlingRights::BLACK_QUEENSIDE
+        );
+        assert_eq!(position.en_passant_square, None);
+        assert_eq!(position.halfmove_clock, 0);
+        assert_eq!(position.fullmove_number, 1);
+    }
+
+    #[test]
+    fn to_fen_reflexive() {
+        let position = position_from_fen(KIWIPETE_WHITE_FEN).unwrap();
+        assert_eq!(position_to_fen(&position), KIWIPETE_WHITE_FEN);
     }
 }

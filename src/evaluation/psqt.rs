@@ -1,7 +1,8 @@
-use super::Score;
-use crate::position::{Color, Piece, Square};
+use crate::position::{board::Piece, square::Square, Color};
 
-type PieceSquareTable = [Score; 64];
+use super::ValueScore;
+
+type PieceSquareTable = [ValueScore; 64];
 
 // Values adapted from https://www.chessprogramming.org/Simplified_Evaluation_Function
 // The board is reversed (white is at the bottom) to allow for easier tuning.
@@ -99,37 +100,45 @@ const ENDGAME_KING_PSQT: PieceSquareTable = [
 #[rustfmt::skip]
 const ENDGAME_PAWN_PSQT: PieceSquareTable = [
       0,  0,  0,  0,  0,  0,  0,  0,
-    110,120,120,120,120,120,120,110,
-     90,100,100,100,100,100,100, 90,
-     70, 80, 80, 80, 80, 80, 80, 70,
-     60, 60, 60, 60, 60, 60, 60, 60,
+     50, 50, 50, 50, 50, 50, 50, 50,
+     45, 45, 45, 45, 45, 45, 45, 45,
      40, 40, 40, 40, 40, 40, 40, 40,
+     30, 30, 30, 30, 30, 30, 30, 30,
      20, 20, 20, 20, 20, 20, 20, 20,
+      0,  0,  0,  0,  0,  0,  0,  0,
       0,  0,  0,  0,  0,  0,  0,  0,
 ];
 
-pub fn psqt_value(piece: Piece, square: Square, endgame_ratio: u8) -> Score {
-    let psqt_square = match piece.color() {
-        Color::White => Square::from_row_col(7 - square.row(), square.col()),
-        Color::Black => square,
-    };
-    let (midgame_psqt, endgame_psqt) = match piece {
-        Piece::WP | Piece::BP => (MIDGAME_PAWN_PSQT, ENDGAME_PAWN_PSQT),
-        Piece::WN | Piece::BN => (MIDGAME_KNIGHT_PSQT, ENDGAME_KNIGHT_PSQT),
-        Piece::WB | Piece::BB => (MIDGAME_BISHOP_PSQT, ENDGAME_BISHOP_PSQT),
-        Piece::WR | Piece::BR => (MIDGAME_ROOK_PSQT, ENDGAME_ROOK_PSQT),
-        Piece::WQ | Piece::BQ => (MIDGAME_QUEEN_PSQT, ENDGAME_QUEEN_PSQT),
-        Piece::WK | Piece::BK => (MIDGAME_KING_PSQT, ENDGAME_KING_PSQT),
+pub fn psqt_value(piece: Piece, square: Square, color: Color, endgame_ratio: u8) -> ValueScore {
+    let midgame_psqt = match piece {
+        Piece::Pawn => &MIDGAME_PAWN_PSQT,
+        Piece::Knight => &MIDGAME_KNIGHT_PSQT,
+        Piece::Bishop => &MIDGAME_BISHOP_PSQT,
+        Piece::Rook => &MIDGAME_ROOK_PSQT,
+        Piece::Queen => &MIDGAME_QUEEN_PSQT,
+        Piece::King => &MIDGAME_KING_PSQT,
     };
 
-    let midgame_value = midgame_psqt[psqt_square.0 as usize];
-    let endgame_value = endgame_psqt[psqt_square.0 as usize];
+    let endgame_psqt = match piece {
+        Piece::Pawn => &ENDGAME_PAWN_PSQT,
+        Piece::Knight => &ENDGAME_KNIGHT_PSQT,
+        Piece::Bishop => &ENDGAME_BISHOP_PSQT,
+        Piece::Rook => &ENDGAME_ROOK_PSQT,
+        Piece::Queen => &ENDGAME_QUEEN_PSQT,
+        Piece::King => &ENDGAME_KING_PSQT,
+    };
 
-    if endgame_ratio == 0 || midgame_value == endgame_value {
-        midgame_value
-    } else {
-        ((midgame_value * (255 - endgame_ratio) as Score)
-            + (endgame_value * endgame_ratio as Score))
-            / 255
+    let square = match color {
+        Color::White => square.flip() as usize,
+        Color::Black => square as usize,
+    };
+    let midgame_value = midgame_psqt[square];
+    let endgame_value = endgame_psqt[square];
+
+    if midgame_value == endgame_value || endgame_ratio == 0 {
+        return midgame_value;
     }
+
+    let endgame_ratio = endgame_ratio as ValueScore;
+    (midgame_value * (255 - endgame_ratio) + endgame_value * endgame_ratio) / 255
 }

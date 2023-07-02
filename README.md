@@ -1,5 +1,5 @@
 <div align="center">
-<img src="readme_assets/camel.svg" width="250">
+<img src="readme_assets/logo.svg" width="250">
 <br>
 <br>
 
@@ -18,11 +18,21 @@ Camel is a chess engine written from scratch in Rust. It aims to achieve a high 
 
 ## Compilation
 
-Make sure you have an updated ![Rust](https://www.rust-lang.org/learn/get-started) environment on your machine. For best results, compile with LLVM optimizations enabled:
+Make sure you have an updated [Rust](https://www.rust-lang.org/learn/get-started) environment on your machine. For best results, compile with LLVM optimizations enabled:
 
 <pre>
   cargo build --release
 </pre>
+
+## Testing
+
+You can probe the integrity of the engine by running the test suite, which includes [perft](https://www.chessprogramming.org/Perft_Results) and other unit tests:
+
+<pre>
+    cargo test
+</pre>
+
+Upon developing, to be able to claim a statistically significant improvement over the last version, it is recommended to setup a [tournament](https://www.chessprogramming.org/Chess_Tournaments) between the two versions, using an utility such as [fast-chess](https://github.com/Disservin/fast-chess). It is also possible and fun to deploy the engine to [lichess](https://lichess.org/), through the [lichess-bot bridge](https://github.com/lichess-bot-devs/lichess-bot), although the [Elo](https://en.wikipedia.org/wiki/Elo_rating_system) might not represent the engine's true strength, since it will mostly be based on matchmaking against other engines.
 
 ## Usage
 
@@ -64,6 +74,14 @@ You can use a GUI such as [Scid](https://flathub.org/apps/details/io.github.beni
 </pre>
 
 Type `help` to see the available commands.
+
+## Design
+
+<img src="readme_assets/components.svg" width="400">
+
+Camel uses domain-specific techniques to achieve higher performance. The board is represented using [bitboards](https://www.chessprogramming.org/Bitboards) and the move generation is aided by [magics](https://www.chessprogramming.org/Magic_Bitboards). The search is based on [alpha-beta pruning](https://www.chessprogramming.org/Alpha-Beta), enhanced with a [transposition table](https://www.chessprogramming.org/Transposition_Table) and [extension](https://www.chessprogramming.org/Extensions) and [reduction](https://www.chessprogramming.org/Reductions) techniques. [Iterative deepening](https://www.chessprogramming.org/Iterative_Deepening) enables the time management framework.
+
+Dive into the [chess programming wiki](https://www.chessprogramming.org/Main_Page) to learn more about these techniques.
 
 ## What can I do with it?
 
