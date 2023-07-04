@@ -3,7 +3,7 @@ use crate::position::{bitboard::Bitboard, board::Piece, square::Square};
 use once_cell::sync::Lazy;
 use rand::Rng;
 use std::{
-    collections::HashMap,
+    array,
     sync::{Arc, Mutex},
     thread,
 };
@@ -45,18 +45,14 @@ fn sparse_random() -> Bitboard {
 }
 
 fn find_magic(square: Square, piece: Piece) -> SquareMagic {
-    let blockers_mask = slider_attacks_from_square::<true>(
-        square,
-        match piece {
-            Piece::Rook => &ROOK_MOVE_DIRECTIONS,
-            Piece::Bishop => &BISHOP_MOVE_DIRECTIONS,
-            _ => unreachable!(),
-        },
-        None,
-    );
+    let directions = match piece {
+        Piece::Rook => &ROOK_MOVE_DIRECTIONS,
+        Piece::Bishop => &BISHOP_MOVE_DIRECTIONS,
+        _ => panic!("Invalid piece"),
+    };
+
+    let blockers_mask = slider_attacks_from_square::<true>(square, directions, None);
     let shift = blockers_mask.count_ones() as u8;
-    let bitsets = bitsets(blockers_mask);
-    let mut cached_moves: HashMap<Bitboard, Bitboard> = HashMap::new();
 
     let mut magic = SquareMagic {
         blockers_mask,
@@ -65,33 +61,28 @@ fn find_magic(square: Square, piece: Piece) -> SquareMagic {
         attacks: vec![Bitboard::new(0); 1 << shift],
     };
 
+    let bitsets = bitsets(blockers_mask);
+    let moves = bitsets
+        .iter()
+        .map(|bitset| slider_attacks_from_square::<false>(square, directions, Some(*bitset)))
+        .collect::<Vec<_>>();
+
     loop {
         magic.magic_number = sparse_random();
 
         let mut found_collision = false;
         let mut used = vec![false; 1 << shift];
 
-        for bitset in bitsets.iter() {
+        for (i, bitset) in bitsets.iter().enumerate() {
             let index = magic_index(&magic, *bitset);
-            let moves = *cached_moves.entry(*bitset).or_insert_with(|| {
-                slider_attacks_from_square::<false>(
-                    square,
-                    if piece == Piece::Rook {
-                        &ROOK_MOVE_DIRECTIONS
-                    } else {
-                        &BISHOP_MOVE_DIRECTIONS
-                    },
-                    Some(*bitset),
-                )
-            });
 
-            if used[index] && magic.attacks[index] != moves {
+            if used[index] && magic.attacks[index] != moves[i] {
                 found_collision = true;
                 break;
             }
 
             used[index] = true;
-            magic.attacks[index] = moves;
+            magic.attacks[index] = moves[i];
         }
 
         if !found_collision {
@@ -101,18 +92,19 @@ fn find_magic(square: Square, piece: Piece) -> SquareMagic {
 }
 
 fn find_magics(piece: Piece) -> [SquareMagic; 64] {
-    let magics = Arc::new(Mutex::new(array_init::array_init(|_| SquareMagic::default())));
+    let magics: [SquareMagic; 64] = array::from_fn(|_| SquareMagic::default());
+    let magics = Arc::new(Mutex::new(magics));
 
-    let mut handles = vec![];
-
-    for square in 0..64 {
-        let magics_ref = Arc::clone(&magics);
-        let handle = thread::spawn(move || {
-            let magic = find_magic(Square::try_from(square).unwrap(), piece);
-            magics_ref.lock().unwrap()[square as usize] = magic;
-        });
-        handles.push(handle);
-    }
+    let handles = (0..64)
+        .map(|square| {
+            let magics = Arc::clone(&magics);
+            thread::spawn(move || {
+                let magic = find_magic(Square::try_from(square).unwrap(), piece);
+                let mut magics = magics.lock().unwrap();
+                magics[square as usize] = magic;
+            })
+        })
+        .collect::<Vec<_>>();
 
     for handle in handles {
         handle.join().unwrap();
@@ -136,6 +128,37 @@ pub fn init_magics() {
 mod tests {
     use super::*;
 
+    fn test_magics(piece: Piece) {
+        let directions = match piece {
+            Piece::Rook => &ROOK_MOVE_DIRECTIONS,
+            Piece::Bishop => &BISHOP_MOVE_DIRECTIONS,
+            _ => panic!("Invalid piece"),
+        };
+
+        for square in 0..64 {
+            let magic = find_magic(Square::try_from(square).unwrap(), piece);
+
+            let blockers_mask = slider_attacks_from_square::<true>(
+                Square::try_from(square).unwrap(),
+                directions,
+                None,
+            );
+            let bitsets = bitsets(blockers_mask);
+
+            for bitset in bitsets {
+                let index = magic_index(&magic, bitset);
+                assert_eq!(
+                    magic.attacks[index],
+                    slider_attacks_from_square::<false>(
+                        Square::try_from(square).unwrap(),
+                        directions,
+                        Some(bitset),
+                    )
+                );
+            }
+        }
+    }
+
     #[test]
     fn bitsets_simple() {
         let bitboard = Bitboard::new(0b11001);
@@ -158,8 +181,12 @@ mod tests {
     }
 
     #[test]
-    fn magic_finders_do_not_hang() {
-        find_magics(Piece::Rook);
-        find_magics(Piece::Bishop);
+    fn rook_magics() {
+        test_magics(Piece::Rook);
+    }
+
+    #[test]
+    fn bishop_magics() {
+        test_magics(Piece::Bishop);
     }
 }
