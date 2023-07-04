@@ -34,13 +34,13 @@ impl MoveDirection {
     }
 }
 
-pub fn color_is_checking(board: &Board, color: Color) -> bool {
+pub fn checked_by(board: &Board, color: Color) -> bool {
     let mut checked_king = board.pieces_bb(Piece::King) & board.occupancy_bb(color.opposite());
     let checked_king_square = checked_king.pop_lsb().unwrap();
-    color_attacks_square(board, checked_king_square, color)
+    square_attacked_by(board, checked_king_square, color)
 }
 
-pub fn color_attacks_square(board: &Board, square: Square, color: Color) -> bool {
+pub fn square_attacked_by(board: &Board, square: Square, color: Color) -> bool {
     // Attacked by pawn
     if pawn_attacks(board, color).is_set(square) {
         return true;
@@ -158,7 +158,7 @@ pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Positi
             MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => true,
             _ => {
                 let new_position = make_move(position, *mov);
-                !color_is_checking(&new_position.board, new_position.side_to_move)
+                !checked_by(&new_position.board, new_position.side_to_move)
             }
         });
     }
@@ -235,11 +235,11 @@ mod tests {
     fn square_is_attacked_1() {
         let position = Position::from_fen(KIWIPETE_WHITE_FEN).unwrap();
 
-        assert!(super::color_attacks_square(&position.board, super::Square::E4, Color::Black));
-        assert!(super::color_attacks_square(&position.board, super::Square::G2, Color::Black));
-        assert!(super::color_attacks_square(&position.board, super::Square::A6, Color::White));
-        assert!(!super::color_attacks_square(&position.board, super::Square::C7, Color::White));
-        assert!(!super::color_attacks_square(&position.board, super::Square::B4, Color::White));
+        assert!(super::square_attacked_by(&position.board, super::Square::E4, Color::Black));
+        assert!(super::square_attacked_by(&position.board, super::Square::G2, Color::Black));
+        assert!(super::square_attacked_by(&position.board, super::Square::A6, Color::White));
+        assert!(!super::square_attacked_by(&position.board, super::Square::C7, Color::White));
+        assert!(!super::square_attacked_by(&position.board, super::Square::B4, Color::White));
     }
 
     #[test]
@@ -247,7 +247,7 @@ mod tests {
         let position =
             Position::from_fen("r3kbnr/pP3ppp/n3p3/q2pN2b/8/2N5/PPP1PP1P/R1BQKB1R b KQkq - 0 1")
                 .unwrap();
-        assert!(super::color_attacks_square(&position.board, super::Square::C8, Color::White));
+        assert!(super::square_attacked_by(&position.board, super::Square::C8, Color::White));
     }
 
     #[test]

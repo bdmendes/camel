@@ -55,7 +55,7 @@ fn quiesce(
         // Delta prune move if it cannot improve the score
         if mov.flag().is_capture() {
             let captured_piece =
-                position.board.piece_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
+                position.board.piece_color_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
             if static_evaluation + piece_value(captured_piece) + 100 < alpha {
                 continue;
             }
