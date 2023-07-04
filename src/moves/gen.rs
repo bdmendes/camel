@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use ahash::AHashMap;
 
 use super::{
     attacks::{
@@ -55,6 +55,13 @@ pub fn square_attacked_by(board: &Board, square: Square, color: Color) -> bool {
         return true;
     }
 
+    // Attacked by king
+    let attacker_kings = board.pieces_bb(Piece::King) & occupancy_attacker;
+    let king_attacks = KING_ATTACKS[square as usize];
+    if (king_attacks & attacker_kings).is_not_empty() {
+        return true;
+    }
+
     let occupancy = board.occupancy_bb_all();
 
     // Attacked in file or rank
@@ -70,13 +77,6 @@ pub fn square_attacked_by(board: &Board, square: Square, color: Color) -> bool {
         (board.pieces_bb(Piece::Bishop) | board.pieces_bb(Piece::Queen)) & occupancy_attacker;
     let bishop_attacks = piece_attacks(Piece::Bishop, square, occupancy);
     if (bishop_attacks & attacker_bishops_queens).is_not_empty() {
-        return true;
-    }
-
-    // Attacked by king
-    let attacker_kings = board.pieces_bb(Piece::King) & occupancy_attacker;
-    let king_attacks = KING_ATTACKS[square as usize];
-    if (king_attacks & attacker_kings).is_not_empty() {
         return true;
     }
 
@@ -111,11 +111,15 @@ pub fn generate_regular_moves<const QUIESCE: bool>(
     color: Color,
     moves: &mut MoveVec,
 ) {
-    let occupancy = board.occupancy_bb_all();
     let occupancy_us = board.occupancy_bb(color);
-    let occupancy_them = board.occupancy_bb(color.opposite());
-
     let mut pieces = board.pieces_bb(piece) & occupancy_us;
+
+    if pieces.is_empty() {
+        return;
+    }
+
+    let occupancy = board.occupancy_bb_all();
+    let occupancy_them = board.occupancy_bb(color.opposite());
 
     while let Some(from_square) = pieces.pop_lsb() {
         let mut attacks = piece_attacks(piece, from_square, occupancy) & !occupancy_us;
@@ -170,7 +174,7 @@ pub fn perft<const BULK_AT_HORIZON: bool, const HASH: bool, const SILENT: bool>(
     position: &Position,
     depth: u8,
 ) -> (u64, Vec<(Move, u64)>) {
-    perft_internal::<true, BULK_AT_HORIZON, HASH, SILENT>(position, depth, &mut HashMap::new())
+    perft_internal::<true, BULK_AT_HORIZON, HASH, SILENT>(position, depth, &mut AHashMap::new())
 }
 
 fn perft_internal<
@@ -181,7 +185,7 @@ fn perft_internal<
 >(
     position: &Position,
     depth: u8,
-    cache: &mut HashMap<(Position, u8), (u64, Vec<(Move, u64)>)>,
+    cache: &mut AHashMap<(Position, u8), (u64, Vec<(Move, u64)>)>,
 ) -> (u64, Vec<(Move, u64)>) {
     if depth == 0 {
         return (1, vec![]);

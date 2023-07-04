@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use ahash::AHashMap;
 
 use super::{Depth, MAX_DEPTH};
 use crate::{
@@ -23,13 +23,13 @@ pub struct TTEntry {
 }
 
 pub struct SearchTable {
-    transposition: HashMap<Position, TTEntry>,
+    transposition: AHashMap<Position, TTEntry>,
     killer_moves: [Option<Move>; 2 * (MAX_DEPTH + 1) as usize],
 }
 
 impl SearchTable {
     pub fn new() -> Self {
-        Self { transposition: HashMap::new(), killer_moves: [None; 2 * (MAX_DEPTH + 1) as usize] }
+        Self { transposition: AHashMap::new(), killer_moves: [None; 2 * (MAX_DEPTH + 1) as usize] }
     }
 
     pub fn get_hash_move(&self, position: &Position) -> Option<Move> {
