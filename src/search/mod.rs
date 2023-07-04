@@ -7,6 +7,8 @@ pub mod table;
 
 pub type Depth = i16;
 
+pub const MAX_DEPTH: Depth = 25;
+
 fn print_iter_info(
     position: &Position,
     depth: Depth,

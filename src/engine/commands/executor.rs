@@ -4,10 +4,8 @@ use crate::{
     evaluation::position::evaluate_position,
     moves::gen::perft,
     position::{fen::START_FEN, Position},
-    search::{constraint::SearchConstraint, search_iter, table::SearchTable, Depth},
+    search::{constraint::SearchConstraint, search_iter, table::SearchTable, Depth, MAX_DEPTH},
 };
-
-const MAX_DEPTH: Depth = 25;
 
 use crate::engine::{time::get_duration, Engine};
 

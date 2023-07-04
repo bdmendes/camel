@@ -8,7 +8,7 @@ use crate::{
 use super::{
     constraint::SearchConstraint,
     table::{SearchTable, TTEntry, TTScore},
-    Depth,
+    Depth, MAX_DEPTH,
 };
 
 const MIN_SCORE: ValueScore = ValueScore::MIN + 1;
@@ -248,8 +248,11 @@ pub fn search(
     table: &mut SearchTable,
     constraint: &mut SearchConstraint,
 ) -> (Score, usize) {
+    let depth = depth.min(MAX_DEPTH);
+
     let (score, count) =
         pvs(position, depth, ValueScore::MIN + 1, ValueScore::MAX, table, constraint, depth);
+
     if score.abs() >= ValueScore::MAX - depth - 1 {
         let plys_to_mate = (ValueScore::MAX - score.abs()) as u8;
         (

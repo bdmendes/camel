@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::Depth;
+use super::{Depth, MAX_DEPTH};
 use crate::{
     evaluation::ValueScore,
     moves::{Move, MoveVec},
@@ -24,12 +24,12 @@ pub struct TTEntry {
 
 pub struct SearchTable {
     transposition: HashMap<Position, TTEntry>,
-    killer_moves: HashMap<Depth, [Option<Move>; 2]>,
+    killer_moves: [Option<Move>; 2 * (MAX_DEPTH + 1) as usize],
 }
 
 impl SearchTable {
     pub fn new() -> Self {
-        Self { transposition: HashMap::new(), killer_moves: HashMap::new() }
+        Self { transposition: HashMap::new(), killer_moves: [None; 2 * (MAX_DEPTH + 1) as usize] }
     }
 
     pub fn get_hash_move(&self, position: &Position) -> Option<Move> {
@@ -60,20 +60,21 @@ impl SearchTable {
     }
 
     pub fn put_killer_move(&mut self, depth: Depth, mov: Move) {
-        let entry = self.killer_moves.entry(depth).or_insert([None, None]);
+        let index = 2 * depth as usize;
 
-        if entry[0].is_none() {
-            entry[0] = Some(mov);
-        } else if entry[1].is_none() {
-            entry[1] = Some(mov);
+        if self.killer_moves[index].is_none() {
+            self.killer_moves[index] = Some(mov);
+        } else if self.killer_moves[index + 1].is_none() {
+            self.killer_moves[index + 1] = Some(mov);
         } else {
-            entry[0] = entry[1];
-            entry[1] = Some(mov);
+            self.killer_moves[index] = self.killer_moves[index + 1];
+            self.killer_moves[index + 1] = Some(mov);
         }
     }
 
-    pub fn get_killers(&mut self, depth: Depth) -> [Option<Move>; 2] {
-        self.killer_moves.entry(depth).or_insert([None, None]).clone()
+    pub fn get_killers(&self, depth: Depth) -> &[Option<Move>] {
+        let index = 2 * depth as usize;
+        &self.killer_moves[index..index + 2]
     }
 
     pub fn get_pv(&self, position: &Position, mut depth: Depth) -> MoveVec {
@@ -95,10 +96,6 @@ impl SearchTable {
     pub fn cleanup(&mut self) {
         if self.transposition.capacity() > MAX_TABLE_SIZE {
             self.transposition.clear();
-        }
-
-        if self.killer_moves.capacity() > MAX_TABLE_SIZE {
-            self.killer_moves.clear();
         }
     }
 }
