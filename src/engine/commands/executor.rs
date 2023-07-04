@@ -1,6 +1,6 @@
 use std::{sync::atomic::Ordering, thread, time::Duration};
 
-use camel::{
+use crate::{
     evaluation::position::evaluate_position,
     moves::gen::perft,
     position::{fen::START_FEN, Position},

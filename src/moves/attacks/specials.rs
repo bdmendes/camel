@@ -11,59 +11,37 @@ use crate::{
     },
 };
 
-const PAWN_WEST_EDGE_FILE: Bitboard = Bitboard::new(0x01_01_01_01_01_01_01_01);
-const PAWN_EAST_EDGE_FILE: Bitboard = Bitboard::new(0x80_80_80_80_80_80_80_80);
+const PAWN_WEST_EDGE_FILE: Bitboard = Bitboard::file_mask(0);
+const PAWN_EAST_EDGE_FILE: Bitboard = Bitboard::file_mask(7);
 
 pub fn pawn_attacks(board: &Board, color: Color) -> Bitboard {
-    let mut attacks = Bitboard::new(0);
-
     let our_pawns = board.pieces_bb(Piece::Pawn) & board.occupancy_bb(color);
+    let direction = MoveDirection::pawn_direction(color);
 
-    let direction = if color == Color::White { MoveDirection::NORTH } else { MoveDirection::SOUTH };
-
-    // West capture
-    let mut west_pawns = (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST);
-    while let Some(to_square) = west_pawns.pop_lsb() {
-        attacks.set(to_square);
-    }
-
-    // East capture
-    let mut east_pawns = (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST);
-    while let Some(to_square) = east_pawns.pop_lsb() {
-        attacks.set(to_square);
-    }
-
-    attacks
+    (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST)
+        | (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST)
 }
 
 pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, mut moves: &mut MoveVec) {
     let occupancy = position.board.occupancy_bb_all();
-    let occupancy_them = position.board.occupancy_bb(position.side_to_move.opposite())
-        | position.en_passant_square.map_or(Bitboard::new(0), |sq| Bitboard::new(1 << sq as u8));
+    let occupancy_them = position.board.occupancy_bb(position.side_to_move.opposite());
     let our_pawns =
         position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(position.side_to_move);
 
-    let direction = if position.side_to_move == Color::White {
-        MoveDirection::NORTH
-    } else {
-        MoveDirection::SOUTH
-    };
+    let direction = MoveDirection::pawn_direction(position.side_to_move);
 
     // Single push
     let mut single_push_pawns = our_pawns.shift(direction) & !occupancy;
     let single_push_pawns_cpy = single_push_pawns.clone();
     while let Some(to_square) = single_push_pawns.pop_lsb() {
         let from_square = Square::try_from((to_square as i8 - direction) as u8).unwrap();
-        push_pawn_move::<QUIESCE>(occupancy, None, &mut moves, from_square, to_square);
+        push_pawn_move::<QUIESCE>(occupancy, &mut moves, from_square, to_square);
     }
 
     if !QUIESCE {
         // Double push
-        let third_row_bb = Bitboard::new(if position.side_to_move == Color::White {
-            0x00_00_00_00_00_FF_00_00
-        } else {
-            0x00_00_FF_00_00_00_00_00
-        });
+        let third_row_bb =
+            Bitboard::rank_mask(if position.side_to_move == Color::White { 2 } else { 5 });
         let mut double_push_pawns =
             (single_push_pawns_cpy & third_row_bb).shift(direction) & !occupancy;
 
@@ -80,13 +58,7 @@ pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, mut moves: 
     while let Some(to_square) = west_pawns.pop_lsb() {
         let from_square =
             Square::try_from((to_square as i8 - direction - MoveDirection::WEST) as u8).unwrap();
-        push_pawn_move::<QUIESCE>(
-            occupancy,
-            position.en_passant_square,
-            &mut moves,
-            from_square,
-            to_square,
-        );
+        push_pawn_move::<QUIESCE>(occupancy_them, &mut moves, from_square, to_square);
     }
 
     // East capture
@@ -95,19 +67,35 @@ pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, mut moves: 
     while let Some(to_square) = east_pawns.pop_lsb() {
         let from_square =
             Square::try_from((to_square as i8 - direction - MoveDirection::EAST) as u8).unwrap();
-        push_pawn_move::<QUIESCE>(
-            occupancy,
-            position.en_passant_square,
-            &mut moves,
-            from_square,
-            to_square,
-        );
+        push_pawn_move::<QUIESCE>(occupancy_them, &mut moves, from_square, to_square);
+    }
+
+    // En passant
+    if let Some(en_passant_square) = position.en_passant_square {
+        let ep_bb = Bitboard::new(1 << en_passant_square as u8);
+
+        let mut west_pawns =
+            (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST) & ep_bb;
+        while let Some(to_square) = west_pawns.pop_lsb() {
+            let from_square =
+                Square::try_from((to_square as i8 - direction - MoveDirection::WEST) as u8)
+                    .unwrap();
+            moves.push(Move::new(from_square, to_square, MoveFlag::EnPassantCapture));
+        }
+
+        let mut east_pawns =
+            (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST) & ep_bb;
+        while let Some(to_square) = east_pawns.pop_lsb() {
+            let from_square =
+                Square::try_from((to_square as i8 - direction - MoveDirection::EAST) as u8)
+                    .unwrap();
+            moves.push(Move::new(from_square, to_square, MoveFlag::EnPassantCapture));
+        }
     }
 }
 
 fn push_pawn_move<const QUIESCE: bool>(
-    occupancy: Bitboard,
-    en_passant_square: Option<Square>,
+    occupancy_them: Bitboard,
     moves: &mut MoveVec,
     from_square: Square,
     to_square: Square,
@@ -115,22 +103,16 @@ fn push_pawn_move<const QUIESCE: bool>(
     let is_promotion = to_square.rank() == 0 || to_square.rank() == 7;
 
     if is_promotion {
-        push_pawn_promotion::<QUIESCE>(occupancy, moves, from_square, to_square);
+        push_pawn_promotion::<QUIESCE>(occupancy_them, moves, from_square, to_square);
     } else {
-        let is_capture = occupancy.is_set(to_square) || en_passant_square == Some(to_square);
+        let is_capture = occupancy_them.is_set(to_square);
         if QUIESCE && !is_capture {
             return;
         }
         moves.push(Move::new(
             from_square,
             to_square,
-            if en_passant_square == Some(to_square) {
-                MoveFlag::EnPassantCapture
-            } else if is_capture {
-                MoveFlag::Capture
-            } else {
-                MoveFlag::Quiet
-            },
+            if is_capture { MoveFlag::Capture } else { MoveFlag::Quiet },
         ));
     }
 }
