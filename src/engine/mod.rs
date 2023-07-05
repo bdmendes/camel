@@ -1,8 +1,11 @@
-use crate::position::{fen::START_FEN, Position};
+use crate::{
+    position::{fen::START_FEN, Position},
+    search::table::{SearchTable, DEFAULT_TABLE_SIZE_MB},
+};
 
 use self::commands::{execute_command, parse_command};
 use std::{
-    sync::{atomic::AtomicBool, Arc},
+    sync::{atomic::AtomicBool, Arc, RwLock},
     time::Duration,
 };
 
@@ -47,6 +50,7 @@ pub struct Engine {
     pub position: Position,
     pub game_history: Vec<Position>,
     pub stop: Arc<AtomicBool>,
+    pub table: Arc<RwLock<SearchTable>>,
 }
 
 pub fn uci_loop() {
@@ -54,6 +58,7 @@ pub fn uci_loop() {
         position: Position::from_fen(START_FEN).unwrap(),
         stop: Arc::new(AtomicBool::new(true)),
         game_history: Vec::new(),
+        table: Arc::new(RwLock::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB))),
     };
 
     loop {

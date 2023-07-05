@@ -4,7 +4,7 @@ use crate::{
     evaluation::position::evaluate_position,
     moves::gen::perft,
     position::{fen::START_FEN, Position},
-    search::{constraint::SearchConstraint, search_iter, table::SearchTable, Depth, MAX_DEPTH},
+    search::{constraint::SearchConstraint, search_iter, Depth, MAX_DEPTH},
 };
 
 use crate::engine::{time::get_duration, Engine};
@@ -51,6 +51,7 @@ pub fn execute_go(
     };
 
     let stop_now = engine.stop.clone();
+    let table = engine.table.clone();
 
     let mut constraint = SearchConstraint {
         branch_history: engine.game_history.clone(),
@@ -64,7 +65,7 @@ pub fn execute_go(
         search_iter(
             &position,
             depth.map_or_else(|| MAX_DEPTH, |d| d as Depth),
-            &mut SearchTable::new(),
+            table,
             &mut constraint,
         );
         stop_now.store(true, Ordering::Relaxed);

@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 use crate::{
     evaluation::{
         moves::evaluate_move, piece_value, position::evaluate_position, Score, ValueScore,
@@ -7,7 +9,7 @@ use crate::{
 
 use super::{
     constraint::SearchConstraint,
-    table::{SearchTable, TTEntry, TTScore},
+    table::{SearchTable, TTScore, TableEntry},
     Depth, MAX_DEPTH,
 };
 
@@ -82,7 +84,7 @@ fn pvs_recurse(
     depth: Depth,
     alpha: ValueScore,
     beta: ValueScore,
-    table: &mut SearchTable,
+    table: Arc<RwLock<SearchTable>>,
     constraint: &mut SearchConstraint,
     original_depth: Depth,
     do_null: bool,
@@ -91,7 +93,7 @@ fn pvs_recurse(
 
     if do_null {
         let (score, nodes) =
-            pvs(position, depth - 1, -alpha - 1, -alpha, table, constraint, original_depth);
+            pvs(position, depth - 1, -alpha - 1, -alpha, table.clone(), constraint, original_depth);
         count += nodes;
         let score = -score;
         if score <= alpha || score >= beta {
@@ -99,7 +101,8 @@ fn pvs_recurse(
         }
     }
 
-    let (score, nodes) = pvs(position, depth - 1, -beta, -alpha, table, constraint, original_depth);
+    let (score, nodes) =
+        pvs(position, depth - 1, -beta, -alpha, table.clone(), constraint, original_depth);
     count += nodes;
     (-score, count)
 }
@@ -109,12 +112,12 @@ fn pvs(
     depth: Depth,
     mut alpha: ValueScore,
     mut beta: ValueScore,
-    table: &mut SearchTable,
+    table: Arc<RwLock<SearchTable>>,
     constraint: &mut SearchConstraint,
     original_depth: Depth,
 ) -> (ValueScore, usize) {
     // Get known score from transposition table
-    if let Some(tt_entry) = table.get_table_score(position, depth) {
+    if let Some(tt_entry) = table.read().unwrap().get_table_score(position, depth) {
         match tt_entry {
             TTScore::Exact(score) => return (score, 1),
             TTScore::LowerBound(score) => alpha = alpha.max(score),
@@ -162,7 +165,7 @@ fn pvs(
             depth - NULL_MOVE_REDUCTION,
             -beta,
             -alpha,
-            table,
+            table.clone(),
             constraint,
             original_depth,
         );
@@ -176,17 +179,20 @@ fn pvs(
     }
 
     // Sort moves via MVV-LVA, psqt and table information
-    let hash_move = table.get_hash_move(position);
-    let killer_moves = table.get_killers(depth);
-    moves.sort_by_cached_key(move |mov| {
-        if hash_move.is_some() && mov == &hash_move.unwrap() {
-            return ValueScore::MIN;
-        }
-        if Some(*mov) == killer_moves[0] || Some(*mov) == killer_moves[1] {
-            return -piece_value(Piece::Queen);
-        }
-        -evaluate_move::<false>(position, *mov)
-    });
+    {
+        let table = table.read().unwrap();
+        let hash_move = table.get_hash_move(position);
+        let killer_moves = table.get_killers(depth);
+        moves.sort_by_cached_key(move |mov| {
+            if hash_move.is_some() && mov == &hash_move.unwrap() {
+                return ValueScore::MIN;
+            }
+            if Some(*mov) == killer_moves[0] || Some(*mov) == killer_moves[1] {
+                return -piece_value(Piece::Queen);
+            }
+            -evaluate_move::<false>(position, *mov)
+        });
+    }
 
     let original_alpha = alpha;
     let mut best_move = moves[0];
@@ -200,7 +206,7 @@ fn pvs(
             if is_check { depth + CHECK_EXTENSION } else { depth },
             alpha,
             beta,
-            table,
+            table.clone(),
             constraint,
             original_depth,
             i > 0,
@@ -215,7 +221,7 @@ fn pvs(
 
             if score >= beta {
                 if mov.flag().is_quiet() {
-                    table.put_killer_move(depth, *mov);
+                    table.write().unwrap().put_killer_move(depth, *mov);
                 }
                 break;
             }
@@ -223,9 +229,9 @@ fn pvs(
     }
 
     if !constraint.should_stop_search() {
-        table.insert_entry(
+        table.write().unwrap().insert_entry(
             position,
-            TTEntry {
+            TableEntry {
                 depth,
                 score: if alpha <= original_alpha {
                     TTScore::UpperBound(alpha)
@@ -245,7 +251,7 @@ fn pvs(
 pub fn search(
     position: &Position,
     depth: Depth,
-    table: &mut SearchTable,
+    table: Arc<RwLock<SearchTable>>,
     constraint: &mut SearchConstraint,
 ) -> (Score, usize) {
     let depth = depth.min(MAX_DEPTH);
