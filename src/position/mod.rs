@@ -2,7 +2,7 @@ use bitflags::bitflags;
 use num_enum::TryFromPrimitive;
 
 use crate::moves::{
-    gen::{color_is_checking, generate_moves},
+    gen::{checked_by, generate_moves},
     make_move, Move, MoveVec,
 };
 
@@ -78,7 +78,7 @@ impl Position {
     }
 
     pub fn is_check(&self) -> bool {
-        color_is_checking(&self.board, self.side_to_move.opposite())
+        checked_by(&self.board, self.side_to_move.opposite())
     }
 
     pub fn make_null_move(&self) -> Self {

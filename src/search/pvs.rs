@@ -8,7 +8,7 @@ use crate::{
 use super::{
     constraint::SearchConstraint,
     table::{SearchTable, TTEntry, TTScore},
-    Depth,
+    Depth, MAX_DEPTH,
 };
 
 const MIN_SCORE: ValueScore = ValueScore::MIN + 1;
@@ -55,7 +55,7 @@ fn quiesce(
         // Delta prune move if it cannot improve the score
         if mov.flag().is_capture() {
             let captured_piece =
-                position.board.piece_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
+                position.board.piece_color_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
             if static_evaluation + piece_value(captured_piece) + 100 < alpha {
                 continue;
             }
@@ -248,8 +248,11 @@ pub fn search(
     table: &mut SearchTable,
     constraint: &mut SearchConstraint,
 ) -> (Score, usize) {
+    let depth = depth.min(MAX_DEPTH);
+
     let (score, count) =
         pvs(position, depth, ValueScore::MIN + 1, ValueScore::MAX, table, constraint, depth);
+
     if score.abs() >= ValueScore::MAX - depth - 1 {
         let plys_to_mate = (ValueScore::MAX - score.abs()) as u8;
         (

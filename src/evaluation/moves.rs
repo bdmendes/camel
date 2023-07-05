@@ -11,7 +11,7 @@ pub fn static_exchange_evaluation(mut position: Position, mut mov: Move) -> Valu
     let color = position.side_to_move;
 
     loop {
-        let captured_piece = position.board.piece_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
+        let captured_piece = position.board.piece_at(mov.to()).unwrap_or_else(|| Piece::Pawn);
         let captured_value = piece_value(captured_piece);
 
         score += if position.side_to_move == color { captured_value } else { -captured_value };
@@ -24,8 +24,8 @@ pub fn static_exchange_evaluation(mut position: Position, mut mov: Move) -> Valu
 
         let capturing_moves =
             new_position.moves::<true>().into_iter().filter(|m| m.to() == mov.to());
-        let next_move = capturing_moves
-            .min_by_key(|m| piece_value(position.board.piece_at(m.from()).unwrap().0));
+        let next_move =
+            capturing_moves.min_by_key(|m| piece_value(position.board.piece_at(m.from()).unwrap()));
 
         if let Some(m) = next_move {
             mov = m;
@@ -49,9 +49,8 @@ pub fn evaluate_move<const SSE: bool>(position: &Position, mov: Move) -> ValueSc
         if SSE {
             score += static_exchange_evaluation(position.clone(), mov);
         } else {
-            let captured_piece =
-                position.board.piece_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
-            let capturing_piece = position.board.piece_at(mov.from()).unwrap().0;
+            let captured_piece = position.board.piece_at(mov.to()).unwrap_or_else(|| Piece::Pawn);
+            let capturing_piece = position.board.piece_at(mov.from()).unwrap();
             score += piece_value(captured_piece) - piece_value(capturing_piece)
                 + piece_value(Piece::Queen);
         }
@@ -62,7 +61,7 @@ pub fn evaluate_move<const SSE: bool>(position: &Position, mov: Move) -> ValueSc
         score += piece_value(promoted_piece);
     }
 
-    let piece = position.board.piece_at(mov.from()).unwrap().0;
+    let piece = position.board.piece_at(mov.from()).unwrap();
     score += psqt_value(piece, mov.to(), position.side_to_move, 0);
     score -= psqt_value(piece, mov.from(), position.side_to_move, 0);
 

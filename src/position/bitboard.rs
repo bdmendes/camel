@@ -49,6 +49,20 @@ impl Bitboard {
     pub const fn is_empty(&self) -> bool {
         self.0 == 0
     }
+
+    pub const fn is_not_empty(&self) -> bool {
+        self.0 != 0
+    }
+
+    pub const fn file_mask(file: u8) -> Self {
+        debug_assert!(file < 8);
+        Bitboard(0x0101010101010101 << file)
+    }
+
+    pub const fn rank_mask(rank: u8) -> Self {
+        debug_assert!(rank < 8);
+        Bitboard(0xFF << (rank * 8))
+    }
 }
 
 impl Display for Bitboard {

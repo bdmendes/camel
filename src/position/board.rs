@@ -33,47 +33,37 @@ impl Board {
         board_from_fen(board_fen)
     }
 
-    pub fn set_square(&mut self, square: Square, piece: Piece, color: Color) {
-        self.clear_square(square);
+    pub fn set_square<const CLEAR: bool>(&mut self, square: Square, piece: Piece, color: Color) {
+        if CLEAR {
+            self.clear_square(square);
+        }
         self.pieces[piece as usize].set(square);
         self.occupancy[color as usize].set(square);
     }
 
     pub fn clear_square(&mut self, square: Square) {
-        for piece in &mut self.pieces {
-            piece.clear(square);
-        }
-        for occupancy in &mut self.occupancy {
-            occupancy.clear(square);
-        }
+        self.pieces.iter_mut().for_each(|piece| piece.clear(square));
+        self.occupancy.iter_mut().for_each(|occupancy| occupancy.clear(square));
     }
 
-    pub fn piece_at(&self, square: Square) -> Option<(Piece, Color)> {
-        let occupancy = self.occupancy_bb_all();
-        if !occupancy.is_set(square) {
-            return None;
+    pub fn piece_color_at(&self, square: Square) -> Option<(Piece, Color)> {
+        if let Some(color) = self.color_at(square) {
+            return Some((self.piece_at(square).unwrap(), color));
         }
+        None
+    }
 
-        let occupancy_white = self.occupancy_bb(Color::White);
-        let occupancy_black = self.occupancy_bb(Color::Black);
-
-        for (piece, bitboard) in self.pieces.iter().enumerate() {
-            if bitboard.is_set(square) {
-                let color = if occupancy_white.is_set(square) {
-                    debug_assert!(!occupancy_black.is_set(square));
-                    Color::White
-                } else {
-                    debug_assert!(occupancy_black.is_set(square));
-                    Color::Black
-                };
-                return Some((Piece::try_from(piece as u8).unwrap(), color));
+    pub fn piece_at(&self, square: Square) -> Option<Piece> {
+        for (piece, bb) in self.pieces.iter().enumerate() {
+            if bb.is_set(square) {
+                return Some(Piece::try_from(piece as u8).unwrap());
             }
         }
         None
     }
 
     pub fn color_at(&self, square: Square) -> Option<Color> {
-        if self.occupancy[Color::White as usize].is_set(square) {
+        if self.occupancy_bb(Color::White).is_set(square) {
             debug_assert!(!self.occupancy_bb(Color::Black).is_set(square));
             Some(Color::White)
         } else if self.occupancy_bb(Color::Black).is_set(square) {
@@ -120,7 +110,7 @@ impl std::fmt::Display for Board {
         for rank in (0..8).rev() {
             for file in 0..8 {
                 let square = Square::try_from(rank * 8 + file).unwrap();
-                let piece = self.piece_at(square);
+                let piece = self.piece_color_at(square);
                 board.push(match piece {
                     Some((Piece::King, Color::White)) => '♔',
                     Some((Piece::Queen, Color::White)) => '♕',
@@ -152,7 +142,7 @@ mod tests {
     fn set_clear() {
         let mut board = Board::default();
 
-        board.set_square(Square::E1, Piece::King, Color::White);
+        board.set_square::<true>(Square::E1, Piece::King, Color::White);
 
         assert_eq!(*board.pieces[Piece::King as usize], 1 << Square::E1 as u8);
         assert_eq!(*board.occupancy[Color::White as usize], 1 << Square::E1 as u8);
@@ -172,8 +162,8 @@ mod tests {
         *board.pieces[Piece::King as usize] = 1 << Square::E1 as u8;
         *board.occupancy[Color::White as usize] = 1 << Square::E1 as u8;
 
-        assert_eq!(board.piece_at(Square::E1), Some((Piece::King, Color::White)));
-        assert_eq!(board.piece_at(Square::E2), None);
+        assert_eq!(board.piece_color_at(Square::E1), Some((Piece::King, Color::White)));
+        assert_eq!(board.piece_color_at(Square::E2), None);
 
         assert_eq!(board.color_at(Square::E1), Some(Color::White));
         assert_eq!(board.color_at(Square::E2), None);

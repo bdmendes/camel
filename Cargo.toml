@@ -1,16 +1,16 @@
 [package]
 name = "camel"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 
 [dependencies]
 bitflags = "2.3.1"
 num_enum = "0.6.1"
 derive_more = "0.99.17"
-array-init = "2.1.0"
 rand = "0.8.5"
 once_cell = "1.18.0"
 smallvec = "1.10.0"
+ahash = "0.8.3"
 
 [profile.dev]
 opt-level = 1

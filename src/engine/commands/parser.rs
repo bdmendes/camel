@@ -1,8 +1,6 @@
-use std::{collections::VecDeque, time::Duration};
-
-use camel::position::{fen::START_FEN, Position};
-
 use super::Command;
+use crate::position::{fen::START_FEN, Position};
+use std::{collections::VecDeque, time::Duration};
 
 pub fn parse_position(words: &mut VecDeque<&str>) -> Result<Command, ()> {
     let mut fen = String::new();

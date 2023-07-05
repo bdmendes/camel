@@ -1,5 +1,6 @@
+use crate::position::{fen::START_FEN, Position};
+
 use self::commands::{execute_command, parse_command};
-use camel::position::{fen::START_FEN, Position};
 use std::{
     sync::{atomic::AtomicBool, Arc},
     time::Duration,
