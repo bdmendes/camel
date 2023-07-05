@@ -19,7 +19,7 @@ fn print_iter_info(
     elapsed: u128,
     table: &SearchTable,
 ) {
-    let nps = (count as f64 / ((elapsed + 1) as f64 / 1000.0)) as usize;
+    let nps = (count as f64 / (elapsed.max(1) as f64 / 1000.0)) as usize;
     print!("info depth {} hashfull {} ", depth, table.hashfull_millis());
 
     match score {
@@ -36,7 +36,7 @@ fn print_iter_info(
         }
     }
 
-    print!("time {} nodes {} nps {} pv", elapsed, count, nps);
+    print!("time {} nodes {} nps {} pv", elapsed.max(1), count, nps);
 
     let pv = table.get_pv(position, depth);
     for mov in pv {

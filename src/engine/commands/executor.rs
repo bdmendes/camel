@@ -70,7 +70,7 @@ pub fn execute_go(
         search_iter(
             &position,
             depth.map_or_else(|| MAX_DEPTH, |d| d as Depth),
-            table,
+            table.clone(),
             &mut constraint,
         );
         stop_now.store(true, Ordering::Relaxed);
@@ -112,6 +112,7 @@ pub fn execute_set_option(name: &str, value: &str, engine: &mut Engine) {
 
 pub fn execute_uci_new_game(engine: &mut Engine) {
     engine.position = Position::from_fen(START_FEN).unwrap();
+    engine.table.write().unwrap().clear();
     engine.game_history = Vec::new();
 }
 

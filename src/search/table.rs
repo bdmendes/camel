@@ -74,6 +74,10 @@ impl TranspositionTable {
         let index = hash as usize % self.size;
         self.data[index] = Some(TranspositionEntry { entry, hash });
     }
+
+    pub fn clear(&mut self) {
+        self.data.iter_mut().for_each(|entry| *entry = None)
+    }
 }
 
 pub struct SearchTable {
@@ -158,5 +162,10 @@ impl SearchTable {
 
     pub fn hashfull_millis(&self) -> usize {
         self.transposition.hashfull_millis()
+    }
+
+    pub fn clear(&mut self) {
+        self.transposition.clear();
+        self.killer_moves.iter_mut().for_each(|entry| *entry = None)
     }
 }
