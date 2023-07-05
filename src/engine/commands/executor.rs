@@ -4,7 +4,12 @@ use crate::{
     evaluation::position::evaluate_position,
     moves::gen::perft,
     position::{fen::START_FEN, Position},
-    search::{constraint::SearchConstraint, search_iter, Depth, MAX_DEPTH},
+    search::{
+        constraint::SearchConstraint,
+        search_iter,
+        table::{DEFAULT_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB, MIN_TABLE_SIZE_MB},
+        Depth, MAX_DEPTH,
+    },
 };
 
 use crate::engine::{time::get_duration, Engine};
@@ -77,6 +82,32 @@ pub fn execute_stop(engine: &mut Engine) {
         return;
     }
     engine.stop.store(true, Ordering::Relaxed);
+}
+
+pub fn execute_uci() {
+    println!("id name Camel");
+    println!("id author Bruno Mendes");
+
+    println!(
+        "option name Hash type spin default {} min {} max {}",
+        DEFAULT_TABLE_SIZE_MB, MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB
+    );
+
+    println!("uciok");
+}
+
+pub fn execute_is_ready() {
+    println!("readyok");
+}
+
+pub fn execute_debug(_: bool) {}
+
+pub fn execute_set_option(name: &str, value: &str, engine: &mut Engine) {
+    if name == "Hash" {
+        if let Ok(size) = value.parse::<usize>() {
+            engine.table.write().unwrap().set_size(size);
+        }
+    }
 }
 
 pub fn execute_uci_new_game(engine: &mut Engine) {

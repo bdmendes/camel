@@ -45,6 +45,11 @@ impl TranspositionTable {
         }
     }
 
+    pub fn set_size(&mut self, size_mb: usize) {
+        let data_len = Self::calculate_data_len(size_mb);
+        self.data.resize_with(data_len, || None)
+    }
+
     fn calculate_data_len(size_mb: usize) -> usize {
         let element_size = std::mem::size_of::<Option<TranspositionEntry>>();
         let size = size_mb * 1024 * 1024;
@@ -82,6 +87,10 @@ impl SearchTable {
             transposition: TranspositionTable::new(size_mb),
             killer_moves: [None; 2 * (MAX_DEPTH + 1) as usize],
         }
+    }
+
+    pub fn set_size(&mut self, size_mb: usize) {
+        self.transposition.set_size(size_mb)
     }
 
     pub fn get_hash_move(&self, position: &Position) -> Option<Move> {

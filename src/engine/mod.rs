@@ -31,6 +31,10 @@ pub enum Command {
     Debug(bool),
     IsReady,
     UCINewGame,
+    SetOption {
+        name: String,
+        value: String,
+    },
 
     // Custom commands
     Perft {

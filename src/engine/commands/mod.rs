@@ -2,11 +2,11 @@ use std::collections::VecDeque;
 
 use self::{
     executor::{
-        execute_all_moves, execute_clear, execute_display, execute_do_move, execute_go,
-        execute_help, execute_perft, execute_position, execute_quit, execute_stop,
-        execute_uci_new_game,
+        execute_all_moves, execute_clear, execute_debug, execute_display, execute_do_move,
+        execute_go, execute_help, execute_is_ready, execute_perft, execute_position, execute_quit,
+        execute_set_option, execute_stop, execute_uci, execute_uci_new_game,
     },
-    parser::{parse_domove, parse_go, parse_perft, parse_position},
+    parser::{parse_debug, parse_domove, parse_go, parse_perft, parse_position, parse_set_option},
 };
 
 use super::{Command, Engine};
@@ -27,9 +27,10 @@ pub fn parse_command(input: &str) -> Result<Command, ()> {
         "go" => parse_go(&mut words).map_or(Result::Err(()), |cmd| Result::Ok(cmd)),
         "stop" => Ok(Command::Stop),
         "uci" => Ok(Command::UCI),
-        "debug" => Ok(Command::Debug(true)),
+        "debug" => parse_debug(&mut words),
         "isready" => Ok(Command::IsReady),
         "ucinewgame" => Ok(Command::UCINewGame),
+        "setoption" => parse_set_option(&mut words),
         "perft" => parse_perft(&mut words),
         "domove" | "m" => parse_domove(&mut words),
         "display" | "d" => Ok(Command::Display),
@@ -63,9 +64,12 @@ pub fn execute_command(command: Command, engine: &mut Engine) {
             black_increment,
         ),
         Command::Stop => execute_stop(engine),
-        Command::UCI => println!("id name Camel\nid author Bruno Mendes\nuciok"),
-        Command::Debug(_) => (),
-        Command::IsReady => println!("readyok"),
+        Command::UCI => execute_uci(),
+        Command::Debug(debug) => execute_debug(debug),
+        Command::SetOption { name, value } => {
+            execute_set_option(name.as_str(), value.as_str(), engine)
+        }
+        Command::IsReady => execute_is_ready(),
         Command::UCINewGame => execute_uci_new_game(engine),
         Command::Perft { depth } => execute_perft(depth, &engine.position),
         Command::DoMove { mov_str } => execute_do_move(&mov_str, &mut engine.position),
