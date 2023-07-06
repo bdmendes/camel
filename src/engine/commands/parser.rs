@@ -122,13 +122,17 @@ pub fn parse_debug(words: &mut VecDeque<&str>) -> Result<Command, ()> {
 }
 
 pub fn parse_set_option(words: &mut VecDeque<&str>) -> Result<Command, ()> {
-    let word = words.pop_front().ok_or(())?;
-    match word {
-        "name" => {
-            let name = words.pop_front().ok_or(())?.to_string();
-            let value = words.pop_front().ok_or(())?.to_string();
-            Ok(Command::SetOption { name, value })
-        }
-        _ => Err(()),
+    if words.pop_front().ok_or(())? != "name" {
+        return Err(());
     }
+
+    let name = words.pop_front().ok_or(())?.to_string();
+
+    if words.pop_front().ok_or(())? != "value" {
+        return Err(());
+    }
+
+    let value = words.pop_front().ok_or(())?.to_string();
+
+    Ok(Command::SetOption { name, value })
 }

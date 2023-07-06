@@ -105,7 +105,11 @@ pub fn execute_debug(_: bool) {}
 pub fn execute_set_option(name: &str, value: &str, engine: &mut Engine) {
     if name == "Hash" {
         if let Ok(size) = value.parse::<usize>() {
-            engine.table.write().unwrap().set_size(size);
+            engine
+                .table
+                .write()
+                .unwrap()
+                .set_size(size.min(MAX_TABLE_SIZE_MB).max(MIN_TABLE_SIZE_MB));
         }
     }
 }

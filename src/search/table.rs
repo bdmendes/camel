@@ -7,7 +7,7 @@ use crate::{
     position::Position,
 };
 
-pub const MAX_TABLE_SIZE_MB: usize = 4096;
+pub const MAX_TABLE_SIZE_MB: usize = 2048;
 pub const MIN_TABLE_SIZE_MB: usize = 1;
 pub const DEFAULT_TABLE_SIZE_MB: usize = 64;
 
@@ -34,13 +34,12 @@ impl TranspositionTable {
 
     pub fn set_size(&mut self, size_mb: usize) {
         let data_len = Self::calculate_data_len(size_mb);
-        self.0.clear();
-        self.0.reserve(data_len);
+        self.0 = AHashMap::with_capacity(data_len);
     }
 
     fn calculate_data_len(size_mb: usize) -> usize {
         let element_size = std::mem::size_of::<TableEntry>();
-        let size = size_mb * 1024 * 1024;
+        let size = size_mb * 1000 * 1000;
         size / element_size
     }
 
