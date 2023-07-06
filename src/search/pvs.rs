@@ -1,17 +1,15 @@
-use std::sync::{Arc, RwLock};
-
+use super::{
+    constraint::SearchConstraint,
+    table::{SearchTable, TTScore, TableEntry},
+    Depth, MAX_DEPTH,
+};
 use crate::{
     evaluation::{
         moves::evaluate_move, piece_value, position::evaluate_position, Score, ValueScore,
     },
     position::{board::Piece, Color, Position},
 };
-
-use super::{
-    constraint::SearchConstraint,
-    table::{SearchTable, TTScore, TableEntry},
-    Depth, MAX_DEPTH,
-};
+use std::sync::{Arc, RwLock};
 
 const MIN_SCORE: ValueScore = ValueScore::MIN + 1;
 const NULL_MOVE_REDUCTION: Depth = 3;
@@ -123,14 +121,15 @@ fn pvs<const ROOT: bool>(
     constraint: &mut SearchConstraint,
     original_depth: Depth,
 ) -> (ValueScore, usize) {
+    // Detect history-related draws
+    if position.halfmove_clock >= 100 || constraint.is_threefold_repetition(position) {
+        return (0, 1);
+    }
+
     // Get known score from transposition table
     if let Some(tt_entry) = table.read().unwrap().get_table_score(position, depth) {
         match tt_entry {
-            TTScore::Exact(score) => {
-                if original_depth - depth >= 2 {
-                    return (score, 1);
-                }
-            }
+            TTScore::Exact(score) => return (score, 1),
             TTScore::LowerBound(score) => alpha = alpha.max(score),
             TTScore::UpperBound(score) => beta = beta.min(score),
         }
@@ -154,12 +153,10 @@ fn pvs<const ROOT: bool>(
 
     let mut moves = position.moves::<false>();
 
-    // Detect checkmate and draw
+    // Detect checkmate and stalemate
     if moves.is_empty() {
         let score = if is_check { MIN_SCORE + original_depth - depth } else { 0 };
         return (score, 1);
-    } else if position.halfmove_clock >= 100 || constraint.is_threefold_repetition(position) {
-        return (0, 1);
     }
 
     let mut count = 0;
@@ -223,7 +220,7 @@ fn pvs<const ROOT: bool>(
             original_depth,
             i > 0,
         );
-        constraint.leave_position();
+        constraint.leave_position(&new_position);
 
         count += nodes;
 

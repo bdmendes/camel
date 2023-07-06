@@ -1,9 +1,9 @@
+use self::commands::{execute_command, parse_command};
 use crate::{
     position::{fen::START_FEN, Position},
     search::table::{SearchTable, DEFAULT_TABLE_SIZE_MB},
 };
-
-use self::commands::{execute_command, parse_command};
+use ahash::AHashMap;
 use std::{
     sync::{atomic::AtomicBool, Arc, RwLock},
     time::Duration,
@@ -52,7 +52,7 @@ pub enum Command {
 
 pub struct Engine {
     pub position: Position,
-    pub game_history: Vec<Position>,
+    pub game_history: AHashMap<Position, u8>,
     pub stop: Arc<AtomicBool>,
     pub table: Arc<RwLock<SearchTable>>,
 }
@@ -61,7 +61,7 @@ pub fn uci_loop() {
     let mut engine = Engine {
         position: Position::from_fen(START_FEN).unwrap(),
         stop: Arc::new(AtomicBool::new(true)),
-        game_history: Vec::new(),
+        game_history: AHashMap::new(),
         table: Arc::new(RwLock::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB))),
     };
 
