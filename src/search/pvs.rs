@@ -122,27 +122,35 @@ fn pvs<const ROOT: bool>(
     original_depth: Depth,
 ) -> (ValueScore, usize) {
     // Detect history-related draws
-    if position.halfmove_clock >= 100 || constraint.is_threefold_repetition(position) {
-        return (0, 1);
+    if !ROOT {
+        if position.halfmove_clock >= 100 || constraint.is_threefold_repetition(position) {
+            return (0, 1);
+        }
     }
 
     // Get known score from transposition table
     if let Some(tt_entry) = table.read().unwrap().get_table_score(position, depth) {
         match tt_entry {
-            TTScore::Exact(score) => return (score, 1),
+            TTScore::Exact(score) => {
+                if !ROOT {
+                    return (score, 1);
+                }
+            }
             TTScore::LowerBound(score) => alpha = alpha.max(score),
             TTScore::UpperBound(score) => beta = beta.min(score),
         }
     }
 
-    // Time limit reached
-    if constraint.should_stop_search() {
-        return (alpha, 1);
-    }
+    if !ROOT {
+        // Time limit reached
+        if constraint.should_stop_search() {
+            return (alpha, 1);
+        }
 
-    // Beta cutoff: position is too good
-    if alpha >= beta {
-        return (alpha, 1);
+        // Beta cutoff: position is too good
+        if alpha >= beta {
+            return (alpha, 1);
+        }
     }
 
     // Max depth reached; search for quiet position
