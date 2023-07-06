@@ -83,12 +83,12 @@ pub fn search_iter(
         current_depth += 1;
     }
 
-    table.write().unwrap().cleanup(500, position, current_depth);
-
     let best_move = table.read().unwrap().get_hash_move(position);
     if let Some(mov) = best_move {
         println!("bestmove {}", mov);
     } else {
         println!("bestmove 0000");
     }
+
+    table.write().unwrap().cleanup(500, position, current_depth);
 }

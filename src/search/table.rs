@@ -53,7 +53,7 @@ impl TranspositionTable {
     }
 
     pub fn insert(&mut self, position: &Position, entry: TableEntry) -> bool {
-        if self.0.len() >= self.0.capacity() {
+        if self.0.len() >= self.0.capacity() && !self.0.contains_key(position) {
             return false;
         }
 
