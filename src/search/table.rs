@@ -51,12 +51,19 @@ impl TranspositionTable {
         self.0.get(position)
     }
 
-    pub fn insert(&mut self, position: &Position, entry: TableEntry) -> bool {
-        if self.0.len() >= self.0.capacity() && !self.0.contains_key(position) {
+    pub fn insert<const FORCE: bool>(&mut self, position: &Position, entry: TableEntry) -> bool {
+        if !FORCE && self.0.len() >= self.0.capacity() - 1 && !self.0.contains_key(position) {
             return false;
         }
 
-        self.0.insert(*position, entry);
+        if FORCE {
+            let original_capacity = self.0.capacity();
+            self.0.insert(position.clone(), entry);
+            assert!(self.0.capacity() == original_capacity);
+        } else {
+            self.0.insert(position.clone(), entry);
+        }
+
         true
     }
 
@@ -111,7 +118,7 @@ impl SearchTable {
         })
     }
 
-    pub fn insert_entry(&mut self, position: &Position, entry: TableEntry) {
+    pub fn insert_entry<const FORCE: bool>(&mut self, position: &Position, entry: TableEntry) {
         if let Some(old_entry) = self.transposition.get(position) {
             if old_entry.depth >= entry.depth {
                 return;
@@ -121,7 +128,7 @@ impl SearchTable {
             }
         }
 
-        self.transposition.insert(position, entry);
+        self.transposition.insert::<FORCE>(position, entry);
     }
 
     pub fn put_killer_move(&mut self, depth: Depth, mov: Move) {

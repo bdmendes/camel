@@ -246,20 +246,18 @@ fn pvs<const ROOT: bool>(
     }
 
     if !constraint.should_stop_search() {
-        table.write().unwrap().insert_entry(
-            position,
-            TableEntry {
-                depth,
-                score: if alpha <= original_alpha {
-                    TTScore::UpperBound(alpha)
-                } else if alpha >= beta {
-                    TTScore::LowerBound(alpha)
-                } else {
-                    TTScore::Exact(alpha)
-                },
-                best_move: Some(best_move),
+        let entry = TableEntry {
+            depth,
+            score: if alpha <= original_alpha {
+                TTScore::UpperBound(alpha)
+            } else if alpha >= beta {
+                TTScore::LowerBound(alpha)
+            } else {
+                TTScore::Exact(alpha)
             },
-        );
+            best_move: Some(best_move),
+        };
+        table.write().unwrap().insert_entry::<ROOT>(position, entry);
     }
 
     (alpha, count)
