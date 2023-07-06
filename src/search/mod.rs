@@ -53,16 +53,24 @@ pub fn search_iter(
 ) {
     let one_legal_move = position.moves::<false>().len() == 1;
 
-    for d in 1..=depth {
+    let mut current_depth = 1;
+    while current_depth <= depth {
         let time = std::time::Instant::now();
-        let (score, count) = pvs::search(position, d, table.clone(), constraint);
+        let (score, count) = pvs::search(position, current_depth, table.clone(), constraint);
 
         if constraint.should_stop_search() {
             break;
         }
 
         let elapsed = time.elapsed();
-        print_iter_info(position, d, score, count, elapsed.as_millis(), &table.read().unwrap());
+        print_iter_info(
+            position,
+            current_depth,
+            score,
+            count,
+            elapsed.as_millis(),
+            &table.read().unwrap(),
+        );
 
         if one_legal_move || matches!(score, Score::Mate(_, _)) {
             break;
@@ -71,10 +79,16 @@ pub fn search_iter(
         if elapsed > constraint.remaining_time().unwrap_or_else(|| elapsed) {
             break;
         }
+
+        current_depth += 1;
     }
+
+    table.write().unwrap().cleanup(500, position, current_depth);
 
     let best_move = table.read().unwrap().get_hash_move(position);
     if let Some(mov) = best_move {
         println!("bestmove {}", mov);
+    } else {
+        println!("bestmove 0000");
     }
 }

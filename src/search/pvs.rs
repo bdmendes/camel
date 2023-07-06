@@ -119,7 +119,11 @@ fn pvs(
     // Get known score from transposition table
     if let Some(tt_entry) = table.read().unwrap().get_table_score(position, depth) {
         match tt_entry {
-            TTScore::Exact(score) => return (score, 1),
+            TTScore::Exact(score) => {
+                if original_depth - depth >= 2 {
+                    return (score, 1);
+                }
+            }
             TTScore::LowerBound(score) => alpha = alpha.max(score),
             TTScore::UpperBound(score) => beta = beta.min(score),
         }
