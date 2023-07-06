@@ -1,4 +1,4 @@
-use ahash::AHashMap;
+use ahash::RandomState;
 
 use super::{Depth, MAX_DEPTH};
 use crate::{
@@ -24,66 +24,56 @@ pub struct TableEntry {
     pub best_move: Option<Move>,
 }
 
-struct TranspositionTable(AHashMap<Position, TableEntry>);
+struct TranspositionEntry {
+    entry: TableEntry,
+    hash: u64,
+}
+
+struct TranspositionTable {
+    data: Vec<Option<TranspositionEntry>>,
+    size: usize,
+    hasher: RandomState,
+}
 
 impl TranspositionTable {
     pub fn new(size_mb: usize) -> Self {
         let data_len = Self::calculate_data_len(size_mb);
-        Self(AHashMap::with_capacity(data_len))
+        Self {
+            data: (0..data_len).map(|_| None).collect(),
+            size: data_len,
+            hasher: RandomState::new(),
+        }
+    }
+
+    fn calculate_data_len(size_mb: usize) -> usize {
+        let element_size = std::mem::size_of::<Option<TranspositionEntry>>();
+        let size = size_mb * 1024 * 1024;
+        size / element_size
     }
 
     pub fn set_size(&mut self, size_mb: usize) {
         let data_len = Self::calculate_data_len(size_mb);
-        self.0 = AHashMap::with_capacity(data_len);
-    }
-
-    fn calculate_data_len(size_mb: usize) -> usize {
-        let element_size = std::mem::size_of::<TableEntry>();
-        let size = size_mb * 1000 * 1000;
-        size / element_size
+        self.data = (0..data_len).map(|_| None).collect();
+        self.size = data_len;
     }
 
     pub fn hashfull_millis(&self) -> usize {
-        self.0.len() * 1000 / self.0.capacity()
+        self.data.iter().filter(|entry| entry.is_some()).count() * 1000 / self.size
     }
 
-    pub fn get(&self, position: &Position) -> Option<&TableEntry> {
-        self.0.get(position)
+    pub fn get<const ALLOW_COLLISION: bool>(
+        &self,
+        position: &Position,
+    ) -> Option<&TranspositionEntry> {
+        let hash = self.hasher.hash_one(*position);
+        let index = hash as usize % self.size;
+        self.data[index].as_ref().filter(|entry| ALLOW_COLLISION || entry.hash == hash)
     }
 
-    pub fn insert<const FORCE: bool>(&mut self, position: &Position, entry: TableEntry) -> bool {
-        if !FORCE && self.0.len() >= self.0.capacity() - 1 && !self.0.contains_key(position) {
-            return false;
-        }
-
-        if FORCE {
-            let original_capacity = self.0.capacity();
-            self.0.insert(position.clone(), entry);
-            assert!(self.0.capacity() == original_capacity);
-        } else {
-            self.0.insert(position.clone(), entry);
-        }
-
-        true
-    }
-
-    pub fn cleanup(&mut self, hashfull_millis_goal: usize, position: &Position, depth: Depth) {
-        let may_happen_again = |p: &Position| {
-            p.halfmove_clock < depth as u8
-                || position.halfmove_clock.abs_diff(p.halfmove_clock) < depth as u8
-        };
-
-        self.0.retain(|k, _| may_happen_again(k));
-
-        let mut current_depth = 1;
-        while self.hashfull_millis() > hashfull_millis_goal {
-            self.0.retain(|_, v| v.depth > current_depth);
-            current_depth += 1;
-        }
-    }
-
-    pub fn clear(&mut self) {
-        self.0.clear();
+    pub fn insert(&mut self, position: &Position, entry: TableEntry) {
+        let hash = self.hasher.hash_one(*position);
+        let index = hash as usize % self.size;
+        self.data[index] = Some(TranspositionEntry { entry, hash });
     }
 }
 
@@ -105,13 +95,13 @@ impl SearchTable {
     }
 
     pub fn get_hash_move(&self, position: &Position) -> Option<Move> {
-        self.transposition.get(position).and_then(|entry| entry.best_move)
+        self.transposition.get::<false>(position).and_then(|entry| entry.entry.best_move)
     }
 
     pub fn get_table_score(&self, position: &Position, depth: Depth) -> Option<TTScore> {
-        self.transposition.get(position).and_then(|entry| {
-            if entry.depth >= depth {
-                Some(entry.score)
+        self.transposition.get::<false>(position).and_then(|entry| {
+            if entry.entry.depth >= depth {
+                Some(entry.entry.score)
             } else {
                 None
             }
@@ -119,16 +109,20 @@ impl SearchTable {
     }
 
     pub fn insert_entry<const FORCE: bool>(&mut self, position: &Position, entry: TableEntry) {
-        if let Some(old_entry) = self.transposition.get(position) {
-            if old_entry.depth >= entry.depth {
-                return;
-            }
-            if old_entry.depth == entry.depth && matches!(old_entry.score, TTScore::Exact(_)) {
-                return;
+        if !FORCE {
+            if let Some(old_entry) = self.transposition.get::<true>(position) {
+                if old_entry.entry.depth >= entry.depth {
+                    return;
+                }
+                if old_entry.entry.depth == entry.depth
+                    && matches!(old_entry.entry.score, TTScore::Exact(_))
+                {
+                    return;
+                }
             }
         }
 
-        self.transposition.insert::<FORCE>(position, entry);
+        self.transposition.insert(position, entry);
     }
 
     pub fn put_killer_move(&mut self, depth: Depth, mov: Move) {
@@ -170,11 +164,7 @@ impl SearchTable {
     }
 
     pub fn clear(&mut self) {
-        self.transposition.clear();
-        self.killer_moves.iter_mut().for_each(|entry| *entry = None)
-    }
-
-    pub fn cleanup(&mut self, hashfull_millis_goal: usize, position: &Position, depth: Depth) {
-        self.transposition.cleanup(hashfull_millis_goal, position, depth);
+        self.transposition.data.iter_mut().for_each(|entry| *entry = None);
+        self.killer_moves.iter_mut().for_each(|entry| *entry = None);
     }
 }
