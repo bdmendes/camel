@@ -92,8 +92,15 @@ fn pvs_recurse(
     let mut count = 0;
 
     if do_null {
-        let (score, nodes) =
-            pvs(position, depth - 1, -alpha - 1, -alpha, table.clone(), constraint, original_depth);
+        let (score, nodes) = pvs::<false>(
+            position,
+            depth - 1,
+            -alpha - 1,
+            -alpha,
+            table.clone(),
+            constraint,
+            original_depth,
+        );
         count += nodes;
         let score = -score;
         if score <= alpha || score >= beta {
@@ -102,12 +109,12 @@ fn pvs_recurse(
     }
 
     let (score, nodes) =
-        pvs(position, depth - 1, -beta, -alpha, table.clone(), constraint, original_depth);
+        pvs::<false>(position, depth - 1, -beta, -alpha, table.clone(), constraint, original_depth);
     count += nodes;
     (-score, count)
 }
 
-fn pvs(
+fn pvs<const ROOT: bool>(
     position: &Position,
     depth: Depth,
     mut alpha: ValueScore,
@@ -158,13 +165,14 @@ fn pvs(
     let mut count = 0;
 
     // Null move pruning
-    if depth != original_depth
+    if !ROOT
+        && depth != original_depth
         && !is_check
         && depth > NULL_MOVE_REDUCTION
         && position.board.piece_count(Color::White) > 0
         && position.board.piece_count(Color::Black) > 0
     {
-        let (score, nodes) = pvs(
+        let (score, nodes) = pvs::<false>(
             &position.make_null_move(),
             depth - NULL_MOVE_REDUCTION,
             -beta,
@@ -260,8 +268,15 @@ pub fn search(
 ) -> (Score, usize) {
     let depth = depth.min(MAX_DEPTH);
 
-    let (score, count) =
-        pvs(position, depth, ValueScore::MIN + 1, ValueScore::MAX, table, constraint, depth);
+    let (score, count) = pvs::<true>(
+        position,
+        depth,
+        ValueScore::MIN + 1,
+        ValueScore::MAX,
+        table,
+        constraint,
+        depth,
+    );
 
     if score.abs() >= ValueScore::MAX - depth - 1 {
         let plys_to_mate = (ValueScore::MAX - score.abs()) as u8;
