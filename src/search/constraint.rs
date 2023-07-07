@@ -1,12 +1,12 @@
+use crate::position::Position;
+use ahash::AHashMap;
 use std::{
     sync::{atomic::AtomicBool, Arc},
     time::{Duration, Instant},
 };
 
-use crate::position::Position;
-
 pub struct SearchConstraint {
-    pub branch_history: Vec<Position>,
+    pub branch_history: AHashMap<Position, u8>,
     pub initial_instant: Option<Instant>,
     pub move_time: Option<Duration>,
     pub stop_now: Option<Arc<AtomicBool>>,
@@ -14,7 +14,12 @@ pub struct SearchConstraint {
 
 impl SearchConstraint {
     pub fn new() -> Self {
-        Self { branch_history: Vec::new(), initial_instant: None, move_time: None, stop_now: None }
+        Self {
+            branch_history: AHashMap::new(),
+            initial_instant: None,
+            move_time: None,
+            stop_now: None,
+        }
     }
 
     pub fn should_stop_search(&self) -> bool {
@@ -41,23 +46,24 @@ impl SearchConstraint {
     }
 
     pub fn visit_position(&mut self, position: &Position) {
-        self.branch_history.push(position.clone());
+        self.branch_history.entry(position.clone()).and_modify(|entry| *entry += 1).or_insert(1);
     }
 
-    pub fn leave_position(&mut self) {
-        self.branch_history.pop();
+    pub fn leave_position(&mut self, position: &Position) {
+        let entry = self.branch_history.get_mut(position).unwrap();
+
+        if *entry == 1 {
+            self.branch_history.remove(position);
+        } else {
+            *entry -= 1;
+        }
     }
 
     pub fn is_threefold_repetition(&self, position: &Position) -> bool {
-        let mut count = 0;
-        for i in self.branch_history.iter().rev() {
-            if i == position {
-                count += 1;
-                if count == 3 {
-                    return true;
-                }
-            }
+        if let Some(entry) = self.branch_history.get(position) {
+            *entry >= 3
+        } else {
+            false
         }
-        false
     }
 }

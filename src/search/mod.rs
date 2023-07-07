@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 use self::{constraint::SearchConstraint, table::SearchTable};
 use crate::{evaluation::Score, position::Position};
 
@@ -15,10 +17,10 @@ fn print_iter_info(
     score: Score,
     count: usize,
     elapsed: u128,
-    table: &mut SearchTable,
+    table: &SearchTable,
 ) {
-    let nps = (count as f64 / ((elapsed + 1) as f64 / 1000.0)) as usize;
-    print!("info depth {} ", depth);
+    let nps = (count as f64 / (elapsed.max(1) as f64 / 1000.0)) as usize;
+    print!("info depth {} hashfull {} ", depth, table.hashfull_millis());
 
     match score {
         Score::Value(score) => {
@@ -34,7 +36,7 @@ fn print_iter_info(
         }
     }
 
-    print!("time {} nodes {} nps {} pv", elapsed, count, nps);
+    print!("time {} nodes {} nps {} pv", elapsed.max(1), count, nps);
 
     let pv = table.get_pv(position, depth);
     for mov in pv {
@@ -46,21 +48,29 @@ fn print_iter_info(
 pub fn search_iter(
     position: &Position,
     depth: Depth,
-    table: &mut SearchTable,
+    table: Arc<RwLock<SearchTable>>,
     constraint: &mut SearchConstraint,
 ) {
     let one_legal_move = position.moves::<false>().len() == 1;
 
-    for d in 1..=depth {
+    let mut current_depth = 1;
+    while current_depth <= depth {
         let time = std::time::Instant::now();
-        let (score, count) = pvs::search(position, d, table, constraint);
+        let (score, count) = pvs::search(position, current_depth, table.clone(), constraint);
 
         if constraint.should_stop_search() {
             break;
         }
 
         let elapsed = time.elapsed();
-        print_iter_info(position, d, score, count, elapsed.as_millis(), table);
+        print_iter_info(
+            position,
+            current_depth,
+            score,
+            count,
+            elapsed.as_millis(),
+            &table.read().unwrap(),
+        );
 
         if one_legal_move || matches!(score, Score::Mate(_, _)) {
             break;
@@ -69,9 +79,11 @@ pub fn search_iter(
         if elapsed > constraint.remaining_time().unwrap_or_else(|| elapsed) {
             break;
         }
+
+        current_depth += 1;
     }
 
-    let best_move = table.get_hash_move(position);
+    let best_move = table.read().unwrap().get_hash_move(position);
     if let Some(mov) = best_move {
         println!("bestmove {}", mov);
     }

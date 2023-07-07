@@ -111,3 +111,28 @@ pub fn parse_domove(words: &mut VecDeque<&str>) -> Result<Command, ()> {
     let mov_str = words.pop_front().ok_or(())?.to_string();
     Ok(Command::DoMove { mov_str })
 }
+
+pub fn parse_debug(words: &mut VecDeque<&str>) -> Result<Command, ()> {
+    let word = words.pop_front().ok_or(())?;
+    match word {
+        "on" => Ok(Command::Debug(true)),
+        "off" => Ok(Command::Debug(false)),
+        _ => Err(()),
+    }
+}
+
+pub fn parse_set_option(words: &mut VecDeque<&str>) -> Result<Command, ()> {
+    if words.pop_front().ok_or(())? != "name" {
+        return Err(());
+    }
+
+    let name = words.pop_front().ok_or(())?.to_string();
+
+    if words.pop_front().ok_or(())? != "value" {
+        return Err(());
+    }
+
+    let value = words.pop_front().ok_or(())?.to_string();
+
+    Ok(Command::SetOption { name, value })
+}

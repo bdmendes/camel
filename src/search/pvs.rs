@@ -1,15 +1,15 @@
+use super::{
+    constraint::SearchConstraint,
+    table::{SearchTable, TTScore, TableEntry},
+    Depth, MAX_DEPTH,
+};
 use crate::{
     evaluation::{
         moves::evaluate_move, piece_value, position::evaluate_position, Score, ValueScore,
     },
     position::{board::Piece, Color, Position},
 };
-
-use super::{
-    constraint::SearchConstraint,
-    table::{SearchTable, TTEntry, TTScore},
-    Depth, MAX_DEPTH,
-};
+use std::sync::{Arc, RwLock};
 
 const MIN_SCORE: ValueScore = ValueScore::MIN + 1;
 const NULL_MOVE_REDUCTION: Depth = 3;
@@ -82,7 +82,7 @@ fn pvs_recurse(
     depth: Depth,
     alpha: ValueScore,
     beta: ValueScore,
-    table: &mut SearchTable,
+    table: Arc<RwLock<SearchTable>>,
     constraint: &mut SearchConstraint,
     original_depth: Depth,
     do_null: bool,
@@ -90,8 +90,15 @@ fn pvs_recurse(
     let mut count = 0;
 
     if do_null {
-        let (score, nodes) =
-            pvs(position, depth - 1, -alpha - 1, -alpha, table, constraint, original_depth);
+        let (score, nodes) = pvs::<false>(
+            position,
+            depth - 1,
+            -alpha - 1,
+            -alpha,
+            table.clone(),
+            constraint,
+            original_depth,
+        );
         count += nodes;
         let score = -score;
         if score <= alpha || score >= beta {
@@ -99,37 +106,51 @@ fn pvs_recurse(
         }
     }
 
-    let (score, nodes) = pvs(position, depth - 1, -beta, -alpha, table, constraint, original_depth);
+    let (score, nodes) =
+        pvs::<false>(position, depth - 1, -beta, -alpha, table.clone(), constraint, original_depth);
     count += nodes;
     (-score, count)
 }
 
-fn pvs(
+fn pvs<const ROOT: bool>(
     position: &Position,
     depth: Depth,
     mut alpha: ValueScore,
     mut beta: ValueScore,
-    table: &mut SearchTable,
+    table: Arc<RwLock<SearchTable>>,
     constraint: &mut SearchConstraint,
     original_depth: Depth,
 ) -> (ValueScore, usize) {
+    // Detect history-related draws
+    if !ROOT {
+        if position.halfmove_clock >= 100 || constraint.is_threefold_repetition(position) {
+            return (0, 1);
+        }
+    }
+
     // Get known score from transposition table
-    if let Some(tt_entry) = table.get_table_score(position, depth) {
+    if let Some(tt_entry) = table.read().unwrap().get_table_score(position, depth) {
         match tt_entry {
-            TTScore::Exact(score) => return (score, 1),
+            TTScore::Exact(score) => {
+                if !ROOT {
+                    return (score, 1);
+                }
+            }
             TTScore::LowerBound(score) => alpha = alpha.max(score),
             TTScore::UpperBound(score) => beta = beta.min(score),
         }
     }
 
-    // Time limit reached
-    if constraint.should_stop_search() {
-        return (alpha, 1);
-    }
+    if !ROOT {
+        // Time limit reached
+        if constraint.should_stop_search() {
+            return (alpha, 1);
+        }
 
-    // Beta cutoff: position is too good
-    if alpha >= beta {
-        return (alpha, 1);
+        // Beta cutoff: position is too good
+        if alpha >= beta {
+            return (alpha, 1);
+        }
     }
 
     // Max depth reached; search for quiet position
@@ -140,29 +161,28 @@ fn pvs(
 
     let mut moves = position.moves::<false>();
 
-    // Detect checkmate and draw
+    // Detect checkmate and stalemate
     if moves.is_empty() {
         let score = if is_check { MIN_SCORE + original_depth - depth } else { 0 };
         return (score, 1);
-    } else if position.halfmove_clock >= 100 || constraint.is_threefold_repetition(position) {
-        return (0, 1);
     }
 
     let mut count = 0;
 
     // Null move pruning
-    if depth != original_depth
+    if !ROOT
+        && depth != original_depth
         && !is_check
         && depth > NULL_MOVE_REDUCTION
         && position.board.piece_count(Color::White) > 0
         && position.board.piece_count(Color::Black) > 0
     {
-        let (score, nodes) = pvs(
+        let (score, nodes) = pvs::<false>(
             &position.make_null_move(),
             depth - NULL_MOVE_REDUCTION,
             -beta,
             -alpha,
-            table,
+            table.clone(),
             constraint,
             original_depth,
         );
@@ -176,17 +196,20 @@ fn pvs(
     }
 
     // Sort moves via MVV-LVA, psqt and table information
-    let hash_move = table.get_hash_move(position);
-    let killer_moves = table.get_killers(depth);
-    moves.sort_by_cached_key(move |mov| {
-        if hash_move.is_some() && mov == &hash_move.unwrap() {
-            return ValueScore::MIN;
-        }
-        if Some(*mov) == killer_moves[0] || Some(*mov) == killer_moves[1] {
-            return -piece_value(Piece::Queen);
-        }
-        -evaluate_move::<false>(position, *mov)
-    });
+    {
+        let table = table.read().unwrap();
+        let hash_move = table.get_hash_move(position);
+        let killer_moves = table.get_killers(depth);
+        moves.sort_by_cached_key(move |mov| {
+            if hash_move.is_some() && mov == &hash_move.unwrap() {
+                return ValueScore::MIN;
+            }
+            if Some(*mov) == killer_moves[0] || Some(*mov) == killer_moves[1] {
+                return -piece_value(Piece::Queen);
+            }
+            -evaluate_move::<false>(position, *mov)
+        });
+    }
 
     let original_alpha = alpha;
     let mut best_move = moves[0];
@@ -200,12 +223,12 @@ fn pvs(
             if is_check { depth + CHECK_EXTENSION } else { depth },
             alpha,
             beta,
-            table,
+            table.clone(),
             constraint,
             original_depth,
             i > 0,
         );
-        constraint.leave_position();
+        constraint.leave_position(&new_position);
 
         count += nodes;
 
@@ -215,7 +238,7 @@ fn pvs(
 
             if score >= beta {
                 if mov.flag().is_quiet() {
-                    table.put_killer_move(depth, *mov);
+                    table.write().unwrap().put_killer_move(depth, *mov);
                 }
                 break;
             }
@@ -223,20 +246,18 @@ fn pvs(
     }
 
     if !constraint.should_stop_search() {
-        table.insert_entry(
-            position,
-            TTEntry {
-                depth,
-                score: if alpha <= original_alpha {
-                    TTScore::UpperBound(alpha)
-                } else if alpha >= beta {
-                    TTScore::LowerBound(alpha)
-                } else {
-                    TTScore::Exact(alpha)
-                },
-                best_move: Some(best_move),
+        let entry = TableEntry {
+            depth,
+            score: if alpha <= original_alpha {
+                TTScore::UpperBound(alpha)
+            } else if alpha >= beta {
+                TTScore::LowerBound(alpha)
+            } else {
+                TTScore::Exact(alpha)
             },
-        );
+            best_move: Some(best_move),
+        };
+        table.write().unwrap().insert_entry::<ROOT>(position, entry);
     }
 
     (alpha, count)
@@ -245,13 +266,20 @@ fn pvs(
 pub fn search(
     position: &Position,
     depth: Depth,
-    table: &mut SearchTable,
+    table: Arc<RwLock<SearchTable>>,
     constraint: &mut SearchConstraint,
 ) -> (Score, usize) {
     let depth = depth.min(MAX_DEPTH);
 
-    let (score, count) =
-        pvs(position, depth, ValueScore::MIN + 1, ValueScore::MAX, table, constraint, depth);
+    let (score, count) = pvs::<true>(
+        position,
+        depth,
+        ValueScore::MIN + 1,
+        ValueScore::MAX,
+        table,
+        constraint,
+        depth,
+    );
 
     if score.abs() >= ValueScore::MAX - depth - 1 {
         let plys_to_mate = (ValueScore::MAX - score.abs()) as u8;
