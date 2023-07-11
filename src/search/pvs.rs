@@ -128,11 +128,13 @@ fn pvs<const ROOT: bool>(
         }
 
         // Get known score from transposition table
-        if let Some(tt_entry) = table.read().unwrap().get_table_score(position, depth) {
-            match tt_entry {
-                TTScore::Exact(score) => return (score, 1),
-                TTScore::LowerBound(score) => alpha = alpha.max(score),
-                TTScore::UpperBound(score) => beta = beta.min(score),
+        if !constraint.is_twofold_repetition(position) {
+            if let Some(tt_entry) = table.read().unwrap().get_table_score(position, depth) {
+                match tt_entry {
+                    TTScore::Exact(score) => return (score, 1),
+                    TTScore::LowerBound(score) => alpha = alpha.max(score),
+                    TTScore::UpperBound(score) => beta = beta.min(score),
+                }
             }
         }
 
@@ -161,7 +163,7 @@ fn pvs<const ROOT: bool>(
         && depth > NULL_MOVE_REDUCTION
         && position.board.piece_count(Color::White) > 0
         && position.board.piece_count(Color::Black) > 0
-        && !constraint.is_two_fold_repetition(position)
+        && !constraint.is_twofold_repetition(position)
     {
         let (score, nodes) = pvs::<false>(
             &position.make_null_move(),

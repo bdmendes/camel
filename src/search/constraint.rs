@@ -67,7 +67,7 @@ impl SearchConstraint {
         }
     }
 
-    pub fn is_two_fold_repetition(&self, position: &Position) -> bool {
+    pub fn is_twofold_repetition(&self, position: &Position) -> bool {
         if let Some(entry) = self.branch_history.get(position) {
             *entry >= 2
         } else {
