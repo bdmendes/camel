@@ -121,27 +121,21 @@ fn pvs<const ROOT: bool>(
     constraint: &mut SearchConstraint,
     original_depth: Depth,
 ) -> (ValueScore, usize) {
-    // Detect history-related draws
     if !ROOT {
+        // Detect history-related draws
         if position.halfmove_clock >= 100 || constraint.is_threefold_repetition(position) {
             return (0, 1);
         }
-    }
 
-    // Get known score from transposition table
-    if let Some(tt_entry) = table.read().unwrap().get_table_score(position, depth) {
-        match tt_entry {
-            TTScore::Exact(score) => {
-                if !ROOT {
-                    return (score, 1);
-                }
+        // Get known score from transposition table
+        if let Some(tt_entry) = table.read().unwrap().get_table_score(position, depth) {
+            match tt_entry {
+                TTScore::Exact(score) => return (score, 1),
+                TTScore::LowerBound(score) => alpha = alpha.max(score),
+                TTScore::UpperBound(score) => beta = beta.min(score),
             }
-            TTScore::LowerBound(score) => alpha = alpha.max(score),
-            TTScore::UpperBound(score) => beta = beta.min(score),
         }
-    }
 
-    if !ROOT {
         // Time limit reached
         if constraint.should_stop_search() {
             return (alpha, 1);
@@ -159,23 +153,15 @@ fn pvs<const ROOT: bool>(
         return quiesce(position, alpha, beta, constraint);
     }
 
-    let mut moves = position.moves::<false>();
-
-    // Detect checkmate and stalemate
-    if moves.is_empty() {
-        let score = if is_check { MIN_SCORE + original_depth - depth } else { 0 };
-        return (score, 1);
-    }
-
     let mut count = 0;
 
     // Null move pruning
     if !ROOT
-        && depth != original_depth
         && !is_check
         && depth > NULL_MOVE_REDUCTION
         && position.board.piece_count(Color::White) > 0
         && position.board.piece_count(Color::Black) > 0
+        && !constraint.is_two_fold_repetition(position)
     {
         let (score, nodes) = pvs::<false>(
             &position.make_null_move(),
@@ -193,6 +179,14 @@ fn pvs<const ROOT: bool>(
         if score >= beta {
             return (beta, count);
         }
+    }
+
+    let mut moves = position.moves::<false>();
+
+    // Detect checkmate and stalemate
+    if moves.is_empty() {
+        let score = if is_check { MIN_SCORE + original_depth - depth } else { 0 };
+        return (score, 1);
     }
 
     // Sort moves via MVV-LVA, psqt and table information
@@ -257,6 +251,7 @@ fn pvs<const ROOT: bool>(
             },
             best_move: Some(best_move),
         };
+
         table.write().unwrap().insert_entry::<ROOT>(position, entry);
     }
 
