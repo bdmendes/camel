@@ -111,12 +111,7 @@ impl SearchTable {
     pub fn insert_entry<const FORCE: bool>(&mut self, position: &Position, entry: TableEntry) {
         if !FORCE {
             if let Some(old_entry) = self.transposition.get::<true>(position) {
-                if old_entry.entry.depth >= entry.depth {
-                    return;
-                }
-                if old_entry.entry.depth == entry.depth
-                    && matches!(old_entry.entry.score, TTScore::Exact(_))
-                {
+                if old_entry.entry.depth > entry.depth {
                     return;
                 }
             }
