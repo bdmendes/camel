@@ -1,3 +1,5 @@
+use smallvec::SmallVec;
+
 use super::{
     constraint::SearchConstraint,
     table::{SearchTable, TTScore, TableEntry},
@@ -7,6 +9,7 @@ use crate::{
     evaluation::{
         moves::evaluate_move, piece_value, position::evaluate_position, Score, ValueScore,
     },
+    moves::{Move, MoveVec},
     position::{board::Piece, Color, Position},
 };
 use std::sync::{Arc, RwLock};
@@ -14,6 +17,29 @@ use std::sync::{Arc, RwLock};
 const MIN_SCORE: ValueScore = ValueScore::MIN + 1;
 const NULL_MOVE_REDUCTION: Depth = 3;
 const CHECK_EXTENSION: Depth = 1;
+
+type ScoredMoveVec = SmallVec<[(Move, ValueScore); 64]>;
+
+fn decorate_moves_with_score<F>(moves: &MoveVec, f: F) -> ScoredMoveVec
+where
+    F: Fn(Move) -> ValueScore,
+{
+    let mut scored_moves = ScoredMoveVec::new();
+    for mov in moves.iter() {
+        scored_moves.push((*mov, f(*mov)));
+    }
+    scored_moves
+}
+
+fn pick_move_and_sort_until(moves: &mut ScoredMoveVec, index: usize) {
+    let mut best_score = moves[index].1;
+    for i in (index + 1)..moves.len() {
+        if moves[i].1 > best_score {
+            best_score = moves[i].1;
+            moves.swap(i, index);
+        }
+    }
+}
 
 fn quiesce(
     position: &Position,
@@ -38,9 +64,9 @@ fn quiesce(
         return (alpha, 1);
     }
 
-    // Generate only non-quiet moves
-    let mut moves = position.moves::<true>();
-    moves.sort_by_cached_key(|m| -evaluate_move::<false>(position, *m));
+    // Generate only non-quiet moves and populate scores
+    let moves = position.moves::<true>();
+    let mut moves = decorate_moves_with_score(&moves, |mov| evaluate_move::<false>(position, mov));
 
     // Stable position reached
     if moves.is_empty() {
@@ -51,7 +77,10 @@ fn quiesce(
     alpha = alpha.max(static_evaluation);
 
     let mut count = 0;
-    for mov in moves.iter() {
+    for i in 0..moves.len() {
+        pick_move_and_sort_until(&mut moves, i);
+        let mov = moves[i].0;
+
         // Delta prune move if it cannot improve the score
         if mov.flag().is_capture() {
             let captured_piece =
@@ -61,7 +90,7 @@ fn quiesce(
             }
         }
 
-        let (score, nodes) = quiesce(&position.make_move(*mov), -beta, -alpha, constraint);
+        let (score, nodes) = quiesce(&position.make_move(mov), -beta, -alpha, constraint);
         let score = -score;
         count += nodes;
 
@@ -191,26 +220,26 @@ fn pvs<const ROOT: bool>(
     }
 
     // Sort moves via MVV-LVA, psqt and table information
-    {
-        let table = table.read().unwrap();
-        let hash_move = table.get_hash_move(position);
-        let killer_moves = table.get_killers(depth);
-        moves.sort_by_cached_key(move |mov| {
-            if hash_move.is_some() && mov == &hash_move.unwrap() {
-                return ValueScore::MIN;
-            }
-            if Some(*mov) == killer_moves[0] || Some(*mov) == killer_moves[1] {
-                return -piece_value(Piece::Queen);
-            }
-            -evaluate_move::<false>(position, *mov)
-        });
-    }
+    let hash_move = table.read().unwrap().get_hash_move(position);
+    let killer_moves = table.read().unwrap().get_killers(depth);
+    let mut moves = decorate_moves_with_score(&mut moves, move |mov| {
+        if hash_move.is_some() && mov == hash_move.unwrap() {
+            return ValueScore::MAX;
+        }
+        if Some(mov) == killer_moves[0] || Some(mov) == killer_moves[1] {
+            return piece_value(Piece::Queen);
+        }
+        evaluate_move::<false>(position, mov)
+    });
 
     let original_alpha = alpha;
-    let mut best_move = moves[0];
+    let mut best_move = moves[0].0;
 
-    for (i, mov) in moves.iter().enumerate() {
-        let new_position = position.make_move(*mov);
+    for i in 0..moves.len() {
+        pick_move_and_sort_until(&mut moves, i);
+        let mov = moves[i].0;
+
+        let new_position = position.make_move(mov);
 
         constraint.visit_position(&new_position);
         let recurse = if i > 0 { pvs_recurse::<true> } else { pvs_recurse::<false> };
@@ -228,12 +257,12 @@ fn pvs<const ROOT: bool>(
         count += nodes;
 
         if score > alpha {
-            best_move = *mov;
+            best_move = moves[i].0;
             alpha = score;
 
             if score >= beta {
                 if mov.flag().is_quiet() {
-                    table.write().unwrap().put_killer_move(depth, *mov);
+                    table.write().unwrap().put_killer_move(depth, mov);
                 }
                 break;
             }
