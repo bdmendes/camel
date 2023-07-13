@@ -9,13 +9,16 @@ use super::{
         specials::generate_king_castles,
         specials::{generate_pawn_moves, pawn_attacks},
     },
-    make_move, Move, MoveFlag, MoveVec,
+    make_move_position, Move, MoveFlag, MoveVec,
 };
-use crate::position::{
-    bitboard::Bitboard,
-    board::{Board, Piece, PIECES_NO_PAWN},
-    square::Square,
-    Color, Position,
+use crate::{
+    moves::make_move_board,
+    position::{
+        bitboard::Bitboard,
+        board::{Board, Piece, PIECES_NO_PAWN},
+        square::Square,
+        Color, Position,
+    },
 };
 
 pub struct MoveDirection;
@@ -158,11 +161,13 @@ pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Positi
     }
 
     if !PSEUDO {
+        let new_side_to_move = position.side_to_move.opposite();
         moves.retain(|mov| match mov.flag() {
             MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => true,
             _ => {
-                let new_position = make_move(position, *mov);
-                !checked_by(&new_position.board, new_position.side_to_move)
+                let mut new_board = position.board.clone();
+                make_move_board(&mut new_board, *mov);
+                !checked_by(&new_board, new_side_to_move)
             }
         });
     }
@@ -207,7 +212,7 @@ fn perft_internal<
     let mut res = if ROOT { Vec::with_capacity(moves.len()) } else { Vec::new() };
 
     for mov in moves {
-        let new_position = make_move(position, mov);
+        let new_position = make_move_position(position, mov);
         let (count, _) =
             perft_internal::<false, BULK_AT_HORIZON, HASH, true>(&new_position, depth - 1, cache);
         nodes += count;

@@ -1,7 +1,11 @@
 use num_enum::TryFromPrimitive;
 use smallvec::SmallVec;
 
-use crate::position::{board::Piece, square::Square, CastlingRights, Color, Position};
+use crate::position::{
+    board::{Board, Piece},
+    square::Square,
+    CastlingRights, Color, Position,
+};
 
 use self::gen::MoveDirection;
 
@@ -124,52 +128,39 @@ impl std::fmt::Display for Move {
     }
 }
 
-pub fn make_move(position: &Position, mov: Move) -> Position {
-    let mut new_board = position.board.clone();
-    let mut new_castling_rights = position.castling_rights.clone();
-    let mut new_en_passant_square = None;
+pub fn make_move_board(board: &mut Board, mov: Move) {
+    let (piece, color) = board.piece_color_at(mov.from()).unwrap();
 
-    let piece = new_board.piece_at(mov.from()).unwrap();
+    board.clear_square(mov.from());
 
-    new_board.clear_square(mov.from());
-
-    // Make move on the board
     match mov.flag() {
-        MoveFlag::KingsideCastle => match position.side_to_move {
+        MoveFlag::KingsideCastle => match color {
             Color::White => {
-                new_board.clear_square(Square::H1);
-                new_board.set_square::<false>(Square::G1, Piece::King, Color::White);
-                new_board.set_square::<false>(Square::F1, Piece::Rook, Color::White);
-                new_castling_rights.remove(CastlingRights::WHITE_KINGSIDE);
-                new_castling_rights.remove(CastlingRights::WHITE_QUEENSIDE);
+                board.clear_square(Square::H1);
+                board.set_square::<false>(Square::G1, Piece::King, Color::White);
+                board.set_square::<false>(Square::F1, Piece::Rook, Color::White);
             }
             Color::Black => {
-                new_board.clear_square(Square::H8);
-                new_board.set_square::<false>(Square::G8, Piece::King, Color::Black);
-                new_board.set_square::<false>(Square::F8, Piece::Rook, Color::Black);
-                new_castling_rights.remove(CastlingRights::BLACK_KINGSIDE);
-                new_castling_rights.remove(CastlingRights::BLACK_QUEENSIDE);
+                board.clear_square(Square::H8);
+                board.set_square::<false>(Square::G8, Piece::King, Color::Black);
+                board.set_square::<false>(Square::F8, Piece::Rook, Color::Black);
             }
         },
-        MoveFlag::QueensideCastle => match position.side_to_move {
+        MoveFlag::QueensideCastle => match color {
             Color::White => {
-                new_board.clear_square(Square::A1);
-                new_board.set_square::<false>(Square::C1, Piece::King, Color::White);
-                new_board.set_square::<false>(Square::D1, Piece::Rook, Color::White);
-                new_castling_rights.remove(CastlingRights::WHITE_KINGSIDE);
-                new_castling_rights.remove(CastlingRights::WHITE_QUEENSIDE);
+                board.clear_square(Square::A1);
+                board.set_square::<false>(Square::C1, Piece::King, Color::White);
+                board.set_square::<false>(Square::D1, Piece::Rook, Color::White);
             }
             Color::Black => {
-                new_board.clear_square(Square::A8);
-                new_board.set_square::<false>(Square::C8, Piece::King, Color::Black);
-                new_board.set_square::<false>(Square::D8, Piece::Rook, Color::Black);
-                new_castling_rights.remove(CastlingRights::BLACK_KINGSIDE);
-                new_castling_rights.remove(CastlingRights::BLACK_QUEENSIDE);
+                board.clear_square(Square::A8);
+                board.set_square::<false>(Square::C8, Piece::King, Color::Black);
+                board.set_square::<false>(Square::D8, Piece::Rook, Color::Black);
             }
         },
         MoveFlag::EnPassantCapture => {
-            new_board.set_square::<false>(mov.to(), Piece::Pawn, position.side_to_move);
-            new_board.clear_square(match position.side_to_move {
+            board.set_square::<false>(mov.to(), Piece::Pawn, color);
+            board.clear_square(match color {
                 Color::White => {
                     Square::try_from((mov.to() as i8 + MoveDirection::SOUTH) as u8).unwrap()
                 }
@@ -179,92 +170,133 @@ pub fn make_move(position: &Position, mov: Move) -> Position {
             });
         }
         MoveFlag::QueenPromotion => {
-            new_board.set_square::<false>(mov.to(), Piece::Queen, position.side_to_move);
+            board.set_square::<false>(mov.to(), Piece::Queen, color);
         }
         MoveFlag::QueenPromotionCapture => {
-            new_board.set_square::<true>(mov.to(), Piece::Queen, position.side_to_move);
+            board.set_square::<true>(mov.to(), Piece::Queen, color);
         }
         MoveFlag::RookPromotion => {
-            new_board.set_square::<false>(mov.to(), Piece::Rook, position.side_to_move);
+            board.set_square::<false>(mov.to(), Piece::Rook, color);
         }
         MoveFlag::RookPromotionCapture => {
-            new_board.set_square::<true>(mov.to(), Piece::Rook, position.side_to_move);
+            board.set_square::<true>(mov.to(), Piece::Rook, color);
         }
         MoveFlag::BishopPromotion => {
-            new_board.set_square::<false>(mov.to(), Piece::Bishop, position.side_to_move);
+            board.set_square::<false>(mov.to(), Piece::Bishop, color);
         }
         MoveFlag::BishopPromotionCapture => {
-            new_board.set_square::<true>(mov.to(), Piece::Bishop, position.side_to_move);
+            board.set_square::<true>(mov.to(), Piece::Bishop, color);
         }
         MoveFlag::KnightPromotion => {
-            new_board.set_square::<false>(mov.to(), Piece::Knight, position.side_to_move);
+            board.set_square::<false>(mov.to(), Piece::Knight, color);
         }
         MoveFlag::KnightPromotionCapture => {
-            new_board.set_square::<true>(mov.to(), Piece::Knight, position.side_to_move);
-        }
-        MoveFlag::DoublePawnPush => {
-            new_board.set_square::<false>(mov.to(), piece, position.side_to_move);
-            new_en_passant_square = Some(match position.side_to_move {
-                Color::White => {
-                    Square::try_from((mov.to() as i8 + MoveDirection::SOUTH) as u8).unwrap()
-                }
-                Color::Black => {
-                    Square::try_from((mov.to() as i8 + MoveDirection::NORTH) as u8).unwrap()
-                }
-            });
+            board.set_square::<true>(mov.to(), Piece::Knight, color);
         }
         MoveFlag::Capture => {
-            new_board.set_square::<true>(mov.to(), piece, position.side_to_move);
+            board.set_square::<true>(mov.to(), piece, color);
         }
-        MoveFlag::Quiet => {
-            new_board.set_square::<false>(mov.to(), piece, position.side_to_move);
+        _ => {
+            board.set_square::<false>(mov.to(), piece, color);
         }
+    }
+}
+
+pub fn make_move_position(position: &Position, mov: Move) -> Position {
+    let piece = position.board.piece_at(mov.from()).unwrap();
+
+    // Update board
+    let mut board = position.board.clone();
+    make_move_board(&mut board, mov);
+
+    // Update en passant square
+    let en_passant_square = match mov.flag() {
+        MoveFlag::DoublePawnPush => Some(match position.side_to_move {
+            Color::White => {
+                Square::try_from((mov.to() as i8 + MoveDirection::SOUTH) as u8).unwrap()
+            }
+            Color::Black => {
+                Square::try_from((mov.to() as i8 + MoveDirection::NORTH) as u8).unwrap()
+            }
+        }),
+        _ => None,
+    };
+
+    // Update castling rights
+    let mut castling_rights = position.castling_rights.clone();
+    match mov.flag() {
+        MoveFlag::KingsideCastle => match position.side_to_move {
+            Color::White => {
+                castling_rights.remove(CastlingRights::WHITE_KINGSIDE);
+                castling_rights.remove(CastlingRights::WHITE_QUEENSIDE);
+            }
+            Color::Black => {
+                castling_rights.remove(CastlingRights::BLACK_KINGSIDE);
+                castling_rights.remove(CastlingRights::BLACK_QUEENSIDE);
+            }
+        },
+        MoveFlag::QueensideCastle => match position.side_to_move {
+            Color::White => {
+                castling_rights.remove(CastlingRights::WHITE_KINGSIDE);
+                castling_rights.remove(CastlingRights::WHITE_QUEENSIDE);
+            }
+            Color::Black => {
+                castling_rights.remove(CastlingRights::BLACK_KINGSIDE);
+                castling_rights.remove(CastlingRights::BLACK_QUEENSIDE);
+            }
+        },
+        MoveFlag::Capture | MoveFlag::Quiet if !castling_rights.is_empty() => {
+            match (position.side_to_move, piece, mov.from()) {
+                (Color::White, Piece::King, Square::E1) => {
+                    castling_rights.remove(CastlingRights::WHITE_KINGSIDE);
+                    castling_rights.remove(CastlingRights::WHITE_QUEENSIDE);
+                }
+                (Color::White, Piece::Rook, Square::A1) => {
+                    castling_rights.remove(CastlingRights::WHITE_QUEENSIDE);
+                }
+                (Color::White, Piece::Rook, Square::H1) => {
+                    castling_rights.remove(CastlingRights::WHITE_KINGSIDE);
+                }
+                (Color::Black, Piece::King, Square::E8) => {
+                    castling_rights.remove(CastlingRights::BLACK_KINGSIDE);
+                    castling_rights.remove(CastlingRights::BLACK_QUEENSIDE);
+                }
+                (Color::Black, Piece::Rook, Square::A8) => {
+                    castling_rights.remove(CastlingRights::BLACK_QUEENSIDE);
+                }
+                (Color::Black, Piece::Rook, Square::H8) => {
+                    castling_rights.remove(CastlingRights::BLACK_KINGSIDE);
+                }
+                _ => (),
+            }
+        }
+        _ => {}
     }
 
-    // Update castrling rights
-    if !position.castling_rights.is_empty()
-        && matches!(mov.flag(), MoveFlag::Capture | MoveFlag::Quiet)
-    {
-        match (position.side_to_move, piece, mov.from()) {
-            (Color::White, Piece::King, Square::E1) => {
-                new_castling_rights.remove(CastlingRights::WHITE_KINGSIDE);
-                new_castling_rights.remove(CastlingRights::WHITE_QUEENSIDE);
-            }
-            (Color::White, Piece::Rook, Square::A1) => {
-                new_castling_rights.remove(CastlingRights::WHITE_QUEENSIDE);
-            }
-            (Color::White, Piece::Rook, Square::H1) => {
-                new_castling_rights.remove(CastlingRights::WHITE_KINGSIDE);
-            }
-            (Color::Black, Piece::King, Square::E8) => {
-                new_castling_rights.remove(CastlingRights::BLACK_KINGSIDE);
-                new_castling_rights.remove(CastlingRights::BLACK_QUEENSIDE);
-            }
-            (Color::Black, Piece::Rook, Square::A8) => {
-                new_castling_rights.remove(CastlingRights::BLACK_QUEENSIDE);
-            }
-            (Color::Black, Piece::Rook, Square::H8) => {
-                new_castling_rights.remove(CastlingRights::BLACK_KINGSIDE);
-            }
-            _ => (),
-        }
-    }
+    // Update side to move
+    let side_to_move = position.side_to_move.opposite();
+
+    // Update halfmove clock
+    let halfmove_clock = if piece == Piece::Pawn || mov.flag().is_capture() {
+        0
+    } else {
+        position.halfmove_clock + 1
+    };
+
+    // Update fullmove number
+    let fullmove_number = if position.side_to_move == Color::Black {
+        position.fullmove_number + 1
+    } else {
+        position.fullmove_number
+    };
 
     Position {
-        board: new_board,
-        side_to_move: position.side_to_move.opposite(),
-        en_passant_square: new_en_passant_square,
-        castling_rights: new_castling_rights,
-        halfmove_clock: if piece == Piece::Pawn || mov.flag().is_capture() {
-            0
-        } else {
-            position.halfmove_clock + 1
-        },
-        fullmove_number: if position.side_to_move == Color::Black {
-            position.fullmove_number + 1
-        } else {
-            position.fullmove_number
-        },
+        board,
+        side_to_move,
+        castling_rights,
+        en_passant_square,
+        halfmove_clock,
+        fullmove_number,
     }
 }
 
@@ -297,8 +329,10 @@ mod tests {
     #[test]
     fn make_move_simple() {
         let position = Position::from_fen(KIWIPETE_WHITE_FEN).unwrap();
-        let new_position =
-            super::make_move(&position, Move::new(Square::D5, Square::E6, MoveFlag::Capture));
+        let new_position = super::make_move_position(
+            &position,
+            Move::new(Square::D5, Square::E6, MoveFlag::Capture),
+        );
         assert_eq!(
             new_position.to_fen(),
             "r3k2r/p1ppqpb1/bn2Pnp1/4N3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1"
@@ -308,7 +342,7 @@ mod tests {
     #[test]
     fn make_move_castle_long() {
         let position = Position::from_fen(KIWIPETE_WHITE_FEN).unwrap();
-        let new_position = super::make_move(
+        let new_position = super::make_move_position(
             &position,
             Move::new(Square::E1, Square::C1, MoveFlag::QueensideCastle),
         );
@@ -321,7 +355,7 @@ mod tests {
     #[test]
     fn make_move_castle_short() {
         let position = Position::from_fen(KIWIPETE_WHITE_FEN).unwrap();
-        let new_position = super::make_move(
+        let new_position = super::make_move_position(
             &position,
             Move::new(Square::E1, Square::G1, MoveFlag::KingsideCastle),
         );
@@ -335,7 +369,7 @@ mod tests {
     fn make_move_double_pawn_push() {
         let position = Position::from_fen(KIWIPETE_BLACK_FEN).unwrap();
 
-        let new_position = super::make_move(
+        let new_position = super::make_move_position(
             &position,
             Move::new(Square::C7, Square::C5, MoveFlag::DoublePawnPush),
         );
@@ -344,7 +378,7 @@ mod tests {
             "r3k2r/p2pqpb1/bn2pnp1/2pPN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq c6 0 2"
         );
 
-        let new_position = super::make_move(
+        let new_position = super::make_move_position(
             &new_position,
             Move::new(Square::D5, Square::C6, MoveFlag::EnPassantCapture),
         );
@@ -363,7 +397,7 @@ mod tests {
             Move::new(Square::E1, Square::C1, MoveFlag::QueensideCastle),
             Move::new(Square::G2, Square::H1, MoveFlag::QueenPromotionCapture),
         ] {
-            position = super::make_move(&position, *mov);
+            position = super::make_move_position(&position, *mov);
         }
 
         assert_eq!(

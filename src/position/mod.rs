@@ -3,7 +3,7 @@ use num_enum::TryFromPrimitive;
 
 use crate::moves::{
     gen::{checked_by, generate_moves},
-    make_move, Move, MoveVec,
+    make_move_position, Move, MoveVec,
 };
 
 use self::{
@@ -70,7 +70,7 @@ impl Position {
     }
 
     pub fn make_move(&self, mov: Move) -> Self {
-        make_move(self, mov)
+        make_move_position(self, mov)
     }
 
     pub fn moves<const QUIESCE: bool>(&self) -> MoveVec {
