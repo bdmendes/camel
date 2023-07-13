@@ -241,7 +241,7 @@ fn pvs<const ROOT: bool>(
         }
     }
 
-    if !constraint.should_stop_search() {
+    if !constraint.should_stop_search() || (ROOT && depth == 1) {
         let entry = TableEntry {
             depth,
             score: if alpha <= original_alpha {
