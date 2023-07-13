@@ -41,7 +41,7 @@ impl TranspositionTable {
         Self {
             data: (0..data_len).map(|_| None).collect(),
             size: data_len,
-            hasher: RandomState::new(),
+            hasher: RandomState::with_seeds(0, 0, 0, 0),
         }
     }
 

@@ -211,14 +211,10 @@ pub fn make_move_position(position: &Position, mov: Move) -> Position {
 
     // Update en passant square
     let en_passant_square = match mov.flag() {
-        MoveFlag::DoublePawnPush => Some(match position.side_to_move {
-            Color::White => {
-                Square::try_from((mov.to() as i8 + MoveDirection::SOUTH) as u8).unwrap()
-            }
-            Color::Black => {
-                Square::try_from((mov.to() as i8 + MoveDirection::NORTH) as u8).unwrap()
-            }
-        }),
+        MoveFlag::DoublePawnPush => {
+            let direction = MoveDirection::pawn_direction(position.side_to_move) * -1;
+            Some(Square::try_from((mov.to() as i8 + direction) as u8).unwrap())
+        }
         _ => None,
     };
 

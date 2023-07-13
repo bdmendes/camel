@@ -46,8 +46,6 @@ impl Board {
             self.pieces[piece as usize].clear(square);
             self.occupancy[color as usize].clear(square);
         }
-        //self.pieces.iter_mut().for_each(|piece| piece.clear(square));
-        //self.occupancy.iter_mut().for_each(|occupancy| occupancy.clear(square));
     }
 
     pub fn piece_color_at(&self, square: Square) -> Option<(Piece, Color)> {
