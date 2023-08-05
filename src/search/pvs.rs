@@ -21,21 +21,23 @@ fn quiesce(
     beta: ValueScore,
     constraint: &SearchConstraint,
 ) -> (ValueScore, usize) {
+    let mut count = 1;
+
     let static_evaluation = evaluate_position(position) * position.side_to_move.sign();
 
     // Time limit reached
     if constraint.should_stop_search() {
-        return (static_evaluation, 1);
+        return (static_evaluation, count);
     }
 
     // Beta cutoff: position is too good
     if static_evaluation >= beta {
-        return (beta, 1);
+        return (beta, count);
     }
 
     // Delta pruning: sequence cannot improve the score
     if static_evaluation < alpha.saturating_sub(piece_value(Piece::Queen)) {
-        return (alpha, 1);
+        return (alpha, count);
     }
 
     // Generate only non-quiet moves
@@ -44,13 +46,12 @@ fn quiesce(
 
     // Stable position reached
     if moves.is_empty() {
-        return (static_evaluation, 1);
+        return (static_evaluation, count);
     }
 
     // Standing pat: captures are not forced
     alpha = alpha.max(static_evaluation);
 
-    let mut count = 0;
     for mov in moves.iter() {
         // Delta prune move if it cannot improve the score
         if mov.flag().is_capture() {
@@ -120,17 +121,19 @@ fn pvs<const ROOT: bool>(
     constraint: &mut SearchConstraint,
     original_depth: Depth,
 ) -> (ValueScore, usize) {
+    let mut count = 1;
+
     if !ROOT {
         // Detect history-related draws
         if position.halfmove_clock >= 100 || constraint.is_threefold_repetition(position) {
-            return (0, 1);
+            return (0, count);
         }
 
         // Get known score from transposition table
         if !constraint.is_twofold_repetition(position) {
             if let Some(tt_entry) = table.read().unwrap().get_table_score(position, depth) {
                 match tt_entry {
-                    TTScore::Exact(score) => return (score, 1),
+                    TTScore::Exact(score) => return (score, count),
                     TTScore::LowerBound(score) => alpha = alpha.max(score),
                     TTScore::UpperBound(score) => beta = beta.min(score),
                 }
@@ -139,12 +142,12 @@ fn pvs<const ROOT: bool>(
 
         // Time limit reached
         if constraint.should_stop_search() {
-            return (alpha, 1);
+            return (alpha, count);
         }
 
         // Beta cutoff: position is too good
         if alpha >= beta {
-            return (alpha, 1);
+            return (alpha, count);
         }
     }
 
@@ -153,8 +156,6 @@ fn pvs<const ROOT: bool>(
     if depth <= 0 && !is_check {
         return quiesce(position, alpha, beta, constraint);
     }
-
-    let mut count = 0;
 
     // Null move pruning
     if !ROOT
@@ -187,7 +188,7 @@ fn pvs<const ROOT: bool>(
     // Detect checkmate and stalemate
     if moves.is_empty() {
         let score = if is_check { MIN_SCORE + original_depth - depth } else { 0 };
-        return (score, 1);
+        return (score, count);
     }
 
     // Sort moves via MVV-LVA, psqt and table information
