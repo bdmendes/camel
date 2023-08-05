@@ -1,5 +1,3 @@
-use ahash::AHashMap;
-
 use super::{
     attacks::{
         leapers::{KING_ATTACKS, KNIGHT_ATTACKS},
@@ -15,11 +13,12 @@ use crate::{
     moves::make_move_board,
     position::{
         bitboard::Bitboard,
-        board::{Board, Piece, PIECES_NO_PAWN},
+        board::{Board, Piece},
         square::Square,
         Color, Position,
     },
 };
+use ahash::AHashMap;
 
 pub struct MoveDirection;
 
@@ -145,16 +144,17 @@ pub fn generate_regular_moves<const QUIESCE: bool>(
 pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Position) -> MoveVec {
     let mut moves = MoveVec::new();
 
-    for piece in PIECES_NO_PAWN.iter() {
-        generate_regular_moves::<QUIESCE>(
-            &position.board,
-            *piece,
-            position.side_to_move,
-            &mut moves,
-        );
+    for piece in Piece::list() {
+        match piece {
+            Piece::Pawn => generate_pawn_moves::<QUIESCE>(position, &mut moves),
+            _ => generate_regular_moves::<QUIESCE>(
+                &position.board,
+                *piece,
+                position.side_to_move,
+                &mut moves,
+            ),
+        }
     }
-
-    generate_pawn_moves::<QUIESCE>(&position, &mut moves);
 
     if !QUIESCE {
         generate_king_castles(position, &mut moves);
@@ -165,7 +165,7 @@ pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Positi
         moves.retain(|mov| match mov.flag() {
             MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => true,
             _ => {
-                let mut new_board = position.board.clone();
+                let mut new_board = position.board;
                 make_move_board(&mut new_board, *mov);
                 !checked_by(&new_board, new_side_to_move)
             }
@@ -175,10 +175,12 @@ pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Positi
     moves
 }
 
+type PerftResult = (u64, Vec<(Move, u64)>);
+
 pub fn perft<const BULK_AT_HORIZON: bool, const HASH: bool, const SILENT: bool>(
     position: &Position,
     depth: u8,
-) -> (u64, Vec<(Move, u64)>) {
+) -> PerftResult {
     perft_internal::<true, BULK_AT_HORIZON, HASH, SILENT>(position, depth, &mut AHashMap::new())
 }
 
@@ -190,7 +192,7 @@ fn perft_internal<
 >(
     position: &Position,
     depth: u8,
-    cache: &mut AHashMap<(Position, u8), (u64, Vec<(Move, u64)>)>,
+    cache: &mut AHashMap<(Position, u8), PerftResult>,
 ) -> (u64, Vec<(Move, u64)>) {
     if depth == 0 {
         return (1, vec![]);
@@ -227,7 +229,7 @@ fn perft_internal<
     }
 
     if HASH {
-        cache.insert((position.clone(), depth), (nodes, res.clone()));
+        cache.insert((*position, depth), (nodes, res.clone()));
     }
 
     (nodes, res)

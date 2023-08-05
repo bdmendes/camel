@@ -2,7 +2,7 @@ use super::Command;
 use crate::position::{fen::START_FEN, Position};
 use std::{collections::VecDeque, time::Duration};
 
-pub fn parse_position(words: &mut VecDeque<&str>) -> Result<Command, ()> {
+pub fn parse_position(words: &mut VecDeque<&str>) -> Option<Command> {
     let mut fen = String::new();
     let mut position = Position::from_fen(START_FEN).unwrap();
     let mut game_history = Vec::new();
@@ -15,14 +15,14 @@ pub fn parse_position(words: &mut VecDeque<&str>) -> Result<Command, ()> {
                         words.push_front(word);
                         break;
                     }
-                    fen.push_str(&word);
+                    fen.push_str(word);
                     fen.push(' ');
                 }
 
-                if let Ok(new_position) = Position::from_fen(&fen) {
+                if let Some(new_position) = Position::from_fen(&fen) {
                     position = new_position;
                 } else {
-                    return Err(());
+                    return None;
                 }
             }
             "moves" => {
@@ -32,19 +32,19 @@ pub fn parse_position(words: &mut VecDeque<&str>) -> Result<Command, ()> {
                         position = position.make_move(*mov);
                         game_history.push(position);
                     } else {
-                        return Err(());
+                        return None;
                     }
                 }
             }
             "startpos" => (),
-            _ => return Err(()),
+            _ => return None,
         }
     }
 
-    Ok(Command::Position { position, game_history })
+    Some(Command::Position { position, game_history })
 }
 
-pub fn parse_go(words: &mut VecDeque<&str>) -> Result<Command, String> {
+pub fn parse_go(words: &mut VecDeque<&str>) -> Option<Command> {
     let mut depth = None;
     let mut move_time = None;
     let mut white_time = None;
@@ -60,79 +60,67 @@ pub fn parse_go(words: &mut VecDeque<&str>) -> Result<Command, String> {
         let word = word.unwrap();
         match word {
             "depth" => {
-                let value = words.pop_front().ok_or("No value found")?;
-                depth = Some(
-                    value.parse::<u8>().map_err(|_| "Invalid depth value")?.try_into().unwrap(),
-                );
+                let value = words.pop_front()?;
+                depth = Some(value.parse::<u8>().ok()?);
             }
             "movetime" => {
-                let value = words.pop_front().ok_or("No value found")?;
-                move_time = Some(Duration::from_millis(
-                    value.parse::<u64>().map_err(|_| "Invalid movetime value")?,
-                ));
+                let value = words.pop_front()?;
+                move_time = Some(Duration::from_millis(value.parse::<u64>().ok()?));
             }
             "wtime" => {
-                let value = words.pop_front().ok_or("No value found")?;
-                white_time = Some(Duration::from_millis(
-                    value.parse::<u64>().map_err(|_| "Invalid wtime value")?,
-                ));
+                let value = words.pop_front()?;
+                white_time = Some(Duration::from_millis(value.parse::<u64>().ok()?));
             }
             "btime" => {
-                let value = words.pop_front().ok_or("No value found")?;
-                black_time = Some(Duration::from_millis(
-                    value.parse::<u64>().map_err(|_| "Invalid btime value")?,
-                ));
+                let value = words.pop_front()?;
+                black_time = Some(Duration::from_millis(value.parse::<u64>().ok()?));
             }
             "winc" => {
-                let value = words.pop_front().ok_or("No value found")?;
-                white_increment = Some(Duration::from_millis(
-                    value.parse::<u64>().map_err(|_| "Invalid winc value")?,
-                ));
+                let value = words.pop_front()?;
+                white_increment = Some(Duration::from_millis(value.parse::<u64>().ok()?));
             }
             "binc" => {
-                let value = words.pop_front().ok_or("No value found")?;
-                black_increment = Some(Duration::from_millis(
-                    value.parse::<u64>().map_err(|_| "Invalid binc value")?,
-                ));
+                let value = words.pop_front()?;
+                black_increment = Some(Duration::from_millis(value.parse::<u64>().ok()?));
             }
             _ => {}
         }
     }
 
-    Ok(Command::Go { depth, move_time, white_time, black_time, white_increment, black_increment })
+    Some(Command::Go { depth, move_time, white_time, black_time, white_increment, black_increment })
 }
 
-pub fn parse_perft(words: &mut VecDeque<&str>) -> Result<Command, ()> {
-    let depth = words.pop_front().ok_or(())?.parse::<u8>().map_err(|_| ())?;
-    Ok(Command::Perft { depth })
+pub fn parse_perft(words: &mut VecDeque<&str>) -> Option<Command> {
+    let depth = words.pop_front()?.parse::<u8>().ok()?;
+    Some(Command::Perft { depth })
 }
 
-pub fn parse_domove(words: &mut VecDeque<&str>) -> Result<Command, ()> {
-    let mov_str = words.pop_front().ok_or(())?.to_string();
-    Ok(Command::DoMove { mov_str })
+pub fn parse_domove(words: &mut VecDeque<&str>) -> Option<Command> {
+    let mov_str = words.pop_front()?.to_string();
+    Some(Command::DoMove { mov_str })
 }
 
-pub fn parse_debug(words: &mut VecDeque<&str>) -> Result<Command, ()> {
-    let word = words.pop_front().ok_or(())?;
+pub fn parse_debug(words: &mut VecDeque<&str>) -> Option<Command> {
+    let word = words.pop_front()?;
     match word {
-        "on" => Ok(Command::Debug(true)),
-        "off" => Ok(Command::Debug(false)),
-        _ => Err(()),
+        "on" => Some(Command::Debug(true)),
+        "off" => Some(Command::Debug(false)),
+        _ => None,
     }
 }
 
-pub fn parse_set_option(words: &mut VecDeque<&str>) -> Result<Command, ()> {
-    if words.pop_front().ok_or(())? != "name" {
-        return Err(());
+pub fn parse_set_option(words: &mut VecDeque<&str>) -> Option<Command> {
+    if words.pop_front()? != "name" {
+        return None;
     }
 
-    let name = words.pop_front().ok_or(())?.to_string();
+    let name = words.pop_front()?.to_string();
 
-    if words.pop_front().ok_or(())? != "value" {
-        return Err(());
+    if words.pop_front()? != "value" {
+        return None;
     }
 
-    let value = words.pop_front().ok_or(())?.to_string();
+    let value = words.pop_front()?.to_string();
 
-    Ok(Command::SetOption { name, value })
+    Some(Command::SetOption { name, value })
 }

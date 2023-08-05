@@ -12,8 +12,8 @@ pub struct SearchConstraint {
     pub stop_now: Option<Arc<AtomicBool>>,
 }
 
-impl SearchConstraint {
-    pub fn new() -> Self {
+impl Default for SearchConstraint {
+    fn default() -> Self {
         Self {
             branch_history: AHashMap::new(),
             initial_instant: None,
@@ -21,7 +21,9 @@ impl SearchConstraint {
             stop_now: None,
         }
     }
+}
 
+impl SearchConstraint {
     pub fn should_stop_search(&self) -> bool {
         if let Some(move_time) = &self.move_time {
             let elapsed = self.initial_instant.unwrap().elapsed();
@@ -46,7 +48,7 @@ impl SearchConstraint {
     }
 
     pub fn visit_position(&mut self, position: &Position) {
-        self.branch_history.entry(position.clone()).and_modify(|entry| *entry += 1).or_insert(1);
+        self.branch_history.entry(*position).and_modify(|entry| *entry += 1).or_insert(1);
     }
 
     pub fn leave_position(&mut self, position: &Position) {

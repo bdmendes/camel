@@ -74,7 +74,7 @@ pub fn search_iter(
 
         if one_legal_move
             || matches!(score, Score::Mate(_, _))
-            || elapsed > constraint.remaining_time().unwrap_or_else(|| elapsed)
+            || elapsed > constraint.remaining_time().unwrap_or(elapsed)
         {
             break;
         }

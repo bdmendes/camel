@@ -12,8 +12,8 @@ pub const KIWIPETE_WHITE_FEN: &str =
 pub const KIWIPETE_BLACK_FEN: &str =
     "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1";
 
-pub fn board_from_fen(board_fen: &str) -> Result<Board, ()> {
-    let mut chars = board_fen.chars();
+pub fn board_from_fen(board_fen: &str) -> Option<Board> {
+    let chars = board_fen.chars();
 
     let mut rank = 7;
     let mut file = 0;
@@ -21,11 +21,11 @@ pub fn board_from_fen(board_fen: &str) -> Result<Board, ()> {
     let mut pieces: [Bitboard; 6] = Default::default();
     let mut occupancy: [Bitboard; 2] = Default::default();
 
-    while let Some(c) = chars.next() {
+    for c in chars {
         match c {
             ' ' => break,
             '1'..='8' => {
-                file += (c as u8) - ('0' as u8);
+                file += (c as u8) - b'0';
             }
             '/' => {
                 rank -= 1;
@@ -42,7 +42,7 @@ pub fn board_from_fen(board_fen: &str) -> Result<Board, ()> {
                     'k' => Piece::King,
                     _ => unreachable!(),
                 };
-                let square = Square::try_from(rank * 8 + file).unwrap();
+                let square = Square::from(rank * 8 + file).unwrap();
                 pieces[piece as usize].set(square);
                 occupancy[color as usize].set(square);
                 file += 1;
@@ -52,27 +52,27 @@ pub fn board_from_fen(board_fen: &str) -> Result<Board, ()> {
     }
 
     if rank == 0 && file == 8 {
-        Ok(Board::new(pieces, occupancy))
+        Some(Board::new(pieces, occupancy))
     } else {
-        Err(())
+        None
     }
 }
 
-pub fn position_from_fen(fen: &str) -> Result<Position, ()> {
+pub fn position_from_fen(fen: &str) -> Option<Position> {
     let mut fen_iter = fen.split_whitespace();
 
-    let board_fen = fen_iter.next().ok_or(())?;
+    let board_fen = fen_iter.next()?;
     let board = board_from_fen(board_fen)?;
 
     let side_to_move = match fen_iter.next() {
         Some("w") => Color::White,
         Some("b") => Color::Black,
-        _ => return Err(()),
+        _ => return None,
     };
 
-    let mut castling_rights_fen = fen_iter.next().ok_or(())?.chars();
+    let castling_rights_fen = fen_iter.next()?.chars();
     let mut castling_rights = CastlingRights::empty();
-    while let Some(c) = castling_rights_fen.next() {
+    for c in castling_rights_fen {
         match c {
             ' ' => break,
             'K' => castling_rights |= CastlingRights::WHITE_KINGSIDE,
@@ -80,21 +80,21 @@ pub fn position_from_fen(fen: &str) -> Result<Position, ()> {
             'k' => castling_rights |= CastlingRights::BLACK_KINGSIDE,
             'q' => castling_rights |= CastlingRights::BLACK_QUEENSIDE,
             '-' => break,
-            _ => return Err(()),
+            _ => return None,
         }
     }
 
-    let en_passant_square_fen = fen_iter.next().ok_or(())?;
+    let en_passant_square_fen = fen_iter.next()?;
     let en_passant_square = match en_passant_square_fen {
         "-" => None,
         _ => Square::from_str(en_passant_square_fen).ok(),
     };
 
-    let halfmove_clock: u8 = fen_iter.next().unwrap_or("0").parse().ok().ok_or(())?;
+    let halfmove_clock: u8 = fen_iter.next().unwrap_or("0").parse().ok()?;
 
-    let fullmove_number: u16 = fen_iter.next().unwrap_or("1").parse().ok().ok_or(())?;
+    let fullmove_number: u16 = fen_iter.next().unwrap_or("1").parse().ok()?;
 
-    Ok(Position {
+    Some(Position {
         board,
         side_to_move,
         castling_rights,
@@ -117,7 +117,7 @@ fn board_to_fen(board: &Board) -> String {
         for file in 0..8 {
             let square = rank * 8 + file;
 
-            let piece = match board.piece_color_at(Square::try_from(square).unwrap()) {
+            let piece = match board.piece_color_at(Square::from(square).unwrap()) {
                 Some((Piece::Pawn, Color::White)) => 'P',
                 Some((Piece::Pawn, Color::Black)) => 'p',
                 Some((Piece::Knight, Color::White)) => 'N',
@@ -216,7 +216,7 @@ mod tests {
         ];
 
         for fen in &invalid_fens {
-            assert!(position_from_fen(fen).is_err());
+            assert!(position_from_fen(fen).is_none());
         }
     }
 
@@ -292,7 +292,7 @@ mod tests {
         ];
 
         for (i, piece) in pieces_map.iter().enumerate() {
-            let square = Square::try_from(i as u8).unwrap();
+            let square = Square::from(i as u8).unwrap();
             assert_eq!(position.board.piece_color_at(square), *piece);
         }
     }

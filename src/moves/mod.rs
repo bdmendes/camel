@@ -1,77 +1,73 @@
-use num_enum::TryFromPrimitive;
-use smallvec::SmallVec;
-
+use self::gen::MoveDirection;
 use crate::position::{
     board::{Board, Piece},
     square::Square,
     CastlingRights, Color, Position,
 };
-
-use self::gen::MoveDirection;
+use primitive_enum::primitive_enum;
+use smallvec::SmallVec;
 
 pub mod attacks;
 pub mod gen;
 
 pub type MoveVec = SmallVec<[Move; 64]>;
 
-#[derive(TryFromPrimitive, Copy, Clone, Debug, PartialEq, Eq, Hash)]
-#[repr(u8)]
-pub enum MoveFlag {
+primitive_enum! {
+    MoveFlag u8;
+
     // Regular
-    Quiet = 0b0000,
-    Capture = 0b0001,
+    Quiet,
+    Capture,
 
     // King specials
-    KingsideCastle = 0b0010,
-    QueensideCastle = 0b0011,
+    KingsideCastle,
+    QueensideCastle,
 
     // Pawn specials
-    DoublePawnPush = 0b0100,
-    EnPassantCapture = 0b0101,
-    KnightPromotion = 0b0110,
-    BishopPromotion = 0b0111,
-    RookPromotion = 0b1000,
-    QueenPromotion = 0b1001,
-    KnightPromotionCapture = 0b1010,
-    BishopPromotionCapture = 0b1011,
-    RookPromotionCapture = 0b1100,
-    QueenPromotionCapture = 0b1101,
+    DoublePawnPush,
+    EnPassantCapture,
+    KnightPromotion,
+    BishopPromotion,
+    RookPromotion,
+    QueenPromotion,
+    KnightPromotionCapture,
+    BishopPromotionCapture,
+    RookPromotionCapture,
+    QueenPromotionCapture,
 }
 
 impl MoveFlag {
     pub fn is_quiet(&self) -> bool {
-        match self {
-            Self::Quiet | Self::DoublePawnPush | Self::KingsideCastle | Self::QueensideCastle => {
-                true
-            }
-            _ => false,
-        }
+        matches!(
+            self,
+            Self::Quiet | Self::DoublePawnPush | Self::KingsideCastle | Self::QueensideCastle
+        )
     }
 
     pub fn is_capture(&self) -> bool {
-        match self {
+        matches!(
+            self,
             Self::Capture
-            | Self::EnPassantCapture
-            | Self::KnightPromotionCapture
-            | Self::BishopPromotionCapture
-            | Self::RookPromotionCapture
-            | Self::QueenPromotionCapture => true,
-            _ => false,
-        }
+                | Self::EnPassantCapture
+                | Self::KnightPromotionCapture
+                | Self::BishopPromotionCapture
+                | Self::RookPromotionCapture
+                | Self::QueenPromotionCapture
+        )
     }
 
     pub fn is_promotion(&self) -> bool {
-        match self {
+        matches!(
+            self,
             Self::KnightPromotion
-            | Self::BishopPromotion
-            | Self::RookPromotion
-            | Self::QueenPromotion
-            | Self::KnightPromotionCapture
-            | Self::BishopPromotionCapture
-            | Self::RookPromotionCapture
-            | Self::QueenPromotionCapture => true,
-            _ => false,
-        }
+                | Self::BishopPromotion
+                | Self::RookPromotion
+                | Self::QueenPromotion
+                | Self::KnightPromotionCapture
+                | Self::BishopPromotionCapture
+                | Self::RookPromotionCapture
+                | Self::QueenPromotionCapture
+        )
     }
 }
 
@@ -86,15 +82,15 @@ impl Move {
     }
 
     pub fn from(&self) -> Square {
-        Square::try_from((self.data & 0b111111) as u8).unwrap()
+        Square::from((self.data & 0b111111) as u8).unwrap()
     }
 
     pub fn to(&self) -> Square {
-        Square::try_from(((self.data >> 6) & 0b111111) as u8).unwrap()
+        Square::from(((self.data >> 6) & 0b111111) as u8).unwrap()
     }
 
     pub fn flag(&self) -> MoveFlag {
-        MoveFlag::try_from((self.data >> 12) as u8).unwrap()
+        MoveFlag::from((self.data >> 12) as u8).unwrap()
     }
 
     pub fn promotion_piece(&self) -> Option<Piece> {
@@ -162,10 +158,10 @@ pub fn make_move_board(board: &mut Board, mov: Move) {
             board.set_square::<false>(mov.to(), Piece::Pawn, color);
             board.clear_square(match color {
                 Color::White => {
-                    Square::try_from((mov.to() as i8 + MoveDirection::SOUTH) as u8).unwrap()
+                    Square::from((mov.to() as i8 + MoveDirection::SOUTH) as u8).unwrap()
                 }
                 Color::Black => {
-                    Square::try_from((mov.to() as i8 + MoveDirection::NORTH) as u8).unwrap()
+                    Square::from((mov.to() as i8 + MoveDirection::NORTH) as u8).unwrap()
                 }
             });
         }
@@ -206,20 +202,20 @@ pub fn make_move_position(position: &Position, mov: Move) -> Position {
     let piece = position.board.piece_at(mov.from()).unwrap();
 
     // Update board
-    let mut board = position.board.clone();
+    let mut board = position.board;
     make_move_board(&mut board, mov);
 
     // Update en passant square
     let en_passant_square = match mov.flag() {
         MoveFlag::DoublePawnPush => {
-            let direction = MoveDirection::pawn_direction(position.side_to_move) * -1;
-            Some(Square::try_from((mov.to() as i8 + direction) as u8).unwrap())
+            let direction = -MoveDirection::pawn_direction(position.side_to_move);
+            Some(Square::from((mov.to() as i8 + direction) as u8).unwrap())
         }
         _ => None,
     };
 
     // Update castling rights
-    let mut castling_rights = position.castling_rights.clone();
+    let mut castling_rights = position.castling_rights;
     match mov.flag() {
         MoveFlag::KingsideCastle => match position.side_to_move {
             Color::White => {

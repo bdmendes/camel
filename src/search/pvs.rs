@@ -77,7 +77,7 @@ fn quiesce(
     (alpha, count)
 }
 
-fn pvs_recurse(
+fn pvs_recurse<const DO_NULL: bool>(
     position: &Position,
     depth: Depth,
     alpha: ValueScore,
@@ -85,11 +85,10 @@ fn pvs_recurse(
     table: Arc<RwLock<SearchTable>>,
     constraint: &mut SearchConstraint,
     original_depth: Depth,
-    do_null: bool,
 ) -> (ValueScore, usize) {
     let mut count = 0;
 
-    if do_null {
+    if DO_NULL {
         let (score, nodes) = pvs::<false>(
             position,
             depth - 1,
@@ -107,7 +106,7 @@ fn pvs_recurse(
     }
 
     let (score, nodes) =
-        pvs::<false>(position, depth - 1, -beta, -alpha, table.clone(), constraint, original_depth);
+        pvs::<false>(position, depth - 1, -beta, -alpha, table, constraint, original_depth);
     count += nodes;
     (-score, count)
 }
@@ -214,7 +213,8 @@ fn pvs<const ROOT: bool>(
         let new_position = position.make_move(*mov);
 
         constraint.visit_position(&new_position);
-        let (score, nodes) = pvs_recurse(
+        let recurse = if i > 0 { pvs_recurse::<true> } else { pvs_recurse::<false> };
+        let (score, nodes) = recurse(
             &new_position,
             if is_check { depth + CHECK_EXTENSION } else { depth },
             alpha,
@@ -222,7 +222,6 @@ fn pvs<const ROOT: bool>(
             table.clone(),
             constraint,
             original_depth,
-            i > 0,
         );
         constraint.leave_position(&new_position);
 

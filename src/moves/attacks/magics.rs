@@ -99,7 +99,7 @@ fn find_magics(piece: Piece) -> [SquareMagic; 64] {
         .map(|square| {
             let magics = Arc::clone(&magics);
             thread::spawn(move || {
-                let magic = find_magic(Square::try_from(square).unwrap(), piece);
+                let magic = find_magic(Square::from(square).unwrap(), piece);
                 let mut magics = magics.lock().unwrap();
                 magics[square as usize] = magic;
             })
@@ -136,13 +136,10 @@ mod tests {
         };
 
         for square in 0..64 {
-            let magic = find_magic(Square::try_from(square).unwrap(), piece);
+            let magic = find_magic(Square::from(square).unwrap(), piece);
 
-            let blockers_mask = slider_attacks_from_square::<true>(
-                Square::try_from(square).unwrap(),
-                directions,
-                None,
-            );
+            let blockers_mask =
+                slider_attacks_from_square::<true>(Square::from(square).unwrap(), directions, None);
             let bitsets = bitsets(blockers_mask);
 
             for bitset in bitsets {
@@ -150,7 +147,7 @@ mod tests {
                 assert_eq!(
                     magic.attacks[index],
                     slider_attacks_from_square::<false>(
-                        Square::try_from(square).unwrap(),
+                        Square::from(square).unwrap(),
                         directions,
                         Some(bitset),
                     )

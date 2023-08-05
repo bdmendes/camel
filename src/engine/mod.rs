@@ -27,7 +27,7 @@ pub enum Command {
         black_increment: Option<Duration>,
     },
     Stop,
-    UCI,
+    Uci,
     Debug(bool),
     IsReady,
     UCINewGame,
@@ -74,7 +74,7 @@ pub fn uci_loop() {
             continue;
         }
 
-        if let Ok(command) = parse_command(input) {
+        if let Some(command) = parse_command(input) {
             execute_command(command, &mut engine);
         } else {
             println!("Invalid command. Type 'help' to know more.");
