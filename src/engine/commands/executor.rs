@@ -18,11 +18,11 @@ pub fn execute_position(
     game_history: &Vec<Position>,
     engine: &mut Engine,
 ) {
-    engine.position = new_position.clone();
+    engine.position = *new_position;
 
     engine.game_history = AHashMap::with_capacity(game_history.len());
     for position in game_history {
-        engine.game_history.entry(position.clone()).and_modify(|entry| *entry += 1).or_insert(1);
+        engine.game_history.entry(*position).and_modify(|entry| *entry += 1).or_insert(1);
     }
 }
 
@@ -38,7 +38,8 @@ pub fn execute_go(
     if !engine.stop.load(Ordering::Relaxed) {
         return;
     }
-    let position = engine.position.clone();
+
+    let position = engine.position;
 
     if white_time.is_some() && black_time.is_none() {
         black_time = white_time;
@@ -124,7 +125,7 @@ pub fn execute_uci_new_game(engine: &mut Engine) {
 }
 
 pub fn execute_perft(depth: u8, position: &Position) {
-    let position = position.clone();
+    let position = *position;
     thread::spawn(move || {
         let time = std::time::Instant::now();
         let (nodes, _) = perft::<true, true, false>(&position, depth);

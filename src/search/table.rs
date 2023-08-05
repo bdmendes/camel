@@ -145,7 +145,7 @@ impl SearchTable {
 
     pub fn get_pv(&self, position: &Position, mut depth: Depth) -> MoveVec {
         let mut pv = MoveVec::new();
-        let mut position = position.clone();
+        let mut position = *position;
 
         while let Some(entry) = self.get_hash_move(&position) {
             pv.push(entry);

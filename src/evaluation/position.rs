@@ -1,9 +1,5 @@
-use crate::position::{
-    board::{Piece, PIECES},
-    Color, Position,
-};
-
 use super::{piece_value, psqt::psqt_value, ValueScore};
+use crate::position::{board::Piece, Color, Position};
 
 fn piece_endgame_ratio(piece: Piece) -> u8 {
     match piece {
@@ -18,7 +14,7 @@ fn piece_endgame_ratio(piece: Piece) -> u8 {
 
 pub fn endgame_ratio(position: &Position) -> u8 {
     let mut midgame_ratio: u8 = 0;
-    for piece in PIECES.iter() {
+    for piece in Piece::list() {
         let bb = position.board.pieces_bb(*piece);
         midgame_ratio =
             midgame_ratio.saturating_add(bb.count_ones() as u8 * piece_endgame_ratio(*piece));
@@ -63,7 +59,7 @@ pub fn evaluate_position(position: &Position) -> ValueScore {
 
     score += evaluate_pawn_structure(position);
 
-    for piece in PIECES.iter() {
+    for piece in Piece::list() {
         let mut bb = position.board.pieces_bb(*piece);
         while let Some(square) = bb.pop_lsb() {
             let color = position.board.color_at(square).unwrap();

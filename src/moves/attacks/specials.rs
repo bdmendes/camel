@@ -22,7 +22,7 @@ pub fn pawn_attacks(board: &Board, color: Color) -> Bitboard {
         | (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST)
 }
 
-pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, mut moves: &mut MoveVec) {
+pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, moves: &mut MoveVec) {
     let occupancy = position.board.occupancy_bb_all();
     let occupancy_them = position.board.occupancy_bb(position.side_to_move.opposite());
     let our_pawns =
@@ -32,10 +32,10 @@ pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, mut moves: 
 
     // Single push
     let mut single_push_pawns = our_pawns.shift(direction) & !occupancy;
-    let single_push_pawns_cpy = single_push_pawns.clone();
+    let single_push_pawns_cpy = single_push_pawns;
     while let Some(to_square) = single_push_pawns.pop_lsb() {
-        let from_square = Square::try_from((to_square as i8 - direction) as u8).unwrap();
-        push_pawn_move::<QUIESCE>(occupancy, &mut moves, from_square, to_square);
+        let from_square = Square::from((to_square as i8 - direction) as u8).unwrap();
+        push_pawn_move::<QUIESCE>(occupancy, moves, from_square, to_square);
     }
 
     if !QUIESCE {
@@ -47,7 +47,7 @@ pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, mut moves: 
 
         while let Some(to_square) = double_push_pawns.pop_lsb() {
             let from_square =
-                Square::try_from((to_square as i8 - direction - direction) as u8).unwrap();
+                Square::from((to_square as i8 - direction - direction) as u8).unwrap();
             moves.push(Move::new(from_square, to_square, MoveFlag::DoublePawnPush));
         }
     }
@@ -57,8 +57,8 @@ pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, mut moves: 
         (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST) & occupancy_them;
     while let Some(to_square) = west_pawns.pop_lsb() {
         let from_square =
-            Square::try_from((to_square as i8 - direction - MoveDirection::WEST) as u8).unwrap();
-        push_pawn_move::<QUIESCE>(occupancy_them, &mut moves, from_square, to_square);
+            Square::from((to_square as i8 - direction - MoveDirection::WEST) as u8).unwrap();
+        push_pawn_move::<QUIESCE>(occupancy_them, moves, from_square, to_square);
     }
 
     // East capture
@@ -66,8 +66,8 @@ pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, mut moves: 
         (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST) & occupancy_them;
     while let Some(to_square) = east_pawns.pop_lsb() {
         let from_square =
-            Square::try_from((to_square as i8 - direction - MoveDirection::EAST) as u8).unwrap();
-        push_pawn_move::<QUIESCE>(occupancy_them, &mut moves, from_square, to_square);
+            Square::from((to_square as i8 - direction - MoveDirection::EAST) as u8).unwrap();
+        push_pawn_move::<QUIESCE>(occupancy_them, moves, from_square, to_square);
     }
 
     // En passant
@@ -78,8 +78,7 @@ pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, mut moves: 
             (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST) & ep_bb;
         while let Some(to_square) = west_pawns.pop_lsb() {
             let from_square =
-                Square::try_from((to_square as i8 - direction - MoveDirection::WEST) as u8)
-                    .unwrap();
+                Square::from((to_square as i8 - direction - MoveDirection::WEST) as u8).unwrap();
             moves.push(Move::new(from_square, to_square, MoveFlag::EnPassantCapture));
         }
 
@@ -87,8 +86,7 @@ pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, mut moves: 
             (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST) & ep_bb;
         while let Some(to_square) = east_pawns.pop_lsb() {
             let from_square =
-                Square::try_from((to_square as i8 - direction - MoveDirection::EAST) as u8)
-                    .unwrap();
+                Square::from((to_square as i8 - direction - MoveDirection::EAST) as u8).unwrap();
             moves.push(Move::new(from_square, to_square, MoveFlag::EnPassantCapture));
         }
     }
@@ -165,8 +163,8 @@ fn generate_white_king_castles(position: &Position, moves: &mut MoveVec) {
     if position.castling_rights.contains(CastlingRights::WHITE_KINGSIDE)
         && position.board.piece_color_at(Square::E1) == Some((Piece::King, Color::White))
         && position.board.piece_color_at(Square::H1) == Some((Piece::Rook, Color::White))
-        && position.board.color_at(Square::F1) == None
-        && position.board.color_at(Square::G1) == None
+        && position.board.color_at(Square::F1).is_none()
+        && position.board.color_at(Square::G1).is_none()
         && !square_attacked_by(&position.board, Square::E1, Color::Black)
         && !square_attacked_by(&position.board, Square::F1, Color::Black)
         && !square_attacked_by(&position.board, Square::G1, Color::Black)
@@ -177,9 +175,9 @@ fn generate_white_king_castles(position: &Position, moves: &mut MoveVec) {
     if position.castling_rights.contains(CastlingRights::WHITE_QUEENSIDE)
         && position.board.piece_color_at(Square::E1) == Some((Piece::King, Color::White))
         && position.board.piece_color_at(Square::A1) == Some((Piece::Rook, Color::White))
-        && position.board.color_at(Square::B1) == None
-        && position.board.color_at(Square::C1) == None
-        && position.board.color_at(Square::D1) == None
+        && position.board.color_at(Square::B1).is_none()
+        && position.board.color_at(Square::C1).is_none()
+        && position.board.color_at(Square::D1).is_none()
         && !square_attacked_by(&position.board, Square::E1, Color::Black)
         && !square_attacked_by(&position.board, Square::D1, Color::Black)
         && !square_attacked_by(&position.board, Square::C1, Color::Black)
@@ -192,8 +190,8 @@ fn generate_black_king_castles(position: &Position, moves: &mut MoveVec) {
     if position.castling_rights.contains(CastlingRights::BLACK_KINGSIDE)
         && position.board.piece_color_at(Square::E8) == Some((Piece::King, Color::Black))
         && position.board.piece_color_at(Square::H8) == Some((Piece::Rook, Color::Black))
-        && position.board.color_at(Square::F8) == None
-        && position.board.color_at(Square::G8) == None
+        && position.board.color_at(Square::F8).is_none()
+        && position.board.color_at(Square::G8).is_none()
         && !square_attacked_by(&position.board, Square::E8, Color::White)
         && !square_attacked_by(&position.board, Square::F8, Color::White)
         && !square_attacked_by(&position.board, Square::G8, Color::White)
@@ -204,9 +202,9 @@ fn generate_black_king_castles(position: &Position, moves: &mut MoveVec) {
     if position.castling_rights.contains(CastlingRights::BLACK_QUEENSIDE)
         && position.board.piece_color_at(Square::E8) == Some((Piece::King, Color::Black))
         && position.board.piece_color_at(Square::A8) == Some((Piece::Rook, Color::Black))
-        && position.board.color_at(Square::B8) == None
-        && position.board.color_at(Square::C8) == None
-        && position.board.color_at(Square::D8) == None
+        && position.board.color_at(Square::B8).is_none()
+        && position.board.color_at(Square::C8).is_none()
+        && position.board.color_at(Square::D8).is_none()
         && !square_attacked_by(&position.board, Square::E8, Color::White)
         && !square_attacked_by(&position.board, Square::D8, Color::White)
         && !square_attacked_by(&position.board, Square::C8, Color::White)
@@ -253,7 +251,7 @@ mod tests {
         generate_pawn_moves::<false>(&position, &mut moves);
 
         for mov in &moves {
-            assert!(expected_moves.contains(&mov));
+            assert!(expected_moves.contains(mov));
         }
 
         assert_eq!(moves.len(), expected_moves.len());
@@ -289,7 +287,7 @@ mod tests {
         generate_pawn_moves::<false>(&position, &mut moves);
 
         for mov in &moves {
-            assert!(expected_moves.contains(&mov));
+            assert!(expected_moves.contains(mov));
         }
 
         assert_eq!(moves.len(), expected_moves.len());
@@ -309,7 +307,7 @@ mod tests {
         generate_king_castles(&position, &mut moves);
 
         for mov in &moves {
-            assert!(expected_moves.contains(&mov));
+            assert!(expected_moves.contains(mov));
         }
 
         assert_eq!(moves.len(), expected_moves.len());
@@ -329,7 +327,7 @@ mod tests {
         generate_king_castles(&position, &mut moves);
 
         for mov in &moves {
-            assert!(expected_moves.contains(&mov));
+            assert!(expected_moves.contains(mov));
         }
 
         assert_eq!(moves.len(), expected_moves.len());

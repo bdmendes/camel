@@ -14,31 +14,27 @@ use super::{Command, Engine};
 mod executor;
 mod parser;
 
-pub fn parse_command(input: &str) -> Result<Command, ()> {
+pub fn parse_command(input: &str) -> Option<Command> {
     let mut words = input.split_whitespace().collect::<VecDeque<_>>();
-    let command = words.pop_front();
+    let command = words.pop_front()?;
 
-    if command.is_none() {
-        return Err(());
-    }
-
-    match command.unwrap() {
+    match command {
         "position" => parse_position(&mut words),
-        "go" => parse_go(&mut words).map_or(Result::Err(()), |cmd| Result::Ok(cmd)),
-        "stop" => Ok(Command::Stop),
-        "uci" => Ok(Command::UCI),
+        "go" => parse_go(&mut words),
+        "stop" => Some(Command::Stop),
+        "uci" => Some(Command::Uci),
         "debug" => parse_debug(&mut words),
-        "isready" => Ok(Command::IsReady),
-        "ucinewgame" => Ok(Command::UCINewGame),
+        "isready" => Some(Command::IsReady),
+        "ucinewgame" => Some(Command::UCINewGame),
         "setoption" => parse_set_option(&mut words),
         "perft" => parse_perft(&mut words),
         "domove" | "m" => parse_domove(&mut words),
-        "display" | "d" => Ok(Command::Display),
-        "allmoves" | "l" => Ok(Command::AllMoves),
-        "help" | "h" => Ok(Command::Help),
-        "clear" | "c" => Ok(Command::Clear),
-        "quit" | "q" => Ok(Command::Quit),
-        _ => Err(()),
+        "display" | "d" => Some(Command::Display),
+        "allmoves" | "l" => Some(Command::AllMoves),
+        "help" | "h" => Some(Command::Help),
+        "clear" | "c" => Some(Command::Clear),
+        "quit" | "q" => Some(Command::Quit),
+        _ => None,
     }
 }
 
@@ -64,7 +60,7 @@ pub fn execute_command(command: Command, engine: &mut Engine) {
             black_increment,
         ),
         Command::Stop => execute_stop(engine),
-        Command::UCI => execute_uci(),
+        Command::Uci => execute_uci(),
         Command::Debug(debug) => execute_debug(debug),
         Command::SetOption { name, value } => {
             execute_set_option(name.as_str(), value.as_str(), engine)

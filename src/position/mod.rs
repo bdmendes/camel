@@ -1,27 +1,24 @@
-use bitflags::bitflags;
-use num_enum::TryFromPrimitive;
-
-use crate::moves::{
-    gen::{checked_by, generate_moves},
-    make_move_position, Move, MoveVec,
-};
-
 use self::{
     board::Board,
     fen::{position_from_fen, position_to_fen},
     square::Square,
 };
+use crate::moves::{
+    gen::{checked_by, generate_moves},
+    make_move_position, Move, MoveVec,
+};
+use bitflags::bitflags;
+use primitive_enum::primitive_enum;
 
 pub mod bitboard;
 pub mod board;
 pub mod fen;
 pub mod square;
 
-#[derive(TryFromPrimitive, Copy, Clone, Debug, PartialEq, Eq, Hash)]
-#[repr(u8)]
-pub enum Color {
-    White = 0,
-    Black = 1,
+primitive_enum! {
+    Color u8;
+    White,
+    Black,
 }
 
 impl Color {
@@ -61,7 +58,7 @@ pub struct Position {
 }
 
 impl Position {
-    pub fn from_fen(fen: &str) -> Result<Position, ()> {
+    pub fn from_fen(fen: &str) -> Option<Position> {
         position_from_fen(fen)
     }
 
@@ -82,7 +79,7 @@ impl Position {
     }
 
     pub fn make_null_move(&self) -> Self {
-        let mut position = self.clone();
+        let mut position = *self;
         position.side_to_move = position.side_to_move.opposite();
         position
     }
