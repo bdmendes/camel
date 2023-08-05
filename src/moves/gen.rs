@@ -38,48 +38,26 @@ impl MoveDirection {
 
 pub fn checked_by(board: &Board, color: Color) -> bool {
     let mut checked_king = board.pieces_bb(Piece::King) & board.occupancy_bb(color.opposite());
-    let checked_king_square = checked_king.pop_lsb().unwrap();
-    square_attacked_by(board, checked_king_square, color)
+    checked_king.pop_lsb().map_or(false, |square| square_attacked_by(board, square, color))
 }
 
 pub fn square_attacked_by(board: &Board, square: Square, color: Color) -> bool {
-    // Attacked by pawn
     if pawn_attacks(board, color).is_set(square) {
-        return true;
-    }
-
-    let occupancy_attacker = board.occupancy_bb(color);
-
-    // Attacked by knight
-    let attacker_knights = board.pieces_bb(Piece::Knight) & occupancy_attacker;
-    let knight_attacks = KNIGHT_ATTACKS[square as usize];
-    if (knight_attacks & attacker_knights).is_not_empty() {
-        return true;
-    }
-
-    // Attacked by king
-    let attacker_kings = board.pieces_bb(Piece::King) & occupancy_attacker;
-    let king_attacks = KING_ATTACKS[square as usize];
-    if (king_attacks & attacker_kings).is_not_empty() {
         return true;
     }
 
     let occupancy = board.occupancy_bb_all();
 
-    // Attacked in file or rank
-    let attacker_rooks_queens =
-        (board.pieces_bb(Piece::Rook) | board.pieces_bb(Piece::Queen)) & occupancy_attacker;
-    let rook_attacks = piece_attacks(Piece::Rook, square, occupancy);
-    if (rook_attacks & attacker_rooks_queens).is_not_empty() {
-        return true;
-    }
+    let mut super_piece_attacks = (piece_attacks(Piece::Queen, square, occupancy)
+        | piece_attacks(Piece::Knight, square, occupancy))
+        & board.occupancy_bb(color)
+        & !board.pieces_bb(Piece::Pawn);
 
-    // Attacked in diagonal
-    let attacker_bishops_queens =
-        (board.pieces_bb(Piece::Bishop) | board.pieces_bb(Piece::Queen)) & occupancy_attacker;
-    let bishop_attacks = piece_attacks(Piece::Bishop, square, occupancy);
-    if (bishop_attacks & attacker_bishops_queens).is_not_empty() {
-        return true;
+    while let Some(attacking_square) = super_piece_attacks.pop_lsb() {
+        let piece = board.piece_at(attacking_square).unwrap();
+        if piece_attacks(piece, attacking_square, occupancy).is_set(square) {
+            return true;
+        }
     }
 
     false

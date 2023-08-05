@@ -117,10 +117,10 @@ mod tests {
             Square::H4,
         ];
 
-        let mut rook_atacks = rook_moves(square, occupancy);
+        let mut rook_attacks = rook_moves(square, occupancy);
 
         let mut found_count = 0;
-        while let Some(square) = rook_atacks.pop_lsb() {
+        while let Some(square) = rook_attacks.pop_lsb() {
             assert!(expected_squares.contains(&square));
             found_count += 1;
         }
@@ -149,10 +149,10 @@ mod tests {
             Square::G4,
         ];
 
-        let mut rook_atacks = rook_moves(square, Some(occupancy));
+        let mut rook_attacks = rook_moves(square, Some(occupancy));
 
         let mut found_count = 0;
-        while let Some(square) = rook_atacks.pop_lsb() {
+        while let Some(square) = rook_attacks.pop_lsb() {
             assert!(expected_squares.contains(&square));
             found_count += 1;
         }
@@ -178,9 +178,9 @@ mod tests {
             Square::G4,
         ];
 
-        let mut rook_atacks = blockers_mask[square as usize];
+        let mut rook_attacks = blockers_mask[square as usize];
         let mut found_count = 0;
-        while let Some(square) = rook_atacks.pop_lsb() {
+        while let Some(square) = rook_attacks.pop_lsb() {
             assert!(expected_squares.contains(&square));
             found_count += 1;
         }
@@ -207,9 +207,9 @@ mod tests {
             Square::G1,
         ];
 
-        let mut rook_atacks = blockers_mask[square as usize];
+        let mut rook_attacks = blockers_mask[square as usize];
         let mut found_count = 0;
-        while let Some(square) = rook_atacks.pop_lsb() {
+        while let Some(square) = rook_attacks.pop_lsb() {
             assert!(expected_squares.contains(&square));
             found_count += 1;
         }
@@ -238,10 +238,10 @@ mod tests {
             Square::B1,
         ];
 
-        let mut bishop_atacks = bishop_moves(square, occupancy);
+        let mut bishop_attacks = bishop_moves(square, occupancy);
 
         let mut found_count = 0;
-        while let Some(square) = bishop_atacks.pop_lsb() {
+        while let Some(square) = bishop_attacks.pop_lsb() {
             assert!(expected_squares.contains(&square));
             found_count += 1;
         }
