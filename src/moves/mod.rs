@@ -82,15 +82,15 @@ impl Move {
     }
 
     pub fn from(&self) -> Square {
-        Square::from((self.data & 0b111111) as u8).unwrap()
+        unsafe { Square::from((self.data & 0b111111) as u8).unwrap_unchecked() }
     }
 
     pub fn to(&self) -> Square {
-        Square::from(((self.data >> 6) & 0b111111) as u8).unwrap()
+        unsafe { Square::from(((self.data >> 6) & 0b111111) as u8).unwrap_unchecked() }
     }
 
     pub fn flag(&self) -> MoveFlag {
-        MoveFlag::from((self.data >> 12) as u8).unwrap()
+        unsafe { MoveFlag::from((self.data >> 12) as u8).unwrap_unchecked() }
     }
 
     pub fn promotion_piece(&self) -> Option<Piece> {

@@ -19,7 +19,7 @@ impl Bitboard {
 
         let lsb = self.0.trailing_zeros();
         self.0 &= self.0 - 1;
-        Some(Square::from(lsb as u8).unwrap())
+        Some(unsafe { Square::from(lsb as u8).unwrap_unchecked() })
     }
 
     pub fn set(&mut self, square: Square) {

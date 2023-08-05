@@ -43,7 +43,7 @@ impl Board {
 
     pub fn piece_color_at(&self, square: Square) -> Option<(Piece, Color)> {
         if let Some(color) = self.color_at(square) {
-            return Some((self.piece_at(square).unwrap(), color));
+            return Some((unsafe { self.piece_at(square).unwrap_unchecked() }, color));
         }
         None
     }
@@ -51,7 +51,7 @@ impl Board {
     pub fn piece_at(&self, square: Square) -> Option<Piece> {
         for (piece, bb) in self.pieces.iter().enumerate() {
             if bb.is_set(square) {
-                return Some(Piece::from(piece as u8).unwrap());
+                return Some(unsafe { Piece::from(piece as u8).unwrap_unchecked() });
             }
         }
         None
