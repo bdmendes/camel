@@ -1,5 +1,5 @@
 use super::Command;
-use crate::position::{
+use camel::position::{
     fen::{KIWIPETE_WHITE_FEN, START_FEN},
     Position,
 };

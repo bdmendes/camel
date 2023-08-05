@@ -1,6 +1,5 @@
+use camel::position::{Color, Position};
 use std::time::Duration;
-
-use crate::position::{Color, Position};
 
 const TYPICAL_GAME_MOVES: u16 = 50;
 

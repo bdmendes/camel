@@ -1,5 +1,6 @@
 use crate::engine::{time::get_duration, Engine};
-use crate::{
+use ahash::AHashMap;
+use camel::{
     evaluation::position::evaluate_position,
     moves::gen::perft,
     position::{fen::START_FEN, Position},
@@ -10,7 +11,6 @@ use crate::{
         Depth, MAX_DEPTH,
     },
 };
-use ahash::AHashMap;
 use std::{sync::atomic::Ordering, thread, time::Duration};
 
 pub fn execute_position(
