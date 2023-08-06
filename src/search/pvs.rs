@@ -192,20 +192,17 @@ fn pvs<const ROOT: bool>(
     }
 
     // Sort moves via MVV-LVA, psqt and table information
-    {
-        let table = table.read().unwrap();
-        let hash_move = table.get_hash_move(position);
-        let killer_moves = table.get_killers(depth);
-        moves.sort_by_cached_key(move |mov| {
-            if hash_move.is_some() && mov == &hash_move.unwrap() {
-                return ValueScore::MIN;
-            }
-            if Some(*mov) == killer_moves[0] || Some(*mov) == killer_moves[1] {
-                return -piece_value(Piece::Queen);
-            }
-            -evaluate_move::<false>(position, *mov)
-        });
-    }
+    let hash_move = table.read().unwrap().get_hash_move(position);
+    let killer_moves = table.read().unwrap().get_killers(depth);
+    moves.sort_by_cached_key(|mov| {
+        if hash_move.is_some() && mov == &hash_move.unwrap() {
+            return ValueScore::MIN;
+        }
+        if Some(*mov) == killer_moves[0] || Some(*mov) == killer_moves[1] {
+            return -piece_value(Piece::Queen);
+        }
+        -evaluate_move::<false>(position, *mov)
+    });
 
     let original_alpha = alpha;
     let mut best_move = moves[0];
