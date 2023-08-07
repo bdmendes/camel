@@ -11,7 +11,8 @@ use crate::{
 };
 use std::sync::{Arc, RwLock};
 
-const MIN_SCORE: ValueScore = ValueScore::MIN + 1;
+const MIN_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH + 1;
+const MAX_SCORE: ValueScore = -MIN_SCORE;
 const NULL_MOVE_REDUCTION: Depth = 3;
 const CHECK_EXTENSION: Depth = 1;
 
@@ -85,20 +86,12 @@ fn pvs_recurse<const DO_NULL: bool>(
     beta: ValueScore,
     table: Arc<RwLock<SearchTable>>,
     constraint: &mut SearchConstraint,
-    original_depth: Depth,
 ) -> (ValueScore, usize) {
     let mut count = 0;
 
     if DO_NULL {
-        let (score, nodes) = pvs::<false>(
-            position,
-            depth - 1,
-            -alpha - 1,
-            -alpha,
-            table.clone(),
-            constraint,
-            original_depth,
-        );
+        let (score, nodes) =
+            pvs::<false>(position, depth - 1, -alpha - 1, -alpha, table.clone(), constraint);
         count += nodes;
         let score = -score;
         if score <= alpha || score >= beta {
@@ -106,8 +99,7 @@ fn pvs_recurse<const DO_NULL: bool>(
         }
     }
 
-    let (score, nodes) =
-        pvs::<false>(position, depth - 1, -beta, -alpha, table, constraint, original_depth);
+    let (score, nodes) = pvs::<false>(position, depth - 1, -beta, -alpha, table, constraint);
     count += nodes;
     (-score, count)
 }
@@ -119,7 +111,6 @@ fn pvs<const ROOT: bool>(
     mut beta: ValueScore,
     table: Arc<RwLock<SearchTable>>,
     constraint: &mut SearchConstraint,
-    original_depth: Depth,
 ) -> (ValueScore, usize) {
     let mut count = 1;
 
@@ -133,9 +124,10 @@ fn pvs<const ROOT: bool>(
         if !constraint.is_twofold_repetition(position) {
             if let Some(tt_entry) = table.read().unwrap().get_table_score(position, depth) {
                 match tt_entry {
-                    TTScore::Exact(score) => return (score, count),
-                    TTScore::LowerBound(score) => alpha = alpha.max(score),
-                    TTScore::UpperBound(score) => beta = beta.min(score),
+                    TTScore::Exact(score) if score < MAX_SCORE => return (score, count),
+                    TTScore::LowerBound(score) if score < MAX_SCORE => alpha = alpha.max(score),
+                    TTScore::UpperBound(score) if score < MAX_SCORE => beta = beta.min(score),
+                    _ => (),
                 }
             }
         }
@@ -172,7 +164,6 @@ fn pvs<const ROOT: bool>(
             -alpha,
             table.clone(),
             constraint,
-            original_depth,
         );
 
         count += nodes;
@@ -187,7 +178,7 @@ fn pvs<const ROOT: bool>(
 
     // Detect checkmate and stalemate
     if moves.is_empty() {
-        let score = if is_check { MIN_SCORE + original_depth - depth } else { 0 };
+        let score = if is_check { MIN_SCORE - depth } else { 0 };
         return (score, count);
     }
 
@@ -219,7 +210,6 @@ fn pvs<const ROOT: bool>(
             beta,
             table.clone(),
             constraint,
-            original_depth,
         );
         constraint.leave_position(&new_position);
 
@@ -265,22 +255,14 @@ pub fn search(
 ) -> (Score, usize) {
     let depth = depth.min(MAX_DEPTH);
 
-    let (score, count) = pvs::<true>(
-        position,
-        depth,
-        ValueScore::MIN + 1,
-        ValueScore::MAX,
-        table,
-        constraint,
-        depth,
-    );
+    let (score, count) = pvs::<true>(position, depth, MIN_SCORE, MAX_SCORE, table, constraint);
 
-    if score.abs() >= ValueScore::MAX - depth - 1 {
-        let plys_to_mate = (ValueScore::MAX - score.abs()) as u8;
+    if score.abs() >= MAX_SCORE {
+        let moves_to_mate = (MAX_SCORE - score.abs() + depth * 2) as u8;
         (
             Score::Mate(
                 if score > 0 { position.side_to_move } else { position.side_to_move.opposite() },
-                if score > 0 { plys_to_mate / 2 + 1 } else { (plys_to_mate + 1) / 2 },
+                (moves_to_mate + 1) / 2,
             ),
             count,
         )
