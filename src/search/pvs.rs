@@ -114,14 +114,17 @@ fn pvs<const ROOT: bool>(
 ) -> (ValueScore, usize) {
     let mut count = 1;
 
+    let is_twofold_repetition = constraint.is_repetition::<2>(position);
+    let is_threefold_repetition = is_twofold_repetition && constraint.is_repetition::<3>(position);
+
     if !ROOT {
         // Detect history-related draws
-        if position.halfmove_clock >= 100 || constraint.is_threefold_repetition(position) {
-            return (0, count);
+        if position.halfmove_clock >= 100 || is_threefold_repetition {
+            return (0, 1);
         }
 
         // Get known score from transposition table
-        if !constraint.is_twofold_repetition(position) {
+        if !is_twofold_repetition {
             if let Some(tt_entry) = table.read().unwrap().get_table_score(position, depth) {
                 match tt_entry {
                     TTScore::Exact(score) if score < MAX_SCORE => return (score, count),
@@ -155,7 +158,7 @@ fn pvs<const ROOT: bool>(
         && depth > NULL_MOVE_REDUCTION
         && position.board.piece_count(Color::White) > 0
         && position.board.piece_count(Color::Black) > 0
-        && !constraint.is_twofold_repetition(position)
+        && !is_twofold_repetition
     {
         let (score, nodes) = pvs::<false>(
             &position.make_null_move(),
@@ -201,7 +204,7 @@ fn pvs<const ROOT: bool>(
     for (i, mov) in moves.iter().enumerate() {
         let new_position = position.make_move(*mov);
 
-        constraint.visit_position(&new_position);
+        constraint.visit_position(&new_position, mov.flag().is_reversible());
         let recurse = if i > 0 { pvs_recurse::<true> } else { pvs_recurse::<false> };
         let (score, nodes) = recurse(
             &new_position,
@@ -211,7 +214,7 @@ fn pvs<const ROOT: bool>(
             table.clone(),
             constraint,
         );
-        constraint.leave_position(&new_position);
+        constraint.leave_position();
 
         count += nodes;
 
