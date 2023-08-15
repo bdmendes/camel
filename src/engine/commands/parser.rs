@@ -1,5 +1,8 @@
 use super::Command;
-use crate::position::{fen::START_FEN, Position};
+use camel::position::{
+    fen::{KIWIPETE_WHITE_FEN, START_FEN},
+    Position,
+};
 use std::{collections::VecDeque, time::Duration};
 
 pub fn parse_position(words: &mut VecDeque<&str>) -> Option<Command> {
@@ -37,6 +40,7 @@ pub fn parse_position(words: &mut VecDeque<&str>) -> Option<Command> {
                 }
             }
             "startpos" => (),
+            "kiwi" | "kiwipete" => position = Position::from_fen(KIWIPETE_WHITE_FEN).unwrap(),
             _ => return None,
         }
     }
