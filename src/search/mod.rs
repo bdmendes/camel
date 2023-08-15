@@ -72,11 +72,10 @@ pub fn search_iter(
             &table.read().unwrap(),
         );
 
-        if one_legal_move || matches!(score, Score::Mate(_, _)) {
-            break;
-        }
-
-        if elapsed > constraint.remaining_time().unwrap_or(elapsed) {
+        if one_legal_move
+            || matches!(score, Score::Mate(_, _))
+            || elapsed > constraint.remaining_time().unwrap_or(elapsed)
+        {
             break;
         }
 

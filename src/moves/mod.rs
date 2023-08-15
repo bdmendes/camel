@@ -219,7 +219,7 @@ pub fn make_move(position: &Position, mov: Move) -> Position {
         }
     }
 
-    // Update castrling rights
+    // Update castling rights
     if !position.castling_rights.is_empty()
         && matches!(mov.flag(), MoveFlag::Capture | MoveFlag::Quiet)
     {
