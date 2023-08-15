@@ -46,7 +46,7 @@ impl SearchConstraint {
     }
 
     pub fn visit_position(&mut self, position: &Position) {
-        self.branch_history.entry(position.clone()).and_modify(|entry| *entry += 1).or_insert(1);
+        self.branch_history.entry(*position).and_modify(|entry| *entry += 1).or_insert(1);
     }
 
     pub fn leave_position(&mut self, position: &Position) {

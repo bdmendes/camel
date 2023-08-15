@@ -76,7 +76,7 @@ pub fn search_iter(
             break;
         }
 
-        if elapsed > constraint.remaining_time().unwrap_or_else(|| elapsed) {
+        if elapsed > constraint.remaining_time().unwrap_or(elapsed) {
             break;
         }
 

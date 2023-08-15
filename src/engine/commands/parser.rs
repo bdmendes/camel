@@ -15,7 +15,7 @@ pub fn parse_position(words: &mut VecDeque<&str>) -> Result<Command, ()> {
                         words.push_front(word);
                         break;
                     }
-                    fen.push_str(&word);
+                    fen.push_str(word);
                     fen.push(' ');
                 }
 

@@ -36,8 +36,7 @@ pub fn slider_attacks_from_square<const REMOVE_EDGES: bool>(
             let target_square_file = target_square % 8;
             let target_square_rank = target_square / 8;
 
-            if target_square < 0
-                || target_square >= 64
+            if !(0..64).contains(&target_square)
                 || (target_square_file - last_file).abs() > 2
             {
                 break;

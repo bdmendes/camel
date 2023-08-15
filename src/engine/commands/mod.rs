@@ -24,7 +24,7 @@ pub fn parse_command(input: &str) -> Result<Command, ()> {
 
     match command.unwrap() {
         "position" => parse_position(&mut words),
-        "go" => parse_go(&mut words).map_or(Result::Err(()), |cmd| Result::Ok(cmd)),
+        "go" => parse_go(&mut words).map_or(Result::Err(()), Result::Ok),
         "stop" => Ok(Command::Stop),
         "uci" => Ok(Command::UCI),
         "debug" => parse_debug(&mut words),

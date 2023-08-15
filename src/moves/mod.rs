@@ -125,8 +125,8 @@ impl std::fmt::Display for Move {
 }
 
 pub fn make_move(position: &Position, mov: Move) -> Position {
-    let mut new_board = position.board.clone();
-    let mut new_castling_rights = position.castling_rights.clone();
+    let mut new_board = position.board;
+    let mut new_castling_rights = position.castling_rights;
     let mut new_en_passant_square = None;
 
     let piece = new_board.piece_at(mov.from()).unwrap();

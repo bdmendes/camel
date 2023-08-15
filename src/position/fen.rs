@@ -13,7 +13,7 @@ pub const KIWIPETE_BLACK_FEN: &str =
     "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1";
 
 pub fn board_from_fen(board_fen: &str) -> Result<Board, ()> {
-    let mut chars = board_fen.chars();
+    let chars = board_fen.chars();
 
     let mut rank = 7;
     let mut file = 0;
@@ -21,11 +21,11 @@ pub fn board_from_fen(board_fen: &str) -> Result<Board, ()> {
     let mut pieces: [Bitboard; 6] = Default::default();
     let mut occupancy: [Bitboard; 2] = Default::default();
 
-    while let Some(c) = chars.next() {
+    for c in chars {
         match c {
             ' ' => break,
             '1'..='8' => {
-                file += (c as u8) - ('0' as u8);
+                file += (c as u8) - b'0';
             }
             '/' => {
                 rank -= 1;
@@ -70,9 +70,9 @@ pub fn position_from_fen(fen: &str) -> Result<Position, ()> {
         _ => return Err(()),
     };
 
-    let mut castling_rights_fen = fen_iter.next().ok_or(())?.chars();
+    let castling_rights_fen = fen_iter.next().ok_or(())?.chars();
     let mut castling_rights = CastlingRights::empty();
-    while let Some(c) = castling_rights_fen.next() {
+    for c in castling_rights_fen {
         match c {
             ' ' => break,
             'K' => castling_rights |= CastlingRights::WHITE_KINGSIDE,

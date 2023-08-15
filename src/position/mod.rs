@@ -82,7 +82,7 @@ impl Position {
     }
 
     pub fn make_null_move(&self) -> Self {
-        let mut position = self.clone();
+        let mut position = *self;
         position.side_to_move = position.side_to_move.opposite();
         position
     }

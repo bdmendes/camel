@@ -76,7 +76,7 @@ impl Display for Bitboard {
                     write!(f, "0")?;
                 }
             }
-            write!(f, "\n")?;
+            writeln!(f)?;
         }
         Ok(())
     }

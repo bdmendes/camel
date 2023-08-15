@@ -151,7 +151,7 @@ pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Positi
         );
     }
 
-    generate_pawn_moves::<QUIESCE>(&position, &mut moves);
+    generate_pawn_moves::<QUIESCE>(position, &mut moves);
 
     if !QUIESCE {
         generate_king_castles(position, &mut moves);
@@ -222,7 +222,7 @@ fn perft_internal<
     }
 
     if HASH {
-        cache.insert((position.clone(), depth), (nodes, res.clone()));
+        cache.insert((*position, depth), (nodes, res.clone()));
     }
 
     (nodes, res)

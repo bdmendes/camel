@@ -50,7 +50,7 @@ impl std::str::FromStr for Square {
         };
 
         let rank = chars.next().ok_or(())?.to_digit(10).ok_or(())?;
-        if rank < 1 || rank > 8 {
+        if !(1..=8).contains(&rank) {
             return Err(());
         }
 
