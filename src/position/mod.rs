@@ -1,5 +1,5 @@
 use bitflags::bitflags;
-use num_enum::TryFromPrimitive;
+use primitive_enum::primitive_enum;
 
 use crate::moves::{
     gen::{checked_by, generate_moves},
@@ -17,12 +17,11 @@ pub mod board;
 pub mod fen;
 pub mod square;
 
-#[derive(TryFromPrimitive, Copy, Clone, Debug, PartialEq, Eq, Hash)]
-#[repr(u8)]
-pub enum Color {
-    White = 0,
-    Black = 1,
-}
+primitive_enum!(
+    Color u8;
+    White,
+    Black
+);
 
 impl Color {
     pub fn opposite(&self) -> Self {
@@ -61,7 +60,7 @@ pub struct Position {
 }
 
 impl Position {
-    pub fn from_fen(fen: &str) -> Result<Position, ()> {
+    pub fn from_fen(fen: &str) -> Option<Position> {
         position_from_fen(fen)
     }
 

@@ -13,7 +13,7 @@ use super::{
 };
 use crate::position::{
     bitboard::Bitboard,
-    board::{Board, Piece, PIECES_NO_PAWN},
+    board::{Board, Piece},
     square::Square,
     Color, Position,
 };
@@ -142,7 +142,7 @@ pub fn generate_regular_moves<const QUIESCE: bool>(
 pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Position) -> MoveVec {
     let mut moves = MoveVec::new();
 
-    for piece in PIECES_NO_PAWN.iter() {
+    for piece in Piece::list().iter().filter(|p| **p != Piece::Pawn) {
         generate_regular_moves::<QUIESCE>(
             &position.board,
             *piece,
@@ -170,10 +170,12 @@ pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Positi
     moves
 }
 
+type PerftResult = (u64, Vec<(Move, u64)>);
+
 pub fn perft<const BULK_AT_HORIZON: bool, const HASH: bool, const SILENT: bool>(
     position: &Position,
     depth: u8,
-) -> (u64, Vec<(Move, u64)>) {
+) -> PerftResult {
     perft_internal::<true, BULK_AT_HORIZON, HASH, SILENT>(position, depth, &mut AHashMap::new())
 }
 
@@ -185,8 +187,8 @@ fn perft_internal<
 >(
     position: &Position,
     depth: u8,
-    cache: &mut AHashMap<(Position, u8), (u64, Vec<(Move, u64)>)>,
-) -> (u64, Vec<(Move, u64)>) {
+    cache: &mut AHashMap<(Position, u8), PerftResult>,
+) -> PerftResult {
     if depth == 0 {
         return (1, vec![]);
     }

@@ -19,7 +19,7 @@ pub fn parse_position(words: &mut VecDeque<&str>) -> Result<Command, ()> {
                     fen.push(' ');
                 }
 
-                if let Ok(new_position) = Position::from_fen(&fen) {
+                if let Some(new_position) = Position::from_fen(&fen) {
                     position = new_position;
                 } else {
                     return Err(());
@@ -61,9 +61,7 @@ pub fn parse_go(words: &mut VecDeque<&str>) -> Result<Command, String> {
         match word {
             "depth" => {
                 let value = words.pop_front().ok_or("No value found")?;
-                depth = Some(
-                    value.parse::<u8>().map_err(|_| "Invalid depth value")?.try_into().unwrap(),
-                );
+                depth = Some(value.parse::<u8>().map_err(|_| "Invalid depth value")?);
             }
             "movetime" => {
                 let value = words.pop_front().ok_or("No value found")?;

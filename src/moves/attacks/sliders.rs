@@ -36,9 +36,7 @@ pub fn slider_attacks_from_square<const REMOVE_EDGES: bool>(
             let target_square_file = target_square % 8;
             let target_square_rank = target_square / 8;
 
-            if !(0..64).contains(&target_square)
-                || (target_square_file - last_file).abs() > 2
-            {
+            if !(0..64).contains(&target_square) || (target_square_file - last_file).abs() > 2 {
                 break;
             }
 
@@ -79,7 +77,7 @@ mod tests {
         let mut square = 0;
         while square < 64 {
             blockers_mask[square as usize] = slider_attacks_from_square::<true>(
-                Square::try_from(square).unwrap(),
+                Square::from(square).unwrap(),
                 move_directions,
                 None,
             );
