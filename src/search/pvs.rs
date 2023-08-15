@@ -50,7 +50,8 @@ fn quiesce(
     // Standing pat: captures are not forced
     alpha = alpha.max(static_evaluation);
 
-    let mut count = 0;
+    let mut count = 1;
+
     for mov in moves.iter() {
         // Delta prune move if it cannot improve the score
         if mov.flag().is_capture() {
@@ -154,7 +155,7 @@ fn pvs<const ROOT: bool>(
         return quiesce(position, alpha, beta, constraint);
     }
 
-    let mut count = 0;
+    let mut count = 1;
 
     // Null move pruning
     if !ROOT
@@ -187,24 +188,21 @@ fn pvs<const ROOT: bool>(
     // Detect checkmate and stalemate
     if moves.is_empty() {
         let score = if is_check { MIN_SCORE + original_depth - depth } else { 0 };
-        return (score, 1);
+        return (score, count);
     }
 
     // Sort moves via MVV-LVA, psqt and table information
-    {
-        let table = table.read().unwrap();
-        let hash_move = table.get_hash_move(position);
-        let killer_moves = table.get_killers(depth);
-        moves.sort_by_cached_key(move |mov| {
-            if hash_move.is_some() && mov == &hash_move.unwrap() {
-                return ValueScore::MIN;
-            }
-            if Some(*mov) == killer_moves[0] || Some(*mov) == killer_moves[1] {
-                return -piece_value(Piece::Queen);
-            }
-            -evaluate_move::<false>(position, *mov)
-        });
-    }
+    let hash_move = table.read().unwrap().get_hash_move(position);
+    let killer_moves = table.read().unwrap().get_killers(depth);
+    moves.sort_by_cached_key(move |mov| {
+        if hash_move.is_some() && mov == &hash_move.unwrap() {
+            return ValueScore::MIN;
+        }
+        if Some(*mov) == killer_moves[0] || Some(*mov) == killer_moves[1] {
+            return -piece_value(Piece::Queen);
+        }
+        -evaluate_move::<false>(position, *mov)
+    });
 
     let original_alpha = alpha;
     let mut best_move = moves[0];
