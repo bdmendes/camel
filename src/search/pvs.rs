@@ -1,5 +1,6 @@
 use super::{
     constraint::SearchConstraint,
+    movepick::MovePicker,
     table::{SearchTable, TTScore, TableEntry},
     Depth, MAX_DEPTH,
 };
@@ -39,8 +40,8 @@ fn quiesce(
     }
 
     // Generate only non-quiet moves
-    let mut moves = position.moves::<true>();
-    moves.sort_by_cached_key(|m| -evaluate_move::<false>(position, *m));
+    let moves = position.moves::<true>();
+    let picker = MovePicker::new(&moves, |m| evaluate_move::<false>(position, m));
 
     // Stable position reached
     if moves.is_empty() {
@@ -52,7 +53,7 @@ fn quiesce(
 
     let mut count = 1;
 
-    for mov in moves.iter() {
+    for (mov, _, _) in picker {
         // Delta prune move if it cannot improve the score
         if mov.flag().is_capture() {
             let captured_piece =
@@ -62,7 +63,7 @@ fn quiesce(
             }
         }
 
-        let (score, nodes) = quiesce(&position.make_move(*mov), -beta, -alpha, constraint);
+        let (score, nodes) = quiesce(&position.make_move(mov), -beta, -alpha, constraint);
         let score = -score;
         count += nodes;
 
@@ -183,7 +184,7 @@ fn pvs<const ROOT: bool>(
         }
     }
 
-    let mut moves = position.moves::<false>();
+    let moves = position.moves::<false>();
 
     // Detect checkmate and stalemate
     if moves.is_empty() {
@@ -194,21 +195,21 @@ fn pvs<const ROOT: bool>(
     // Sort moves via MVV-LVA, psqt and table information
     let hash_move = table.read().unwrap().get_hash_move(position);
     let killer_moves = table.read().unwrap().get_killers(depth);
-    moves.sort_by_cached_key(move |mov| {
-        if hash_move.is_some() && mov == &hash_move.unwrap() {
-            return ValueScore::MIN;
+    let picker = MovePicker::new(&moves, |mov| {
+        if hash_move.is_some() && mov == hash_move.unwrap() {
+            return ValueScore::MAX;
         }
-        if Some(*mov) == killer_moves[0] || Some(*mov) == killer_moves[1] {
-            return -piece_value(Piece::Queen);
+        if Some(mov) == killer_moves[0] || Some(mov) == killer_moves[1] {
+            return piece_value(Piece::Queen);
         }
-        -evaluate_move::<false>(position, *mov)
+        evaluate_move::<false>(position, mov)
     });
 
     let original_alpha = alpha;
     let mut best_move = moves[0];
 
-    for (i, mov) in moves.iter().enumerate() {
-        let new_position = position.make_move(*mov);
+    for (mov, _, i) in picker {
+        let new_position = position.make_move(mov);
 
         constraint.visit_position(&new_position);
         let recurse = if i > 0 { pvs_recurse::<true> } else { pvs_recurse::<false> };
@@ -226,12 +227,12 @@ fn pvs<const ROOT: bool>(
         count += nodes;
 
         if score > alpha {
-            best_move = *mov;
+            best_move = mov;
             alpha = score;
 
             if score >= beta {
                 if mov.flag().is_quiet() {
-                    table.write().unwrap().put_killer_move(depth, *mov);
+                    table.write().unwrap().put_killer_move(depth, mov);
                 }
                 break;
             }
