@@ -11,7 +11,7 @@ pub fn static_exchange_evaluation(mut position: Position, mut mov: Move) -> Valu
     let color = position.side_to_move;
 
     loop {
-        let captured_piece = position.board.piece_at(mov.to()).unwrap_or_else(|| Piece::Pawn);
+        let captured_piece = position.board.piece_at(mov.to()).unwrap_or(Piece::Pawn);
         let captured_value = piece_value(captured_piece);
 
         score += if position.side_to_move == color { captured_value } else { -captured_value };
@@ -47,9 +47,9 @@ pub fn evaluate_move<const SSE: bool>(position: &Position, mov: Move) -> ValueSc
 
     if mov.flag().is_capture() {
         if SSE {
-            score += static_exchange_evaluation(position.clone(), mov);
+            score += static_exchange_evaluation(*position, mov);
         } else {
-            let captured_piece = position.board.piece_at(mov.to()).unwrap_or_else(|| Piece::Pawn);
+            let captured_piece = position.board.piece_at(mov.to()).unwrap_or(Piece::Pawn);
             let capturing_piece = position.board.piece_at(mov.from()).unwrap();
             score += piece_value(captured_piece) - piece_value(capturing_piece)
                 + piece_value(Piece::Queen);

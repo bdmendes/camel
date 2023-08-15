@@ -1,22 +1,16 @@
-use num_enum::TryFromPrimitive;
+use primitive_enum::primitive_enum;
 
 use super::{bitboard::Bitboard, fen::board_from_fen, Color, Square};
 
-pub const PIECES_NO_PAWN: [Piece; 5] =
-    [Piece::Queen, Piece::Rook, Piece::Bishop, Piece::Knight, Piece::King];
-pub const PIECES: [Piece; 6] =
-    [Piece::Queen, Piece::Rook, Piece::Bishop, Piece::Knight, Piece::Pawn, Piece::King];
-
-#[derive(TryFromPrimitive, Copy, Clone, Debug, PartialEq, Eq, Hash)]
-#[repr(u8)]
-pub enum Piece {
+primitive_enum!(
+    Piece u8;
     Queen,
     Rook,
     Bishop,
     Knight,
     Pawn,
-    King,
-}
+    King
+);
 
 #[derive(Default, Hash, PartialEq, Copy, Clone, Debug)]
 pub struct Board {
@@ -29,7 +23,7 @@ impl Board {
         Board { pieces, occupancy }
     }
 
-    pub fn from_fen(board_fen: &str) -> Result<Board, ()> {
+    pub fn from_fen(board_fen: &str) -> Option<Board> {
         board_from_fen(board_fen)
     }
 
@@ -56,7 +50,7 @@ impl Board {
     pub fn piece_at(&self, square: Square) -> Option<Piece> {
         for (piece, bb) in self.pieces.iter().enumerate() {
             if bb.is_set(square) {
-                return Some(Piece::try_from(piece as u8).unwrap());
+                return Some(Piece::from(piece as u8).unwrap());
             }
         }
         None
@@ -109,7 +103,7 @@ impl std::fmt::Display for Board {
         let mut board = String::new();
         for rank in (0..8).rev() {
             for file in 0..8 {
-                let square = Square::try_from(rank * 8 + file).unwrap();
+                let square = Square::from(rank * 8 + file).unwrap();
                 let piece = self.piece_color_at(square);
                 board.push(match piece {
                     Some((Piece::King, Color::White)) => '♔',

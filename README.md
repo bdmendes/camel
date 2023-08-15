@@ -3,8 +3,9 @@
 <br>
 <br>
 
-[![](https://img.shields.io/github/actions/workflow/status/bdmendes/camel/rust.yml)](https://github.com/bdmendes/camel/actions)
-[![](https://img.shields.io/github/v/release/bdmendes/camel)](https://github.com/bdmendes/camel/releases)
+[![Build](https://img.shields.io/github/actions/workflow/status/bdmendes/camel/rust.yml)](https://github.com/bdmendes/camel/actions)
+[![Codecov](https://img.shields.io/codecov/c/github/bdmendes/camel/master)](https://app.codecov.io/gh/bdmendes/camel)
+[![Release](https://img.shields.io/github/v/release/bdmendes/camel)](https://github.com/bdmendes/camel/releases)
 
 [![lichess-bullet](https://lichess-shield.vercel.app/api?username=camel_bot&format=bullet)](https://lichess.org/@/camel_bot/perf/bullet)
 [![lichess-blitz](https://lichess-shield.vercel.app/api?username=camel_bot&format=blitz)](https://lichess.org/@/camel_bot/perf/blitz)

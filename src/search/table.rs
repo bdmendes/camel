@@ -138,14 +138,14 @@ impl SearchTable {
         }
     }
 
-    pub fn get_killers(&self, depth: Depth) -> &[Option<Move>] {
+    pub fn get_killers(&self, depth: Depth) -> [Option<Move>; 2] {
         let index = 2 * depth as usize;
-        &self.killer_moves[index..index + 2]
+        [self.killer_moves[index], self.killer_moves[index + 1]]
     }
 
     pub fn get_pv(&self, position: &Position, mut depth: Depth) -> MoveVec {
         let mut pv = MoveVec::new();
-        let mut position = position.clone();
+        let mut position = *position;
 
         while let Some(entry) = self.get_hash_move(&position) {
             pv.push(entry);

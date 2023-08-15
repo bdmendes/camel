@@ -24,9 +24,9 @@ pub fn parse_command(input: &str) -> Result<Command, ()> {
 
     match command.unwrap() {
         "position" => parse_position(&mut words),
-        "go" => parse_go(&mut words).map_or(Result::Err(()), |cmd| Result::Ok(cmd)),
+        "go" => parse_go(&mut words).map_or(Result::Err(()), Result::Ok),
         "stop" => Ok(Command::Stop),
-        "uci" => Ok(Command::UCI),
+        "uci" => Ok(Command::Uci),
         "debug" => parse_debug(&mut words),
         "isready" => Ok(Command::IsReady),
         "ucinewgame" => Ok(Command::UCINewGame),
@@ -64,7 +64,7 @@ pub fn execute_command(command: Command, engine: &mut Engine) {
             black_increment,
         ),
         Command::Stop => execute_stop(engine),
-        Command::UCI => execute_uci(),
+        Command::Uci => execute_uci(),
         Command::Debug(debug) => execute_debug(debug),
         Command::SetOption { name, value } => {
             execute_set_option(name.as_str(), value.as_str(), engine)

@@ -27,7 +27,7 @@ pub enum Command {
         black_increment: Option<Duration>,
     },
     Stop,
-    UCI,
+    Uci,
     Debug(bool),
     IsReady,
     UCINewGame,
