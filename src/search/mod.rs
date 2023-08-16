@@ -4,6 +4,7 @@ use self::{constraint::SearchConstraint, table::SearchTable};
 use crate::{evaluation::Score, position::Position};
 
 pub mod constraint;
+mod movepick;
 pub mod pvs;
 pub mod table;
 
