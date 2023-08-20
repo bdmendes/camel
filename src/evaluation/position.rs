@@ -1,6 +1,7 @@
+use super::{piece_value, psqt::psqt_value, ValueScore};
 use crate::position::{board::Piece, Color, Position};
 
-use super::{piece_value, psqt::psqt_value, ValueScore};
+pub const MAX_POSITIONAL_GAIN: ValueScore = 200;
 
 fn piece_endgame_ratio(piece: Piece) -> u8 {
     match piece {

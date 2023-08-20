@@ -21,7 +21,7 @@ pub enum TTScore {
 pub struct TableEntry {
     pub depth: Depth,
     pub score: TTScore,
-    pub best_move: Option<Move>,
+    pub best_move: Move,
 }
 
 struct TranspositionEntry {
@@ -95,7 +95,7 @@ impl SearchTable {
     }
 
     pub fn get_hash_move(&self, position: &Position) -> Option<Move> {
-        self.transposition.get::<false>(position).and_then(|entry| entry.entry.best_move)
+        self.transposition.get::<false>(position).map(|entry| entry.entry.best_move)
     }
 
     pub fn get_table_score(&self, position: &Position, depth: Depth) -> Option<TTScore> {
@@ -111,11 +111,9 @@ impl SearchTable {
     pub fn insert_entry<const FORCE: bool>(&mut self, position: &Position, entry: TableEntry) {
         if !FORCE {
             if let Some(old_entry) = self.transposition.get::<true>(position) {
-                if old_entry.entry.depth >= entry.depth {
-                    return;
-                }
-                if old_entry.entry.depth == entry.depth
-                    && matches!(old_entry.entry.score, TTScore::Exact(_))
+                if old_entry.entry.depth > entry.depth
+                    || (old_entry.entry.depth == entry.depth
+                        && !matches!(entry.score, TTScore::Exact(_)))
                 {
                     return;
                 }
