@@ -90,8 +90,8 @@ impl Board {
 
     pub fn pawn_structure(&self, color: Color) -> [u8; 8] {
         let mut structure = [0; 8];
-        let mut pawns_bb = self.pieces_bb(Piece::Pawn) & self.occupancy_bb(color);
-        while let Some(square) = pawns_bb.pop_lsb() {
+        let pawns_bb = self.pieces_bb(Piece::Pawn) & self.occupancy_bb(color);
+        for square in pawns_bb {
             structure[square.file() as usize] += 1;
         }
         structure

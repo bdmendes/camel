@@ -35,8 +35,8 @@ impl MoveDirection {
 }
 
 pub fn checked_by(board: &Board, color: Color) -> bool {
-    let mut checked_king = board.pieces_bb(Piece::King) & board.occupancy_bb(color.opposite());
-    let checked_king_square = checked_king.pop_lsb().unwrap();
+    let checked_king = board.pieces_bb(Piece::King) & board.occupancy_bb(color.opposite());
+    let checked_king_square = checked_king.into_iter().next().unwrap();
     square_attacked_by(board, checked_king_square, color)
 }
 
@@ -112,7 +112,7 @@ pub fn generate_regular_moves<const QUIESCE: bool>(
     moves: &mut MoveVec,
 ) {
     let occupancy_us = board.occupancy_bb(color);
-    let mut pieces = board.pieces_bb(piece) & occupancy_us;
+    let pieces = board.pieces_bb(piece) & occupancy_us;
 
     if pieces.is_empty() {
         return;
@@ -121,10 +121,10 @@ pub fn generate_regular_moves<const QUIESCE: bool>(
     let occupancy = board.occupancy_bb_all();
     let occupancy_them = board.occupancy_bb(color.opposite());
 
-    while let Some(from_square) = pieces.pop_lsb() {
-        let mut attacks = piece_attacks(piece, from_square, occupancy) & !occupancy_us;
+    for from_square in pieces {
+        let attacks = piece_attacks(piece, from_square, occupancy) & !occupancy_us;
 
-        while let Some(to_square) = attacks.pop_lsb() {
+        for to_square in attacks {
             let flag = if occupancy_them.is_set(to_square) {
                 MoveFlag::Capture
             } else {

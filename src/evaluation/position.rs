@@ -61,8 +61,8 @@ pub fn evaluate_position(position: &Position) -> ValueScore {
     score += evaluate_pawn_structure(position);
 
     for piece in Piece::list() {
-        let mut bb = position.board.pieces_bb(*piece);
-        while let Some(square) = bb.pop_lsb() {
+        let bb = position.board.pieces_bb(*piece);
+        for square in bb {
             let color = position.board.color_at(square).unwrap();
             score += piece_value(*piece) * color.sign();
             score += psqt_value(*piece, square, color, endgame_ratio) * color.sign();

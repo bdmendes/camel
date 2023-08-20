@@ -117,15 +117,13 @@ mod tests {
             Square::H4,
         ];
 
-        let mut rook_atacks = rook_moves(square, occupancy);
+        let rook_atacks = rook_moves(square, occupancy);
 
-        let mut found_count = 0;
-        while let Some(square) = rook_atacks.pop_lsb() {
+        for square in rook_atacks {
             assert!(expected_squares.contains(&square));
-            found_count += 1;
         }
 
-        assert_eq!(found_count, expected_squares.len());
+        assert_eq!(rook_atacks.into_iter().count(), expected_squares.len());
     }
 
     #[test]
@@ -149,15 +147,13 @@ mod tests {
             Square::G4,
         ];
 
-        let mut rook_atacks = rook_moves(square, Some(occupancy));
+        let rook_atacks = rook_moves(square, Some(occupancy));
 
-        let mut found_count = 0;
-        while let Some(square) = rook_atacks.pop_lsb() {
+        for square in rook_atacks {
             assert!(expected_squares.contains(&square));
-            found_count += 1;
         }
 
-        assert_eq!(found_count, expected_squares.len());
+        assert_eq!(rook_atacks.into_iter().count(), expected_squares.len());
     }
 
     #[test]
@@ -178,14 +174,13 @@ mod tests {
             Square::G4,
         ];
 
-        let mut rook_atacks = blockers_mask[square as usize];
-        let mut found_count = 0;
-        while let Some(square) = rook_atacks.pop_lsb() {
+        let rook_atacks = blockers_mask[square as usize];
+
+        for square in rook_atacks {
             assert!(expected_squares.contains(&square));
-            found_count += 1;
         }
 
-        assert_eq!(found_count, expected_squares.len());
+        assert_eq!(rook_atacks.into_iter().count(), expected_squares.len());
     }
 
     #[test]
@@ -207,14 +202,13 @@ mod tests {
             Square::G1,
         ];
 
-        let mut rook_atacks = blockers_mask[square as usize];
-        let mut found_count = 0;
-        while let Some(square) = rook_atacks.pop_lsb() {
+        let rook_atacks = blockers_mask[square as usize];
+
+        for square in rook_atacks {
             assert!(expected_squares.contains(&square));
-            found_count += 1;
         }
 
-        assert_eq!(found_count, expected_squares.len());
+        assert_eq!(rook_atacks.into_iter().count(), expected_squares.len());
     }
 
     #[test]
@@ -238,15 +232,13 @@ mod tests {
             Square::B1,
         ];
 
-        let mut bishop_atacks = bishop_moves(square, occupancy);
+        let bishop_atacks = bishop_moves(square, occupancy);
 
-        let mut found_count = 0;
-        while let Some(square) = bishop_atacks.pop_lsb() {
+        for square in bishop_atacks {
             assert!(expected_squares.contains(&square));
-            found_count += 1;
         }
 
-        assert_eq!(found_count, expected_squares.len());
+        assert_eq!(bishop_atacks.into_iter().count(), expected_squares.len());
     }
 
     #[test]

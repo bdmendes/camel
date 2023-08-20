@@ -12,16 +12,6 @@ impl Bitboard {
         Bitboard(bb)
     }
 
-    pub fn pop_lsb(&mut self) -> Option<Square> {
-        if self.0 == 0 {
-            return None;
-        }
-
-        let lsb = self.0.trailing_zeros();
-        self.0 &= self.0 - 1;
-        Some(Square::from(lsb as u8).unwrap())
-    }
-
     pub fn set(&mut self, square: Square) {
         self.0 |= 1 << (square as u8);
     }
@@ -62,6 +52,20 @@ impl Bitboard {
     pub const fn rank_mask(rank: u8) -> Self {
         debug_assert!(rank < 8);
         Bitboard(0xFF << (rank * 8))
+    }
+}
+
+impl Iterator for Bitboard {
+    type Item = Square;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.0 == 0 {
+            return None;
+        }
+
+        let lsb = self.0.trailing_zeros();
+        self.0 &= self.0 - 1;
+        Some(Square::from(lsb as u8).unwrap())
     }
 }
 
