@@ -108,7 +108,7 @@ fn pvs_recurse<const DO_NULL: bool>(
     }
 
     let (score, nodes) =
-        pvs::<false>(position, depth - 1, -beta, -alpha, table.clone(), constraint, original_depth);
+        pvs::<false>(position, depth - 1, -beta, -alpha, table, constraint, original_depth);
     count += nodes;
     (-score, count)
 }
