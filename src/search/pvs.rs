@@ -6,13 +6,19 @@ use super::{
 };
 use crate::{
     evaluation::{
-        moves::evaluate_move, piece_value, position::evaluate_position, Score, ValueScore,
+        moves::evaluate_move,
+        piece_value,
+        position::{evaluate_position, MAX_POSITIONAL_GAIN},
+        Score, ValueScore,
     },
     position::{board::Piece, Color, Position},
 };
 use std::sync::{Arc, RwLock};
 
 const MIN_SCORE: ValueScore = ValueScore::MIN + 1;
+const MAX_SCORE: ValueScore = -MIN_SCORE;
+const MATE_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH + 1;
+
 const NULL_MOVE_REDUCTION: Depth = 3;
 const CHECK_EXTENSION: Depth = 1;
 
@@ -58,7 +64,7 @@ fn quiesce(
         if mov.flag().is_capture() {
             let captured_piece =
                 position.board.piece_color_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
-            if static_evaluation + piece_value(captured_piece) + 100 < alpha {
+            if static_evaluation + piece_value(captured_piece) + MAX_POSITIONAL_GAIN < alpha {
                 continue;
             }
         }
@@ -79,27 +85,20 @@ fn quiesce(
     (alpha, count)
 }
 
-fn pvs_recurse<const DO_NULL: bool>(
+fn pvs_recurse(
     position: &Position,
     depth: Depth,
     alpha: ValueScore,
     beta: ValueScore,
     table: Arc<RwLock<SearchTable>>,
     constraint: &mut SearchConstraint,
-    original_depth: Depth,
+    do_zero_window: bool,
 ) -> (ValueScore, usize) {
     let mut count = 0;
 
-    if DO_NULL {
-        let (score, nodes) = pvs::<false>(
-            position,
-            depth - 1,
-            -alpha - 1,
-            -alpha,
-            table.clone(),
-            constraint,
-            original_depth,
-        );
+    if do_zero_window {
+        let (score, nodes) =
+            pvs::<false>(position, depth - 1, -alpha - 1, -alpha, table.clone(), constraint);
         count += nodes;
         let score = -score;
         if score <= alpha || score >= beta {
@@ -107,8 +106,7 @@ fn pvs_recurse<const DO_NULL: bool>(
         }
     }
 
-    let (score, nodes) =
-        pvs::<false>(position, depth - 1, -beta, -alpha, table, constraint, original_depth);
+    let (score, nodes) = pvs::<false>(position, depth - 1, -beta, -alpha, table, constraint);
     count += nodes;
     (-score, count)
 }
@@ -120,7 +118,6 @@ fn pvs<const ROOT: bool>(
     mut beta: ValueScore,
     table: Arc<RwLock<SearchTable>>,
     constraint: &mut SearchConstraint,
-    original_depth: Depth,
 ) -> (ValueScore, usize) {
     if !ROOT {
         // Detect history-related draws
@@ -173,7 +170,6 @@ fn pvs<const ROOT: bool>(
             -alpha,
             table.clone(),
             constraint,
-            original_depth,
         );
 
         count += nodes;
@@ -188,7 +184,7 @@ fn pvs<const ROOT: bool>(
 
     // Detect checkmate and stalemate
     if moves.is_empty() {
-        let score = if is_check { MIN_SCORE + original_depth - depth } else { 0 };
+        let score = if is_check { MATE_SCORE - depth } else { 0 };
         return (score, count);
     }
 
@@ -212,15 +208,14 @@ fn pvs<const ROOT: bool>(
         let new_position = position.make_move(mov);
 
         constraint.visit_position(&new_position);
-        let recurse = if i > 0 { pvs_recurse::<true> } else { pvs_recurse::<false> };
-        let (score, nodes) = recurse(
+        let (score, nodes) = pvs_recurse(
             &new_position,
             if is_check { depth + CHECK_EXTENSION } else { depth },
             alpha,
             beta,
             table.clone(),
             constraint,
-            original_depth,
+            i > 0,
         );
         constraint.leave_position(&new_position);
 
@@ -249,7 +244,7 @@ fn pvs<const ROOT: bool>(
             } else {
                 TTScore::Exact(alpha)
             },
-            best_move: Some(best_move),
+            best_move,
         };
 
         table.write().unwrap().insert_entry::<ROOT>(position, entry);
@@ -266,26 +261,103 @@ pub fn search(
 ) -> (Score, usize) {
     let depth = depth.min(MAX_DEPTH);
 
-    let (score, count) = pvs::<true>(
-        position,
-        depth,
-        ValueScore::MIN + 1,
-        ValueScore::MAX,
-        table,
-        constraint,
-        depth,
-    );
+    let (score, count) =
+        pvs::<true>(position, depth, MIN_SCORE, MAX_SCORE, table.clone(), constraint);
 
-    if score.abs() >= ValueScore::MAX - depth - 1 {
-        let plys_to_mate = (ValueScore::MAX - score.abs()) as u8;
+    if score.abs() >= MATE_SCORE.abs() {
+        let pv = table.read().unwrap().get_pv(position, depth);
+        let plys_to_mate = pv.len() as u8;
         (
             Score::Mate(
                 if score > 0 { position.side_to_move } else { position.side_to_move.opposite() },
-                if score > 0 { plys_to_mate / 2 + 1 } else { (plys_to_mate + 1) / 2 },
+                (plys_to_mate + 1) / 2,
             ),
             count,
         )
     } else {
         (Score::Value(score), count)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::search::table::DEFAULT_TABLE_SIZE_MB;
+
+    fn expect_search(
+        fen: &str,
+        depth: Depth,
+        expected_moves: Vec<&str>,
+        expected_score: Option<Score>,
+    ) {
+        let position = Position::from_fen(fen).unwrap();
+        let table = Arc::new(RwLock::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB)));
+        let mut constraint = SearchConstraint::default();
+
+        let score = search(&position, depth, table.clone(), &mut constraint).0;
+        let pv = table.read().unwrap().get_pv(&position, depth);
+
+        assert!(pv.len() >= expected_moves.len());
+
+        for (mov, i) in pv.iter().map(|m| m.to_string()).enumerate() {
+            if mov >= expected_moves.len() {
+                break;
+            }
+            assert_eq!(i, expected_moves[mov]);
+        }
+
+        if let Some(expected_score) = expected_score {
+            assert_eq!(score, expected_score);
+        }
+    }
+
+    #[test]
+    fn mate_us_1() {
+        expect_search(
+            "rnb1r2k/pR3Qpp/2p5/4N3/3P3P/2q5/P2p1PP1/5K1R w - - 1 20",
+            2,
+            vec!["f7e8"],
+            Some(Score::Mate(Color::White, 1)),
+        );
+    }
+
+    #[test]
+    fn mate_them_1() {
+        expect_search(
+            "rnb1r1k1/pR3Qpp/2p5/4N3/3P3P/2q5/P2p1PP1/5K1R b - - 0 19",
+            2,
+            vec!["g8h8", "f7e8"],
+            Some(Score::Mate(Color::White, 1)),
+        );
+    }
+
+    #[test]
+    fn mate_them_2() {
+        expect_search(
+            "rnb1r1k1/pR3ppp/2p5/4N3/3P1Q1P/3p4/P4PP1/q4K1R w - - 3 19",
+            6,
+            vec!["b7b1", "a1b1", "f4c1", "b1c1"],
+            Some(Score::Mate(Color::Black, 2)),
+        );
+    }
+
+    #[test]
+    fn mate_us_3() {
+        expect_search(
+            "rnb1r1k1/pR3ppp/2p5/4N3/3P1Q1P/2qp4/P4PP1/5K1R b - - 2 18",
+            7,
+            vec!["c3a1", "b7b1", "a1b1", "f4c1", "b1c1"],
+            Some(Score::Mate(Color::Black, 3)),
+        );
+    }
+
+    #[test]
+    fn mate_us_5() {
+        expect_search(
+            "4R3/1R2b1p1/2B2k2/N4p2/1P6/P1K3P1/5P2/8 w - - 2 41",
+            9,
+            vec!["e8e7"],
+            Some(Score::Mate(Color::White, 5)),
+        )
     }
 }
