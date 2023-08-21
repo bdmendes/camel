@@ -1,4 +1,4 @@
-name: Engine
+name: gauntlet
 
 on:
   - pull_request
@@ -7,7 +7,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  gauntlet:
+  upstream:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

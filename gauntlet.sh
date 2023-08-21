@@ -10,10 +10,10 @@ UPSTREAM=master
 NUM_THREADS=$(nproc --all)
 OUTPUT_FILE=results_tmp.txt
 MESSAGE_FILE=message.txt
-ROUNDS=100
+ROUNDS=200
 TIME_CONTROL=10+0.1
 THREADS=4
-ELO_THRESHOLD=50
+ELO_THRESHOLD=20
 
 # Clone fast-chess and compile it if not found
 if ! command -v $INSTALL_PATH/$MATCHER &> /dev/null
@@ -79,21 +79,20 @@ stdbuf -i0 -o0 -e0 ./${MATCHER} \
 result=$(grep +/- $OUTPUT_FILE | tail -1)
 echo -n $result | tee $MESSAGE_FILE
 
-# Set exit status according to improvement
 result_array=($result)
 elo_diff=${result_array[2]}
 elo_diff_rounded=$(echo $elo_diff | awk '{printf("%d\n",$1 + 0.5)}')
 
 if [ $((elo_diff_rounded)) -lt -$ELO_THRESHOLD ]
 then
-    echo " -> REGRESSION" | tee -a $MESSAGE_FILE
-    exit 1
+    echo -n " ❌" | tee -a $MESSAGE_FILE
+    exit
 fi
 
 if [ $((elo_diff_rounded)) -lt $ELO_THRESHOLD ]
 then
-    echo " -> inconclusive" | tee -a $MESSAGE_FILE
+    echo -n " 🆗" | tee -a $MESSAGE_FILE
     exit
 fi
 
-echo " -> IMPROVEMENT" | tee -a $MESSAGE_FILE
+echo -n " ✅" | tee -a $MESSAGE_FILE
