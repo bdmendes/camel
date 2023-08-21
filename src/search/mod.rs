@@ -52,7 +52,13 @@ pub fn search_iter(
     table: Arc<RwLock<SearchTable>>,
     constraint: &mut SearchConstraint,
 ) {
-    let one_legal_move = position.moves::<false>().len() == 1;
+    let moves = position.moves::<false>();
+
+    if moves.is_empty() {
+        return;
+    }
+
+    let one_legal_move = moves.len() == 1;
 
     let mut current_depth = 1;
     while current_depth <= depth {
@@ -83,8 +89,5 @@ pub fn search_iter(
         current_depth += 1;
     }
 
-    let best_move = table.read().unwrap().get_hash_move(position);
-    if let Some(mov) = best_move {
-        println!("bestmove {}", mov);
-    }
+    println!("bestmove {}", table.read().unwrap().get_hash_move(position).unwrap_or(moves[0]));
 }
