@@ -3,6 +3,10 @@ name: gauntlet
 on:
   - pull_request
 
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
 
