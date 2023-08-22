@@ -16,12 +16,21 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - run: |
-          chmod +x ./gauntlet.sh
-          ./gauntlet.sh
+      - name: Set up script permissions
+        run: chmod +x ./gauntlet.sh
+
+      - name: Run script and collect results
+        run: |
+          ./gauntlet.sh || echo "GAUNTLET_FAILED=1" >> $GITHUB_ENV
           echo "COMMIT_MESSAGE=$(cat fast-chess/message.txt)" >> $GITHUB_ENV
 
       - uses: phulsechinmay/rewritable-pr-comment@v0.2.1
         with:
-          message: ${{env.COMMIT_MESSAGE}}
+          message: ${{ env.COMMIT_MESSAGE }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fail if gauntlet failed
+        run: |
+          if [ -n "$GAUNTLET_FAILED" ]; then
+            exit 1
+          fi
