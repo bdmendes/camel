@@ -33,10 +33,10 @@ You can probe the integrity of the engine by running the test suite, which inclu
   $ cargo test
 </pre>
 
-Upon development, to be able to claim a statistically significant improvement over upstream, it is recommended to set up a tournament, using a utility such as [fast-chess](https://github.com/Disservin/fast-chess) or [cutechess-cli](https://github.com/cutechess/cutechess). For convenience, rely on the bundled script to automate the process using `fast-chess`:
+Upon development, to be able to claim a statistically significant improvement, it is recommended to set up a tournament against other version, using a utility such as [fast-chess](https://github.com/Disservin/fast-chess) or [cutechess-cli](https://github.com/cutechess/cutechess). For convenience, rely on the bundled script to automate the process using `fast-chess`:
 
 <pre>
-  $ ./gauntlet.sh
+  $ ./gauntlet.sh [BRANCH/TAG]
 </pre>
 
 It is also possible and fun to deploy the engine to [lichess](https://lichess.org/), through the [lichess-bot bridge](https://github.com/lichess-bot-devs/lichess-bot). Please note, however, that the obtained [Glicko](https://lichess.org/page/rating-systems) rating is not directly comparable to [FIDE](https://en.wikipedia.org/wiki/FIDE)'s due to different player pools.
