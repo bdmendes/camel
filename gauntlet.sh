@@ -1,78 +1,60 @@
 #!/usr/bin/env bash
 
-MATCHER=fast-chess
-REPO_URL=https://github.com/Disservin/fast-chess.git
-REPO_TAG=v0.4
-INSTALL_PATH=./$MATCHER
-ENGINE_NAME=camel
-BUILD_PATH=./target/release/camel
-OUTPUT_FILE=results_tmp.txt
-MESSAGE_FILE=message.txt
-ROUNDS=200
-TIME_CONTROL=10+0.1
-THREADS=4
-ELO_THRESHOLD=20
+readonly RUNNER=fast-chess
+readonly REPO_URL=https://github.com/Disservin/fast-chess.git
+readonly REPO_TAG=v0.4
+readonly INSTALL_PATH=./$RUNNER
+readonly ENGINE_NAME=camel
+readonly BUILD_PATH=./target/release/$ENGINE_NAME
+readonly MESSAGE_FILE=message.txt
+readonly ROUNDS=300
+readonly TIME_CONTROL=10+0.1
+readonly THREADS=4
+readonly ELO_THRESHOLD=20
+readonly UPSTREAM=${1:-master} # Default to master if no argument is given
 
-# Parse command line parameter
-upstream=${1:-master}
-
-# Clone fast-chess and compile it if not found
-if ! command -v $INSTALL_PATH/$MATCHER &> /dev/null
-then
-    echo "$MATCHER not found at path, installing it from github..."
-    if ! git clone $REPO_URL --branch $REPO_TAG --single-branch $INSTALL_PATH &> /dev/null
-    then
-        echo "Could not clone $MATCHER from git repository, aborting"
-        exit 1
-    fi
-    
-    if ! make -C $INSTALL_PATH
-    then
-        echo "Could not compile $MATCHER, aborting"
-        exit 1
-    fi
-fi
-
-# Save current branch name
-current_branch=$(git branch --show-current)
-
-# Compile current version and copy to fast-chess
-echo "Compiling current version ($current_branch)"
-if ! cargo build --release
-then
-    echo "Current engine version does not compile, aborting"
-    exit 1
-fi
-cp -f $BUILD_PATH "$INSTALL_PATH/$ENGINE_NAME"
-
-# If there are uncommited changes, stash them before switching to upstream
-stashed=0
 if ! git diff --quiet
 then
-    git stash
-    stashed=1
+    echo "Commit or stash your changes first"
+    exit 1
 fi
 
-# Compile upstream version and copy to fast-chess
-git checkout -d $upstream
-echo "Compiling upstream version ($upstream)"
-cargo build --release
-cp -f $BUILD_PATH "$INSTALL_PATH/${ENGINE_NAME}_$upstream"
+if [ -z "$CURRENT_BRANCH" ]
+then
+    CURRENT_BRANCH=$(git branch --show-current)
+    if [ -z "$CURRENT_BRANCH" ]
+    then
+        echo "Could not get current branch name (are you in a detached state?)"
+        exit 1
+    fi
+else
+    # In GH Actions, the current branch is already set
+    echo "Current branch: $CURRENT_BRANCH"
+fi
+
+# Clone fast-chess and compile it if not found
+if ! command -v $INSTALL_PATH/$RUNNER &> /dev/null
+then
+    echo "$RUNNER not found, cloning and compiling"
+    rm -rf $INSTALL_PATH
+    git clone $REPO_URL --branch $REPO_TAG --single-branch $INSTALL_PATH &> /dev/null || exit 1
+    make -C $INSTALL_PATH || exit 1
+fi
+
+echo "Compiling current version ($CURRENT_BRANCH)"
+cargo build --release || exit 1
+cp $BUILD_PATH "$INSTALL_PATH/${ENGINE_NAME}-${CURRENT_BRANCH}" || exit 1
+
+echo "Compiling upstream version ($UPSTREAM)"
+git switch -d "$UPSTREAM" || exit 1
+cargo build --release || exit 1
+cp $BUILD_PATH "$INSTALL_PATH/${ENGINE_NAME}-$UPSTREAM" || exit 1
 
 # Switch back to current branch
-git checkout $current_branch
+git switch "$CURRENT_BRANCH" || exit 1
+cd $INSTALL_PATH || exit 1
 
-# If there were uncommited changes, unstash them
-if [ $stashed == 1 ]
-then
-    git stash apply &> /dev/null
-fi
-
-# Enter fast-chess directory
-cd $INSTALL_PATH
-
-# If the files are the same, exit with success
-if cmp -s "$ENGINE_NAME" "${ENGINE_NAME}_$upstream"
+if cmp -s "${ENGINE_NAME}-${CURRENT_BRANCH}" "${ENGINE_NAME}-$UPSTREAM"
 then
     echo -n "🆗 Engine executables do not differ: gauntlet skipped" | tee $MESSAGE_FILE
     echo ""
@@ -80,16 +62,17 @@ then
 fi
 
 # Run the gauntlet and store output in temp file
-stdbuf -i0 -o0 -e0 ./${MATCHER} \
-    -engine cmd=$ENGINE_NAME name=$ENGINE_NAME \
-    -engine cmd=${ENGINE_NAME}_$upstream name=${ENGINE_NAME}_$upstream \
-    -each tc=$TIME_CONTROL -rounds $ROUNDS -repeat -concurrency $THREADS | tee $OUTPUT_FILE
+OUTPUT_FILE=$(mktemp)
+stdbuf -i0 -o0 -e0 ./${RUNNER} \
+-engine cmd=${ENGINE_NAME}-"${CURRENT_BRANCH}" name=${ENGINE_NAME}-"${CURRENT_BRANCH}" \
+-engine cmd=${ENGINE_NAME}-"$UPSTREAM" name=${ENGINE_NAME}-"$UPSTREAM" \
+-each tc=$TIME_CONTROL -rounds $ROUNDS -repeat -concurrency $THREADS | tee "$OUTPUT_FILE"
 
 # Print last evaluation result
-result=$(grep +/- $OUTPUT_FILE | tail -1)
-result_array=($result)
+result=$(grep +/- "$OUTPUT_FILE" | tail -1)
+result_array=("$result")
 elo_diff=${result_array[2]}
-elo_diff_rounded=$(echo $elo_diff | awk '{printf("%d\n",$1 + 0.5)}')
+elo_diff_rounded=$(echo "$elo_diff" | awk '{printf("%d\n",$1 + 0.5)}')
 failed=0
 if [ $((elo_diff_rounded)) -lt -$ELO_THRESHOLD ]
 then
@@ -102,10 +85,9 @@ then
 else
     echo -n "✅ " | tee $MESSAGE_FILE
 fi
-echo -n $result | tee -a $MESSAGE_FILE
+echo -n "$result" | tee -a $MESSAGE_FILE
 echo ""
 
-# If the test failed, set exit code to 1
 if [ $failed == 1 ]
 then
     exit 1

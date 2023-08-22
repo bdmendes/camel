@@ -15,11 +15,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Set up script permissions
         run: chmod +x ./gauntlet.sh
 
+      - name: Set up local master branch
+        run: git fetch origin master:master
+
       - name: Run script and collect results
+        env:
+          CURRENT_BRANCH: ${{ github.head_ref }}
         run: |
           ./gauntlet.sh || echo "GAUNTLET_FAILED=1" >> $GITHUB_ENV
           echo "COMMIT_MESSAGE=$(cat fast-chess/message.txt)" >> $GITHUB_ENV
