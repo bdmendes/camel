@@ -1,0 +1,15 @@
+name: shell
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: ludeeus/action-shellcheck@2.0.0
