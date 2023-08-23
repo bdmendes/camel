@@ -74,7 +74,6 @@ if [ $((elo_diff_rounded)) -lt -$ELO_THRESHOLD ]; then
     failed=1
 elif [ $((elo_diff_rounded)) -lt $ELO_THRESHOLD ]; then
     echo -n "🆗 " | tee $MESSAGE_FILE
-    exit
 else
     echo -n "✅ " | tee $MESSAGE_FILE
 fi

@@ -13,6 +13,8 @@ env:
 jobs:
   upstream:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - uses: actions/checkout@v3
         with:
@@ -29,12 +31,10 @@ jobs:
           CURRENT_BRANCH: ${{ github.head_ref }}
         run: |
           ./gauntlet.sh || echo "GAUNTLET_FAILED=1" >> $GITHUB_ENV
-          echo "COMMIT_MESSAGE=$(cat fast-chess/message.txt)" >> $GITHUB_ENV
 
-      - uses: phulsechinmay/rewritable-pr-comment@v0.2.1
+      - uses: mshick/add-pr-comment@v2
         with:
-          message: ${{ env.COMMIT_MESSAGE }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          message-path: fast-chess/message.txt
 
       - name: Fail if gauntlet failed
         run: |
