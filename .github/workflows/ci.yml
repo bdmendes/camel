@@ -1,4 +1,4 @@
-name: rust
+name: ci
 
 on:
   push:
@@ -15,16 +15,24 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Format
+      - name: Format Rust
         run: cargo fmt --check
+
+      - name: Format Shell
+        run: |
+          sudo apt-get install shfmt
+          shfmt -i 4 -d .
 
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
-      - name: Format
+      - name: Lint Rust
         run: cargo clippy --verbose -- -D warnings
+
+      - name: Lint Shell
+        uses: ludeeus/action-shellcheck@2.0.0
 
   test:
     runs-on: ubuntu-latest
