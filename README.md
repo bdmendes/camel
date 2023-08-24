@@ -3,7 +3,7 @@
 <br>
 <br>
 
-[![Build](https://img.shields.io/github/actions/workflow/status/bdmendes/camel/rust.yml)](https://github.com/bdmendes/camel/actions)
+[![Build](https://img.shields.io/github/actions/workflow/status/bdmendes/camel/ci.yml)](https://github.com/bdmendes/camel/actions)
 [![Codecov](https://img.shields.io/codecov/c/github/bdmendes/camel/master)](https://app.codecov.io/gh/bdmendes/camel)
 [![Release](https://img.shields.io/github/v/release/bdmendes/camel)](https://github.com/bdmendes/camel/releases)
 
