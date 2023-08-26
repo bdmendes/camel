@@ -1,10 +1,9 @@
-use bitflags::bitflags;
-use primitive_enum::primitive_enum;
-
 use crate::moves::{
     gen::{checked_by, generate_moves},
     make_move, Move, MoveVec,
 };
+use bitflags::bitflags;
+use primitive_enum::primitive_enum;
 
 use self::{
     board::Board,

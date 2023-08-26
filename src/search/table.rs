@@ -1,11 +1,10 @@
-use ahash::RandomState;
-
 use super::{Depth, MAX_DEPTH};
 use crate::{
     evaluation::ValueScore,
     moves::{Move, MoveVec},
     position::Position,
 };
+use ahash::RandomState;
 
 pub const MAX_TABLE_SIZE_MB: usize = 2048;
 pub const MIN_TABLE_SIZE_MB: usize = 1;

@@ -1,8 +1,6 @@
-use std::fmt::{Display, Formatter};
-
-use derive_more::{BitAnd, BitOr, Deref, DerefMut, Not};
-
 use super::square::Square;
+use derive_more::{BitAnd, BitOr, Deref, DerefMut, Not};
+use std::fmt::{Display, Formatter};
 
 #[derive(Default, Debug, Hash, PartialEq, BitOr, BitAnd, Not, Deref, DerefMut, Copy, Clone, Eq)]
 pub struct Bitboard(u64);

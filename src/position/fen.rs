@@ -1,10 +1,9 @@
-use std::str::FromStr;
-
 use super::{
     bitboard::Bitboard,
     board::{Board, Piece},
     CastlingRights, Color, Position, Square,
 };
+use std::str::FromStr;
 
 pub const START_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 pub const KIWIPETE_WHITE_FEN: &str =
