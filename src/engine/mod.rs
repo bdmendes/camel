@@ -1,9 +1,9 @@
 use self::commands::{execute_command, parse_command};
-use crate::{
+use ahash::AHashMap;
+use camel::{
     position::{fen::START_FEN, Position},
     search::table::{SearchTable, DEFAULT_TABLE_SIZE_MB},
 };
-use ahash::AHashMap;
 use std::{
     sync::{atomic::AtomicBool, Arc, RwLock},
     time::Duration,
