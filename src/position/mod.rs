@@ -1,15 +1,14 @@
-use crate::moves::{
-    gen::{checked_by, generate_moves},
-    make_move, Move, MoveVec,
-};
-use bitflags::bitflags;
-use primitive_enum::primitive_enum;
-
 use self::{
     board::Board,
     fen::{position_from_fen, position_to_fen},
     square::Square,
 };
+use crate::moves::{
+    gen::{checked_by, generate_moves},
+    make_move, Move,
+};
+use bitflags::bitflags;
+use primitive_enum::primitive_enum;
 
 pub mod bitboard;
 pub mod board;
@@ -71,7 +70,7 @@ impl Position {
         make_move(self, mov)
     }
 
-    pub fn moves<const QUIESCE: bool>(&self) -> MoveVec {
+    pub fn moves<const QUIESCE: bool>(&self) -> Vec<Move> {
         generate_moves::<QUIESCE, false>(self)
     }
 

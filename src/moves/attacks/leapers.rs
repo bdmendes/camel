@@ -52,7 +52,7 @@ const fn init_leaper_attacks(move_directions: &[i8]) -> LeaperAttackMap {
 #[cfg(test)]
 mod tests {
     use crate::{
-        moves::{gen::generate_regular_moves, Move, MoveFlag, MoveVec},
+        moves::{gen::generate_regular_moves, Move, MoveFlag},
         position::{
             board::{Board, Piece},
             fen::KIWIPETE_WHITE_FEN,
@@ -64,7 +64,7 @@ mod tests {
     fn generate_knight_moves<const QUIESCE: bool>(
         board: &Board,
         color: Color,
-        moves: &mut MoveVec,
+        moves: &mut Vec<Move>,
     ) {
         generate_regular_moves::<QUIESCE>(board, Piece::Knight, color, moves);
     }
@@ -76,7 +76,7 @@ mod tests {
 
         board.set_square::<true>(Square::E4, Piece::Knight, us_color);
 
-        let mut moves = MoveVec::new();
+        let mut moves = Vec::<Move>::new();
         generate_knight_moves::<false>(&board, us_color, &mut moves);
 
         assert_eq!(moves.len(), 8);
@@ -104,7 +104,7 @@ mod tests {
 
         board.set_square::<true>(Square::A8, Piece::Knight, us_color);
 
-        let mut moves = MoveVec::new();
+        let mut moves = Vec::<Move>::new();
         generate_knight_moves::<false>(&board, us_color, &mut moves);
 
         let expected_moves = vec![
@@ -124,7 +124,7 @@ mod tests {
         let board = Board::from_fen(KIWIPETE_WHITE_FEN).unwrap();
         let us_color = Color::White;
 
-        let mut moves = MoveVec::new();
+        let mut moves = Vec::<Move>::new();
         generate_knight_moves::<false>(&board, us_color, &mut moves);
 
         let expected_moves = [
@@ -153,7 +153,7 @@ mod tests {
         let board = Board::from_fen(KIWIPETE_WHITE_FEN).unwrap();
         let us_color = Color::White;
 
-        let mut moves = MoveVec::new();
+        let mut moves = Vec::<Move>::new();
         generate_knight_moves::<true>(&board, us_color, &mut moves);
 
         let expected_moves = [

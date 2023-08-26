@@ -1,10 +1,6 @@
-use crate::{
-    evaluation::ValueScore,
-    moves::{Move, MoveVec},
-};
-use smallvec::SmallVec;
+use crate::{evaluation::ValueScore, moves::Move};
 
-type ScoredMoveVec = SmallVec<[(Move, ValueScore); 64]>;
+type ScoredMoveVec = Vec<(Move, ValueScore)>;
 
 pub struct MovePicker {
     index: usize,
@@ -12,22 +8,18 @@ pub struct MovePicker {
 }
 
 impl MovePicker {
-    pub fn new<F>(moves: &MoveVec, f: F) -> Self
+    pub fn new<F>(moves: &[Move], f: F) -> Self
     where
         F: Fn(Move) -> ValueScore,
     {
         Self { index: 0, moves: Self::decorate_moves_with_score(moves, f) }
     }
 
-    fn decorate_moves_with_score<F>(moves: &MoveVec, f: F) -> ScoredMoveVec
+    fn decorate_moves_with_score<F>(moves: &[Move], f: F) -> ScoredMoveVec
     where
         F: Fn(Move) -> ValueScore,
     {
-        let mut scored_moves = ScoredMoveVec::new();
-        for mov in moves.iter() {
-            scored_moves.push((*mov, f(*mov)));
-        }
-        scored_moves
+        moves.iter().map(|mov| (*mov, f(*mov))).collect()
     }
 }
 
