@@ -1,9 +1,8 @@
-use smallvec::SmallVec;
-
 use crate::{
     evaluation::ValueScore,
     moves::{Move, MoveVec},
 };
+use smallvec::SmallVec;
 
 type ScoredMoveVec = SmallVec<[(Move, ValueScore); 64]>;
 

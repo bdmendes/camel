@@ -1,5 +1,3 @@
-use ahash::AHashMap;
-
 use super::{
     attacks::{
         leapers::{KING_ATTACKS, KNIGHT_ATTACKS},
@@ -17,6 +15,7 @@ use crate::position::{
     square::Square,
     Color, Position,
 };
+use ahash::AHashMap;
 
 pub struct MoveDirection;
 

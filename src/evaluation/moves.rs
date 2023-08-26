@@ -1,9 +1,8 @@
+use super::{piece_value, psqt::psqt_value, ValueScore};
 use crate::{
     moves::Move,
     position::{board::Piece, Position},
 };
-
-use super::{piece_value, psqt::psqt_value, ValueScore};
 
 pub fn static_exchange_evaluation(mut position: Position, mut mov: Move) -> ValueScore {
     let mut score = 0;

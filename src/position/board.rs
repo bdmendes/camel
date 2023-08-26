@@ -1,6 +1,5 @@
-use primitive_enum::primitive_enum;
-
 use super::{bitboard::Bitboard, fen::board_from_fen, Color, Square};
+use primitive_enum::primitive_enum;
 
 primitive_enum!(
     Piece u8;

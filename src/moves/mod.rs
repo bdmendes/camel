@@ -1,9 +1,7 @@
+use self::gen::MoveDirection;
+use crate::position::{board::Piece, square::Square, CastlingRights, Color, Position};
 use primitive_enum::primitive_enum;
 use smallvec::SmallVec;
-
-use crate::position::{board::Piece, square::Square, CastlingRights, Color, Position};
-
-use self::gen::MoveDirection;
 
 pub mod attacks;
 pub mod gen;

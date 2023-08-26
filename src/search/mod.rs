@@ -1,7 +1,6 @@
-use std::sync::{Arc, RwLock};
-
 use self::{constraint::SearchConstraint, table::SearchTable};
 use crate::{evaluation::Score, position::Position};
+use std::sync::{Arc, RwLock};
 
 pub mod constraint;
 mod movepick;

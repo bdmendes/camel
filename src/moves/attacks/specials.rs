@@ -225,7 +225,7 @@ mod tests {
         let position =
             Position::from_fen("4r3/3P3p/8/pp3pp1/PP1pP1PP/8/2p2P2/1B6 w - - 0 1").unwrap();
 
-        let expected_moves = vec![
+        let expected_moves = &[
             Move::new(Square::A4, Square::B5, MoveFlag::Capture),
             Move::new(Square::B4, Square::A5, MoveFlag::Capture),
             Move::new(Square::D7, Square::D8, MoveFlag::QueenPromotion),
@@ -260,7 +260,7 @@ mod tests {
         let position =
             Position::from_fen("4r3/3P3p/8/pp3pp1/PP1pP1PP/8/2p2P2/1B6 b - e3 0 1").unwrap();
 
-        let expected_moves = vec![
+        let expected_moves = &[
             Move::new(Square::H7, Square::H6, MoveFlag::Quiet),
             Move::new(Square::H7, Square::H5, MoveFlag::DoublePawnPush),
             Move::new(Square::G5, Square::H4, MoveFlag::Capture),
@@ -296,7 +296,7 @@ mod tests {
         let position =
             Position::from_fen("r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1").unwrap();
 
-        let expected_moves = vec![
+        let expected_moves = &[
             Move::new(Square::E1, Square::G1, MoveFlag::KingsideCastle),
             Move::new(Square::E1, Square::C1, MoveFlag::QueensideCastle),
         ];
@@ -316,7 +316,7 @@ mod tests {
         let position =
             Position::from_fen("r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R b KQkq - 0 1").unwrap();
 
-        let expected_moves = vec![
+        let expected_moves = &[
             Move::new(Square::E8, Square::G8, MoveFlag::KingsideCastle),
             Move::new(Square::E8, Square::C8, MoveFlag::QueensideCastle),
         ];
