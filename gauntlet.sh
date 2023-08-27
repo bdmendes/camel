@@ -10,7 +10,7 @@ readonly MESSAGE_FILE=message.txt
 readonly ROUNDS=400
 readonly TIME_CONTROL=10+0.1
 readonly THREADS=4
-readonly ELO_THRESHOLD=20
+readonly ELO_THRESHOLD=25
 readonly UPSTREAM=${1:-master} # Default to master if no argument is given
 
 if ! git diff --quiet; then
