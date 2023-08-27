@@ -77,10 +77,18 @@ pub fn evaluate_position(position: &Position) -> ValueScore {
             score += psqt_value(*piece, square, color, endgame_ratio) * color.sign();
 
             // Mobility bonus
-            if *piece != Piece::Pawn && *piece != Piece::King {
+            if *piece != Piece::Pawn {
                 let attacks =
                     piece_attacks(*piece, square, occupancy) & !position.board.occupancy_bb(color);
-                score += attacks.count_ones() as ValueScore * 3 * color.sign();
+                score += attacks.count_ones() as ValueScore
+                    * color.sign()
+                    * match *piece {
+                        Piece::Bishop => 4,
+                        Piece::Rook | Piece::Knight => 3,
+                        Piece::Queen => 2,
+                        Piece::King => -1,
+                        _ => unreachable!(),
+                    };
             }
         }
     }
