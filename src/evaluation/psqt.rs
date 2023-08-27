@@ -5,18 +5,17 @@ type PieceSquareTable = [ValueScore; 64];
 
 // Values adapted from https://www.chessprogramming.org/Simplified_Evaluation_Function
 // The board is reversed (white is at the bottom) to allow for easier tuning.
-// Values range from -50 to 50, meaning that a good piece placement is worth at most 50 centipawns.
 
 #[rustfmt::skip]
 const MIDGAME_KNIGHT_PSQT: PieceSquareTable = [
-    -50,-40,-30,-30,-30,-30,-40,-50,
+    -50,-30,-30,-30,-30,-30,-30,-50,
     -40,-20,  0,  5,  5,  0,-20,-40,
     -30,  5, 10, 15, 15, 10,  5,-30,
     -30, -5, 15, 20, 20, 15, -5,-30,
     -30,  5, 15, 20, 20, 15,  5,-30,
     -30,  0, 10, 15, 15, 10,  0,-30,
     -40,-20,  0,  0,  0,  0,-20,-40,
-    -50,-35,-30,-30,-30,-30,-35,-50,
+    -50,-30,-30,-30,-30,-30,-30,-50,
 ];
 
 #[rustfmt::skip]
@@ -64,14 +63,14 @@ const MIDGAME_KING_PSQT: PieceSquareTable = [
      20,-30,-30,-40,-40,-30,-30,-20,
     -10,-20,-20,-20,-20,-20,-20,-10,
       5,  5,-10,-10,-10,-10,  5, 10,
-     10, 20, 15,-10,-10, 10, 25, 10,
+     10, 20, 15,-10, -5,-10, 25, 10,
 ];
 
 #[rustfmt::skip]
 const MIDGAME_PAWN_PSQT: PieceSquareTable = [
      0,  0,  0,  0,  0,  0,  0,  0,
-    50, 50, 50, 50, 50, 50, 50, 50,
-    10, 10, 20, 30, 30, 20, 10, 10,
+    60, 60, 60, 60, 60, 60, 60, 60,
+    40, 40, 50, 50, 50, 50, 40, 40,
      5,  5, 10, 15, 15, 10,  5,  5,
      0,  0,  0, 20, 20,  0,  0,  0,
      5, -5,-10, 15, 15,-10, -5,  5,

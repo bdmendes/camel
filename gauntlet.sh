@@ -63,16 +63,22 @@ stdbuf -i0 -o0 -e0 ./${RUNNER} \
     -engine cmd=${ENGINE_NAME}-"$UPSTREAM" name=${ENGINE_NAME}-"$UPSTREAM" \
     -each tc=$TIME_CONTROL -rounds $ROUNDS -repeat -concurrency $THREADS | tee "$OUTPUT_FILE"
 
-# Print last evaluation result
+# Error if the elo difference line is not found
 result=$(grep +/- "$OUTPUT_FILE" | tail -1)
-result_array=("$result")
-elo_diff=${result_array[2]}
-elo_diff_rounded=$(echo "$elo_diff" | awk '{printf("%d\n",$1 + 0.5)}')
+if [ -z "$result" ]; then
+    echo "Could not find result line in output"
+    exit 1
+fi
+
+# Parse elo difference from output
+elo_diff=$(echo "$result" | grep -o -E '[+-]?[0-9]+([.][0-9]+)?' | head -1 | awk '{printf("%d\n",$1 + 0.5)}')
+
+# Print result
 failed=0
-if [ $((elo_diff_rounded)) -lt -$ELO_THRESHOLD ]; then
+if [ $((elo_diff)) -lt -$ELO_THRESHOLD ]; then
     echo -n "❌ " | tee $MESSAGE_FILE
     failed=1
-elif [ $((elo_diff_rounded)) -lt $ELO_THRESHOLD ]; then
+elif [ $((elo_diff)) -lt $ELO_THRESHOLD ]; then
     echo -n "🆗 " | tee $MESSAGE_FILE
 else
     echo -n "✅ " | tee $MESSAGE_FILE
@@ -80,6 +86,7 @@ fi
 echo -n "$result" | tee -a $MESSAGE_FILE
 echo ""
 
+# Exit with error code if the new version is worse
 if [ $failed == 1 ]; then
     exit 1
 fi

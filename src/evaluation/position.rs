@@ -1,5 +1,8 @@
 use super::{piece_value, psqt::psqt_value, ValueScore};
-use crate::position::{board::Piece, Color, Position};
+use crate::{
+    moves::gen::piece_attacks,
+    position::{board::Piece, Color, Position},
+};
 
 pub const MAX_POSITIONAL_GAIN: ValueScore = 200;
 
@@ -58,6 +61,7 @@ pub fn evaluate_position(position: &Position) -> ValueScore {
     let mut score = 0;
 
     let endgame_ratio = endgame_ratio(position);
+    let occupancy = position.board.occupancy_bb_all();
 
     score += evaluate_pawn_structure(position);
 
@@ -65,8 +69,27 @@ pub fn evaluate_position(position: &Position) -> ValueScore {
         let bb = position.board.pieces_bb(*piece);
         for square in bb {
             let color = position.board.color_at(square).unwrap();
+
+            // Material score
             score += piece_value(*piece) * color.sign();
+
+            // Positional score
             score += psqt_value(*piece, square, color, endgame_ratio) * color.sign();
+
+            // Mobility bonus
+            if *piece != Piece::Pawn {
+                let attacks =
+                    piece_attacks(*piece, square, occupancy) & !position.board.occupancy_bb(color);
+                score += attacks.count_ones() as ValueScore
+                    * color.sign()
+                    * match *piece {
+                        Piece::Bishop => 4,
+                        Piece::Rook | Piece::Knight => 3,
+                        Piece::Queen => 2,
+                        Piece::King => -1,
+                        _ => unreachable!(),
+                    };
+            }
         }
     }
 
