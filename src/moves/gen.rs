@@ -160,7 +160,7 @@ pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Positi
         moves.retain(|mov| match mov.flag() {
             MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => true,
             _ => {
-                let new_position = make_move(position, *mov);
+                let new_position = make_move::<false>(position, *mov);
                 !checked_by(&new_position.board, new_position.side_to_move)
             }
         });
@@ -208,7 +208,7 @@ fn perft_internal<
     let mut res = if ROOT { Vec::with_capacity(moves.len()) } else { Vec::new() };
 
     for mov in moves {
-        let new_position = make_move(position, mov);
+        let new_position = make_move::<true>(position, mov);
         let (count, _) =
             perft_internal::<false, BULK_AT_HORIZON, HASH, true>(&new_position, depth - 1, cache);
         nodes += count;
