@@ -47,7 +47,7 @@ cargo build --release || exit 1
 cp $BUILD_PATH "$INSTALL_PATH/${ENGINE_NAME}-$UPSTREAM" || exit 1
 
 # Switch back to current branch
-git switch "$CURRENT_BRANCH" || exit 1
+git switch -f "$CURRENT_BRANCH" || exit 1
 cd $INSTALL_PATH || exit 1
 
 if cmp -s "${ENGINE_NAME}-${CURRENT_BRANCH}" "${ENGINE_NAME}-$UPSTREAM"; then

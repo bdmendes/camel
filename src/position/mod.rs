@@ -68,7 +68,7 @@ impl Position {
     }
 
     pub fn make_move(&self, mov: Move) -> Self {
-        make_move(self, mov)
+        make_move::<true>(self, mov)
     }
 
     pub fn moves<const QUIESCE: bool>(&self) -> MoveVec {
