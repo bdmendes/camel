@@ -2,7 +2,7 @@
 
 readonly RUNNER=fast-chess
 readonly REPO_URL=https://github.com/Disservin/fast-chess.git
-readonly REPO_TAG=v0.6.0-alpha
+readonly REPO_TAG=v0.6.1-alpha
 readonly INSTALL_PATH=./$RUNNER
 readonly ENGINE_NAME=camel
 readonly BOOK_PATH=./books
