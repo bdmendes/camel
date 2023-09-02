@@ -2,7 +2,6 @@ use crate::position::{board::Piece, Color};
 
 pub mod moves;
 pub mod position;
-mod psqt;
 
 pub type ValueScore = i16;
 
