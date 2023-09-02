@@ -1,12 +1,11 @@
 use self::gen::MoveDirection;
 use crate::position::{board::Piece, square::Square, CastlingRights, Color, Position};
 use primitive_enum::primitive_enum;
-use smallvec::SmallVec;
 
 pub mod attacks;
 pub mod gen;
 
-pub type MoveVec = SmallVec<[Move; 64]>;
+pub type MoveVec = Vec<Move>;
 
 primitive_enum!(
     MoveFlag u8;

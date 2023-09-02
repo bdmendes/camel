@@ -139,7 +139,9 @@ pub fn generate_regular_moves<const QUIESCE: bool>(
 }
 
 pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Position) -> MoveVec {
-    let mut moves = MoveVec::new();
+    let mut moves = MoveVec::with_capacity(
+        position.board.occupancy_bb(position.side_to_move).count_ones() as usize * 8,
+    );
 
     for piece in Piece::list().iter().filter(|p| **p != Piece::Pawn) {
         generate_regular_moves::<QUIESCE>(

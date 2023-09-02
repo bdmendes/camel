@@ -2,9 +2,8 @@ use crate::{
     evaluation::ValueScore,
     moves::{Move, MoveVec},
 };
-use smallvec::SmallVec;
 
-type ScoredMoveVec = SmallVec<[(Move, ValueScore); 64]>;
+type ScoredMoveVec = Vec<(Move, ValueScore)>;
 
 pub struct MovePicker {
     index: usize,
@@ -23,7 +22,7 @@ impl MovePicker {
     where
         F: Fn(Move) -> ValueScore,
     {
-        let mut scored_moves = ScoredMoveVec::new();
+        let mut scored_moves = ScoredMoveVec::with_capacity(moves.len());
         for mov in moves.iter() {
             scored_moves.push((*mov, f(*mov)));
         }
