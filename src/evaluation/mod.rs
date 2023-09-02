@@ -18,6 +18,6 @@ pub fn piece_value(piece: Piece) -> ValueScore {
         Piece::Bishop => 330,
         Piece::Rook => 480,
         Piece::Queen => 900,
-        Piece::King => 0,
+        Piece::King => 20000,
     }
 }

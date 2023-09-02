@@ -17,10 +17,8 @@ use std::sync::{Arc, RwLock};
 
 const MIN_SCORE: ValueScore = ValueScore::MIN + 1;
 const MAX_SCORE: ValueScore = -MIN_SCORE;
-const MATE_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH + 1;
-
+const MATE_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH as ValueScore + 1;
 const NULL_MOVE_REDUCTION: Depth = 3;
-const CHECK_EXTENSION: Depth = 1;
 
 fn quiesce(
     position: &Position,
@@ -113,44 +111,48 @@ fn pvs_recurse(
 
 fn pvs<const ROOT: bool>(
     position: &Position,
-    depth: Depth,
+    mut depth: Depth,
     mut alpha: ValueScore,
     mut beta: ValueScore,
     table: Arc<RwLock<SearchTable>>,
     constraint: &mut SearchConstraint,
 ) -> (ValueScore, usize) {
-    if !ROOT {
-        // Detect history-related draws
-        if position.halfmove_clock >= 100 || constraint.is_threefold_repetition(position) {
-            return (0, 1);
-        }
+    // Time limit reached
+    if constraint.should_stop_search() {
+        return (alpha, 1);
+    }
 
-        // Get known score from transposition table
-        if !constraint.is_twofold_repetition(position) {
-            if let Some(tt_entry) = table.read().unwrap().get_table_score(position, depth) {
-                match tt_entry {
-                    TTScore::Exact(score) => return (score, 1),
-                    TTScore::LowerBound(score) => alpha = alpha.max(score),
-                    TTScore::UpperBound(score) => beta = beta.min(score),
-                }
+    // Detect history-related draws
+    if position.halfmove_clock >= 100 || constraint.is_threefold_repetition(position) {
+        return (0, 1);
+    }
+
+    // Get known score from transposition table
+    if !constraint.is_twofold_repetition(position) {
+        if let Some(tt_entry) = table.read().unwrap().get_table_score(position, depth) {
+            match tt_entry {
+                TTScore::Exact(score) if score.abs() < MATE_SCORE.abs() => return (score, 1),
+                TTScore::LowerBound(score) => alpha = alpha.max(score),
+                TTScore::UpperBound(score) => beta = beta.min(score),
+                _ => (),
             }
-        }
-
-        // Time limit reached
-        if constraint.should_stop_search() {
-            return (alpha, 1);
-        }
-
-        // Beta cutoff: position is too good
-        if alpha >= beta {
-            return (alpha, 1);
         }
     }
 
-    // Max depth reached; search for quiet position
+    // Beta cutoff: position is too good
+    if alpha >= beta {
+        return (alpha, 1);
+    }
+
     let is_check = position.is_check();
-    if depth <= 0 && !is_check {
-        return quiesce(position, alpha, beta, constraint);
+
+    // Max depth reached; search for quiet position
+    if depth == 0 {
+        if is_check {
+            depth += 1;
+        } else {
+            return quiesce(position, alpha, beta, constraint);
+        }
     }
 
     let mut count = 1;
@@ -184,7 +186,7 @@ fn pvs<const ROOT: bool>(
 
     // Detect checkmate and stalemate
     if moves.is_empty() {
-        let score = if is_check { MATE_SCORE - depth } else { 0 };
+        let score = if is_check { MATE_SCORE - depth as ValueScore } else { 0 };
         return (score, count);
     }
 
@@ -208,15 +210,8 @@ fn pvs<const ROOT: bool>(
         let new_position = position.make_move(mov);
 
         constraint.visit_position(&new_position);
-        let (score, nodes) = pvs_recurse(
-            &new_position,
-            if is_check { depth + CHECK_EXTENSION } else { depth },
-            alpha,
-            beta,
-            table.clone(),
-            constraint,
-            i > 0,
-        );
+        let (score, nodes) =
+            pvs_recurse(&new_position, depth, alpha, beta, table.clone(), constraint, i > 0);
         constraint.leave_position(&new_position);
 
         count += nodes;
@@ -265,12 +260,11 @@ pub fn search(
         pvs::<true>(position, depth, MIN_SCORE, MAX_SCORE, table.clone(), constraint);
 
     if score.abs() >= MATE_SCORE.abs() {
-        let pv = table.read().unwrap().get_pv(position, depth);
-        let plys_to_mate = pv.len() as u8;
+        let plys_to_mate = (depth as ValueScore - (score.abs() - MATE_SCORE.abs())) as u8;
         (
             Score::Mate(
                 if score > 0 { position.side_to_move } else { position.side_to_move.opposite() },
-                (plys_to_mate + 1) / 2,
+                if score > 0 { (plys_to_mate + 1) / 2 } else { plys_to_mate / 2 },
             ),
             count,
         )
@@ -299,11 +293,8 @@ mod tests {
 
         assert!(pv.len() >= expected_moves.len());
 
-        for (mov, i) in pv.iter().map(|m| m.to_string()).enumerate() {
-            if mov >= expected_moves.len() {
-                break;
-            }
-            assert_eq!(i, expected_moves[mov]);
+        for (i, mov) in expected_moves.iter().enumerate() {
+            assert_eq!(pv[i].to_string(), *mov);
         }
 
         if let Some(expected_score) = expected_score {
@@ -325,7 +316,7 @@ mod tests {
     fn mate_them_1() {
         expect_search(
             "rnb1r1k1/pR3Qpp/2p5/4N3/3P3P/2q5/P2p1PP1/5K1R b - - 0 19",
-            2,
+            3,
             vec!["g8h8", "f7e8"],
             Some(Score::Mate(Color::White, 1)),
         );
@@ -355,7 +346,7 @@ mod tests {
     fn mate_us_5() {
         expect_search(
             "4R3/1R2b1p1/2B2k2/N4p2/1P6/P1K3P1/5P2/8 w - - 2 41",
-            9,
+            10,
             vec!["e8e7"],
             Some(Score::Mate(Color::White, 5)),
         )

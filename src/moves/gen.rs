@@ -35,8 +35,11 @@ impl MoveDirection {
 
 pub fn checked_by(board: &Board, color: Color) -> bool {
     let checked_king = board.pieces_bb(Piece::King) & board.occupancy_bb(color.opposite());
-    let checked_king_square = checked_king.into_iter().next().unwrap();
-    square_attacked_by(board, checked_king_square, color)
+    if let Some(checked_king_square) = checked_king.into_iter().next() {
+        square_attacked_by(board, checked_king_square, color)
+    } else {
+        false
+    }
 }
 
 pub fn square_attacked_by(board: &Board, square: Square, color: Color) -> bool {
