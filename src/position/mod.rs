@@ -1,6 +1,6 @@
 use crate::moves::{
     gen::{checked_by, generate_moves},
-    make_move, Move, MoveVec,
+    make_move, Move,
 };
 use bitflags::bitflags;
 use primitive_enum::primitive_enum;
@@ -71,7 +71,7 @@ impl Position {
         make_move::<true>(self, mov)
     }
 
-    pub fn moves<const QUIESCE: bool>(&self) -> MoveVec {
+    pub fn moves<const QUIESCE: bool>(&self) -> Vec<Move> {
         generate_moves::<QUIESCE, false>(self)
     }
 
