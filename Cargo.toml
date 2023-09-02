@@ -19,10 +19,7 @@ opt-level = 1
 opt-level = 3
 lto = true
 codegen-units = 1
-debug = true
-
-[profile.bench]
-debug = true
+panic = "abort"
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports"] }
