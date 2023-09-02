@@ -65,6 +65,11 @@ impl Iterator for Bitboard {
         self.0 &= self.0 - 1;
         Some(Square::from(lsb as u8).unwrap())
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let count = self.0.count_ones() as usize;
+        (count, Some(count))
+    }
 }
 
 impl Display for Bitboard {
