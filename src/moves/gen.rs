@@ -7,7 +7,7 @@ use super::{
         specials::generate_king_castles,
         specials::{generate_pawn_moves, pawn_attacks},
     },
-    make_move, Move, MoveFlag, MoveVec,
+    make_move, Move, MoveFlag,
 };
 use crate::position::{
     bitboard::Bitboard,
@@ -108,7 +108,7 @@ pub fn generate_regular_moves<const QUIESCE: bool>(
     board: &Board,
     piece: Piece,
     color: Color,
-    moves: &mut MoveVec,
+    moves: &mut Vec<Move>,
 ) {
     let occupancy_us = board.occupancy_bb(color);
     let pieces = board.pieces_bb(piece) & occupancy_us;
@@ -138,8 +138,10 @@ pub fn generate_regular_moves<const QUIESCE: bool>(
     }
 }
 
-pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Position) -> MoveVec {
-    let mut moves = MoveVec::new();
+pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Position) -> Vec<Move> {
+    let mut moves = Vec::with_capacity(
+        position.board.occupancy_bb(position.side_to_move).count_ones() as usize * 4,
+    );
 
     for piece in Piece::list().iter().filter(|p| **p != Piece::Pawn) {
         generate_regular_moves::<QUIESCE>(
