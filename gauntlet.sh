@@ -2,14 +2,17 @@
 
 readonly RUNNER=fast-chess
 readonly REPO_URL=https://github.com/Disservin/fast-chess.git
-readonly REPO_TAG=v0.4
+readonly REPO_TAG=v0.6.2-alpha
 readonly INSTALL_PATH=./$RUNNER
 readonly ENGINE_NAME=camel
+readonly BOOK_PATH=./books
+readonly BOOK_NAME=popularpos_lichess_v3.epd
+readonly BOOK_FORMAT=epd
+readonly THREADS=4
 readonly BUILD_PATH=./target/release/$ENGINE_NAME
 readonly MESSAGE_FILE=message.txt
 readonly ROUNDS=400
 readonly TIME_CONTROL=10+0.1
-readonly THREADS=4
 readonly ELO_THRESHOLD=20
 readonly UPSTREAM=${1:-master} # Default to master if no argument is given
 
@@ -37,6 +40,12 @@ if ! command -v $INSTALL_PATH/$RUNNER &>/dev/null; then
     make -C $INSTALL_PATH || exit 1
 fi
 
+# Copy opening book if not found
+if [ ! -f $INSTALL_PATH/${BOOK_NAME} ]; then
+    echo "Opening book not found, copying"
+    cp "${BOOK_PATH}/${BOOK_NAME}" "${INSTALL_PATH}/${BOOK_NAME}" || exit 1
+fi
+
 echo "Compiling current version ($CURRENT_BRANCH)"
 cargo build --release || exit 1
 cp $BUILD_PATH "$INSTALL_PATH/${ENGINE_NAME}-${CURRENT_BRANCH}" || exit 1
@@ -46,22 +55,17 @@ git switch -d "$UPSTREAM" || exit 1
 cargo build --release || exit 1
 cp $BUILD_PATH "$INSTALL_PATH/${ENGINE_NAME}-$UPSTREAM" || exit 1
 
-# Switch back to current branch
 git switch -f "$CURRENT_BRANCH" || exit 1
-cd $INSTALL_PATH || exit 1
 
-if cmp -s "${ENGINE_NAME}-${CURRENT_BRANCH}" "${ENGINE_NAME}-$UPSTREAM"; then
-    echo -n "🆗 Engine executables do not differ: gauntlet skipped" | tee $MESSAGE_FILE
-    echo ""
-    exit
-fi
+cd $INSTALL_PATH || exit 1
 
 # Run the gauntlet and store output in temp file
 OUTPUT_FILE=$(mktemp)
 stdbuf -i0 -o0 -e0 ./${RUNNER} \
     -engine cmd=${ENGINE_NAME}-"${CURRENT_BRANCH}" name=${ENGINE_NAME}-"${CURRENT_BRANCH}" \
     -engine cmd=${ENGINE_NAME}-"$UPSTREAM" name=${ENGINE_NAME}-"$UPSTREAM" \
-    -each tc=$TIME_CONTROL -rounds $ROUNDS -repeat -concurrency $THREADS | tee "$OUTPUT_FILE"
+    -each tc=${TIME_CONTROL} -rounds ${ROUNDS} -repeat -concurrency ${THREADS} -openings \
+    file=${BOOK_NAME} format=${BOOK_FORMAT} order=random -draw movecount=8 score=8 movenumber=30 | tee "$OUTPUT_FILE"
 
 # Error if the elo difference line is not found
 result=$(grep +/- "$OUTPUT_FILE" | tail -1)
