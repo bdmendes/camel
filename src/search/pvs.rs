@@ -247,7 +247,7 @@ fn pvs<const ROOT: bool>(
             best_move,
         };
 
-        table.write().unwrap().insert_entry::<ROOT>(position, entry);
+        table.write().unwrap().insert_entry(position, entry);
     }
 
     (alpha, count)

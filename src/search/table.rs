@@ -5,6 +5,8 @@ pub const MAX_TABLE_SIZE_MB: usize = 2048;
 pub const MIN_TABLE_SIZE_MB: usize = 1;
 pub const DEFAULT_TABLE_SIZE_MB: usize = 64;
 
+const BUCKET_SIZE: usize = 4;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TTScore {
     Exact(ValueScore),
@@ -50,19 +52,34 @@ impl TranspositionTable {
         self.data.iter().filter(|entry| entry.is_some()).count() * 1000 / self.size
     }
 
-    pub fn get<const ALLOW_COLLISION: bool>(
-        &self,
-        position: &Position,
-    ) -> Option<&TranspositionEntry> {
+    pub fn get(&self, position: &Position) -> Option<&TranspositionEntry> {
         let hash = position.zobrist_hash();
-        let index = hash as usize % self.size;
-        self.data[index].as_ref().filter(|entry| ALLOW_COLLISION || entry.hash == hash)
+        let index = BUCKET_SIZE * (hash as usize % (self.size / BUCKET_SIZE));
+        for i in 0..BUCKET_SIZE {
+            let entry = &self.data[index + i];
+            if let Some(entry) = entry {
+                if entry.hash == hash {
+                    return Some(entry);
+                }
+            }
+        }
+        None
     }
 
     pub fn insert(&mut self, position: &Position, entry: TableEntry) {
         let hash = position.zobrist_hash();
-        let index = hash as usize % self.size;
-        self.data[index] = Some(TranspositionEntry { entry, hash });
+        let index = BUCKET_SIZE * (hash as usize % (self.size / BUCKET_SIZE));
+        for i in 0..BUCKET_SIZE {
+            let old_entry = &mut self.data[index + i];
+            if let Some(old_entry) = old_entry {
+                if old_entry.entry.depth > entry.depth {
+                    continue;
+                }
+            }
+            self.data[index + i] =
+                Some(TranspositionEntry { entry, hash: position.zobrist_hash() });
+            return;
+        }
     }
 }
 
@@ -84,11 +101,11 @@ impl SearchTable {
     }
 
     pub fn get_hash_move(&self, position: &Position) -> Option<Move> {
-        self.transposition.get::<false>(position).map(|entry| entry.entry.best_move)
+        self.transposition.get(position).map(|entry| entry.entry.best_move)
     }
 
     pub fn get_table_score(&self, position: &Position, depth: Depth) -> Option<TTScore> {
-        self.transposition.get::<false>(position).and_then(|entry| {
+        self.transposition.get(position).and_then(|entry| {
             if entry.entry.depth >= depth {
                 Some(entry.entry.score)
             } else {
@@ -97,18 +114,7 @@ impl SearchTable {
         })
     }
 
-    pub fn insert_entry<const FORCE: bool>(&mut self, position: &Position, entry: TableEntry) {
-        if !FORCE {
-            if let Some(old_entry) = self.transposition.get::<true>(position) {
-                if old_entry.entry.depth > entry.depth
-                    || (old_entry.entry.depth == entry.depth
-                        && !matches!(entry.score, TTScore::Exact(_)))
-                {
-                    return;
-                }
-            }
-        }
-
+    pub fn insert_entry(&mut self, position: &Position, entry: TableEntry) {
         self.transposition.insert(position, entry);
     }
 
