@@ -1,6 +1,5 @@
 use super::{Depth, MAX_DEPTH};
 use crate::{evaluation::ValueScore, moves::Move, position::Position};
-use ahash::RandomState;
 
 pub const MAX_TABLE_SIZE_MB: usize = 2048;
 pub const MIN_TABLE_SIZE_MB: usize = 1;
@@ -27,17 +26,12 @@ struct TranspositionEntry {
 struct TranspositionTable {
     data: Vec<Option<TranspositionEntry>>,
     size: usize,
-    hasher: RandomState,
 }
 
 impl TranspositionTable {
     pub fn new(size_mb: usize) -> Self {
         let data_len = Self::calculate_data_len(size_mb);
-        Self {
-            data: (0..data_len).map(|_| None).collect(),
-            size: data_len,
-            hasher: RandomState::new(),
-        }
+        Self { data: (0..data_len).map(|_| None).collect(), size: data_len }
     }
 
     fn calculate_data_len(size_mb: usize) -> usize {
@@ -60,13 +54,13 @@ impl TranspositionTable {
         &self,
         position: &Position,
     ) -> Option<&TranspositionEntry> {
-        let hash = self.hasher.hash_one(*position);
+        let hash = position.zobrist_hash();
         let index = hash as usize % self.size;
         self.data[index].as_ref().filter(|entry| ALLOW_COLLISION || entry.hash == hash)
     }
 
     pub fn insert(&mut self, position: &Position, entry: TableEntry) {
-        let hash = self.hasher.hash_one(*position);
+        let hash = position.zobrist_hash();
         let index = hash as usize % self.size;
         self.data[index] = Some(TranspositionEntry { entry, hash });
     }

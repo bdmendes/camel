@@ -1,3 +1,9 @@
+use self::{
+    board::Board,
+    fen::{position_from_fen, position_to_fen},
+    square::Square,
+    zobrist::{ZobristHash, ZOBRIST_NUMBERS},
+};
 use crate::moves::{
     gen::{checked_by, generate_moves},
     make_move, Move,
@@ -5,16 +11,11 @@ use crate::moves::{
 use bitflags::bitflags;
 use primitive_enum::primitive_enum;
 
-use self::{
-    board::Board,
-    fen::{position_from_fen, position_to_fen},
-    square::Square,
-};
-
 pub mod bitboard;
 pub mod board;
 pub mod fen;
 pub mod square;
+pub mod zobrist;
 
 primitive_enum!(
     Color u8;
@@ -59,6 +60,13 @@ pub struct Position {
 }
 
 impl Position {
+    pub fn zobrist_hash(&self) -> ZobristHash {
+        self.board.zobrist_hash()
+            ^ ZOBRIST_NUMBERS[12 * 64 + self.side_to_move as usize]
+            ^ ZOBRIST_NUMBERS[12 * 64 + 2 + self.en_passant_square.unwrap_or(Square::A1) as usize]
+            ^ ZOBRIST_NUMBERS[12 * 64 + 2 + 64 + self.castling_rights.bits() as usize]
+    }
+
     pub fn from_fen(fen: &str) -> Option<Position> {
         position_from_fen(fen)
     }
@@ -88,19 +96,13 @@ impl Position {
 
 impl std::hash::Hash for Position {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.board.hash(state);
-        self.side_to_move.hash(state);
-        self.en_passant_square.hash(state);
-        self.castling_rights.hash(state);
+        self.zobrist_hash().hash(state);
     }
 }
 
 impl PartialEq for Position {
     fn eq(&self, other: &Self) -> bool {
-        self.board == other.board
-            && self.side_to_move == other.side_to_move
-            && self.en_passant_square == other.en_passant_square
-            && self.castling_rights == other.castling_rights
+        self.zobrist_hash() == other.zobrist_hash()
     }
 }
 

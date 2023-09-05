@@ -1,4 +1,9 @@
-use super::{bitboard::Bitboard, fen::board_from_fen, Color, Square};
+use super::{
+    bitboard::Bitboard,
+    fen::board_from_fen,
+    zobrist::{ZobristHash, ZOBRIST_NUMBERS},
+    Color, Square,
+};
 use primitive_enum::primitive_enum;
 
 primitive_enum!(
@@ -15,15 +20,20 @@ primitive_enum!(
 pub struct Board {
     pieces: [Bitboard; 6],
     occupancy: [Bitboard; 2],
+    hash: ZobristHash,
 }
 
 impl Board {
-    pub fn new(pieces: [Bitboard; 6], occupancy: [Bitboard; 2]) -> Self {
-        Board { pieces, occupancy }
+    pub fn new() -> Self {
+        Board { pieces: Default::default(), occupancy: Default::default(), hash: 0 }
     }
 
     pub fn from_fen(board_fen: &str) -> Option<Board> {
         board_from_fen(board_fen)
+    }
+
+    pub fn zobrist_hash(&self) -> ZobristHash {
+        self.hash
     }
 
     pub fn set_square<const CLEAR: bool>(&mut self, square: Square, piece: Piece, color: Color) {
@@ -32,11 +42,19 @@ impl Board {
         }
         self.pieces[piece as usize].set(square);
         self.occupancy[color as usize].set(square);
+
+        self.hash ^=
+            ZOBRIST_NUMBERS[(piece as usize * 64 + square as usize) + color as usize * 6 * 64];
     }
 
     pub fn clear_square(&mut self, square: Square) {
-        self.pieces.iter_mut().for_each(|piece| piece.clear(square));
-        self.occupancy.iter_mut().for_each(|occupancy| occupancy.clear(square));
+        if let Some((piece, color)) = self.piece_color_at(square) {
+            self.pieces[piece as usize].clear(square);
+            self.occupancy[color as usize].clear(square);
+
+            self.hash ^=
+                ZOBRIST_NUMBERS[(piece as usize * 64 + square as usize) + color as usize * 6 * 64];
+        }
     }
 
     pub fn piece_color_at(&self, square: Square) -> Option<(Piece, Color)> {
