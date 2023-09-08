@@ -1,10 +1,18 @@
-use super::{
-    bitboard::Bitboard,
-    fen::board_from_fen,
-    zobrist::{ZobristHash, ZOBRIST_NUMBERS},
-    Color, Square,
-};
+use super::{bitboard::Bitboard, fen::board_from_fen, Color, Square};
+use once_cell::sync::Lazy;
 use primitive_enum::primitive_enum;
+use rand::Rng;
+
+pub type ZobristHash = u64;
+
+const ZOBRIST_NUMBERS_SIZE: usize = 2 * 6 * 64; // 2 colors, 6 pieces, 64 squares
+
+static ZOBRIST_NUMBERS: Lazy<[ZobristHash; ZOBRIST_NUMBERS_SIZE]> = Lazy::new(|| {
+    let mut rng = rand::thread_rng();
+    let mut numbers = [0; ZOBRIST_NUMBERS_SIZE];
+    numbers.iter_mut().take(ZOBRIST_NUMBERS_SIZE).for_each(|n| *n = rng.gen());
+    numbers
+});
 
 primitive_enum!(
     Piece u8;
@@ -36,24 +44,25 @@ impl Board {
         self.hash
     }
 
+    fn xor_hash(&mut self, square: Square, piece: Piece, color: Color) {
+        let index = color as usize * 6 * 64 + piece as usize * 64 + square as usize;
+        self.hash ^= ZOBRIST_NUMBERS[index];
+    }
+
     pub fn set_square<const CLEAR: bool>(&mut self, square: Square, piece: Piece, color: Color) {
         if CLEAR {
             self.clear_square(square);
         }
         self.pieces[piece as usize].set(square);
         self.occupancy[color as usize].set(square);
-
-        self.hash ^=
-            ZOBRIST_NUMBERS[(piece as usize * 64 + square as usize) + color as usize * 6 * 64];
+        self.xor_hash(square, piece, color);
     }
 
     pub fn clear_square(&mut self, square: Square) {
         if let Some((piece, color)) = self.piece_color_at(square) {
             self.pieces[piece as usize].clear(square);
             self.occupancy[color as usize].clear(square);
-
-            self.hash ^=
-                ZOBRIST_NUMBERS[(piece as usize * 64 + square as usize) + color as usize * 6 * 64];
+            self.xor_hash(square, piece, color);
         }
     }
 
