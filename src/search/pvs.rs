@@ -119,11 +119,6 @@ fn pvs<const ROOT: bool>(
     table: Arc<RwLock<SearchTable>>,
     constraint: &mut SearchConstraint,
 ) -> (ValueScore, usize) {
-    // Time limit reached
-    if constraint.should_stop_search() {
-        return (alpha, 1);
-    }
-
     let twofold_repetition = constraint.is_repetition::<2>(position);
     let threefold_repetition = twofold_repetition && constraint.is_repetition::<3>(position);
 
@@ -146,6 +141,11 @@ fn pvs<const ROOT: bool>(
 
         // Beta cutoff: position is too good
         if alpha >= beta {
+            return (alpha, 1);
+        }
+
+        // Time limit reached
+        if constraint.should_stop_search() {
             return (alpha, 1);
         }
     }
@@ -250,7 +250,7 @@ fn pvs<const ROOT: bool>(
             best_move,
         };
 
-        table.write().unwrap().insert_entry(position, entry);
+        table.write().unwrap().insert_entry::<ROOT>(position, entry);
     }
 
     (alpha, count)

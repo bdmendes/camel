@@ -5,8 +5,6 @@ pub const MAX_TABLE_SIZE_MB: usize = 2048;
 pub const MIN_TABLE_SIZE_MB: usize = 1;
 pub const DEFAULT_TABLE_SIZE_MB: usize = 64;
 
-const BUCKET_SIZE: usize = 4;
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TTScore {
     Exact(ValueScore),
@@ -14,12 +12,14 @@ pub enum TTScore {
     UpperBound(ValueScore), // when search fails low (no improvement to alpha)
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TableEntry {
     pub depth: Depth,
     pub score: TTScore,
     pub best_move: Move,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 struct TranspositionEntry {
     entry: TableEntry,
     hash: u64,
@@ -52,34 +52,25 @@ impl TranspositionTable {
         self.data.iter().filter(|entry| entry.is_some()).count() * 1000 / self.size
     }
 
-    pub fn get(&self, position: &Position) -> Option<&TranspositionEntry> {
+    pub fn get(&self, position: &Position) -> Option<TranspositionEntry> {
         let hash = position.zobrist_hash();
-        let index = BUCKET_SIZE * (hash as usize % (self.size / BUCKET_SIZE));
-        for i in 0..BUCKET_SIZE {
-            let entry = &self.data[index + i];
-            if let Some(entry) = entry {
-                if entry.hash == hash {
-                    return Some(entry);
-                }
-            }
-        }
-        None
+        let entry = self.data[hash as usize % self.size];
+        entry.filter(|entry| entry.hash == hash)
     }
 
-    pub fn insert(&mut self, position: &Position, entry: TableEntry) {
+    pub fn insert<const FORCE: bool>(&mut self, position: &Position, entry: TableEntry) {
         let hash = position.zobrist_hash();
-        let index = BUCKET_SIZE * (hash as usize % (self.size / BUCKET_SIZE));
-        for i in 0..BUCKET_SIZE {
-            let old_entry = &mut self.data[index + i];
-            if let Some(old_entry) = old_entry {
-                if old_entry.entry.depth > entry.depth {
-                    continue;
+        let index = hash as usize % self.size;
+
+        if !FORCE {
+            if let Some(old_entry) = self.data[index] {
+                if entry.depth < old_entry.entry.depth {
+                    return;
                 }
             }
-            self.data[index + i] =
-                Some(TranspositionEntry { entry, hash: position.zobrist_hash() });
-            return;
         }
+
+        self.data[index] = Some(TranspositionEntry { entry, hash });
     }
 }
 
@@ -114,8 +105,8 @@ impl SearchTable {
         })
     }
 
-    pub fn insert_entry(&mut self, position: &Position, entry: TableEntry) {
-        self.transposition.insert(position, entry);
+    pub fn insert_entry<const FORCE: bool>(&mut self, position: &Position, entry: TableEntry) {
+        self.transposition.insert::<FORCE>(position, entry);
     }
 
     pub fn put_killer_move(&mut self, depth: Depth, mov: Move) {

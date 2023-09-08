@@ -97,9 +97,3 @@ impl Position {
         position
     }
 }
-
-impl std::hash::Hash for Position {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.zobrist_hash().hash(state);
-    }
-}

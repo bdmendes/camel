@@ -1,10 +1,9 @@
+use super::MAX_DEPTH;
 use crate::position::{board::ZobristHash, Position};
 use std::{
     sync::{atomic::AtomicBool, Arc},
     time::{Duration, Instant},
 };
-
-use super::MAX_DEPTH;
 
 #[derive(Debug, Copy, Clone)]
 pub struct HistoryEntry {
