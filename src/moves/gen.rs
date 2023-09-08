@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::{
     attacks::{
         leapers::{KING_ATTACKS, KNIGHT_ATTACKS},
@@ -11,11 +13,10 @@ use super::{
 };
 use crate::position::{
     bitboard::Bitboard,
-    board::{Board, Piece},
+    board::{Board, Piece, ZobristHash},
     square::Square,
     Color, Position,
 };
-use ahash::AHashMap;
 
 pub struct MoveDirection;
 
@@ -177,7 +178,7 @@ pub fn perft<const BULK_AT_HORIZON: bool, const HASH: bool, const SILENT: bool>(
     position: &Position,
     depth: u8,
 ) -> PerftResult {
-    perft_internal::<true, BULK_AT_HORIZON, HASH, SILENT>(position, depth, &mut AHashMap::new())
+    perft_internal::<true, BULK_AT_HORIZON, HASH, SILENT>(position, depth, &mut HashMap::new())
 }
 
 fn perft_internal<
@@ -188,14 +189,14 @@ fn perft_internal<
 >(
     position: &Position,
     depth: u8,
-    cache: &mut AHashMap<(Position, u8), PerftResult>,
+    cache: &mut HashMap<(ZobristHash, u8), PerftResult>,
 ) -> PerftResult {
     if depth == 0 {
         return (1, vec![]);
     }
 
     if HASH {
-        if let Some(res) = cache.get(&(*position, depth)) {
+        if let Some(res) = cache.get(&(position.zobrist_hash(), depth)) {
             return res.clone();
         }
     }
@@ -225,7 +226,7 @@ fn perft_internal<
     }
 
     if HASH {
-        cache.insert((*position, depth), (nodes, res.clone()));
+        cache.insert((position.zobrist_hash(), depth), (nodes, res.clone()));
     }
 
     (nodes, res)

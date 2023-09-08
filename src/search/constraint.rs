@@ -1,12 +1,19 @@
-use crate::position::Position;
-use ahash::AHashMap;
+use crate::position::{board::ZobristHash, Position};
 use std::{
     sync::{atomic::AtomicBool, Arc},
     time::{Duration, Instant},
 };
 
+use super::MAX_DEPTH;
+
+#[derive(Debug, Copy, Clone)]
+pub struct HistoryEntry {
+    pub hash: ZobristHash,
+    pub reversible: bool,
+}
+
 pub struct SearchConstraint {
-    pub branch_history: AHashMap<Position, u8>,
+    pub branch_history: Vec<HistoryEntry>,
     pub initial_instant: Option<Instant>,
     pub move_time: Option<Duration>,
     pub stop_now: Option<Arc<AtomicBool>>,
@@ -15,7 +22,7 @@ pub struct SearchConstraint {
 impl Default for SearchConstraint {
     fn default() -> Self {
         Self {
-            branch_history: AHashMap::new(),
+            branch_history: Vec::with_capacity(MAX_DEPTH as usize),
             initial_instant: None,
             move_time: None,
             stop_now: None,
@@ -47,33 +54,28 @@ impl SearchConstraint {
         }
     }
 
-    pub fn visit_position(&mut self, position: &Position) {
-        self.branch_history.entry(*position).and_modify(|entry| *entry += 1).or_insert(1);
+    pub fn visit_position(&mut self, position: &Position, reversible: bool) {
+        self.branch_history.push(HistoryEntry { hash: position.zobrist_hash(), reversible });
     }
 
-    pub fn leave_position(&mut self, position: &Position) {
-        let entry = self.branch_history.get_mut(position).unwrap();
-
-        if *entry == 1 {
-            self.branch_history.remove(position);
-        } else {
-            *entry -= 1;
-        }
+    pub fn leave_position(&mut self) {
+        self.branch_history.pop();
     }
 
-    pub fn is_threefold_repetition(&self, position: &Position) -> bool {
-        if let Some(entry) = self.branch_history.get(position) {
-            *entry >= 3
-        } else {
-            false
+    pub fn is_repetition<const TIMES: u8>(&self, position: &Position) -> bool {
+        let mut count = 0;
+        let hash = position.zobrist_hash();
+        for entry in self.branch_history.iter().rev() {
+            if entry.hash == hash {
+                count += 1;
+            }
+            if count >= TIMES {
+                return true;
+            }
+            if !entry.reversible {
+                break;
+            }
         }
-    }
-
-    pub fn is_twofold_repetition(&self, position: &Position) -> bool {
-        if let Some(entry) = self.branch_history.get(position) {
-            *entry >= 2
-        } else {
-            false
-        }
+        false
     }
 }

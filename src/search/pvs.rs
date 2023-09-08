@@ -119,14 +119,22 @@ fn pvs<const ROOT: bool>(
     table: Arc<RwLock<SearchTable>>,
     constraint: &mut SearchConstraint,
 ) -> (ValueScore, usize) {
+    // Time limit reached
+    if constraint.should_stop_search() {
+        return (alpha, 1);
+    }
+
+    let twofold_repetition = constraint.is_repetition::<2>(position);
+    let threefold_repetition = twofold_repetition && constraint.is_repetition::<3>(position);
+
     if !ROOT {
         // Detect history-related draws
-        if position.halfmove_clock >= 100 || constraint.is_threefold_repetition(position) {
+        if position.halfmove_clock >= 100 || threefold_repetition {
             return (0, 1);
         }
 
         // Get known score from transposition table
-        if !constraint.is_twofold_repetition(position) {
+        if !twofold_repetition {
             if let Some(tt_entry) = table.read().unwrap().get_table_score(position, depth) {
                 match tt_entry {
                     TTScore::Exact(score) => return (score, 1),
@@ -134,11 +142,6 @@ fn pvs<const ROOT: bool>(
                     TTScore::UpperBound(score) => beta = beta.min(score),
                 }
             }
-        }
-
-        // Time limit reached
-        if constraint.should_stop_search() {
-            return (alpha, 1);
         }
 
         // Beta cutoff: position is too good
@@ -161,7 +164,7 @@ fn pvs<const ROOT: bool>(
         && depth > NULL_MOVE_REDUCTION
         && position.board.piece_count(Color::White) > 0
         && position.board.piece_count(Color::Black) > 0
-        && !constraint.is_twofold_repetition(position)
+        && !twofold_repetition
     {
         let (score, nodes) = pvs::<false>(
             &position.make_null_move(),
@@ -207,7 +210,7 @@ fn pvs<const ROOT: bool>(
     for (mov, _, i) in picker {
         let new_position = position.make_move(mov);
 
-        constraint.visit_position(&new_position);
+        constraint.visit_position(&new_position, mov.flag().is_reversible());
         let (score, nodes) = pvs_recurse(
             &new_position,
             if is_check { depth + CHECK_EXTENSION } else { depth },
@@ -217,7 +220,7 @@ fn pvs<const ROOT: bool>(
             constraint,
             i > 0,
         );
-        constraint.leave_position(&new_position);
+        constraint.leave_position();
 
         count += nodes;
 

@@ -103,11 +103,3 @@ impl std::hash::Hash for Position {
         self.zobrist_hash().hash(state);
     }
 }
-
-impl PartialEq for Position {
-    fn eq(&self, other: &Self) -> bool {
-        self.zobrist_hash() == other.zobrist_hash()
-    }
-}
-
-impl Eq for Position {}
