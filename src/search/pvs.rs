@@ -1,7 +1,7 @@
 use super::{
     constraint::SearchConstraint,
     movepick::MovePicker,
-    table::{SearchTable, TTScore, TableEntry},
+    table::{SearchTable, TableEntry, TableScore},
     Depth, MAX_DEPTH,
 };
 use crate::{
@@ -119,6 +119,10 @@ fn pvs<const ROOT: bool>(
     table: Arc<RwLock<SearchTable>>,
     constraint: &mut SearchConstraint,
 ) -> (ValueScore, usize) {
+    if ROOT {
+        table.write().unwrap().prepare_for_new_search(position.fullmove_number);
+    }
+
     let twofold_repetition = constraint.is_repetition::<2>(position);
     let threefold_repetition = twofold_repetition && constraint.is_repetition::<3>(position);
 
@@ -132,9 +136,9 @@ fn pvs<const ROOT: bool>(
         if !twofold_repetition {
             if let Some(tt_entry) = table.read().unwrap().get_table_score(position, depth) {
                 match tt_entry {
-                    TTScore::Exact(score) => return (score, 1),
-                    TTScore::LowerBound(score) => alpha = alpha.max(score),
-                    TTScore::UpperBound(score) => beta = beta.min(score),
+                    TableScore::Exact(score) => return (score, 1),
+                    TableScore::LowerBound(score) => alpha = alpha.max(score),
+                    TableScore::UpperBound(score) => beta = beta.min(score),
                 }
             }
         }
@@ -241,11 +245,11 @@ fn pvs<const ROOT: bool>(
         let entry = TableEntry {
             depth,
             score: if alpha <= original_alpha {
-                TTScore::UpperBound(alpha)
+                TableScore::UpperBound(alpha)
             } else if alpha >= beta {
-                TTScore::LowerBound(alpha)
+                TableScore::LowerBound(alpha)
             } else {
-                TTScore::Exact(alpha)
+                TableScore::Exact(alpha)
             },
             best_move,
         };
