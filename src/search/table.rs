@@ -6,7 +6,7 @@ pub const MIN_TABLE_SIZE_MB: usize = 1;
 pub const DEFAULT_TABLE_SIZE_MB: usize = 64;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum TTScore {
+pub enum TableScore {
     Exact(ValueScore),
     LowerBound(ValueScore), // when search fails high (beta cutoff)
     UpperBound(ValueScore), // when search fails low (no improvement to alpha)
@@ -15,7 +15,7 @@ pub enum TTScore {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TableEntry {
     pub depth: Depth,
-    pub score: TTScore,
+    pub score: TableScore,
     pub best_move: Move,
 }
 
@@ -23,17 +23,23 @@ pub struct TableEntry {
 struct TranspositionEntry {
     entry: TableEntry,
     hash: u64,
+    full_move_number: u16,
 }
 
 struct TranspositionTable {
     data: Vec<Option<TranspositionEntry>>,
     size: usize,
+    root_fullmove_number: u16,
 }
 
 impl TranspositionTable {
     pub fn new(size_mb: usize) -> Self {
         let data_len = Self::calculate_data_len(size_mb);
-        Self { data: (0..data_len).map(|_| None).collect(), size: data_len }
+        Self {
+            data: (0..data_len).map(|_| None).collect(),
+            size: data_len,
+            root_fullmove_number: 0,
+        }
     }
 
     fn calculate_data_len(size_mb: usize) -> usize {
@@ -64,13 +70,16 @@ impl TranspositionTable {
 
         if !FORCE {
             if let Some(old_entry) = self.data[index] {
-                if entry.depth < old_entry.entry.depth {
+                if old_entry.entry.depth > entry.depth
+                    && old_entry.full_move_number >= self.root_fullmove_number
+                {
                     return;
                 }
             }
         }
 
-        self.data[index] = Some(TranspositionEntry { entry, hash });
+        self.data[index] =
+            Some(TranspositionEntry { entry, hash, full_move_number: position.fullmove_number });
     }
 }
 
@@ -87,6 +96,10 @@ impl SearchTable {
         }
     }
 
+    pub fn prepare_for_new_search(&mut self, fullmove_number: u16) {
+        self.transposition.root_fullmove_number = fullmove_number;
+    }
+
     pub fn set_size(&mut self, size_mb: usize) {
         self.transposition.set_size(size_mb)
     }
@@ -95,7 +108,7 @@ impl SearchTable {
         self.transposition.get(position).map(|entry| entry.entry.best_move)
     }
 
-    pub fn get_table_score(&self, position: &Position, depth: Depth) -> Option<TTScore> {
+    pub fn get_table_score(&self, position: &Position, depth: Depth) -> Option<TableScore> {
         self.transposition.get(position).and_then(|entry| {
             if entry.entry.depth >= depth {
                 Some(entry.entry.score)
