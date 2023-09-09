@@ -1,5 +1,4 @@
 use super::{
-    bitboard::Bitboard,
     board::{Board, Piece},
     CastlingRights, Color, Position, Square,
 };
@@ -17,8 +16,7 @@ pub fn board_from_fen(board_fen: &str) -> Option<Board> {
     let mut rank = 7;
     let mut file = 0;
 
-    let mut pieces: [Bitboard; 6] = Default::default();
-    let mut occupancy: [Bitboard; 2] = Default::default();
+    let mut board = Board::new();
 
     for c in chars {
         match c {
@@ -42,8 +40,7 @@ pub fn board_from_fen(board_fen: &str) -> Option<Board> {
                     _ => unreachable!(),
                 };
                 let square = Square::from(rank * 8 + file).unwrap();
-                pieces[piece as usize].set(square);
-                occupancy[color as usize].set(square);
+                board.set_square::<true>(square, piece, color);
                 file += 1;
             }
             _ => {}
@@ -51,7 +48,7 @@ pub fn board_from_fen(board_fen: &str) -> Option<Board> {
     }
 
     if rank == 0 && file == 8 {
-        Some(Board::new(pieces, occupancy))
+        Some(board)
     } else {
         None
     }

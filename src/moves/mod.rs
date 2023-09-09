@@ -30,6 +30,10 @@ primitive_enum!(
 );
 
 impl MoveFlag {
+    pub fn is_reversible(&self) -> bool {
+        matches!(self, Self::Quiet)
+    }
+
     pub fn is_quiet(&self) -> bool {
         matches!(
             self,

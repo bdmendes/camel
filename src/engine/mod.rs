@@ -1,8 +1,10 @@
 use self::commands::{execute_command, parse_command};
-use ahash::AHashMap;
 use camel::{
     position::{fen::START_FEN, Position},
-    search::table::{SearchTable, DEFAULT_TABLE_SIZE_MB},
+    search::{
+        constraint::HistoryEntry,
+        table::{SearchTable, DEFAULT_TABLE_SIZE_MB},
+    },
 };
 use std::{
     sync::{atomic::AtomicBool, Arc, RwLock},
@@ -52,7 +54,7 @@ pub enum Command {
 
 pub struct Engine {
     pub position: Position,
-    pub game_history: AHashMap<Position, u8>,
+    pub game_history: Vec<HistoryEntry>,
     pub stop: Arc<AtomicBool>,
     pub table: Arc<RwLock<SearchTable>>,
 }
@@ -61,7 +63,7 @@ pub fn uci_loop() {
     let mut engine = Engine {
         position: Position::from_fen(START_FEN).unwrap(),
         stop: Arc::new(AtomicBool::new(true)),
-        game_history: AHashMap::new(),
+        game_history: Vec::new(),
         table: Arc::new(RwLock::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB))),
     };
 

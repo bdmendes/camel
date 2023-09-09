@@ -11,11 +11,11 @@ use super::{
 };
 use crate::position::{
     bitboard::Bitboard,
-    board::{Board, Piece},
+    board::{Board, Piece, ZobristHash},
     square::Square,
     Color, Position,
 };
-use ahash::AHashMap;
+use std::collections::HashMap;
 
 pub struct MoveDirection;
 
@@ -35,8 +35,11 @@ impl MoveDirection {
 
 pub fn checked_by(board: &Board, color: Color) -> bool {
     let checked_king = board.pieces_bb(Piece::King) & board.occupancy_bb(color.opposite());
-    let checked_king_square = checked_king.into_iter().next().unwrap();
-    square_attacked_by(board, checked_king_square, color)
+    if let Some(checked_king_square) = checked_king.into_iter().next() {
+        square_attacked_by(board, checked_king_square, color)
+    } else {
+        false
+    }
 }
 
 pub fn square_attacked_by(board: &Board, square: Square, color: Color) -> bool {
@@ -177,7 +180,7 @@ pub fn perft<const BULK_AT_HORIZON: bool, const HASH: bool, const SILENT: bool>(
     position: &Position,
     depth: u8,
 ) -> PerftResult {
-    perft_internal::<true, BULK_AT_HORIZON, HASH, SILENT>(position, depth, &mut AHashMap::new())
+    perft_internal::<true, BULK_AT_HORIZON, HASH, SILENT>(position, depth, &mut HashMap::new())
 }
 
 fn perft_internal<
@@ -188,14 +191,14 @@ fn perft_internal<
 >(
     position: &Position,
     depth: u8,
-    cache: &mut AHashMap<(Position, u8), PerftResult>,
+    cache: &mut HashMap<(ZobristHash, u8), PerftResult>,
 ) -> PerftResult {
     if depth == 0 {
         return (1, vec![]);
     }
 
     if HASH {
-        if let Some(res) = cache.get(&(*position, depth)) {
+        if let Some(res) = cache.get(&(position.zobrist_hash(), depth)) {
             return res.clone();
         }
     }
@@ -225,7 +228,7 @@ fn perft_internal<
     }
 
     if HASH {
-        cache.insert((*position, depth), (nodes, res.clone()));
+        cache.insert((position.zobrist_hash(), depth), (nodes, res.clone()));
     }
 
     (nodes, res)

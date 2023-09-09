@@ -1,11 +1,10 @@
 use crate::engine::{time::get_duration, Engine};
-use ahash::AHashMap;
 use camel::{
     evaluation::position::evaluate_position,
     moves::gen::perft,
     position::{fen::START_FEN, Position},
     search::{
-        constraint::SearchConstraint,
+        constraint::{HistoryEntry, SearchConstraint},
         search_iter,
         table::{DEFAULT_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB, MIN_TABLE_SIZE_MB},
         Depth, MAX_DEPTH,
@@ -13,17 +12,12 @@ use camel::{
 };
 use std::{sync::atomic::Ordering, thread, time::Duration};
 
-pub fn execute_position(
-    new_position: &Position,
-    game_history: &Vec<Position>,
-    engine: &mut Engine,
-) {
+pub fn execute_position(new_position: &Position, game_history: &[Position], engine: &mut Engine) {
     engine.position = *new_position;
-
-    engine.game_history = AHashMap::with_capacity(game_history.len());
-    for position in game_history {
-        engine.game_history.entry(*position).and_modify(|entry| *entry += 1).or_insert(1);
-    }
+    engine.game_history = game_history
+        .iter()
+        .map(|position| HistoryEntry { hash: position.zobrist_hash(), reversible: true })
+        .collect();
 }
 
 pub fn execute_go(
@@ -119,7 +113,7 @@ pub fn execute_set_option(name: &str, value: &str, engine: &mut Engine) {
 
 pub fn execute_uci_new_game(engine: &mut Engine) {
     engine.position = Position::from_fen(START_FEN).unwrap();
-    engine.game_history = AHashMap::new();
+    engine.game_history = Vec::new();
     engine.table.write().unwrap().clear();
 }
 
