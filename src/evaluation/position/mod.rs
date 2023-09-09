@@ -28,6 +28,23 @@ pub fn midgame_ratio(position: &Position) -> u8 {
 }
 
 pub fn evaluate_position(position: &Position) -> ValueScore {
+    // Insufficient material
+    if position.board.occupancy_bb_all().count_ones() <= 4 {
+        // Two knights vs king
+        let knights_bb = position.board.pieces_bb(Piece::Knight);
+        if knights_bb.count_ones() == 2 {
+            return 0;
+        }
+
+        // Knight/bishop vs king
+        let bishops_bb = position.board.pieces_bb(Piece::Bishop);
+        if position.board.occupancy_bb_all().count_ones() == 3
+            && (knights_bb | bishops_bb).is_not_empty()
+        {
+            return 0;
+        }
+    }
+
     let endgame_ratio = 255 - midgame_ratio(position);
 
     let occupancy = position.board.occupancy_bb_all();
