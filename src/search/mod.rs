@@ -7,7 +7,7 @@ mod movepick;
 pub mod pvs;
 pub mod table;
 
-pub type Depth = i16;
+pub type Depth = u8;
 
 pub const MAX_DEPTH: Depth = 25;
 

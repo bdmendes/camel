@@ -17,7 +17,7 @@ use std::sync::{Arc, RwLock};
 
 const MIN_SCORE: ValueScore = ValueScore::MIN + 1;
 const MAX_SCORE: ValueScore = -MIN_SCORE;
-const MATE_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH + 1;
+const MATE_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH as ValueScore + 1;
 
 const NULL_MOVE_REDUCTION: Depth = 3;
 const CHECK_EXTENSION: Depth = 1;
@@ -96,9 +96,11 @@ fn pvs_recurse(
 ) -> (ValueScore, usize) {
     let mut count = 0;
 
+    let new_depth = depth.saturating_sub(1);
+
     if do_zero_window {
         let (score, nodes) =
-            pvs::<false>(position, depth - 1, -alpha - 1, -alpha, table.clone(), constraint);
+            pvs::<false>(position, new_depth, -alpha - 1, -alpha, table.clone(), constraint);
         count += nodes;
         let score = -score;
         if score <= alpha || score >= beta {
@@ -106,7 +108,7 @@ fn pvs_recurse(
         }
     }
 
-    let (score, nodes) = pvs::<false>(position, depth - 1, -beta, -alpha, table, constraint);
+    let (score, nodes) = pvs::<false>(position, new_depth, -beta, -alpha, table, constraint);
     count += nodes;
     (-score, count)
 }
@@ -156,7 +158,7 @@ fn pvs<const ROOT: bool>(
 
     // Max depth reached; search for quiet position
     let is_check = position.is_check();
-    if depth <= 0 && !is_check {
+    if depth == 0 && !is_check {
         return quiesce(position, alpha, beta, constraint);
     }
 
@@ -191,7 +193,7 @@ fn pvs<const ROOT: bool>(
 
     // Detect checkmate and stalemate
     if moves.is_empty() {
-        let score = if is_check { MATE_SCORE - depth } else { 0 };
+        let score = if is_check { MATE_SCORE - depth as ValueScore } else { 0 };
         return (score, count);
     }
 
