@@ -211,7 +211,25 @@ fn pvs<const ROOT: bool>(
     let original_alpha = alpha;
     let mut best_move = moves[0];
 
-    for (mov, _, i) in picker {
+    let can_futility_prune = !is_check
+        && depth == 1
+        && !twofold_repetition
+        && alpha.abs() < MATE_SCORE.abs()
+        && beta.abs() < MATE_SCORE.abs();
+
+    let static_evaluation = if can_futility_prune {
+        evaluate_position(position) * position.side_to_move.sign()
+    } else {
+        0
+    };
+
+    for (mov, score, i) in picker {
+        if can_futility_prune
+            && static_evaluation.saturating_add(score).saturating_add(MAX_POSITIONAL_GAIN) < alpha
+        {
+            continue;
+        }
+
         let new_position = position.make_move(mov);
 
         constraint.visit_position(&new_position, mov.flag().is_reversible());
