@@ -23,13 +23,13 @@ pub struct TableEntry {
 struct TranspositionEntry {
     entry: TableEntry,
     hash: u64,
-    full_move_number: u16,
+    full_move_number: u8,
 }
 
 struct TranspositionTable {
     data: Vec<Option<TranspositionEntry>>,
     size: usize,
-    root_fullmove_number: u16,
+    root_fullmove_number: u8,
 }
 
 impl TranspositionTable {
@@ -78,8 +78,11 @@ impl TranspositionTable {
             }
         }
 
-        self.data[index] =
-            Some(TranspositionEntry { entry, hash, full_move_number: position.fullmove_number });
+        self.data[index] = Some(TranspositionEntry {
+            entry,
+            hash,
+            full_move_number: position.fullmove_number as u8,
+        });
     }
 }
 
@@ -97,7 +100,7 @@ impl SearchTable {
     }
 
     pub fn prepare_for_new_search(&mut self, fullmove_number: u16) {
-        self.transposition.root_fullmove_number = fullmove_number;
+        self.transposition.root_fullmove_number = fullmove_number as u8;
     }
 
     pub fn set_size(&mut self, size_mb: usize) {
