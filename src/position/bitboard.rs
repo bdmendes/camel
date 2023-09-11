@@ -63,7 +63,7 @@ impl Iterator for Bitboard {
 
         let lsb = self.0.trailing_zeros();
         self.0 &= self.0 - 1;
-        Some(Square::from(lsb as u8).unwrap())
+        Square::from(lsb as u8)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
