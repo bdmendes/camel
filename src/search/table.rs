@@ -22,14 +22,27 @@ pub struct TableEntry {
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct TranspositionEntry {
     entry: TableEntry,
-    hash: u64,
-    full_move_number: u8,
+    data: u64, // high 55 bits: hash, low 9 bits: fullmove_number
+}
+
+impl TranspositionEntry {
+    fn new(entry: TableEntry, hash: u64, full_move_number: u16) -> Self {
+        Self { entry, data: full_move_number as u64 & 0x1FF | (hash >> 9) << 9 }
+    }
+
+    fn same_hash(&self, hash: u64) -> bool {
+        (self.data >> 9) == (hash >> 9)
+    }
+
+    fn full_move_number(&self) -> u16 {
+        (self.data & 0x1FF) as u16
+    }
 }
 
 struct TranspositionTable {
     data: Vec<Option<TranspositionEntry>>,
     size: usize,
-    root_fullmove_number: u8,
+    root_fullmove_number: u16,
 }
 
 impl TranspositionTable {
@@ -61,7 +74,7 @@ impl TranspositionTable {
     pub fn get(&self, position: &Position) -> Option<TranspositionEntry> {
         let hash = position.zobrist_hash();
         let entry = self.data[hash as usize % self.size];
-        entry.filter(|entry| entry.hash == hash)
+        entry.filter(|entry| entry.same_hash(hash))
     }
 
     pub fn insert<const FORCE: bool>(&mut self, position: &Position, entry: TableEntry) {
@@ -71,18 +84,14 @@ impl TranspositionTable {
         if !FORCE {
             if let Some(old_entry) = self.data[index] {
                 if old_entry.entry.depth > entry.depth
-                    && old_entry.full_move_number >= self.root_fullmove_number
+                    && old_entry.full_move_number() >= self.root_fullmove_number
                 {
                     return;
                 }
             }
         }
 
-        self.data[index] = Some(TranspositionEntry {
-            entry,
-            hash,
-            full_move_number: position.fullmove_number as u8,
-        });
+        self.data[index] = Some(TranspositionEntry::new(entry, hash, position.fullmove_number));
     }
 }
 
@@ -100,7 +109,7 @@ impl SearchTable {
     }
 
     pub fn prepare_for_new_search(&mut self, fullmove_number: u16) {
-        self.transposition.root_fullmove_number = fullmove_number as u8;
+        self.transposition.root_fullmove_number = fullmove_number;
     }
 
     pub fn set_size(&mut self, size_mb: usize) {
