@@ -47,7 +47,7 @@ fn quiesce(
 
     // Generate only non-quiet moves
     let moves = position.moves::<true>();
-    let picker = MovePicker::new(&moves, |m| evaluate_move::<false>(position, m));
+    let picker = MovePicker::new(&moves, |m| evaluate_move(position, m));
 
     // Stable position reached
     if moves.is_empty() {
@@ -205,7 +205,7 @@ fn pvs<const ROOT: bool>(
         if Some(mov) == killer_moves[0] || Some(mov) == killer_moves[1] {
             return piece_value(Piece::Queen);
         }
-        evaluate_move::<false>(position, mov)
+        evaluate_move(position, mov)
     });
 
     let original_alpha = alpha;
