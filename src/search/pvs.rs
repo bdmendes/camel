@@ -13,7 +13,7 @@ use crate::{
     },
     position::{board::Piece, Color, Position},
 };
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex};
 
 const MIN_SCORE: ValueScore = ValueScore::MIN + 1;
 const MAX_SCORE: ValueScore = -MIN_SCORE;
@@ -47,7 +47,7 @@ fn quiesce(
 
     // Generate only non-quiet moves
     let moves = position.moves::<true>();
-    let picker = MovePicker::new(&moves, |m| evaluate_move::<false>(position, m));
+    let picker = MovePicker::new(&moves, |m| evaluate_move(position, m));
 
     // Stable position reached
     if moves.is_empty() {
@@ -90,7 +90,7 @@ fn pvs_recurse(
     depth: Depth,
     alpha: ValueScore,
     beta: ValueScore,
-    table: Arc<RwLock<SearchTable>>,
+    table: Arc<Mutex<SearchTable>>,
     constraint: &mut SearchConstraint,
     do_zero_window: bool,
 ) -> (ValueScore, usize) {
@@ -116,11 +116,11 @@ fn pvs<const ROOT: bool>(
     depth: Depth,
     mut alpha: ValueScore,
     mut beta: ValueScore,
-    table: Arc<RwLock<SearchTable>>,
+    table: Arc<Mutex<SearchTable>>,
     constraint: &mut SearchConstraint,
 ) -> (ValueScore, usize) {
     if ROOT {
-        table.write().unwrap().prepare_for_new_search(position.fullmove_number);
+        table.lock().unwrap().prepare_for_new_search(position.fullmove_number);
     }
 
     let twofold_repetition = constraint.is_repetition::<2>(position);
@@ -134,7 +134,7 @@ fn pvs<const ROOT: bool>(
 
         // Get known score from transposition table
         if !twofold_repetition {
-            if let Some(tt_entry) = table.read().unwrap().get_table_score(position, depth) {
+            if let Some(tt_entry) = table.lock().unwrap().get_table_score(position, depth) {
                 match tt_entry {
                     TableScore::Exact(score) => return (score, 1),
                     TableScore::LowerBound(score) => alpha = alpha.max(score),
@@ -196,8 +196,8 @@ fn pvs<const ROOT: bool>(
     }
 
     // Sort moves via MVV-LVA, psqt and table information
-    let hash_move = table.read().unwrap().get_hash_move(position);
-    let killer_moves = table.read().unwrap().get_killers(depth);
+    let hash_move = table.lock().unwrap().get_hash_move(position);
+    let killer_moves = table.lock().unwrap().get_killers(depth);
     let picker = MovePicker::new(&moves, |mov| {
         if hash_move.is_some() && mov == hash_move.unwrap() {
             return ValueScore::MAX;
@@ -205,7 +205,7 @@ fn pvs<const ROOT: bool>(
         if Some(mov) == killer_moves[0] || Some(mov) == killer_moves[1] {
             return piece_value(Piece::Queen);
         }
-        evaluate_move::<false>(position, mov)
+        evaluate_move(position, mov)
     });
 
     let original_alpha = alpha;
@@ -234,7 +234,7 @@ fn pvs<const ROOT: bool>(
 
             if score >= beta {
                 if mov.flag().is_quiet() {
-                    table.write().unwrap().put_killer_move(depth, mov);
+                    table.lock().unwrap().put_killer_move(depth, mov);
                 }
                 break;
             }
@@ -254,7 +254,7 @@ fn pvs<const ROOT: bool>(
             best_move,
         };
 
-        table.write().unwrap().insert_entry::<ROOT>(position, entry);
+        table.lock().unwrap().insert_entry::<ROOT>(position, entry);
     }
 
     (alpha, count)
@@ -263,7 +263,7 @@ fn pvs<const ROOT: bool>(
 pub fn search(
     position: &Position,
     depth: Depth,
-    table: Arc<RwLock<SearchTable>>,
+    table: Arc<Mutex<SearchTable>>,
     constraint: &mut SearchConstraint,
 ) -> (Score, usize) {
     let depth = depth.min(MAX_DEPTH);
@@ -272,7 +272,7 @@ pub fn search(
         pvs::<true>(position, depth, MIN_SCORE, MAX_SCORE, table.clone(), constraint);
 
     if score.abs() >= MATE_SCORE.abs() {
-        let pv = table.read().unwrap().get_pv(position, depth);
+        let pv = table.lock().unwrap().get_pv(position, depth);
         let plys_to_mate = pv.len() as u8;
         (
             Score::Mate(
@@ -298,11 +298,11 @@ mod tests {
         expected_score: Option<Score>,
     ) {
         let position = Position::from_fen(fen).unwrap();
-        let table = Arc::new(RwLock::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB)));
+        let table = Arc::new(Mutex::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB)));
         let mut constraint = SearchConstraint::default();
 
         let score = search(&position, depth, table.clone(), &mut constraint).0;
-        let pv = table.read().unwrap().get_pv(&position, depth);
+        let pv = table.lock().unwrap().get_pv(&position, depth);
 
         assert!(pv.len() >= expected_moves.len());
 

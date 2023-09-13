@@ -4,7 +4,7 @@ use camel::{
     moves::gen::perft,
     position::{fen::START_FEN, Position},
     search::{
-        constraint::{HistoryEntry, SearchConstraint},
+        constraint::{HistoryEntry, SearchConstraint, TimeConstraint},
         search_iter,
         table::{DEFAULT_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB, MIN_TABLE_SIZE_MB},
         Depth, MAX_DEPTH,
@@ -57,8 +57,8 @@ pub fn execute_go(
 
     let mut constraint = SearchConstraint {
         branch_history: engine.game_history.clone(),
-        initial_instant: Some(std::time::Instant::now()),
-        move_time: calc_move_time,
+        time_constraint: calc_move_time
+            .map(|t| TimeConstraint { initial_instant: std::time::Instant::now(), move_time: t }),
         stop_now: Some(stop_now.clone()),
     };
 
@@ -104,7 +104,7 @@ pub fn execute_set_option(name: &str, value: &str, engine: &mut Engine) {
         if let Ok(size) = value.parse::<usize>() {
             engine
                 .table
-                .write()
+                .lock()
                 .unwrap()
                 .set_size(size.min(MAX_TABLE_SIZE_MB).max(MIN_TABLE_SIZE_MB));
         }
@@ -114,7 +114,7 @@ pub fn execute_set_option(name: &str, value: &str, engine: &mut Engine) {
 pub fn execute_uci_new_game(engine: &mut Engine) {
     engine.position = Position::from_fen(START_FEN).unwrap();
     engine.game_history = Vec::new();
-    engine.table.write().unwrap().clear();
+    engine.table.lock().unwrap().clear();
 }
 
 pub fn execute_perft(depth: u8, position: &Position) {

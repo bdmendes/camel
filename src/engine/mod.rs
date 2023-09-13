@@ -7,7 +7,7 @@ use camel::{
     },
 };
 use std::{
-    sync::{atomic::AtomicBool, Arc, RwLock},
+    sync::{atomic::AtomicBool, Arc, Mutex},
     time::Duration,
 };
 
@@ -56,7 +56,7 @@ pub struct Engine {
     pub position: Position,
     pub game_history: Vec<HistoryEntry>,
     pub stop: Arc<AtomicBool>,
-    pub table: Arc<RwLock<SearchTable>>,
+    pub table: Arc<Mutex<SearchTable>>,
 }
 
 pub fn uci_loop() {
@@ -64,7 +64,7 @@ pub fn uci_loop() {
         position: Position::from_fen(START_FEN).unwrap(),
         stop: Arc::new(AtomicBool::new(true)),
         game_history: Vec::new(),
-        table: Arc::new(RwLock::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB))),
+        table: Arc::new(Mutex::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB))),
     };
 
     loop {

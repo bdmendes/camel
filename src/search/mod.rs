@@ -1,6 +1,6 @@
 use self::{constraint::SearchConstraint, table::SearchTable};
 use crate::{evaluation::Score, position::Position};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex};
 
 pub mod constraint;
 mod movepick;
@@ -48,7 +48,7 @@ fn print_iter_info(
 pub fn search_iter(
     position: &Position,
     depth: Depth,
-    table: Arc<RwLock<SearchTable>>,
+    table: Arc<Mutex<SearchTable>>,
     constraint: &mut SearchConstraint,
 ) {
     let moves = position.moves::<false>();
@@ -75,7 +75,7 @@ pub fn search_iter(
             score,
             count,
             elapsed.as_millis(),
-            &table.read().unwrap(),
+            &table.lock().unwrap(),
         );
 
         if one_legal_move
@@ -88,5 +88,5 @@ pub fn search_iter(
         current_depth += 1;
     }
 
-    println!("bestmove {}", table.read().unwrap().get_hash_move(position).unwrap_or(moves[0]));
+    println!("bestmove {}", table.lock().unwrap().get_hash_move(position).unwrap_or(moves[0]));
 }
