@@ -1,34 +1,204 @@
 use crate::{
     evaluation::ValueScore,
-    position::{Color, Position},
+    moves::gen::MoveDirection,
+    position::{bitboard::Bitboard, board::Piece, Color, Position},
 };
 
-pub fn evaluate_pawn_structure(position: &Position) -> ValueScore {
-    let mut score = 0;
-    let white_pawn_structure = position.board.pawn_structure(Color::White);
-    let black_pawn_structure = position.board.pawn_structure(Color::Black);
+fn doubled_pawns(bb: Bitboard) -> u8 {
+    (0..8).fold(0, |acc, file| {
+        let file_bb = bb & Bitboard::file_mask(file);
+        let count = file_bb.count_ones() as u8;
+        if count > 1 {
+            acc + count - 1
+        } else {
+            acc
+        }
+    })
+}
+
+fn pawn_islands(bb: Bitboard) -> u8 {
+    let mut islands = 0;
+    let mut on_empty_file = true;
 
     for file in 0..8 {
-        for color in &[Color::White, Color::Black] {
-            let structure =
-                if *color == Color::White { &white_pawn_structure } else { &black_pawn_structure };
-
-            let is_isolated = structure[file] > 0
-                && (file == 0 || structure[file - 1] == 0)
-                && (file == 7 || structure[file + 1] == 0);
-            if is_isolated {
-                score -= 10 * color.sign();
-            }
-
-            let doubled_penalty = match structure[file] {
-                0 => 0,
-                1 => 0,
-                2 => 10,
-                _ => 30,
-            };
-            score -= doubled_penalty * color.sign() * (if is_isolated { 3 } else { 1 });
+        let file_bb = bb & Bitboard::file_mask(file);
+        if file_bb.is_empty() {
+            on_empty_file = true;
+        } else if on_empty_file {
+            islands += 1;
+            on_empty_file = false;
         }
     }
 
+    islands
+}
+
+type RelativeRank = u8;
+
+fn passed_pawns(us_direction: i8, us_bb: Bitboard, them_bb: Bitboard) -> Vec<RelativeRank> {
+    let mut passed_pawns_ranks = vec![];
+
+    for file in 0..8 {
+        if let Some(our_pawn) = (us_bb & Bitboard::file_mask(file)).next() {
+            let challenging_pawns_file_mask = match file {
+                0 => Bitboard::file_mask(1),
+                7 => Bitboard::file_mask(6),
+                _ => Bitboard::file_mask(file - 1) | Bitboard::file_mask(file + 1),
+            } | Bitboard::file_mask(file);
+            let challenging_pawns_rank_mask = if us_direction > 0 {
+                Bitboard::ranks_mask_up(our_pawn.rank())
+            } else {
+                Bitboard::ranks_mask_down(our_pawn.rank())
+            };
+            let challenging_pawns_bb =
+                them_bb & challenging_pawns_file_mask & challenging_pawns_rank_mask;
+
+            if challenging_pawns_bb.is_empty() {
+                passed_pawns_ranks.push(if us_direction > 0 {
+                    our_pawn.rank()
+                } else {
+                    7 - our_pawn.rank()
+                });
+            }
+        }
+    }
+
+    passed_pawns_ranks
+}
+
+pub fn evaluate_pawn_structure(position: &Position) -> ValueScore {
+    let mut score = 0;
+
+    let white_pawns =
+        position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
+    let black_pawns =
+        position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::Black);
+
+    const DOUBLED_PAWNS_PENALTY: ValueScore = -10;
+    score += doubled_pawns(white_pawns) as ValueScore * DOUBLED_PAWNS_PENALTY;
+    score -= doubled_pawns(black_pawns) as ValueScore * DOUBLED_PAWNS_PENALTY;
+
+    const PAWN_ISLAND_PENALTY: ValueScore = -10;
+    score += pawn_islands(white_pawns) as ValueScore * PAWN_ISLAND_PENALTY;
+    score -= pawn_islands(black_pawns) as ValueScore * PAWN_ISLAND_PENALTY;
+
+    const PASSED_PAWN_BONUS: [ValueScore; 8] = [0, 10, 20, 35, 60, 85, 100, 0];
+    score += passed_pawns(MoveDirection::pawn_direction(Color::White), white_pawns, black_pawns)
+        .iter()
+        .fold(0, |acc, rank| acc + PASSED_PAWN_BONUS[*rank as usize]);
+    score -= passed_pawns(MoveDirection::pawn_direction(Color::Black), black_pawns, white_pawns)
+        .iter()
+        .fold(0, |acc, rank| acc + PASSED_PAWN_BONUS[*rank as usize]);
+
     score
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        evaluation::position::pawns::passed_pawns,
+        moves::gen::MoveDirection,
+        position::{board::Piece, Color, Position},
+    };
+
+    #[test]
+    fn doubled_pawns_1() {
+        let position = Position::from_fen("8/8/8/P7/P4P2/8/PPPP1PP1/8 w - - 0 1").unwrap();
+        let white_pawns =
+            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
+
+        assert_eq!(super::doubled_pawns(white_pawns), 3);
+    }
+
+    #[test]
+    fn double_pawns_2() {
+        let position = Position::from_fen("8/8/7P/8/2P5/5PP1/PP1PP3/8 w - - 0 1").unwrap();
+        let white_pawns =
+            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
+
+        assert_eq!(super::doubled_pawns(white_pawns), 0);
+    }
+
+    #[test]
+    fn pawn_islands_1() {
+        let position = Position::from_fen("8/8/7P/8/2P5/5PP1/PP1PP3/8 w - - 0 1").unwrap();
+        let white_pawns =
+            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
+
+        assert_eq!(super::pawn_islands(white_pawns), 1);
+    }
+
+    #[test]
+    fn pawn_islands_2() {
+        let position = Position::from_fen("8/8/8/8/2P5/5PP1/1P1PP3/8 w - - 0 1").unwrap();
+        let white_pawns =
+            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
+
+        assert_eq!(super::pawn_islands(white_pawns), 1);
+    }
+
+    #[test]
+    fn pawn_islands_3() {
+        let position = Position::from_fen("8/8/8/8/2P5/5PP1/1P1P4/8 w - - 0 1").unwrap();
+        let white_pawns =
+            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
+
+        assert_eq!(super::pawn_islands(white_pawns), 2);
+    }
+
+    #[test]
+    fn pawn_islands_4() {
+        let position = Position::from_fen("8/8/8/8/8/P4PP1/1P1P4/8 w - - 0 1").unwrap();
+        let white_pawns =
+            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
+
+        assert_eq!(super::pawn_islands(white_pawns), 3);
+    }
+
+    #[test]
+    fn pawn_islands_5() {
+        let position = Position::from_fen("8/8/8/8/8/P2P3P/8/8 w - - 0 1").unwrap();
+        let white_pawns =
+            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
+
+        assert_eq!(super::pawn_islands(white_pawns), 3);
+    }
+
+    #[test]
+    fn passed_pawns_1() {
+        let position = Position::from_fen("8/1p6/8/1pPP4/5p2/7P/5P2/8 w - - 0 1").unwrap();
+        let white_pawns =
+            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
+        let black_pawns =
+            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::Black);
+
+        assert_eq!(
+            passed_pawns(MoveDirection::pawn_direction(Color::White), white_pawns, black_pawns),
+            vec![4, 2]
+        );
+
+        assert_eq!(
+            passed_pawns(MoveDirection::pawn_direction(Color::Black), black_pawns, white_pawns),
+            vec![3]
+        );
+    }
+
+    #[test]
+    fn passed_pawns_2() {
+        let position = Position::from_fen("8/1p6/8/1pPPp3/5pP1/7P/8/8 w - - 0 1").unwrap();
+        let white_pawns =
+            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
+        let black_pawns =
+            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::Black);
+
+        assert_eq!(
+            passed_pawns(MoveDirection::pawn_direction(Color::White), white_pawns, black_pawns),
+            vec![4, 3, 2]
+        );
+
+        assert_eq!(
+            passed_pawns(MoveDirection::pawn_direction(Color::Black), black_pawns, white_pawns),
+            vec![3, 3, 4]
+        );
+    }
 }

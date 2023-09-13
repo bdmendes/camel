@@ -51,6 +51,26 @@ impl Bitboard {
         debug_assert!(rank < 8);
         Bitboard(0xFF << (rank * 8))
     }
+
+    pub fn files_mask_left(file: u8) -> Self {
+        debug_assert!(file < 8);
+        (0..file).fold(Bitboard::new(0), |acc, file| acc | Bitboard::file_mask(file))
+    }
+
+    pub fn files_mask_right(file: u8) -> Self {
+        debug_assert!(file < 8);
+        (file + 1..8).fold(Bitboard::new(0), |acc, file| acc | Bitboard::file_mask(file))
+    }
+
+    pub fn ranks_mask_up(rank: u8) -> Self {
+        debug_assert!(rank < 8);
+        (rank + 1..8).fold(Bitboard::new(0), |acc, rank| acc | Bitboard::rank_mask(rank))
+    }
+
+    pub fn ranks_mask_down(rank: u8) -> Self {
+        debug_assert!(rank < 8);
+        (0..rank).fold(Bitboard::new(0), |acc, rank| acc | Bitboard::rank_mask(rank))
+    }
 }
 
 impl Iterator for Bitboard {
