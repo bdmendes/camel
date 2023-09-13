@@ -92,6 +92,18 @@ impl Iterator for Bitboard {
     }
 }
 
+impl DoubleEndedIterator for Bitboard {
+    fn next_back(&mut self) -> Option<Square> {
+        if self.0 == 0 {
+            return None;
+        }
+
+        let msb = 63 - self.0.leading_zeros();
+        self.0 &= !(1 << msb);
+        Square::from(msb as u8)
+    }
+}
+
 impl Display for Bitboard {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let bb = self.0;

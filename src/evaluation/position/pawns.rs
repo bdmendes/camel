@@ -39,25 +39,31 @@ fn passed_pawns(us_direction: i8, us_bb: Bitboard, them_bb: Bitboard) -> Vec<Rel
     let mut passed_pawns_ranks = vec![];
 
     for file in 0..8 {
-        if let Some(our_pawn) = (us_bb & Bitboard::file_mask(file)).next() {
+        let our_pawns_on_file = us_bb & Bitboard::file_mask(file);
+        let our_most_advanced_pawn = if us_direction > 0 {
+            our_pawns_on_file.into_iter().next_back()
+        } else {
+            our_pawns_on_file.into_iter().next()
+        };
+        if let Some(our_most_advanced_pawn) = our_most_advanced_pawn {
             let challenging_pawns_file_mask = match file {
                 0 => Bitboard::file_mask(1),
                 7 => Bitboard::file_mask(6),
                 _ => Bitboard::file_mask(file - 1) | Bitboard::file_mask(file + 1),
             } | Bitboard::file_mask(file);
             let challenging_pawns_rank_mask = if us_direction > 0 {
-                Bitboard::ranks_mask_up(our_pawn.rank())
+                Bitboard::ranks_mask_up(our_most_advanced_pawn.rank())
             } else {
-                Bitboard::ranks_mask_down(our_pawn.rank())
+                Bitboard::ranks_mask_down(our_most_advanced_pawn.rank())
             };
             let challenging_pawns_bb =
                 them_bb & challenging_pawns_file_mask & challenging_pawns_rank_mask;
 
             if challenging_pawns_bb.is_empty() {
                 passed_pawns_ranks.push(if us_direction > 0 {
-                    our_pawn.rank()
+                    our_most_advanced_pawn.rank()
                 } else {
-                    7 - our_pawn.rank()
+                    7 - our_most_advanced_pawn.rank()
                 });
             }
         }
@@ -78,7 +84,7 @@ pub fn evaluate_pawn_structure(position: &Position) -> ValueScore {
     score += doubled_pawns(white_pawns) as ValueScore * DOUBLED_PAWNS_PENALTY;
     score -= doubled_pawns(black_pawns) as ValueScore * DOUBLED_PAWNS_PENALTY;
 
-    const PAWN_ISLAND_PENALTY: ValueScore = -10;
+    const PAWN_ISLAND_PENALTY: ValueScore = -5;
     score += pawn_islands(white_pawns) as ValueScore * PAWN_ISLAND_PENALTY;
     score -= pawn_islands(black_pawns) as ValueScore * PAWN_ISLAND_PENALTY;
 
@@ -185,7 +191,7 @@ mod tests {
 
     #[test]
     fn passed_pawns_2() {
-        let position = Position::from_fen("8/1p6/8/1pPPp3/5pP1/7P/8/8 w - - 0 1").unwrap();
+        let position = Position::from_fen("8/8/8/1pPPp1P1/1p3pP1/7P/8/8 w - - 0 1").unwrap();
         let white_pawns =
             position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
         let black_pawns =
@@ -193,12 +199,12 @@ mod tests {
 
         assert_eq!(
             passed_pawns(MoveDirection::pawn_direction(Color::White), white_pawns, black_pawns),
-            vec![4, 3, 2]
+            vec![4, 4, 4, 2]
         );
 
         assert_eq!(
             passed_pawns(MoveDirection::pawn_direction(Color::Black), black_pawns, white_pawns),
-            vec![3, 3, 4]
+            vec![4, 3, 4]
         );
     }
 }
