@@ -4,7 +4,7 @@ use camel::{
     moves::gen::perft,
     position::{fen::START_FEN, Position},
     search::{
-        constraint::{HistoryEntry, SearchConstraint},
+        constraint::{HistoryEntry, SearchConstraint, TimeConstraint},
         search_iter,
         table::{DEFAULT_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB, MIN_TABLE_SIZE_MB},
         Depth, MAX_DEPTH,
@@ -57,8 +57,8 @@ pub fn execute_go(
 
     let mut constraint = SearchConstraint {
         branch_history: engine.game_history.clone(),
-        initial_instant: Some(std::time::Instant::now()),
-        move_time: calc_move_time,
+        time_constraint: calc_move_time
+            .map(|t| TimeConstraint { initial_instant: std::time::Instant::now(), move_time: t }),
         stop_now: Some(stop_now.clone()),
     };
 

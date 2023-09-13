@@ -11,10 +11,14 @@ pub struct HistoryEntry {
     pub reversible: bool,
 }
 
+pub struct TimeConstraint {
+    pub initial_instant: Instant,
+    pub move_time: Duration,
+}
+
 pub struct SearchConstraint {
     pub branch_history: Vec<HistoryEntry>,
-    pub initial_instant: Option<Instant>,
-    pub move_time: Option<Duration>,
+    pub time_constraint: Option<TimeConstraint>,
     pub stop_now: Option<Arc<AtomicBool>>,
 }
 
@@ -22,8 +26,7 @@ impl Default for SearchConstraint {
     fn default() -> Self {
         Self {
             branch_history: Vec::with_capacity(MAX_DEPTH as usize),
-            initial_instant: None,
-            move_time: None,
+            time_constraint: None,
             stop_now: None,
         }
     }
@@ -31,9 +34,9 @@ impl Default for SearchConstraint {
 
 impl SearchConstraint {
     pub fn should_stop_search(&self) -> bool {
-        if let Some(move_time) = &self.move_time {
-            let elapsed = self.initial_instant.unwrap().elapsed();
-            elapsed >= *move_time
+        if let Some(time_constraint) = &self.time_constraint {
+            let elapsed = time_constraint.initial_instant.elapsed();
+            elapsed >= time_constraint.move_time
         } else if let Some(stop_now) = &self.stop_now {
             stop_now.load(std::sync::atomic::Ordering::Relaxed)
         } else {
@@ -42,15 +45,9 @@ impl SearchConstraint {
     }
 
     pub fn remaining_time(&self) -> Option<Duration> {
-        if let Some(move_time) = self.move_time {
-            let elapsed = self.initial_instant.unwrap().elapsed();
-            if elapsed >= move_time {
-                return Some(Duration::from_secs(0));
-            }
-            Some(move_time - elapsed)
-        } else {
-            None
-        }
+        self.time_constraint.as_ref().map(|time_constraint| {
+            time_constraint.move_time.saturating_sub(time_constraint.initial_instant.elapsed())
+        })
     }
 
     pub fn visit_position(&mut self, position: &Position, reversible: bool) {
