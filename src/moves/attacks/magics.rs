@@ -1,7 +1,7 @@
 use super::sliders::{slider_attacks_from_square, BISHOP_MOVE_DIRECTIONS, ROOK_MOVE_DIRECTIONS};
 use crate::position::{bitboard::Bitboard, board::Piece, square::Square};
 use once_cell::sync::Lazy;
-use rand::Rng;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::{
     array,
     sync::{Arc, Mutex},
@@ -35,8 +35,8 @@ fn bitsets(bitboard: Bitboard) -> Vec<Bitboard> {
     bitsets
 }
 
-fn sparse_random() -> Bitboard {
-    let mut rng = rand::thread_rng();
+fn sparse_random(seed: u64) -> Bitboard {
+    let mut rng = StdRng::seed_from_u64(seed);
     let r1 = rng.gen::<u64>();
     let r2 = rng.gen::<u64>();
     let r3 = rng.gen::<u64>();
@@ -67,8 +67,8 @@ fn find_magic(square: Square, piece: Piece) -> SquareMagic {
         .map(|bitset| slider_attacks_from_square::<false>(square, directions, Some(*bitset)))
         .collect::<Vec<_>>();
 
-    loop {
-        magic.magic_number = sparse_random();
+    for seed in 0.. {
+        magic.magic_number = sparse_random(seed);
 
         let mut found_collision = false;
         let mut used = vec![false; 1 << shift];
@@ -89,6 +89,8 @@ fn find_magic(square: Square, piece: Piece) -> SquareMagic {
             return magic;
         }
     }
+
+    unreachable!()
 }
 
 fn find_magics(piece: Piece) -> [SquareMagic; 64] {

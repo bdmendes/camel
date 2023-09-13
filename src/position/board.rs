@@ -1,14 +1,14 @@
 use super::{bitboard::Bitboard, fen::board_from_fen, Color, Square};
 use once_cell::sync::Lazy;
 use primitive_enum::primitive_enum;
-use rand::Rng;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 
 pub type ZobristHash = u64;
 
 const ZOBRIST_NUMBERS_SIZE: usize = 2 * 6 * 64; // 2 colors, 6 pieces, 64 squares
 
 static ZOBRIST_NUMBERS: Lazy<[ZobristHash; ZOBRIST_NUMBERS_SIZE]> = Lazy::new(|| {
-    let mut rng = rand::thread_rng();
+    let mut rng = StdRng::seed_from_u64(0);
     let mut numbers = [0; ZOBRIST_NUMBERS_SIZE];
     numbers.iter_mut().take(ZOBRIST_NUMBERS_SIZE).for_each(|n| *n = rng.gen());
     numbers
