@@ -104,7 +104,7 @@ pub fn execute_set_option(name: &str, value: &str, engine: &mut Engine) {
         if let Ok(size) = value.parse::<usize>() {
             engine
                 .table
-                .write()
+                .lock()
                 .unwrap()
                 .set_size(size.min(MAX_TABLE_SIZE_MB).max(MIN_TABLE_SIZE_MB));
         }
@@ -114,7 +114,7 @@ pub fn execute_set_option(name: &str, value: &str, engine: &mut Engine) {
 pub fn execute_uci_new_game(engine: &mut Engine) {
     engine.position = Position::from_fen(START_FEN).unwrap();
     engine.game_history = Vec::new();
-    engine.table.write().unwrap().clear();
+    engine.table.lock().unwrap().clear();
 }
 
 pub fn execute_perft(depth: u8, position: &Position) {
