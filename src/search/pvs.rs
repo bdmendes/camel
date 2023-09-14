@@ -136,9 +136,12 @@ fn pvs<const ROOT: bool>(
         if !twofold_repetition {
             if let Some(tt_entry) = table.lock().unwrap().get_table_score(position, depth) {
                 match tt_entry {
-                    TableScore::Exact(score) => return (score, 1),
+                    TableScore::Exact(score) if score.abs() < MATE_SCORE.abs() => {
+                        return (score, 1)
+                    }
                     TableScore::LowerBound(score) => alpha = alpha.max(score),
                     TableScore::UpperBound(score) => beta = beta.min(score),
+                    _ => (),
                 }
             }
         }
