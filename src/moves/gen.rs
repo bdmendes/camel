@@ -35,11 +35,10 @@ impl MoveDirection {
 
 pub fn checked_by(board: &Board, color: Color) -> bool {
     let checked_king = board.pieces_bb(Piece::King) & board.occupancy_bb(color.opposite());
-    if let Some(checked_king_square) = checked_king.into_iter().next() {
-        square_attacked_by(board, checked_king_square, color)
-    } else {
-        false
-    }
+    checked_king
+        .into_iter()
+        .next()
+        .map_or(false, |king_square| square_attacked_by(board, king_square, color))
 }
 
 pub fn square_attacked_by(board: &Board, square: Square, color: Color) -> bool {
@@ -116,27 +115,26 @@ pub fn generate_regular_moves<const QUIESCE: bool>(
     let occupancy_us = board.occupancy_bb(color);
     let pieces = board.pieces_bb(piece) & occupancy_us;
 
-    if pieces.is_empty() {
-        return;
-    }
-
     let occupancy = board.occupancy_bb_all();
     let occupancy_them = board.occupancy_bb(color.opposite());
 
     for from_square in pieces {
-        let attacks = piece_attacks(piece, from_square, occupancy) & !occupancy_us;
+        let attacks = if QUIESCE {
+            piece_attacks(piece, from_square, occupancy) & occupancy_them & !occupancy_us
+        } else {
+            piece_attacks(piece, from_square, occupancy) & !occupancy_us
+        };
 
         for to_square in attacks {
-            let flag = if occupancy_them.is_set(to_square) {
-                MoveFlag::Capture
-            } else {
-                if QUIESCE {
-                    continue;
-                }
-                MoveFlag::Quiet
-            };
-
-            moves.push(Move::new(from_square, to_square, flag));
+            moves.push(Move::new(
+                from_square,
+                to_square,
+                if QUIESCE || occupancy_them.is_set(to_square) {
+                    MoveFlag::Capture
+                } else {
+                    MoveFlag::Quiet
+                },
+            ));
         }
     }
 }
