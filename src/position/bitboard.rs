@@ -51,6 +51,26 @@ impl Bitboard {
         debug_assert!(rank < 8);
         Bitboard(0xFF << (rank * 8))
     }
+
+    pub fn files_mask_left(file: u8) -> Self {
+        debug_assert!(file < 8);
+        (0..file).fold(Bitboard::new(0), |acc, file| acc | Bitboard::file_mask(file))
+    }
+
+    pub fn files_mask_right(file: u8) -> Self {
+        debug_assert!(file < 8);
+        (file + 1..8).fold(Bitboard::new(0), |acc, file| acc | Bitboard::file_mask(file))
+    }
+
+    pub fn ranks_mask_up(rank: u8) -> Self {
+        debug_assert!(rank < 8);
+        (rank + 1..8).fold(Bitboard::new(0), |acc, rank| acc | Bitboard::rank_mask(rank))
+    }
+
+    pub fn ranks_mask_down(rank: u8) -> Self {
+        debug_assert!(rank < 8);
+        (0..rank).fold(Bitboard::new(0), |acc, rank| acc | Bitboard::rank_mask(rank))
+    }
 }
 
 impl Iterator for Bitboard {
@@ -69,6 +89,18 @@ impl Iterator for Bitboard {
     fn size_hint(&self) -> (usize, Option<usize>) {
         let count = self.0.count_ones() as usize;
         (count, Some(count))
+    }
+}
+
+impl DoubleEndedIterator for Bitboard {
+    fn next_back(&mut self) -> Option<Square> {
+        if self.0 == 0 {
+            return None;
+        }
+
+        let msb = 63 - self.0.leading_zeros();
+        self.0 &= !(1 << msb);
+        Square::from(msb as u8)
     }
 }
 

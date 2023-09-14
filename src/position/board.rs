@@ -113,15 +113,6 @@ impl Board {
         let our_pieces_bb = pieces_bb & self.occupancy_bb(color);
         our_pieces_bb.count_ones() as usize
     }
-
-    pub fn pawn_structure(&self, color: Color) -> [u8; 8] {
-        let mut structure = [0; 8];
-        let pawns_bb = self.pieces_bb(Piece::Pawn) & self.occupancy_bb(color);
-        for square in pawns_bb {
-            structure[square.file() as usize] += 1;
-        }
-        structure
-    }
 }
 
 impl std::fmt::Display for Board {
