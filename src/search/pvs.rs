@@ -120,6 +120,16 @@ fn pvs_recurse(
     (-score, count)
 }
 
+pub fn may_be_zugzwang(position: &Position) -> bool {
+    let pieces_bb = position.board.pieces_bb(Piece::Queen)
+        | position.board.pieces_bb(Piece::Rook)
+        | position.board.pieces_bb(Piece::Bishop)
+        | position.board.pieces_bb(Piece::Knight);
+    let white_pieces_bb = pieces_bb & position.board.occupancy_bb(Color::White);
+    let black_pieces_bb = pieces_bb & position.board.occupancy_bb(Color::Black);
+    white_pieces_bb.is_empty() || black_pieces_bb.is_empty()
+}
+
 fn pvs<const ROOT: bool>(
     position: &Position,
     depth: Depth,
@@ -182,8 +192,7 @@ fn pvs<const ROOT: bool>(
         && !is_check
         && !twofold_repetition
         && depth > NULL_MOVE_REDUCTION
-        && position.board.occupancy_bb(Color::White).count_ones() > 3
-        && position.board.occupancy_bb(Color::Black).count_ones() > 3
+        && !may_be_zugzwang(position)
     {
         let (score, nodes) = pvs::<false>(
             &position.make_null_move(),
