@@ -132,8 +132,10 @@ fn pvs<const ROOT: bool>(
         table.lock().unwrap().prepare_for_new_search(position.fullmove_number);
     }
 
-    let twofold_repetition = constraint.is_repetition::<2>(position);
-    let threefold_repetition = twofold_repetition && constraint.is_repetition::<3>(position);
+    let zobrist_hash = position.zobrist_hash();
+    let repeated_times = constraint.repeated(zobrist_hash);
+    let twofold_repetition = repeated_times >= 2;
+    let threefold_repetition = repeated_times >= 3;
 
     if !ROOT {
         // Detect history-related draws
@@ -178,10 +180,10 @@ fn pvs<const ROOT: bool>(
     // Null move pruning
     if !ROOT
         && !is_check
-        && depth > NULL_MOVE_REDUCTION
-        && position.board.piece_count(Color::White) > 0
-        && position.board.piece_count(Color::Black) > 0
         && !twofold_repetition
+        && depth > NULL_MOVE_REDUCTION
+        && position.board.occupancy_bb(Color::White).count_ones() > 3
+        && position.board.occupancy_bb(Color::Black).count_ones() > 3
     {
         let (score, nodes) = pvs::<false>(
             &position.make_null_move(),
@@ -212,13 +214,13 @@ fn pvs<const ROOT: bool>(
     let hash_move = table.lock().unwrap().get_hash_move(position);
     let killer_moves = table.lock().unwrap().get_killers(depth);
     let picker = MovePicker::new(&moves, |mov| {
-        if hash_move.is_some() && mov == hash_move.unwrap() {
-            return ValueScore::MAX;
+        if Some(mov) == hash_move {
+            ValueScore::MAX
+        } else if Some(mov) == killer_moves[0] || Some(mov) == killer_moves[1] {
+            piece_value(Piece::Queen)
+        } else {
+            evaluate_move(position, mov)
         }
-        if Some(mov) == killer_moves[0] || Some(mov) == killer_moves[1] {
-            return piece_value(Piece::Queen);
-        }
-        evaluate_move(position, mov)
     });
 
     let original_alpha = alpha;
@@ -227,7 +229,7 @@ fn pvs<const ROOT: bool>(
     for (mov, _, i) in picker {
         let new_position = position.make_move(mov);
 
-        constraint.visit_position(&new_position, mov.flag().is_reversible());
+        constraint.visit_position(zobrist_hash, mov.flag().is_reversible());
         let (score, nodes) = pvs_recurse(
             &new_position,
             if is_check { depth + CHECK_EXTENSION } else { depth },
