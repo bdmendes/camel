@@ -20,7 +20,6 @@ const MAX_SCORE: ValueScore = -MIN_SCORE;
 const MATE_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH as ValueScore + 1;
 
 const NULL_MOVE_REDUCTION: Depth = 3;
-const CHECK_EXTENSION: Depth = 1;
 
 fn quiesce(
     position: &Position,
@@ -228,15 +227,8 @@ fn pvs<const ROOT: bool>(
         let new_position = position.make_move(mov);
 
         constraint.visit_position(&new_position, mov.flag().is_reversible());
-        let (score, nodes) = pvs_recurse(
-            &new_position,
-            if is_check { depth + CHECK_EXTENSION } else { depth },
-            alpha,
-            beta,
-            table.clone(),
-            constraint,
-            i > 0,
-        );
+        let (score, nodes) =
+            pvs_recurse(&new_position, depth, alpha, beta, table.clone(), constraint, i > 0);
         constraint.leave_position();
 
         count += nodes;
@@ -355,7 +347,7 @@ mod tests {
     fn mate_them_2() {
         expect_search(
             "rnb1r1k1/pR3ppp/2p5/4N3/3P1Q1P/3p4/P4PP1/q4K1R w - - 3 19",
-            6,
+            7,
             vec!["b7b1", "a1b1", "f4c1", "b1c1"],
             Some(Score::Mate(Color::Black, 2)),
         );
