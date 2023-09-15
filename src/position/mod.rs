@@ -83,8 +83,12 @@ impl Position {
         make_move::<true>(self, mov)
     }
 
-    pub fn moves<const QUIESCE: bool>(&self) -> Vec<Move> {
-        generate_moves::<QUIESCE, false>(self)
+    pub fn moves(&self, quiesce: bool) -> Vec<Move> {
+        if quiesce {
+            generate_moves::<true, false>(self)
+        } else {
+            generate_moves::<false, false>(self)
+        }
     }
 
     pub fn is_check(&self) -> bool {

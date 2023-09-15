@@ -27,7 +27,7 @@ pub fn parse_position(words: &mut VecDeque<&str>) -> Result<Command, ()> {
             }
             "moves" => {
                 while let Some(mov_str) = words.pop_front() {
-                    let actual_moves = position.moves::<false>();
+                    let actual_moves = position.moves(false);
                     if let Some(mov) = actual_moves.iter().find(|mov| mov.to_string() == mov_str) {
                         position = position.make_move(*mov);
                         game_history.push(position);

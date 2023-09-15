@@ -129,7 +129,7 @@ pub fn execute_perft(depth: u8, position: &Position) {
 }
 
 pub fn execute_do_move(mov_str: &str, position: &mut Position) {
-    if let Some(mov) = position.moves::<false>().iter().find(|mov| mov.to_string() == mov_str) {
+    if let Some(mov) = position.moves(false).iter().find(|mov| mov.to_string() == mov_str) {
         *position = position.make_move(*mov);
     } else {
         println!("Illegal move: {}", mov_str);
@@ -143,7 +143,7 @@ pub fn execute_display(position: &Position) {
 }
 
 pub fn execute_all_moves(position: &Position) {
-    let moves = position.moves::<false>();
+    let moves = position.moves(false);
     for mov in moves {
         print!("{} ", mov);
     }

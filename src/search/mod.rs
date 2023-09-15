@@ -7,7 +7,7 @@ mod movepick;
 pub mod pvs;
 pub mod table;
 
-pub type Depth = i16;
+pub type Depth = u8;
 
 pub const MAX_DEPTH: Depth = 25;
 
@@ -51,7 +51,7 @@ pub fn search_iter(
     table: Arc<Mutex<SearchTable>>,
     constraint: &mut SearchConstraint,
 ) {
-    let moves = position.moves::<false>();
+    let moves = position.moves(false);
 
     if moves.is_empty() {
         return;
