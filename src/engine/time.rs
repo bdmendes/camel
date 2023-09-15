@@ -1,7 +1,8 @@
 use camel::position::{Color, Position};
 use std::time::Duration;
 
-const TYPICAL_GAME_MOVES: u16 = 50;
+const TYPICAL_GAME_MOVES: u16 = 60;
+const INCREMENT_OVERHEAD: Duration = Duration::from_millis(50);
 
 fn get_duration_based_on_moves(position: &Position, time: Duration) -> Duration {
     let expected_remaining_moves =
@@ -33,13 +34,15 @@ pub fn get_duration(
     let mut standard_move_time = get_duration_based_on_moves(position, our_duration);
 
     if standard_move_time < Duration::from_secs(1) {
-        standard_move_time /= 2;
+        standard_move_time /= 3;
     }
 
     if let Some(our_increment) = our_increment {
-        let new_move_time = standard_move_time + our_increment;
-        if new_move_time < our_duration {
-            return new_move_time;
+        if our_increment > INCREMENT_OVERHEAD {
+            let new_move_time = standard_move_time + our_increment - INCREMENT_OVERHEAD;
+            if new_move_time < our_duration {
+                return new_move_time;
+            }
         }
     }
 
