@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex};
 
 const MIN_SCORE: ValueScore = ValueScore::MIN + 1;
 const MAX_SCORE: ValueScore = -MIN_SCORE;
-const MATE_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH + 1;
+const MATE_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH as ValueScore + 1;
 
 const NULL_MOVE_REDUCTION: Depth = 3;
 const CHECK_EXTENSION: Depth = 1;
@@ -28,40 +28,49 @@ fn quiesce(
     beta: ValueScore,
     constraint: &SearchConstraint,
 ) -> (ValueScore, usize) {
-    let static_evaluation = evaluate_position(position) * position.side_to_move.sign();
-
     // Time limit reached
     if constraint.should_stop_search() {
-        return (static_evaluation, 1);
-    }
-
-    // Beta cutoff: position is too good
-    if static_evaluation >= beta {
-        return (beta, 1);
-    }
-
-    // Delta pruning: sequence cannot improve the score
-    if static_evaluation < alpha.saturating_sub(piece_value(Piece::Queen)) {
         return (alpha, 1);
     }
 
-    // Generate only non-quiet moves
-    let moves = position.moves::<true>();
+    // If we are in check, the position is certainly not quiet,
+    // so we must search all check evasion. Otherwise, search only captures
+    let is_check = position.is_check();
+    let static_evaluation = if is_check {
+        alpha
+    } else {
+        let static_evaluation = evaluate_position(position) * position.side_to_move.sign();
+
+        // Standing pat: captures are not forced
+        alpha = alpha.max(static_evaluation);
+
+        // Beta cutoff: position is too good
+        if static_evaluation >= beta {
+            return (beta, 1);
+        }
+
+        // Delta pruning: sequence cannot improve the score
+        if static_evaluation < alpha.saturating_sub(piece_value(Piece::Queen)) {
+            return (alpha, 1);
+        }
+
+        static_evaluation
+    };
+
+    let moves = position.moves(!is_check);
     let picker = MovePicker::new(&moves, |m| evaluate_move(position, m));
 
     // Stable position reached
     if moves.is_empty() {
-        return (static_evaluation, 1);
+        let score = if is_check { MATE_SCORE } else { static_evaluation };
+        return (score, 1);
     }
-
-    // Standing pat: captures are not forced
-    alpha = alpha.max(static_evaluation);
 
     let mut count = 1;
 
     for (mov, _, _) in picker {
         // Delta prune move if it cannot improve the score
-        if mov.flag().is_capture() {
+        if !is_check && mov.flag().is_capture() {
             let captured_piece =
                 position.board.piece_color_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
             if static_evaluation + piece_value(captured_piece) + MAX_POSITIONAL_GAIN < alpha {
@@ -158,12 +167,13 @@ fn pvs<const ROOT: bool>(
     }
 
     // Max depth reached; search for quiet position
-    let is_check = position.is_check();
-    if depth <= 0 && !is_check {
+    if depth == 0 {
         return quiesce(position, alpha, beta, constraint);
     }
 
     let mut count = 1;
+
+    let is_check = position.is_check();
 
     // Null move pruning
     if !ROOT
@@ -190,11 +200,11 @@ fn pvs<const ROOT: bool>(
         }
     }
 
-    let moves = position.moves::<false>();
+    let moves = position.moves(false);
 
     // Detect checkmate and stalemate
     if moves.is_empty() {
-        let score = if is_check { MATE_SCORE - depth } else { 0 };
+        let score = if is_check { MATE_SCORE - depth as ValueScore } else { 0 };
         return (score, count);
     }
 
