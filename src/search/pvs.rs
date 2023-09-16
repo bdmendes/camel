@@ -6,10 +6,7 @@ use super::{
 };
 use crate::{
     evaluation::{
-        moves::evaluate_move,
-        piece_value,
-        position::{evaluate_position, MAX_POSITIONAL_GAIN},
-        Score, ValueScore,
+        moves::evaluate_move, position::MAX_POSITIONAL_GAIN, Evaluable, Score, ValueScore,
     },
     position::{board::Piece, Color, Position},
 };
@@ -39,7 +36,7 @@ fn quiesce(
     let static_evaluation = if is_check {
         alpha
     } else {
-        let static_evaluation = evaluate_position(position) * position.side_to_move.sign();
+        let static_evaluation = position.value() * position.side_to_move.sign();
 
         // Standing pat: captures are not forced
         alpha = alpha.max(static_evaluation);
@@ -50,7 +47,7 @@ fn quiesce(
         }
 
         // Delta pruning: sequence cannot improve the score
-        if static_evaluation < alpha.saturating_sub(piece_value(Piece::Queen)) {
+        if static_evaluation < alpha.saturating_sub(Piece::Queen.value()) {
             return (alpha, 1);
         }
 
@@ -73,7 +70,7 @@ fn quiesce(
         if !is_check && mov.flag().is_capture() {
             let captured_piece =
                 position.board.piece_color_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
-            if static_evaluation + piece_value(captured_piece) + MAX_POSITIONAL_GAIN < alpha {
+            if static_evaluation + captured_piece.value() + MAX_POSITIONAL_GAIN < alpha {
                 continue;
             }
         }
@@ -222,7 +219,7 @@ fn pvs<const ROOT: bool>(
         if Some(mov) == hash_move {
             ValueScore::MAX
         } else if Some(mov) == killer_moves[0] || Some(mov) == killer_moves[1] {
-            piece_value(Piece::Queen)
+            Piece::Queen.value()
         } else {
             evaluate_move(position, mov)
         }

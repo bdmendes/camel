@@ -1,6 +1,6 @@
 use crate::engine::{time::get_duration, Engine};
 use camel::{
-    evaluation::position::evaluate_position,
+    evaluation::Evaluable,
     position::{fen::START_FEN, Position},
     search::{
         constraint::{HistoryEntry, SearchConstraint, TimeConstraint},
@@ -123,7 +123,7 @@ pub fn execute_do_move(mov_str: &str, position: &mut Position) {
 pub fn execute_display(position: &Position) {
     print!("{}", position.board);
     println!("{}", position.to_fen());
-    println!("Static evaluation: {}", evaluate_position(position));
+    println!("Static evaluation: {}", position.value());
 }
 
 pub fn execute_all_moves(position: &Position) {
