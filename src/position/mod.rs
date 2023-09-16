@@ -83,6 +83,12 @@ impl Position {
         make_move::<true>(self, mov)
     }
 
+    pub fn make_move_str(&self, mov_str: &str) -> Option<Self> {
+        let moves = self.moves(false);
+        let mov = moves.iter().find(|mov| mov.to_string() == mov_str)?;
+        Some(self.make_move(*mov))
+    }
+
     pub fn moves(&self, quiesce: bool) -> Vec<Move> {
         if quiesce {
             generate_moves::<true, false>(self)
@@ -93,11 +99,5 @@ impl Position {
 
     pub fn is_check(&self) -> bool {
         checked_by(&self.board, self.side_to_move.opposite())
-    }
-
-    pub fn make_null_move(&self) -> Self {
-        let mut position = *self;
-        position.side_to_move = position.side_to_move.opposite();
-        position
     }
 }

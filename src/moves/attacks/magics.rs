@@ -86,6 +86,9 @@ fn find_magic(square: Square, piece: Piece) -> SquareMagic {
         }
 
         if !found_collision {
+            let largest_used_index =
+                used.iter().enumerate().filter(|(_, used)| **used).map(|(i, _)| i).max().unwrap();
+            magic.attacks.resize(largest_used_index + 1, Bitboard::new(0));
             return magic;
         }
     }

@@ -130,12 +130,9 @@ pub fn psqt_value(piece: Piece, square: Square, color: Color, endgame_ratio: u8)
         Color::White => square.flip() as usize,
         Color::Black => square as usize,
     };
+
     let midgame_value = midgame_psqt[square];
     let endgame_value = endgame_psqt[square];
-
-    if midgame_value == endgame_value || endgame_ratio == 0 {
-        return midgame_value;
-    }
 
     let endgame_ratio = endgame_ratio as ValueScore;
     (midgame_value * (255 - endgame_ratio) + endgame_value * endgame_ratio) / 255

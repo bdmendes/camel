@@ -1,9 +1,6 @@
-use camel::{
-    moves::gen::perft,
-    position::{
-        fen::{KIWIPETE_BLACK_FEN, KIWIPETE_WHITE_FEN, START_FEN},
-        Position,
-    },
+use camel::position::{
+    fen::{KIWIPETE_BLACK_FEN, KIWIPETE_WHITE_FEN},
+    Position,
 };
 use criterion::{criterion_group, criterion_main, Criterion};
 
@@ -21,17 +18,5 @@ fn generate_moves_kiwipete_black(c: &mut Criterion) {
     });
 }
 
-fn perft_start_position(c: &mut Criterion) {
-    let start_position = Position::from_fen(START_FEN).unwrap();
-    c.bench_function("perft_start_position", |b| {
-        b.iter(|| perft::<false, false, true>(&start_position, 3));
-    });
-}
-
-criterion_group!(
-    movegen,
-    generate_moves_kiwipete_white,
-    generate_moves_kiwipete_black,
-    perft_start_position
-);
+criterion_group!(movegen, generate_moves_kiwipete_white, generate_moves_kiwipete_black,);
 criterion_main!(movegen);

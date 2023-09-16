@@ -120,3 +120,67 @@ impl Display for Bitboard {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::position::square::Square;
+
+    use super::Bitboard;
+
+    #[test]
+    fn pop_lsb() {
+        let mut bb = Bitboard::new(0b0000_1011_0011).into_iter();
+
+        assert_eq!(bb.next(), Square::from(0));
+        assert_eq!(bb.next(), Square::from(1));
+        assert_eq!(bb.next(), Square::from(4));
+        assert_eq!(bb.next(), Square::from(5));
+        assert_eq!(bb.next(), Square::from(7));
+        assert_eq!(bb.next(), None);
+    }
+
+    #[test]
+    fn pop_msb() {
+        let mut bb = Bitboard::new(0b0000_1011_0011).into_iter().rev();
+
+        assert_eq!(bb.next(), Square::from(7));
+        assert_eq!(bb.next(), Square::from(5));
+        assert_eq!(bb.next(), Square::from(4));
+        assert_eq!(bb.next(), Square::from(1));
+        assert_eq!(bb.next(), Square::from(0));
+        assert_eq!(bb.next(), None);
+    }
+
+    #[test]
+    fn single_masks() {
+        let square = Square::E4;
+        assert_eq!(Bitboard::file_mask(square.file()), Bitboard::new(0x10_10_10_10_10_10_10_10));
+        assert_eq!(Bitboard::rank_mask(square.rank()), Bitboard::new(0x00_00_00_00_FF_00_00_00));
+    }
+
+    #[test]
+    fn files_masks() {
+        let square = Square::E4;
+        assert_eq!(
+            Bitboard::files_mask_left(square.file(),),
+            Bitboard::new(0x0F_0F_0F_0F_0F_0F_0F_0F)
+        );
+        assert_eq!(
+            Bitboard::files_mask_right(square.file(),),
+            Bitboard::new(0xE0_E0_E0_E0_E0_E0_E0_E0)
+        );
+    }
+
+    #[test]
+    fn ranks_masks() {
+        let square = Square::E4;
+        assert_eq!(
+            Bitboard::ranks_mask_down(square.rank(),),
+            Bitboard::new(0x00_00_00_00_00_FF_FF_FF)
+        );
+        assert_eq!(
+            Bitboard::ranks_mask_up(square.rank(),),
+            Bitboard::new(0xFF_FF_FF_FF_00_00_00_00)
+        );
+    }
+}

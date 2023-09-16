@@ -11,3 +11,6 @@ lichess-bot/
 # Performance outputs
 flamegraph.svg
 perf.data*
+
+# Code coverage
+codecov.json

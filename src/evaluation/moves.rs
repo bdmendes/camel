@@ -1,4 +1,4 @@
-use super::{piece_value, position::psqt::psqt_value, ValueScore};
+use super::{psqt::psqt_value, Evaluable, ValueScore};
 use crate::{
     moves::Move,
     position::{board::Piece, Position},
@@ -9,17 +9,16 @@ pub fn evaluate_move(position: &Position, mov: Move) -> ValueScore {
 
     if mov.flag().is_capture() {
         let captured_piece = position.board.piece_at(mov.to()).unwrap_or(Piece::Pawn);
-        let capturing_piece = position.board.piece_at(mov.from()).unwrap();
-        score +=
-            piece_value(captured_piece) - piece_value(capturing_piece) + piece_value(Piece::Queen);
+        let capturing_piece = unsafe { position.board.piece_at(mov.from()).unwrap_unchecked() };
+        score += captured_piece.value() - capturing_piece.value() + Piece::Queen.value();
     }
 
     if mov.flag().is_promotion() {
-        let promoted_piece = mov.promotion_piece().unwrap();
-        score += piece_value(promoted_piece);
+        let promoted_piece = unsafe { mov.promotion_piece().unwrap_unchecked() };
+        score += promoted_piece.value();
     }
 
-    let piece = position.board.piece_at(mov.from()).unwrap();
+    let piece = unsafe { position.board.piece_at(mov.from()).unwrap_unchecked() };
     score += psqt_value(piece, mov.to(), position.side_to_move, 0);
     score -= psqt_value(piece, mov.from(), position.side_to_move, 0);
 

@@ -25,13 +25,17 @@ impl Square {
     pub fn flip(self) -> Square {
         let file = self.file();
         let rank = 7 - self.rank();
-        Square::from(rank * 8 + file).unwrap()
+        unsafe { Square::from(rank * 8 + file).unwrap_unchecked() }
     }
 
     pub fn distance(self, other: Square) -> u8 {
         let file_diff = (self.file() as i8 - other.file() as i8).unsigned_abs();
         let rank_diff = (self.rank() as i8 - other.rank() as i8).unsigned_abs();
         file_diff + rank_diff
+    }
+
+    pub fn shift(self, offset: i8) -> Option<Square> {
+        Square::from((self as i8 + offset) as u8)
     }
 }
 

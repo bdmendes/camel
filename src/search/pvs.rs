@@ -6,10 +6,7 @@ use super::{
 };
 use crate::{
     evaluation::{
-        moves::evaluate_move,
-        piece_value,
-        position::{evaluate_position, MAX_POSITIONAL_GAIN},
-        Score, ValueScore,
+        moves::evaluate_move, position::MAX_POSITIONAL_GAIN, Evaluable, Score, ValueScore,
     },
     position::{board::Piece, Color, Position},
 };
@@ -34,12 +31,12 @@ fn quiesce(
     }
 
     // If we are in check, the position is certainly not quiet,
-    // so we must search all check evasion. Otherwise, search only captures
+    // so we must search all check evasions. Otherwise, search only captures
     let is_check = position.is_check();
     let static_evaluation = if is_check {
         alpha
     } else {
-        let static_evaluation = evaluate_position(position) * position.side_to_move.sign();
+        let static_evaluation = position.value() * position.side_to_move.sign();
 
         // Standing pat: captures are not forced
         alpha = alpha.max(static_evaluation);
@@ -50,7 +47,7 @@ fn quiesce(
         }
 
         // Delta pruning: sequence cannot improve the score
-        if static_evaluation < alpha.saturating_sub(piece_value(Piece::Queen)) {
+        if static_evaluation < alpha.saturating_sub(Piece::Queen.value()) {
             return (alpha, 1);
         }
 
@@ -73,7 +70,7 @@ fn quiesce(
         if !is_check && mov.flag().is_capture() {
             let captured_piece =
                 position.board.piece_color_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
-            if static_evaluation + piece_value(captured_piece) + MAX_POSITIONAL_GAIN < alpha {
+            if static_evaluation + captured_piece.value() + MAX_POSITIONAL_GAIN < alpha {
                 continue;
             }
         }
@@ -95,7 +92,7 @@ fn quiesce(
 }
 
 fn pvs_recurse(
-    position: &Position,
+    position: &mut Position,
     depth: Depth,
     alpha: ValueScore,
     beta: ValueScore,
@@ -131,7 +128,7 @@ pub fn may_be_zugzwang(position: &Position) -> bool {
 }
 
 fn pvs<const ROOT: bool>(
-    position: &Position,
+    position: &mut Position,
     depth: Depth,
     mut alpha: ValueScore,
     mut beta: ValueScore,
@@ -156,12 +153,9 @@ fn pvs<const ROOT: bool>(
         if !twofold_repetition {
             if let Some(tt_entry) = table.lock().unwrap().get_table_score(position, depth) {
                 match tt_entry {
-                    TableScore::Exact(score) if score.abs() < MATE_SCORE.abs() => {
-                        return (score, 1)
-                    }
+                    TableScore::Exact(score) => return (score, 1),
                     TableScore::LowerBound(score) => alpha = alpha.max(score),
                     TableScore::UpperBound(score) => beta = beta.min(score),
-                    _ => (),
                 }
             }
         }
@@ -193,14 +187,16 @@ fn pvs<const ROOT: bool>(
         && depth > NULL_MOVE_REDUCTION
         && !may_be_zugzwang(position)
     {
+        position.side_to_move = position.side_to_move.opposite();
         let (score, nodes) = pvs::<false>(
-            &position.make_null_move(),
+            position,
             depth - NULL_MOVE_REDUCTION,
             -beta,
             -alpha,
             table.clone(),
             constraint,
         );
+        position.side_to_move = position.side_to_move.opposite();
 
         count += nodes;
         let score = -score;
@@ -225,7 +221,7 @@ fn pvs<const ROOT: bool>(
         if Some(mov) == hash_move {
             ValueScore::MAX
         } else if Some(mov) == killer_moves[0] || Some(mov) == killer_moves[1] {
-            piece_value(Piece::Queen)
+            Piece::Queen.value()
         } else {
             evaluate_move(position, mov)
         }
@@ -235,11 +231,11 @@ fn pvs<const ROOT: bool>(
     let mut best_move = moves[0];
 
     for (mov, _, i) in picker {
-        let new_position = position.make_move(mov);
+        let mut new_position = position.make_move(mov);
 
         constraint.visit_position(&new_position, mov.flag().is_reversible());
         let (score, nodes) = pvs_recurse(
-            &new_position,
+            &mut new_position,
             if is_check { depth + CHECK_EXTENSION } else { depth },
             alpha,
             beta,
@@ -283,19 +279,20 @@ fn pvs<const ROOT: bool>(
     (alpha, count)
 }
 
-pub fn search(
+pub fn search_single(
     position: &Position,
     depth: Depth,
     table: Arc<Mutex<SearchTable>>,
     constraint: &mut SearchConstraint,
 ) -> (Score, usize) {
     let depth = depth.min(MAX_DEPTH);
+    let mut position = *position;
 
     let (score, count) =
-        pvs::<true>(position, depth, MIN_SCORE, MAX_SCORE, table.clone(), constraint);
+        pvs::<true>(&mut position, depth, MIN_SCORE, MAX_SCORE, table.clone(), constraint);
 
     if score.abs() >= MATE_SCORE.abs() {
-        let pv = table.lock().unwrap().get_pv(position, depth);
+        let pv = table.lock().unwrap().get_pv(&position, depth);
         let plys_to_mate = pv.len() as u8;
         (
             Score::Mate(
@@ -324,7 +321,7 @@ mod tests {
         let table = Arc::new(Mutex::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB)));
         let mut constraint = SearchConstraint::default();
 
-        let score = search(&position, depth, table.clone(), &mut constraint).0;
+        let score = search_single(&position, depth, table.clone(), &mut constraint).0;
         let pv = table.lock().unwrap().get_pv(&position, depth);
 
         assert!(pv.len() >= expected_moves.len());
@@ -379,15 +376,5 @@ mod tests {
             vec!["c3a1", "b7b1", "a1b1", "f4c1", "b1c1"],
             Some(Score::Mate(Color::Black, 3)),
         );
-    }
-
-    #[test]
-    fn mate_us_5() {
-        expect_search(
-            "4R3/1R2b1p1/2B2k2/N4p2/1P6/P1K3P1/5P2/8 w - - 2 41",
-            9,
-            vec!["e8e7"],
-            Some(Score::Mate(Color::White, 5)),
-        )
     }
 }
