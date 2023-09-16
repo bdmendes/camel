@@ -92,7 +92,7 @@ fn quiesce(
 }
 
 fn pvs_recurse(
-    position: &Position,
+    position: &mut Position,
     depth: Depth,
     alpha: ValueScore,
     beta: ValueScore,
@@ -128,7 +128,7 @@ pub fn may_be_zugzwang(position: &Position) -> bool {
 }
 
 fn pvs<const ROOT: bool>(
-    position: &Position,
+    position: &mut Position,
     depth: Depth,
     mut alpha: ValueScore,
     mut beta: ValueScore,
@@ -187,14 +187,16 @@ fn pvs<const ROOT: bool>(
         && depth > NULL_MOVE_REDUCTION
         && !may_be_zugzwang(position)
     {
+        position.side_to_move = position.side_to_move.opposite();
         let (score, nodes) = pvs::<false>(
-            &position.make_null_move(),
+            position,
             depth - NULL_MOVE_REDUCTION,
             -beta,
             -alpha,
             table.clone(),
             constraint,
         );
+        position.side_to_move = position.side_to_move.opposite();
 
         count += nodes;
         let score = -score;
@@ -229,11 +231,11 @@ fn pvs<const ROOT: bool>(
     let mut best_move = moves[0];
 
     for (mov, _, i) in picker {
-        let new_position = position.make_move(mov);
+        let mut new_position = position.make_move(mov);
 
         constraint.visit_position(&new_position, mov.flag().is_reversible());
         let (score, nodes) = pvs_recurse(
-            &new_position,
+            &mut new_position,
             if is_check { depth + CHECK_EXTENSION } else { depth },
             alpha,
             beta,
@@ -284,12 +286,13 @@ pub fn search_single(
     constraint: &mut SearchConstraint,
 ) -> (Score, usize) {
     let depth = depth.min(MAX_DEPTH);
+    let mut position = *position;
 
     let (score, count) =
-        pvs::<true>(position, depth, MIN_SCORE, MAX_SCORE, table.clone(), constraint);
+        pvs::<true>(&mut position, depth, MIN_SCORE, MAX_SCORE, table.clone(), constraint);
 
     if score.abs() >= MATE_SCORE.abs() {
-        let pv = table.lock().unwrap().get_pv(position, depth);
+        let pv = table.lock().unwrap().get_pv(&position, depth);
         let plys_to_mate = pv.len() as u8;
         (
             Score::Mate(

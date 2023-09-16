@@ -14,7 +14,7 @@ pub fn evaluate_move(position: &Position, mov: Move) -> ValueScore {
     }
 
     if mov.flag().is_promotion() {
-        let promoted_piece = mov.promotion_piece().unwrap();
+        let promoted_piece = unsafe { mov.promotion_piece().unwrap_unchecked() };
         score += promoted_piece.value();
     }
 

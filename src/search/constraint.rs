@@ -34,14 +34,18 @@ impl Default for SearchConstraint {
 
 impl SearchConstraint {
     pub fn should_stop_search(&self) -> bool {
+        if let Some(stop_now) = &self.stop_now {
+            if stop_now.load(std::sync::atomic::Ordering::Relaxed) {
+                return true;
+            }
+        }
+
         if let Some(time_constraint) = &self.time_constraint {
             let elapsed = time_constraint.initial_instant.elapsed();
-            elapsed >= time_constraint.move_time
-        } else if let Some(stop_now) = &self.stop_now {
-            stop_now.load(std::sync::atomic::Ordering::Relaxed)
-        } else {
-            false
+            return elapsed >= time_constraint.move_time;
         }
+
+        false
     }
 
     pub fn remaining_time(&self) -> Option<Duration> {
@@ -70,5 +74,113 @@ impl SearchConstraint {
             }
         }
         count
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SearchConstraint;
+    use crate::{
+        position::{fen::START_FEN, Position},
+        search::constraint::TimeConstraint,
+    };
+    use std::{
+        thread,
+        time::{Duration, Instant},
+    };
+
+    #[test]
+    fn stop_search_time() {
+        let constraint = SearchConstraint {
+            branch_history: Vec::new(),
+            time_constraint: Some(TimeConstraint {
+                initial_instant: Instant::now(),
+                move_time: Duration::from_millis(100),
+            }),
+            stop_now: None,
+        };
+
+        thread::sleep(Duration::from_millis(90));
+
+        assert!(!constraint.should_stop_search());
+        assert!(constraint.remaining_time().unwrap() < Duration::from_millis(10));
+
+        thread::sleep(Duration::from_millis(20));
+
+        assert!(constraint.should_stop_search());
+        assert!(constraint.remaining_time().unwrap() == Duration::ZERO);
+    }
+
+    #[test]
+    fn stop_search_external_order() {
+        let stop_now = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let constraint = SearchConstraint {
+            branch_history: Vec::new(),
+            time_constraint: Some(TimeConstraint {
+                initial_instant: Instant::now(),
+                move_time: Duration::from_millis(100),
+            }),
+            stop_now: Some(stop_now.clone()),
+        };
+
+        assert!(!constraint.should_stop_search());
+
+        stop_now.store(true, std::sync::atomic::Ordering::Relaxed);
+
+        assert!(constraint.should_stop_search());
+        assert!(constraint.remaining_time().unwrap() > Duration::from_millis(90));
+    }
+
+    #[test]
+    fn repeated_times() {
+        let mut constraint =
+            SearchConstraint { branch_history: Vec::new(), time_constraint: None, stop_now: None };
+
+        let mut position = Position::from_fen(START_FEN).unwrap();
+        constraint.visit_position(&position, true);
+
+        position = position.make_move_str("e2e4").unwrap();
+        constraint.visit_position(&position, false);
+
+        position = position.make_move_str("e7e5").unwrap();
+        constraint.visit_position(&position, false);
+
+        assert_eq!(constraint.repeated(&position), 1);
+
+        position = position.make_move_str("g1f3").unwrap();
+        constraint.visit_position(&position, true);
+
+        position = position.make_move_str("b8c6").unwrap();
+        constraint.visit_position(&position, true);
+
+        position = position.make_move_str("f3g1").unwrap();
+        constraint.visit_position(&position, true);
+
+        assert_eq!(constraint.repeated(&position), 1);
+
+        position = position.make_move_str("c6b8").unwrap();
+        constraint.visit_position(&position, true);
+
+        assert_eq!(constraint.repeated(&position), 2);
+
+        position = position.make_move_str("g1f3").unwrap();
+        constraint.visit_position(&position, true);
+
+        assert_eq!(constraint.repeated(&position), 2);
+
+        position = position.make_move_str("b8c6").unwrap();
+        constraint.visit_position(&position, true);
+
+        assert_eq!(constraint.repeated(&position), 2);
+
+        position = position.make_move_str("f3g1").unwrap();
+        constraint.visit_position(&position, true);
+
+        assert_eq!(constraint.repeated(&position), 2);
+
+        position = position.make_move_str("c6b8").unwrap();
+        constraint.visit_position(&position, true);
+
+        assert_eq!(constraint.repeated(&position), 3);
     }
 }

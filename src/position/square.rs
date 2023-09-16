@@ -33,6 +33,10 @@ impl Square {
         let rank_diff = (self.rank() as i8 - other.rank() as i8).unsigned_abs();
         file_diff + rank_diff
     }
+
+    pub fn shift(self, offset: i8) -> Option<Square> {
+        Square::from((self as i8 + offset) as u8)
+    }
 }
 
 impl std::str::FromStr for Square {

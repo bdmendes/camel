@@ -1,4 +1,4 @@
-use self::gen::MoveDirection;
+use self::{attacks::specials::pawn_attacks, gen::MoveDirection};
 use crate::position::{board::Piece, square::Square, CastlingRights, Color, Position};
 use primitive_enum::primitive_enum;
 
@@ -173,10 +173,8 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
             new_board.set_square::<false>(mov.to(), Piece::Pawn, position.side_to_move);
             new_board.clear_square(unsafe {
                 match position.side_to_move {
-                    Color::White => Square::from((mov.to() as i8 + MoveDirection::SOUTH) as u8)
-                        .unwrap_unchecked(),
-                    Color::Black => Square::from((mov.to() as i8 + MoveDirection::NORTH) as u8)
-                        .unwrap_unchecked(),
+                    Color::White => mov.to().shift(MoveDirection::SOUTH).unwrap_unchecked(),
+                    Color::Black => mov.to().shift(MoveDirection::NORTH).unwrap_unchecked(),
                 }
             });
         }
@@ -207,14 +205,17 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
         MoveFlag::DoublePawnPush => {
             new_board.set_square::<false>(mov.to(), piece, position.side_to_move);
             if UPDATE_METADATA {
-                new_en_passant_square = Some(unsafe {
+                let candidate_en_passant = unsafe {
                     match position.side_to_move {
-                        Color::White => Square::from((mov.to() as i8 + MoveDirection::SOUTH) as u8)
-                            .unwrap_unchecked(),
-                        Color::Black => Square::from((mov.to() as i8 + MoveDirection::NORTH) as u8)
-                            .unwrap_unchecked(),
+                        Color::White => mov.to().shift(MoveDirection::SOUTH).unwrap_unchecked(),
+                        Color::Black => mov.to().shift(MoveDirection::NORTH).unwrap_unchecked(),
                     }
-                });
+                };
+                if pawn_attacks(&position.board, position.side_to_move.opposite())
+                    .is_set(candidate_en_passant)
+                {
+                    new_en_passant_square = Some(candidate_en_passant);
+                }
             }
         }
         MoveFlag::Capture => {
