@@ -10,7 +10,7 @@ mod king;
 mod pawns;
 pub mod psqt;
 
-pub const MAX_POSITIONAL_GAIN: ValueScore = 200;
+pub const MAX_POSITIONAL_GAIN: ValueScore = 300;
 
 pub fn midgame_ratio(position: &Position) -> u8 {
     Piece::list().iter().fold(0, |acc, piece| {
