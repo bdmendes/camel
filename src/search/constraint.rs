@@ -1,5 +1,5 @@
 use super::MAX_DEPTH;
-use crate::position::board::ZobristHash;
+use crate::position::{board::ZobristHash, Position};
 use std::{
     sync::{atomic::AtomicBool, Arc},
     time::{Duration, Instant},
@@ -50,16 +50,17 @@ impl SearchConstraint {
         })
     }
 
-    pub fn visit_position(&mut self, hash: ZobristHash, reversible: bool) {
-        self.branch_history.push(HistoryEntry { hash, reversible });
+    pub fn visit_position(&mut self, position: &Position, reversible: bool) {
+        self.branch_history.push(HistoryEntry { hash: position.zobrist_hash(), reversible });
     }
 
     pub fn leave_position(&mut self) {
         self.branch_history.pop();
     }
 
-    pub fn repeated(&self, hash: ZobristHash) -> u8 {
+    pub fn repeated(&self, position: &Position) -> u8 {
         let mut count = 0;
+        let hash = position.zobrist_hash();
         for entry in self.branch_history.iter().rev() {
             if entry.hash == hash {
                 count += 1;

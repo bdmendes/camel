@@ -142,8 +142,7 @@ fn pvs<const ROOT: bool>(
         table.lock().unwrap().prepare_for_new_search(position.fullmove_number);
     }
 
-    let zobrist_hash = position.zobrist_hash();
-    let repeated_times = constraint.repeated(zobrist_hash);
+    let repeated_times = constraint.repeated(position);
     let twofold_repetition = repeated_times >= 2;
     let threefold_repetition = repeated_times >= 3;
 
@@ -238,7 +237,7 @@ fn pvs<const ROOT: bool>(
     for (mov, _, i) in picker {
         let new_position = position.make_move(mov);
 
-        constraint.visit_position(zobrist_hash, mov.flag().is_reversible());
+        constraint.visit_position(&new_position, mov.flag().is_reversible());
         let (score, nodes) = pvs_recurse(
             &new_position,
             if is_check { depth + CHECK_EXTENSION } else { depth },
