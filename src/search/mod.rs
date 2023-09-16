@@ -1,6 +1,9 @@
 use self::{constraint::SearchConstraint, table::SearchTable};
 use crate::{evaluation::Score, position::Position};
-use std::sync::{Arc, Mutex};
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 pub mod constraint;
 mod movepick;
@@ -16,10 +19,12 @@ fn print_iter_info(
     depth: Depth,
     score: Score,
     count: usize,
-    elapsed: u128,
+    elapsed: Duration,
     table: &SearchTable,
 ) {
-    let nps = (count as f64 / (elapsed.max(1) as f64 / 1000.0)) as usize;
+    let elapsed_micros = elapsed.as_micros();
+    let nps = (count as f64 / (elapsed_micros.max(1) as f64 / 1000000.0)) as usize;
+
     print!("info depth {} hashfull {} ", depth, table.hashfull_millis());
 
     match score {
@@ -36,7 +41,7 @@ fn print_iter_info(
         }
     }
 
-    print!("time {} nodes {} nps {} pv", elapsed.max(1), count, nps);
+    print!("time {} nodes {} nps {} pv", (elapsed_micros / 1000).max(1), count, nps);
 
     let pv = table.get_pv(position, depth);
     for mov in pv {
@@ -62,21 +67,14 @@ pub fn search_iter(
     let mut current_depth = 1;
     while current_depth <= depth {
         let time = std::time::Instant::now();
-        let (score, count) = pvs::search(position, current_depth, table.clone(), constraint);
+        let (score, count) = pvs::search_single(position, current_depth, table.clone(), constraint);
 
         if constraint.should_stop_search() {
             break;
         }
 
         let elapsed = time.elapsed();
-        print_iter_info(
-            position,
-            current_depth,
-            score,
-            count,
-            elapsed.as_millis(),
-            &table.lock().unwrap(),
-        );
+        print_iter_info(position, current_depth, score, count, elapsed, &table.lock().unwrap());
 
         if one_legal_move
             || matches!(score, Score::Mate(_, _))

@@ -1,7 +1,6 @@
 use crate::engine::{time::get_duration, Engine};
 use camel::{
     evaluation::position::evaluate_position,
-    moves::gen::perft,
     position::{fen::START_FEN, Position},
     search::{
         constraint::{HistoryEntry, SearchConstraint, TimeConstraint},
@@ -102,11 +101,7 @@ pub fn execute_debug(_: bool) {}
 pub fn execute_set_option(name: &str, value: &str, engine: &mut Engine) {
     if name == "Hash" {
         if let Ok(size) = value.parse::<usize>() {
-            engine
-                .table
-                .lock()
-                .unwrap()
-                .set_size(size.min(MAX_TABLE_SIZE_MB).max(MIN_TABLE_SIZE_MB));
+            engine.table.lock().unwrap().set_size(size.clamp(MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB));
         }
     }
 }
@@ -115,17 +110,6 @@ pub fn execute_uci_new_game(engine: &mut Engine) {
     engine.position = Position::from_fen(START_FEN).unwrap();
     engine.game_history = Vec::new();
     engine.table.lock().unwrap().clear();
-}
-
-pub fn execute_perft(depth: u8, position: &Position) {
-    let position = *position;
-    thread::spawn(move || {
-        let time = std::time::Instant::now();
-        let (nodes, _) = perft::<true, true, false>(&position, depth);
-        let elapsed = time.elapsed().as_millis();
-        let mnps = nodes as f64 / 1000.0 / (elapsed + 1) as f64;
-        println!("Searched {} nodes in {} ms [{:.3} Mnps]", nodes, elapsed, mnps);
-    });
 }
 
 pub fn execute_do_move(mov_str: &str, position: &mut Position) {
@@ -155,7 +139,6 @@ pub fn execute_help() {
     println!("Camel is a UCI-compatible chess engine, primarily meant to be used inside a GUI.");
     println!("You can review the UCI standard in https://backscattering.de/chess/uci/.");
     println!("Camel also bundles support for custom commands, for debugging purposes:");
-    println!("   'perft <depth>': count nodes searched from current position until given depth");
     println!("   'domove <move>': perform given move in uci notation on the current board");
     println!("   'list': list legal moves available on the current position");
     println!("   'display': print current position");

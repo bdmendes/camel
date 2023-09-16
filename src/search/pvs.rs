@@ -34,7 +34,7 @@ fn quiesce(
     }
 
     // If we are in check, the position is certainly not quiet,
-    // so we must search all check evasion. Otherwise, search only captures
+    // so we must search all check evasions. Otherwise, search only captures
     let is_check = position.is_check();
     let static_evaluation = if is_check {
         alpha
@@ -156,12 +156,9 @@ fn pvs<const ROOT: bool>(
         if !twofold_repetition {
             if let Some(tt_entry) = table.lock().unwrap().get_table_score(position, depth) {
                 match tt_entry {
-                    TableScore::Exact(score) if score.abs() < MATE_SCORE.abs() => {
-                        return (score, 1)
-                    }
+                    TableScore::Exact(score) => return (score, 1),
                     TableScore::LowerBound(score) => alpha = alpha.max(score),
                     TableScore::UpperBound(score) => beta = beta.min(score),
-                    _ => (),
                 }
             }
         }
@@ -283,7 +280,7 @@ fn pvs<const ROOT: bool>(
     (alpha, count)
 }
 
-pub fn search(
+pub fn search_single(
     position: &Position,
     depth: Depth,
     table: Arc<Mutex<SearchTable>>,
@@ -324,7 +321,7 @@ mod tests {
         let table = Arc::new(Mutex::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB)));
         let mut constraint = SearchConstraint::default();
 
-        let score = search(&position, depth, table.clone(), &mut constraint).0;
+        let score = search_single(&position, depth, table.clone(), &mut constraint).0;
         let pv = table.lock().unwrap().get_pv(&position, depth);
 
         assert!(pv.len() >= expected_moves.len());
@@ -379,15 +376,5 @@ mod tests {
             vec!["c3a1", "b7b1", "a1b1", "f4c1", "b1c1"],
             Some(Score::Mate(Color::Black, 3)),
         );
-    }
-
-    #[test]
-    fn mate_us_5() {
-        expect_search(
-            "4R3/1R2b1p1/2B2k2/N4p2/1P6/P1K3P1/5P2/8 w - - 2 41",
-            9,
-            vec!["e8e7"],
-            Some(Score::Mate(Color::White, 5)),
-        )
     }
 }

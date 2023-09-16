@@ -39,9 +39,6 @@ pub enum Command {
     },
 
     // Custom commands
-    Perft {
-        depth: u8,
-    },
     DoMove {
         mov_str: String,
     },
