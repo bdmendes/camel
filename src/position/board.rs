@@ -67,30 +67,18 @@ impl Board {
     }
 
     pub fn piece_color_at(&self, square: Square) -> Option<(Piece, Color)> {
-        if let Some(color) = self.color_at(square) {
-            return Some((self.piece_at(square).unwrap(), color));
-        }
-        None
+        self.color_at(square).map(|color| (self.piece_at(square).unwrap(), color))
     }
 
     pub fn piece_at(&self, square: Square) -> Option<Piece> {
-        for (piece, bb) in self.pieces.iter().enumerate() {
-            if bb.is_set(square) {
-                return Some(Piece::from(piece as u8).unwrap());
-            }
-        }
-        None
+        self.pieces.iter().position(|bb| bb.is_set(square)).map(|i| Piece::from(i as u8).unwrap())
     }
 
     pub fn color_at(&self, square: Square) -> Option<Color> {
-        if self.occupancy_bb(Color::White).is_set(square) {
-            debug_assert!(!self.occupancy_bb(Color::Black).is_set(square));
-            Some(Color::White)
-        } else if self.occupancy_bb(Color::Black).is_set(square) {
-            Some(Color::Black)
-        } else {
-            None
-        }
+        self.occupancy
+            .iter()
+            .position(|bb| bb.is_set(square))
+            .map(|i| Color::from(i as u8).unwrap())
     }
 
     pub fn occupancy_bb_all(&self) -> Bitboard {
