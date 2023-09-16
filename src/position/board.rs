@@ -104,15 +104,6 @@ impl Board {
     pub fn pieces_bb(&self, piece: Piece) -> Bitboard {
         self.pieces[piece as usize]
     }
-
-    pub fn piece_count(&self, color: Color) -> usize {
-        let pieces_bb = self.pieces_bb(Piece::Queen)
-            | self.pieces_bb(Piece::Rook)
-            | self.pieces_bb(Piece::Bishop)
-            | self.pieces_bb(Piece::Knight);
-        let our_pieces_bb = pieces_bb & self.occupancy_bb(color);
-        our_pieces_bb.count_ones() as usize
-    }
 }
 
 impl std::fmt::Display for Board {

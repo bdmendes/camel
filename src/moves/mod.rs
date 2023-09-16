@@ -69,25 +69,23 @@ impl MoveFlag {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Move {
-    data: u16,
-}
+pub struct Move(u16);
 
 impl Move {
     pub fn new(from: Square, to: Square, flag: MoveFlag) -> Self {
-        Move { data: (from as u16) | ((to as u16) << 6) | ((flag as u16) << 12) }
+        Move((from as u16) | ((to as u16) << 6) | ((flag as u16) << 12))
     }
 
     pub fn from(&self) -> Square {
-        Square::from((self.data & 0b111111) as u8).unwrap()
+        Square::from((self.0 & 0b111111) as u8).unwrap()
     }
 
     pub fn to(&self) -> Square {
-        Square::from(((self.data >> 6) & 0b111111) as u8).unwrap()
+        Square::from(((self.0 >> 6) & 0b111111) as u8).unwrap()
     }
 
     pub fn flag(&self) -> MoveFlag {
-        MoveFlag::from((self.data >> 12) as u8).unwrap()
+        MoveFlag::from((self.0 >> 12) as u8).unwrap()
     }
 
     pub fn promotion_piece(&self) -> Option<Piece> {
