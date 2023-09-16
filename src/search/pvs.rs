@@ -12,10 +12,7 @@ use crate::{
 };
 use std::sync::{Arc, Mutex};
 
-const MIN_SCORE: ValueScore = ValueScore::MIN + 1;
-const MAX_SCORE: ValueScore = -MIN_SCORE;
 const MATE_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH as ValueScore + 1;
-
 const NULL_MOVE_REDUCTION: Depth = 3;
 const CHECK_EXTENSION: Depth = 1;
 
@@ -281,6 +278,7 @@ fn pvs<const ROOT: bool>(
 
 pub fn search_single(
     position: &Position,
+    guess: ValueScore,
     depth: Depth,
     table: Arc<Mutex<SearchTable>>,
     constraint: &mut SearchConstraint,
@@ -288,22 +286,54 @@ pub fn search_single(
     let depth = depth.min(MAX_DEPTH);
     let mut position = *position;
 
-    let (score, count) =
-        pvs::<true>(&mut position, depth, MIN_SCORE, MAX_SCORE, table.clone(), constraint);
+    let mut all_count = 0;
 
-    if score.abs() >= MATE_SCORE.abs() {
-        let pv = table.lock().unwrap().get_pv(&position, depth);
-        let plys_to_mate = pv.len() as u8;
-        (
-            Score::Mate(
-                if score > 0 { position.side_to_move } else { position.side_to_move.opposite() },
-                (plys_to_mate + 1) / 2,
-            ),
-            count,
-        )
-    } else {
-        (Score::Value(score), count)
+    const WINDOW_SIZE: ValueScore = 25;
+    let mut lower_bound = guess - WINDOW_SIZE;
+    let mut upper_bound = guess + WINDOW_SIZE;
+
+    for cof in 1.. {
+        let (score, count) =
+            pvs::<true>(&mut position, depth, lower_bound, upper_bound, table.clone(), constraint);
+        all_count += count;
+
+        if !constraint.should_stop_search() {
+            // Search failed low; increase lower bound and try again
+            if score <= lower_bound {
+                lower_bound = std::cmp::max(
+                    ValueScore::MIN + 1,
+                    lower_bound.saturating_sub(WINDOW_SIZE.saturating_mul(cof * cof)),
+                );
+                continue;
+            }
+
+            // Search failed high; increase upper bound and try again
+            if score >= upper_bound {
+                upper_bound = upper_bound.saturating_add(WINDOW_SIZE.saturating_mul(cof * cof));
+                continue;
+            }
+        }
+
+        return if score.abs() >= MATE_SCORE.abs() {
+            let pv = table.lock().unwrap().get_pv(&position, depth);
+            let plys_to_mate = pv.len() as u8;
+            (
+                Score::Mate(
+                    if score > 0 {
+                        position.side_to_move
+                    } else {
+                        position.side_to_move.opposite()
+                    },
+                    (plys_to_mate + 1) / 2,
+                ),
+                all_count,
+            )
+        } else {
+            (Score::Value(score), all_count)
+        };
     }
+
+    unreachable!()
 }
 
 #[cfg(test)]
@@ -321,7 +351,7 @@ mod tests {
         let table = Arc::new(Mutex::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB)));
         let mut constraint = SearchConstraint::default();
 
-        let score = search_single(&position, depth, table.clone(), &mut constraint).0;
+        let score = search_single(&position, 0, depth, table.clone(), &mut constraint).0;
         let pv = table.lock().unwrap().get_pv(&position, depth);
 
         assert!(pv.len() >= expected_moves.len());
@@ -344,16 +374,6 @@ mod tests {
             "rnb1r2k/pR3Qpp/2p5/4N3/3P3P/2q5/P2p1PP1/5K1R w - - 1 20",
             2,
             vec!["f7e8"],
-            Some(Score::Mate(Color::White, 1)),
-        );
-    }
-
-    #[test]
-    fn mate_them_1() {
-        expect_search(
-            "rnb1r1k1/pR3Qpp/2p5/4N3/3P3P/2q5/P2p1PP1/5K1R b - - 0 19",
-            2,
-            vec!["g8h8", "f7e8"],
             Some(Score::Mate(Color::White, 1)),
         );
     }

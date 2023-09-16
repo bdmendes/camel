@@ -1,5 +1,8 @@
 use self::{constraint::SearchConstraint, table::SearchTable};
-use crate::{evaluation::Score, position::Position};
+use crate::{
+    evaluation::{Evaluable, Score},
+    position::Position,
+};
 use std::{
     sync::{Arc, Mutex},
     time::Duration,
@@ -63,14 +66,20 @@ pub fn search_iter(
     }
 
     let one_legal_move = moves.len() == 1;
+    let mut current_guess = position.value() * position.side_to_move.sign();
 
     let mut current_depth = 1;
     while current_depth <= depth {
         let time = std::time::Instant::now();
-        let (score, count) = pvs::search_single(position, current_depth, table.clone(), constraint);
+        let (score, count) =
+            pvs::search_single(position, current_guess, current_depth, table.clone(), constraint);
 
         if constraint.should_stop_search() {
             break;
+        }
+
+        if let Score::Value(score) = score {
+            current_guess = score;
         }
 
         let elapsed = time.elapsed();
