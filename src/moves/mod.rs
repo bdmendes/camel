@@ -77,15 +77,15 @@ impl Move {
     }
 
     pub fn from(&self) -> Square {
-        Square::from((self.0 & 0b111111) as u8).unwrap()
+        unsafe { Square::from((self.0 & 0b111111) as u8).unwrap_unchecked() }
     }
 
     pub fn to(&self) -> Square {
-        Square::from(((self.0 >> 6) & 0b111111) as u8).unwrap()
+        unsafe { Square::from(((self.0 >> 6) & 0b111111) as u8).unwrap_unchecked() }
     }
 
     pub fn flag(&self) -> MoveFlag {
-        MoveFlag::from((self.0 >> 12) as u8).unwrap()
+        unsafe { MoveFlag::from((self.0 >> 12) as u8).unwrap_unchecked() }
     }
 
     pub fn promotion_piece(&self) -> Option<Piece> {
@@ -104,7 +104,6 @@ impl std::fmt::Display for Move {
         let mut s = String::new();
 
         s.push_str(&self.from().to_string());
-
         s.push_str(&self.to().to_string());
 
         match self.flag() {
@@ -124,7 +123,7 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
     let mut new_castling_rights = position.castling_rights;
     let mut new_en_passant_square = None;
 
-    let piece = new_board.piece_at(mov.from()).unwrap();
+    let piece = unsafe { new_board.piece_at(mov.from()).unwrap_unchecked() };
 
     new_board.clear_square(mov.from());
 
@@ -172,12 +171,12 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
         },
         MoveFlag::EnPassantCapture => {
             new_board.set_square::<false>(mov.to(), Piece::Pawn, position.side_to_move);
-            new_board.clear_square(match position.side_to_move {
-                Color::White => {
-                    Square::from((mov.to() as i8 + MoveDirection::SOUTH) as u8).unwrap()
-                }
-                Color::Black => {
-                    Square::from((mov.to() as i8 + MoveDirection::NORTH) as u8).unwrap()
+            new_board.clear_square(unsafe {
+                match position.side_to_move {
+                    Color::White => Square::from((mov.to() as i8 + MoveDirection::SOUTH) as u8)
+                        .unwrap_unchecked(),
+                    Color::Black => Square::from((mov.to() as i8 + MoveDirection::NORTH) as u8)
+                        .unwrap_unchecked(),
                 }
             });
         }
@@ -208,12 +207,12 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
         MoveFlag::DoublePawnPush => {
             new_board.set_square::<false>(mov.to(), piece, position.side_to_move);
             if UPDATE_METADATA {
-                new_en_passant_square = Some(match position.side_to_move {
-                    Color::White => {
-                        Square::from((mov.to() as i8 + MoveDirection::SOUTH) as u8).unwrap()
-                    }
-                    Color::Black => {
-                        Square::from((mov.to() as i8 + MoveDirection::NORTH) as u8).unwrap()
+                new_en_passant_square = Some(unsafe {
+                    match position.side_to_move {
+                        Color::White => Square::from((mov.to() as i8 + MoveDirection::SOUTH) as u8)
+                            .unwrap_unchecked(),
+                        Color::Black => Square::from((mov.to() as i8 + MoveDirection::NORTH) as u8)
+                            .unwrap_unchecked(),
                     }
                 });
             }

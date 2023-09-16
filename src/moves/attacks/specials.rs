@@ -33,7 +33,8 @@ pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, moves: &mut
     // Single push
     let single_push_pawns = our_pawns.shift(direction) & !occupancy;
     for to_square in single_push_pawns {
-        let from_square = Square::from((to_square as i8 - direction) as u8).unwrap();
+        let from_square =
+            unsafe { Square::from((to_square as i8 - direction) as u8).unwrap_unchecked() };
         push_pawn_move::<QUIESCE>(occupancy, moves, from_square, to_square);
     }
 
@@ -44,8 +45,9 @@ pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, moves: &mut
         let double_push_pawns = (single_push_pawns & third_row_bb).shift(direction) & !occupancy;
 
         for to_square in double_push_pawns {
-            let from_square =
-                Square::from((to_square as i8 - direction - direction) as u8).unwrap();
+            let from_square = unsafe {
+                Square::from((to_square as i8 - direction - direction) as u8).unwrap_unchecked()
+            };
             moves.push(Move::new(from_square, to_square, MoveFlag::DoublePawnPush));
         }
     }
@@ -54,8 +56,10 @@ pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, moves: &mut
     let west_pawns =
         (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST) & occupancy_them;
     for to_square in west_pawns {
-        let from_square =
-            Square::from((to_square as i8 - direction - MoveDirection::WEST) as u8).unwrap();
+        let from_square = unsafe {
+            Square::from((to_square as i8 - direction - MoveDirection::WEST) as u8)
+                .unwrap_unchecked()
+        };
         push_pawn_move::<QUIESCE>(occupancy_them, moves, from_square, to_square);
     }
 
@@ -63,8 +67,10 @@ pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, moves: &mut
     let east_pawns =
         (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST) & occupancy_them;
     for to_square in east_pawns {
-        let from_square =
-            Square::from((to_square as i8 - direction - MoveDirection::EAST) as u8).unwrap();
+        let from_square = unsafe {
+            Square::from((to_square as i8 - direction - MoveDirection::EAST) as u8)
+                .unwrap_unchecked()
+        };
         push_pawn_move::<QUIESCE>(occupancy_them, moves, from_square, to_square);
     }
 
@@ -75,16 +81,20 @@ pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, moves: &mut
         let west_pawns =
             (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST) & ep_bb;
         for to_square in west_pawns {
-            let from_square =
-                Square::from((to_square as i8 - direction - MoveDirection::WEST) as u8).unwrap();
+            let from_square = unsafe {
+                Square::from((to_square as i8 - direction - MoveDirection::WEST) as u8)
+                    .unwrap_unchecked()
+            };
             moves.push(Move::new(from_square, to_square, MoveFlag::EnPassantCapture));
         }
 
         let east_pawns =
             (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST) & ep_bb;
         for to_square in east_pawns {
-            let from_square =
-                Square::from((to_square as i8 - direction - MoveDirection::EAST) as u8).unwrap();
+            let from_square = unsafe {
+                Square::from((to_square as i8 - direction - MoveDirection::EAST) as u8)
+                    .unwrap_unchecked()
+            };
             moves.push(Move::new(from_square, to_square, MoveFlag::EnPassantCapture));
         }
     }
