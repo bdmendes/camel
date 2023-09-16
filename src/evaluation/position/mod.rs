@@ -1,4 +1,4 @@
-use self::{pawns::evaluate_pawn_structure, psqt::psqt_value};
+use self::{king::evaluate_king_safety, pawns::evaluate_pawn_structure, psqt::psqt_value};
 
 use super::{piece_value, ValueScore};
 use crate::{
@@ -6,6 +6,7 @@ use crate::{
     position::{board::Piece, Color, Position},
 };
 
+mod king;
 mod pawns;
 pub mod psqt;
 
@@ -45,7 +46,8 @@ pub fn evaluate_position(position: &Position) -> ValueScore {
         }
     }
 
-    let endgame_ratio = 255 - midgame_ratio(position);
+    let midgame_ratio = midgame_ratio(position);
+    let endgame_ratio = 255 - midgame_ratio;
 
     let occupancy = position.board.occupancy_bb_all();
     let white_occupancy = position.board.occupancy_bb(Color::White);
@@ -94,7 +96,7 @@ pub fn evaluate_position(position: &Position) -> ValueScore {
         acc + material_bonus + positional_bonus + mobility_bonus
     });
 
-    base_score + evaluate_pawn_structure(position)
+    base_score + evaluate_pawn_structure(position) + evaluate_king_safety(position, midgame_ratio)
 }
 
 #[cfg(test)]

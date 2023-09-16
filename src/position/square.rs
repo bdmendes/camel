@@ -27,6 +27,12 @@ impl Square {
         let rank = 7 - self.rank();
         Square::from(rank * 8 + file).unwrap()
     }
+
+    pub fn distance(self, other: Square) -> u8 {
+        let file_diff = (self.file() as i8 - other.file() as i8).unsigned_abs();
+        let rank_diff = (self.rank() as i8 - other.rank() as i8).unsigned_abs();
+        file_diff + rank_diff
+    }
 }
 
 impl std::str::FromStr for Square {
