@@ -39,6 +39,9 @@ pub fn board_from_fen(board_fen: &str) -> Option<Board> {
                     'k' => Piece::King,
                     _ => unreachable!(),
                 };
+                if rank > 7 || file > 7 {
+                    return None;
+                }
                 let square = Square::from(rank * 8 + file).unwrap();
                 board.set_square::<true>(square, piece, color);
                 file += 1;
