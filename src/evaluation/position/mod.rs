@@ -1,5 +1,5 @@
-use self::{king::evaluate_king_safety, pawns::evaluate_pawn_structure, psqt::psqt_value};
-use super::{Evaluable, ValueScore};
+use self::{king::evaluate_king_safety, pawns::evaluate_pawn_structure};
+use super::{psqt::psqt_value, Evaluable, ValueScore};
 use crate::{
     moves::gen::piece_attacks,
     position::{board::Piece, Color, Position},
@@ -7,7 +7,6 @@ use crate::{
 
 mod king;
 mod pawns;
-pub mod psqt;
 
 pub const MAX_POSITIONAL_GAIN: ValueScore = 300;
 

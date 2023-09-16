@@ -1,4 +1,4 @@
-use super::{position::psqt::psqt_value, Evaluable, ValueScore};
+use super::{psqt::psqt_value, Evaluable, ValueScore};
 use crate::{
     moves::Move,
     position::{board::Piece, Position},
