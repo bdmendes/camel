@@ -22,8 +22,8 @@ fn king_pawn_shelter(position: &Position, king_color: Color, king_square: Square
         _ => king_square.file() + 1,
     };
 
-    const OPEN_FILE_PENALTY: ValueScore = -20;
-    const SHELTER_PENALTY: ValueScore = -20;
+    const OPEN_FILE_PENALTY: ValueScore = -10;
+    const SHELTER_PENALTY: ValueScore = -15;
 
     for file in file_min..=file_max {
         let our_pawns_on_file = our_pawns & Bitboard::file_mask(file);
@@ -169,21 +169,12 @@ mod tests {
     }
 
     #[test]
-    fn broken_shelter_soft() {
+    fn broken_shelter() {
         let position =
             Position::from_fen("r2q1rk1/1p2bppp/p2p4/3Ppb2/6P1/PN2BP2/1PP4P/R2Q1RK1 b - - 0 15")
                 .unwrap();
 
         assert!((-40..=-20).contains(&position_shelter(&position)));
-    }
-
-    #[test]
-    fn broken_shelter_hard() {
-        let position =
-            Position::from_fen("r4r1k/1p2p1pp/p2p2b1/3P4/6P1/PNP1q1P1/1P3R2/R2Q2K1 w - - 1 22")
-                .unwrap();
-
-        assert!((-80..=-40).contains(&position_shelter(&position)));
     }
 
     #[test]

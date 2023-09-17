@@ -21,7 +21,7 @@ impl Evaluable for Piece {
         match self {
             Piece::Pawn => 100,
             Piece::Knight => 310,
-            Piece::Bishop => 330,
+            Piece::Bishop => 320,
             Piece::Rook => 480,
             Piece::Queen => 900,
             Piece::King => 0,
