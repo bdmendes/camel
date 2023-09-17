@@ -5,9 +5,7 @@ use super::{
     Depth, MAX_DEPTH,
 };
 use crate::{
-    evaluation::{
-        moves::evaluate_move, position::MAX_POSITIONAL_GAIN, Evaluable, Score, ValueScore,
-    },
+    evaluation::{position::MAX_POSITIONAL_GAIN, Evaluable, Score, ValueScore},
     position::{board::Piece, Color, Position},
 };
 use std::sync::{Arc, Mutex};
@@ -51,11 +49,10 @@ fn quiesce(
         static_evaluation
     };
 
-    let moves = position.moves(!is_check);
-    let picker = MovePicker::new(&moves, |m| evaluate_move(position, m));
+    let mut picker = MovePicker::<true>::new(position, is_check).peekable();
 
     // Stable position reached
-    if moves.is_empty() {
+    if picker.peek().is_none() {
         let score = if is_check { MATE_SCORE } else { static_evaluation };
         return (score, 1);
     }
@@ -203,29 +200,16 @@ fn pvs<const ROOT: bool>(
         }
     }
 
-    let moves = position.moves(false);
+    let mut picker = MovePicker::<false>::new(position, table.clone(), depth).peekable();
 
     // Detect checkmate and stalemate
-    if moves.is_empty() {
+    if picker.peek().is_none() {
         let score = if is_check { MATE_SCORE - depth as ValueScore } else { 0 };
         return (score, count);
     }
 
-    // Sort moves via MVV-LVA, psqt and table information
-    let hash_move = table.lock().unwrap().get_hash_move(position);
-    let killer_moves = table.lock().unwrap().get_killers(depth);
-    let picker = MovePicker::new(&moves, |mov| {
-        if Some(mov) == hash_move {
-            ValueScore::MAX
-        } else if Some(mov) == killer_moves[0] || Some(mov) == killer_moves[1] {
-            Piece::Queen.value()
-        } else {
-            evaluate_move(position, mov)
-        }
-    });
-
     let original_alpha = alpha;
-    let mut best_move = moves[0];
+    let mut best_move = picker.peek().map(|(mov, _, _)| *mov).unwrap();
 
     for (mov, _, i) in picker {
         let mut new_position = position.make_move(mov);
