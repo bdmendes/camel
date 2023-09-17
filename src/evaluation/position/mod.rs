@@ -10,7 +10,7 @@ mod pawns;
 
 pub const MAX_POSITIONAL_GAIN: ValueScore = 300;
 
-pub fn midgame_ratio(position: &Position) -> u8 {
+fn midgame_ratio(position: &Position) -> u8 {
     Piece::list().iter().fold(0, |acc, piece| {
         acc.saturating_add(
             position.board.pieces_bb(*piece).count_ones() as u8
@@ -26,23 +26,40 @@ pub fn midgame_ratio(position: &Position) -> u8 {
     })
 }
 
+fn mobility_bonus(piece: Piece) -> ValueScore {
+    match piece {
+        Piece::Pawn => 0,
+        Piece::Bishop => 3,
+        Piece::Knight | Piece::Rook => 2,
+        Piece::Queen => 1,
+        Piece::King => 0,
+    }
+}
+
+fn insufficient_material(position: &Position) -> bool {
+    let pieces_count = position.board.occupancy_bb_all().count_ones();
+
+    if pieces_count > 4 {
+        return false;
+    }
+
+    let knights_bb = position.board.pieces_bb(Piece::Knight);
+    if knights_bb.count_ones() == 2 {
+        return true;
+    }
+
+    let bishops_bb = position.board.pieces_bb(Piece::Bishop);
+    if pieces_count == 3 && (knights_bb | bishops_bb).is_not_empty() {
+        return true;
+    }
+
+    false
+}
+
 impl Evaluable for Position {
     fn value(&self) -> ValueScore {
-        // Insufficient material
-        if self.board.occupancy_bb_all().count_ones() <= 4 {
-            // Two knights vs king
-            let knights_bb = self.board.pieces_bb(Piece::Knight);
-            if knights_bb.count_ones() == 2 {
-                return 0;
-            }
-
-            // Knight/bishop vs king
-            let bishops_bb = self.board.pieces_bb(Piece::Bishop);
-            if self.board.occupancy_bb_all().count_ones() == 3
-                && (knights_bb | bishops_bb).is_not_empty()
-            {
-                return 0;
-            }
+        if insufficient_material(self) {
+            return 0;
         }
 
         let midgame_ratio = midgame_ratio(self);
@@ -75,20 +92,14 @@ impl Evaluable for Position {
             let mobility_bonus = if *piece == Piece::Pawn {
                 0
             } else {
-                let piece_mobility_bonus = match *piece {
-                    Piece::Bishop => 4,
-                    Piece::Rook | Piece::Knight => 3,
-                    Piece::Queen => 2,
-                    Piece::King => -1,
-                    _ => unreachable!(),
-                };
+                let mobility_bonus = mobility_bonus(*piece);
                 let white_mobility_bonus = white_pieces.into_iter().fold(0, |acc, square| {
                     let attacks = piece_attacks(*piece, square, occupancy) & !white_occupancy;
-                    acc + attacks.count_ones() as ValueScore * piece_mobility_bonus
+                    acc + attacks.count_ones() as ValueScore * mobility_bonus
                 });
                 let black_mobility_bonus = black_pieces.into_iter().fold(0, |acc, square| {
                     let attacks = piece_attacks(*piece, square, occupancy) & !black_occupancy;
-                    acc + attacks.count_ones() as ValueScore * piece_mobility_bonus
+                    acc + attacks.count_ones() as ValueScore * mobility_bonus
                 });
                 white_mobility_bonus - black_mobility_bonus
             };

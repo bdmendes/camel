@@ -36,7 +36,7 @@ fn king_pawn_shelter(position: &Position, king_color: Color, king_square: Square
             };
             shelter += shelter_penalty;
         } else {
-            shelter += SHELTER_PENALTY * 2;
+            shelter += SHELTER_PENALTY;
         }
     }
 
@@ -169,7 +169,7 @@ mod tests {
             Position::from_fen("r4r1k/1p2p1pp/p2p2b1/3P4/6P1/PNP1q1P1/1P3R2/R2Q2K1 w - - 1 22")
                 .unwrap();
 
-        assert!((-80..=-40).contains(&position_shelter(&position)));
+        assert!((-120..=-50).contains(&position_shelter(&position)));
     }
 
     #[test]
