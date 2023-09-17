@@ -288,7 +288,7 @@ pub fn search_single(
 
     let mut all_count = 0;
 
-    const WINDOW_SIZE: ValueScore = 25;
+    const WINDOW_SIZE: ValueScore = 100;
     let mut lower_bound = guess - WINDOW_SIZE;
     let mut upper_bound = guess + WINDOW_SIZE;
 
@@ -302,14 +302,14 @@ pub fn search_single(
             if score <= lower_bound {
                 lower_bound = std::cmp::max(
                     ValueScore::MIN + 1,
-                    lower_bound.saturating_sub(WINDOW_SIZE.saturating_mul(cof * cof)),
+                    lower_bound.saturating_sub(WINDOW_SIZE.saturating_mul(cof)),
                 );
                 continue;
             }
 
             // Search failed high; increase upper bound and try again
             if score >= upper_bound {
-                upper_bound = upper_bound.saturating_add(WINDOW_SIZE.saturating_mul(cof * cof));
+                upper_bound = upper_bound.saturating_add(WINDOW_SIZE.saturating_mul(cof));
                 continue;
             }
         }

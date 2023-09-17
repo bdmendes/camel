@@ -77,15 +77,15 @@ impl Move {
     }
 
     pub fn from(&self) -> Square {
-        unsafe { Square::from((self.0 & 0b111111) as u8).unwrap_unchecked() }
+        Square::from((self.0 & 0b111111) as u8).unwrap()
     }
 
     pub fn to(&self) -> Square {
-        unsafe { Square::from(((self.0 >> 6) & 0b111111) as u8).unwrap_unchecked() }
+        Square::from(((self.0 >> 6) & 0b111111) as u8).unwrap()
     }
 
     pub fn flag(&self) -> MoveFlag {
-        unsafe { MoveFlag::from((self.0 >> 12) as u8).unwrap_unchecked() }
+        MoveFlag::from((self.0 >> 12) as u8).unwrap()
     }
 
     pub fn promotion_piece(&self) -> Option<Piece> {
@@ -123,7 +123,7 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
     let mut new_castling_rights = position.castling_rights;
     let mut new_en_passant_square = None;
 
-    let piece = unsafe { new_board.piece_at(mov.from()).unwrap_unchecked() };
+    let piece = new_board.piece_at(mov.from()).unwrap();
 
     new_board.clear_square(mov.from());
 
@@ -171,11 +171,9 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
         },
         MoveFlag::EnPassantCapture => {
             new_board.set_square::<false>(mov.to(), Piece::Pawn, position.side_to_move);
-            new_board.clear_square(unsafe {
-                match position.side_to_move {
-                    Color::White => mov.to().shift(MoveDirection::SOUTH).unwrap_unchecked(),
-                    Color::Black => mov.to().shift(MoveDirection::NORTH).unwrap_unchecked(),
-                }
+            new_board.clear_square(match position.side_to_move {
+                Color::White => mov.to().shift(MoveDirection::SOUTH).unwrap(),
+                Color::Black => mov.to().shift(MoveDirection::NORTH).unwrap(),
             });
         }
         MoveFlag::QueenPromotion => {
@@ -205,11 +203,9 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
         MoveFlag::DoublePawnPush => {
             new_board.set_square::<false>(mov.to(), piece, position.side_to_move);
             if UPDATE_METADATA {
-                let candidate_en_passant = unsafe {
-                    match position.side_to_move {
-                        Color::White => mov.to().shift(MoveDirection::SOUTH).unwrap_unchecked(),
-                        Color::Black => mov.to().shift(MoveDirection::NORTH).unwrap_unchecked(),
-                    }
+                let candidate_en_passant = match position.side_to_move {
+                    Color::White => mov.to().shift(MoveDirection::SOUTH).unwrap(),
+                    Color::Black => mov.to().shift(MoveDirection::NORTH).unwrap(),
                 };
                 if pawn_attacks(&position.board, position.side_to_move.opposite())
                     .is_set(candidate_en_passant)

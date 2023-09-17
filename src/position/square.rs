@@ -25,7 +25,7 @@ impl Square {
     pub fn flip(self) -> Square {
         let file = self.file();
         let rank = 7 - self.rank();
-        unsafe { Square::from(rank * 8 + file).unwrap_unchecked() }
+        Square::from(rank * 8 + file).unwrap()
     }
 
     pub fn distance(self, other: Square) -> u8 {
