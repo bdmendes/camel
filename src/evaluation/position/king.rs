@@ -7,11 +7,6 @@ fn king_pawn_shelter(position: &Position, king_color: Color, king_square: Square
     let mut shelter = 0;
 
     let our_pawns = position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(king_color);
-    let their_pawns =
-        position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(king_color.opposite());
-    let their_queen_rooks = (position.board.pieces_bb(Piece::Queen)
-        | position.board.pieces_bb(Piece::Rook))
-        & position.board.occupancy_bb(king_color.opposite());
 
     let file_min = match king_square.file() {
         0 => 0,
@@ -22,7 +17,6 @@ fn king_pawn_shelter(position: &Position, king_color: Color, king_square: Square
         _ => king_square.file() + 1,
     };
 
-    const OPEN_FILE_PENALTY: ValueScore = -20;
     const SHELTER_PENALTY: ValueScore = -20;
 
     for file in file_min..=file_max {
@@ -42,14 +36,7 @@ fn king_pawn_shelter(position: &Position, king_color: Color, king_square: Square
             };
             shelter += shelter_penalty;
         } else {
-            let file_mask = Bitboard::file_mask(file);
-            let their_pawns_on_file = their_pawns & file_mask;
-            let their_queen_rooks_on_file = their_queen_rooks & file_mask;
-            if their_pawns_on_file.is_empty() && their_queen_rooks_on_file.is_not_empty() {
-                shelter += OPEN_FILE_PENALTY;
-            } else {
-                shelter += OPEN_FILE_PENALTY / 2;
-            }
+            shelter += SHELTER_PENALTY;
         }
     }
 
@@ -64,8 +51,7 @@ fn king_tropism(position: &Position, king_color: Color, king_square: Square) -> 
     let tropism = them_occupancy.fold(0, |acc, sq| {
         let distance = sq.distance(king_square);
         let piece_cof = match position.board.piece_at(sq) {
-            Some(Piece::Queen) => 3,
-            Some(Piece::Rook) => 2,
+            Some(Piece::Queen) | Some(Piece::Rook) => 2,
             Some(Piece::Bishop) | Some(Piece::Knight) => 1,
             _ => unreachable!(),
         };
@@ -183,7 +169,7 @@ mod tests {
             Position::from_fen("r4r1k/1p2p1pp/p2p2b1/3P4/6P1/PNP1q1P1/1P3R2/R2Q2K1 w - - 1 22")
                 .unwrap();
 
-        assert!((-80..=-40).contains(&position_shelter(&position)));
+        assert!((-120..=-50).contains(&position_shelter(&position)));
     }
 
     #[test]
