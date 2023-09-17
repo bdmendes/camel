@@ -67,22 +67,18 @@ impl Board {
     }
 
     pub fn piece_color_at(&self, square: Square) -> Option<(Piece, Color)> {
-        self.color_at(square)
-            .map(|color| (unsafe { self.piece_at(square).unwrap_unchecked() }, color))
+        self.color_at(square).map(|color| (self.piece_at(square).unwrap(), color))
     }
 
     pub fn piece_at(&self, square: Square) -> Option<Piece> {
-        self.pieces
-            .iter()
-            .position(|bb| bb.is_set(square))
-            .map(|i| unsafe { Piece::from(i as u8).unwrap_unchecked() })
+        self.pieces.iter().position(|bb| bb.is_set(square)).map(|i| Piece::from(i as u8).unwrap())
     }
 
     pub fn color_at(&self, square: Square) -> Option<Color> {
         self.occupancy
             .iter()
             .position(|bb| bb.is_set(square))
-            .map(|i| unsafe { Color::from(i as u8).unwrap_unchecked() })
+            .map(|i| Color::from(i as u8).unwrap())
     }
 
     pub fn occupancy_bb_all(&self) -> Bitboard {
