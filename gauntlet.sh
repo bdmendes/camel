@@ -46,14 +46,18 @@ if [ ! -f $INSTALL_PATH/${BOOK_NAME} ]; then
     cp "${BOOK_PATH}/${BOOK_NAME}" "${INSTALL_PATH}/${BOOK_NAME}" || exit 1
 fi
 
+# Use binary names based on branch name, with slashes replaced by dashes
+CURRENT_BRANCH_BIN_NAME="${ENGINE_NAME}-${CURRENT_BRANCH//\//-}"
+UPSTREAM_BIN_NAME="${ENGINE_NAME}-${UPSTREAM//\//-}"
+
 echo "Compiling current version ($CURRENT_BRANCH)"
 cargo build --release || exit 1
-cp $BUILD_PATH "$INSTALL_PATH/${ENGINE_NAME}-${CURRENT_BRANCH}" || exit 1
+cp $BUILD_PATH "$INSTALL_PATH/${CURRENT_BRANCH_BIN_NAME}" || exit 1
 
 echo "Compiling upstream version ($UPSTREAM)"
 git switch -d "$UPSTREAM" || exit 1
 cargo build --release || exit 1
-cp $BUILD_PATH "$INSTALL_PATH/${ENGINE_NAME}-$UPSTREAM" || exit 1
+cp $BUILD_PATH "$INSTALL_PATH/${UPSTREAM_BIN_NAME}" || exit 1
 
 git switch -f "$CURRENT_BRANCH" || exit 1
 
@@ -62,8 +66,8 @@ cd $INSTALL_PATH || exit 1
 # Run the gauntlet and store output in temp file
 OUTPUT_FILE=$(mktemp)
 stdbuf -i0 -o0 -e0 ./${RUNNER} \
-    -engine cmd=${ENGINE_NAME}-"${CURRENT_BRANCH}" name=${ENGINE_NAME}-"${CURRENT_BRANCH}" \
-    -engine cmd=${ENGINE_NAME}-"$UPSTREAM" name=${ENGINE_NAME}-"$UPSTREAM" \
+    -engine cmd="${CURRENT_BRANCH_BIN_NAME}" name="${CURRENT_BRANCH_BIN_NAME}" \
+    -engine cmd="${UPSTREAM_BIN_NAME}" name="${UPSTREAM_BIN_NAME}" \
     -each tc=${TIME_CONTROL} -rounds ${ROUNDS} -repeat -concurrency ${THREADS} -openings \
     file=${BOOK_NAME} format=${BOOK_FORMAT} order=random -draw movecount=8 score=8 movenumber=30 | tee "$OUTPUT_FILE"
 

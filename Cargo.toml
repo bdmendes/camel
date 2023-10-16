@@ -4,7 +4,7 @@ version = "1.2.0"
 edition = "2021"
 
 [dependencies]
-bitflags = "2.4.0"
+bitflags = "2.4.1"
 primitive_enum = "1.1.1"
 derive_more = "0.99.17"
 rand = "0.8.5"
