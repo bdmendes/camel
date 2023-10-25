@@ -2,7 +2,7 @@
 
 readonly RUNNER=fast-chess
 readonly REPO_URL=https://github.com/Disservin/fast-chess.git
-readonly REPO_TAG=v0.6.2-alpha
+readonly REPO_TAG=v0.6.3-alpha
 readonly INSTALL_PATH=./$RUNNER
 readonly ENGINE_NAME=camel
 readonly BOOK_PATH=./books
@@ -11,9 +11,9 @@ readonly BOOK_FORMAT=epd
 readonly THREADS=4
 readonly BUILD_PATH=./target/release/$ENGINE_NAME
 readonly MESSAGE_FILE=message.txt
-readonly ROUNDS=400
+readonly ROUNDS=300
 readonly TIME_CONTROL=10+0.1
-readonly ELO_THRESHOLD=10
+readonly ELO_THRESHOLD=20
 readonly UPSTREAM=${1:-master} # Default to master if no argument is given
 
 if ! git diff --quiet; then
