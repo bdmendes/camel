@@ -90,6 +90,8 @@ pub fn execute_uci() {
         DEFAULT_TABLE_SIZE_MB, MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB
     );
 
+    println!("option name UCI_Chess960 type check default true",);
+
     println!("uciok");
 }
 
@@ -104,6 +106,9 @@ pub fn execute_set_option(name: &str, value: &str, engine: &mut Engine) {
         if let Ok(size) = value.parse::<usize>() {
             engine.table.lock().unwrap().set_size(size.clamp(MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB));
         }
+    }
+    if name == "UCI_Chess960" {
+        // The engine is compliant with Chess 960 by design, so do nothing.
     }
 }
 
