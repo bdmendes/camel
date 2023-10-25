@@ -1,5 +1,7 @@
 use self::{attacks::specials::pawn_attacks, gen::MoveDirection};
-use crate::position::{board::Piece, square::Square, CastlingRights, Color, Position};
+use crate::position::{
+    bitboard::Bitboard, board::Piece, square::Square, CastlingRights, Color, Position,
+};
 use primitive_enum::primitive_enum;
 
 pub mod attacks;
@@ -131,7 +133,12 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
     match mov.flag() {
         MoveFlag::KingsideCastle => match position.side_to_move {
             Color::White => {
-                new_board.clear_square(Square::H1);
+                let white_pieces = new_board.occupancy_bb(Color::White);
+                let right_hand_side_rook =
+                    (Bitboard::rank_mask(0) & new_board.pieces_bb(Piece::Rook) & white_pieces)
+                        .next_back()
+                        .unwrap();
+                new_board.clear_square(right_hand_side_rook);
                 new_board.set_square::<false>(Square::G1, Piece::King, Color::White);
                 new_board.set_square::<false>(Square::F1, Piece::Rook, Color::White);
                 if UPDATE_METADATA {
@@ -140,7 +147,12 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
                 }
             }
             Color::Black => {
-                new_board.clear_square(Square::H8);
+                let black_pieces = new_board.occupancy_bb(Color::Black);
+                let right_hand_side_rook =
+                    (Bitboard::rank_mask(7) & new_board.pieces_bb(Piece::Rook) & black_pieces)
+                        .next_back()
+                        .unwrap();
+                new_board.clear_square(right_hand_side_rook);
                 new_board.set_square::<false>(Square::G8, Piece::King, Color::Black);
                 new_board.set_square::<false>(Square::F8, Piece::Rook, Color::Black);
                 if UPDATE_METADATA {
@@ -151,7 +163,12 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
         },
         MoveFlag::QueensideCastle => match position.side_to_move {
             Color::White => {
-                new_board.clear_square(Square::A1);
+                let white_pieces = new_board.occupancy_bb(Color::White);
+                let left_hand_side_rook =
+                    (Bitboard::rank_mask(0) & new_board.pieces_bb(Piece::Rook) & white_pieces)
+                        .next()
+                        .unwrap();
+                new_board.clear_square(left_hand_side_rook);
                 new_board.set_square::<false>(Square::C1, Piece::King, Color::White);
                 new_board.set_square::<false>(Square::D1, Piece::Rook, Color::White);
                 if UPDATE_METADATA {
@@ -160,7 +177,12 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
                 }
             }
             Color::Black => {
-                new_board.clear_square(Square::A8);
+                let black_pieces = new_board.occupancy_bb(Color::Black);
+                let left_hand_side_rook =
+                    (Bitboard::rank_mask(7) & new_board.pieces_bb(Piece::Rook) & black_pieces)
+                        .next()
+                        .unwrap();
+                new_board.clear_square(left_hand_side_rook);
                 new_board.set_square::<false>(Square::C8, Piece::King, Color::Black);
                 new_board.set_square::<false>(Square::D8, Piece::Rook, Color::Black);
                 if UPDATE_METADATA {
@@ -227,25 +249,54 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
         && !position.castling_rights.is_empty()
         && matches!(mov.flag(), MoveFlag::Capture | MoveFlag::Quiet)
     {
+        let king_square = match position.side_to_move {
+            Color::White => (position.board.pieces_bb(Piece::King)
+                & position.board.occupancy_bb(Color::White))
+            .next(),
+            Color::Black => (position.board.pieces_bb(Piece::King)
+                & position.board.occupancy_bb(Color::Black))
+            .next(),
+        };
+        let king_rank_rooks = match position.side_to_move {
+            Color::White => {
+                Bitboard::rank_mask(0)
+                    & position.board.pieces_bb(Piece::Rook)
+                    & position.board.occupancy_bb(Color::White)
+            }
+            Color::Black => {
+                Bitboard::rank_mask(7)
+                    & position.board.pieces_bb(Piece::Rook)
+                    & position.board.occupancy_bb(Color::Black)
+            }
+        };
+        let left_hand_side_rook = king_rank_rooks
+            .into_iter()
+            .next()
+            .filter(|sq| sq.file() < king_square.map_or(0, Square::file));
+        let right_hand_side_rook = king_rank_rooks
+            .into_iter()
+            .next_back()
+            .filter(|sq| sq.file() > king_square.map_or(7, Square::file));
+
         match (position.side_to_move, piece, mov.from()) {
-            (Color::White, Piece::King, Square::E1) => {
+            (Color::White, Piece::King, _) => {
                 new_castling_rights.remove(CastlingRights::WHITE_KINGSIDE);
                 new_castling_rights.remove(CastlingRights::WHITE_QUEENSIDE);
             }
-            (Color::White, Piece::Rook, Square::A1) => {
-                new_castling_rights.remove(CastlingRights::WHITE_QUEENSIDE);
-            }
-            (Color::White, Piece::Rook, Square::H1) => {
-                new_castling_rights.remove(CastlingRights::WHITE_KINGSIDE);
-            }
-            (Color::Black, Piece::King, Square::E8) => {
+            (Color::Black, Piece::King, _) => {
                 new_castling_rights.remove(CastlingRights::BLACK_KINGSIDE);
                 new_castling_rights.remove(CastlingRights::BLACK_QUEENSIDE);
             }
-            (Color::Black, Piece::Rook, Square::A8) => {
+            (Color::White, Piece::Rook, square) if Some(square) == left_hand_side_rook => {
+                new_castling_rights.remove(CastlingRights::WHITE_QUEENSIDE);
+            }
+            (Color::White, Piece::Rook, square) if Some(square) == right_hand_side_rook => {
+                new_castling_rights.remove(CastlingRights::WHITE_KINGSIDE);
+            }
+            (Color::Black, Piece::Rook, square) if Some(square) == left_hand_side_rook => {
                 new_castling_rights.remove(CastlingRights::BLACK_QUEENSIDE);
             }
-            (Color::Black, Piece::Rook, Square::H8) => {
+            (Color::Black, Piece::Rook, square) if Some(square) == right_hand_side_rook => {
                 new_castling_rights.remove(CastlingRights::BLACK_KINGSIDE);
             }
             _ => (),

@@ -148,57 +148,126 @@ pub fn generate_king_castles(position: &Position, moves: &mut Vec<Move>) {
 }
 
 fn generate_white_king_castles(position: &Position, moves: &mut Vec<Move>) {
-    if position.castling_rights.contains(CastlingRights::WHITE_KINGSIDE)
-        && position.board.piece_color_at(Square::E1) == Some((Piece::King, Color::White))
-        && position.board.piece_color_at(Square::H1) == Some((Piece::Rook, Color::White))
-        && position.board.color_at(Square::F1).is_none()
-        && position.board.color_at(Square::G1).is_none()
-        && !square_attacked_by(&position.board, Square::E1, Color::Black)
-        && !square_attacked_by(&position.board, Square::F1, Color::Black)
-        && !square_attacked_by(&position.board, Square::G1, Color::Black)
-    {
-        moves.push(Move::new(Square::E1, Square::G1, MoveFlag::KingsideCastle));
+    let white_occupancy = position.board.occupancy_bb(Color::White);
+    let white_rooks = position.board.pieces_bb(Piece::Rook) & white_occupancy;
+    let white_king_square =
+        (position.board.pieces_bb(Piece::King) & position.board.occupancy_bb(Color::White)).next();
+    if white_king_square.is_none() {
+        return;
     }
 
-    if position.castling_rights.contains(CastlingRights::WHITE_QUEENSIDE)
-        && position.board.piece_color_at(Square::E1) == Some((Piece::King, Color::White))
-        && position.board.piece_color_at(Square::A1) == Some((Piece::Rook, Color::White))
-        && position.board.color_at(Square::B1).is_none()
-        && position.board.color_at(Square::C1).is_none()
-        && position.board.color_at(Square::D1).is_none()
-        && !square_attacked_by(&position.board, Square::E1, Color::Black)
-        && !square_attacked_by(&position.board, Square::D1, Color::Black)
-        && !square_attacked_by(&position.board, Square::C1, Color::Black)
-    {
-        moves.push(Move::new(Square::E1, Square::C1, MoveFlag::QueensideCastle));
+    if position.castling_rights.contains(CastlingRights::WHITE_KINGSIDE) {
+        let right_hand_side_rook_square =
+            (Bitboard::rank_mask(0) & white_rooks).into_iter().next_back();
+        let may_castle = right_hand_side_rook_square.is_some()
+            && right_hand_side_rook_square.unwrap().file() > white_king_square.unwrap().file()
+            && castle_range_ok(
+                Color::White,
+                position.board,
+                white_king_square.unwrap(),
+                right_hand_side_rook_square.unwrap(),
+            );
+        if may_castle {
+            moves.push(Move::new(
+                white_king_square.unwrap(),
+                white_king_square.unwrap().shift(MoveDirection::EAST * 2).unwrap(),
+                MoveFlag::KingsideCastle,
+            ));
+        }
+    }
+
+    if position.castling_rights.contains(CastlingRights::WHITE_QUEENSIDE) {
+        let left_hand_side_rook_square = (Bitboard::rank_mask(0) & white_rooks).into_iter().next();
+        let may_castle = left_hand_side_rook_square.is_some()
+            && left_hand_side_rook_square.unwrap().file() < white_king_square.unwrap().file()
+            && castle_range_ok(
+                Color::White,
+                position.board,
+                white_king_square.unwrap(),
+                left_hand_side_rook_square.unwrap(),
+            );
+        if may_castle {
+            moves.push(Move::new(
+                white_king_square.unwrap(),
+                white_king_square.unwrap().shift(MoveDirection::WEST * 2).unwrap(),
+                MoveFlag::QueensideCastle,
+            ));
+        }
     }
 }
 
 fn generate_black_king_castles(position: &Position, moves: &mut Vec<Move>) {
-    if position.castling_rights.contains(CastlingRights::BLACK_KINGSIDE)
-        && position.board.piece_color_at(Square::E8) == Some((Piece::King, Color::Black))
-        && position.board.piece_color_at(Square::H8) == Some((Piece::Rook, Color::Black))
-        && position.board.color_at(Square::F8).is_none()
-        && position.board.color_at(Square::G8).is_none()
-        && !square_attacked_by(&position.board, Square::E8, Color::White)
-        && !square_attacked_by(&position.board, Square::F8, Color::White)
-        && !square_attacked_by(&position.board, Square::G8, Color::White)
-    {
-        moves.push(Move::new(Square::E8, Square::G8, MoveFlag::KingsideCastle));
+    let black_occupancy = position.board.occupancy_bb(Color::Black);
+    let black_rooks = position.board.pieces_bb(Piece::Rook) & black_occupancy;
+    let black_king_square =
+        (position.board.pieces_bb(Piece::King) & position.board.occupancy_bb(Color::Black)).next();
+    if black_king_square.is_none() {
+        return;
     }
 
-    if position.castling_rights.contains(CastlingRights::BLACK_QUEENSIDE)
-        && position.board.piece_color_at(Square::E8) == Some((Piece::King, Color::Black))
-        && position.board.piece_color_at(Square::A8) == Some((Piece::Rook, Color::Black))
-        && position.board.color_at(Square::B8).is_none()
-        && position.board.color_at(Square::C8).is_none()
-        && position.board.color_at(Square::D8).is_none()
-        && !square_attacked_by(&position.board, Square::E8, Color::White)
-        && !square_attacked_by(&position.board, Square::D8, Color::White)
-        && !square_attacked_by(&position.board, Square::C8, Color::White)
-    {
-        moves.push(Move::new(Square::E8, Square::C8, MoveFlag::QueensideCastle));
+    if position.castling_rights.contains(CastlingRights::BLACK_KINGSIDE) {
+        let right_hand_side_rook_square =
+            (Bitboard::rank_mask(7) & black_rooks).into_iter().next_back();
+        let may_castle = right_hand_side_rook_square.is_some()
+            && right_hand_side_rook_square.unwrap().file() > black_king_square.unwrap().file()
+            && castle_range_ok(
+                Color::Black,
+                position.board,
+                black_king_square.unwrap(),
+                right_hand_side_rook_square.unwrap(),
+            );
+        if may_castle {
+            moves.push(Move::new(
+                black_king_square.unwrap(),
+                black_king_square.unwrap().shift(MoveDirection::EAST * 2).unwrap(),
+                MoveFlag::KingsideCastle,
+            ));
+        }
     }
+
+    if position.castling_rights.contains(CastlingRights::BLACK_QUEENSIDE) {
+        let left_hand_side_rook_square = (Bitboard::rank_mask(7) & black_rooks).into_iter().next();
+        let may_castle = left_hand_side_rook_square.is_some()
+            && left_hand_side_rook_square.unwrap().file() < black_king_square.unwrap().file()
+            && castle_range_ok(
+                Color::Black,
+                position.board,
+                black_king_square.unwrap(),
+                left_hand_side_rook_square.unwrap(),
+            );
+        if may_castle {
+            moves.push(Move::new(
+                black_king_square.unwrap(),
+                black_king_square.unwrap().shift(MoveDirection::WEST * 2).unwrap(),
+                MoveFlag::QueensideCastle,
+            ));
+        }
+    }
+}
+
+fn castle_range_ok(color: Color, board: Board, king_square: Square, rook_square: Square) -> bool {
+    let final_king_square = if rook_square.file() > king_square.file() {
+        king_square.shift(MoveDirection::EAST * 2).unwrap()
+    } else {
+        king_square.shift(MoveDirection::WEST * 2).unwrap()
+    };
+
+    let mut occupied_range = if rook_square.file() > king_square.file() {
+        Bitboard::range(
+            king_square.shift(MoveDirection::EAST).unwrap(),
+            rook_square.shift(MoveDirection::WEST).unwrap(),
+        )
+    } else {
+        Bitboard::range(
+            king_square.shift(MoveDirection::WEST).unwrap(),
+            rook_square.shift(MoveDirection::EAST).unwrap(),
+        )
+    };
+
+    let mut attacked_range = Bitboard::range(king_square, final_king_square);
+
+    occupied_range.all(|sq| board.color_at(sq).is_none())
+        && attacked_range.all(|sq| !square_attacked_by(&board, sq, color.opposite()))
 }
 
 #[cfg(test)]
