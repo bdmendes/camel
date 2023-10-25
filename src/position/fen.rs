@@ -79,7 +79,38 @@ pub fn position_from_fen(fen: &str) -> Option<Position> {
             'k' => castling_rights |= CastlingRights::BLACK_KINGSIDE,
             'q' => castling_rights |= CastlingRights::BLACK_QUEENSIDE,
             '-' => break,
-            _ => return None,
+            _ => {
+                // Other letters are used as the file in Chess960.
+                let color = if c.is_lowercase() { Color::Black } else { Color::White };
+                let file = match c.to_ascii_lowercase() {
+                    'a' => 0,
+                    'b' => 1,
+                    'c' => 2,
+                    'd' => 3,
+                    'e' => 4,
+                    'f' => 5,
+                    'g' => 6,
+                    'h' => 7,
+                    _ => return None,
+                };
+                let color_king_square = board.pieces_bb(Piece::King) & board.occupancy_bb(color);
+                if let Some(color_king_square) = color_king_square.into_iter().next() {
+                    let king_file = color_king_square.file();
+                    if file > king_file {
+                        castling_rights |= match color {
+                            Color::White => CastlingRights::WHITE_KINGSIDE,
+                            Color::Black => CastlingRights::BLACK_KINGSIDE,
+                        };
+                    } else {
+                        castling_rights |= match color {
+                            Color::White => CastlingRights::WHITE_QUEENSIDE,
+                            Color::Black => CastlingRights::BLACK_QUEENSIDE,
+                        };
+                    }
+                } else {
+                    return None;
+                }
+            }
         }
     }
 

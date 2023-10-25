@@ -13,7 +13,7 @@ impl Bitboard {
     pub fn range(from: Square, to: Square) -> Self {
         let min = (from as u8).min(to as u8);
         let max = (from as u8).max(to as u8);
-        let bb = (min..=max).fold(0, |acc, square| acc | 1 << (square as u8));
+        let bb = (min..=max).fold(0, |acc, square| acc | 1 << square);
         Bitboard::new(bb)
     }
 
