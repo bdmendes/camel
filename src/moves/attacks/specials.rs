@@ -259,9 +259,15 @@ fn generate_black_king_castles(position: &Position, moves: &mut Vec<Move>) {
 
 fn castle_range_ok(color: Color, board: Board, king_square: Square, rook_square: Square) -> bool {
     let final_king_square = if rook_square.file() > king_square.file() {
-        king_square.shift(MoveDirection::EAST * 2).unwrap()
+        match color {
+            Color::White => Square::G1,
+            Color::Black => Square::G8,
+        }
     } else {
-        king_square.shift(MoveDirection::WEST * 2).unwrap()
+        match color {
+            Color::White => Square::C1,
+            Color::Black => Square::C8,
+        }
     };
 
     let mut occupied_range = if rook_square.file() > king_square.file() {
