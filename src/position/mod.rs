@@ -55,6 +55,7 @@ pub struct Position {
     pub castling_rights: CastlingRights,
     pub halfmove_clock: u8,
     pub fullmove_number: u16,
+    pub is_chess960: bool,
 }
 
 impl Position {

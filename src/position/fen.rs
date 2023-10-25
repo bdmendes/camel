@@ -69,6 +69,7 @@ pub fn position_from_fen(fen: &str) -> Option<Position> {
         _ => return None,
     };
 
+    let mut is_chess960 = false;
     let castling_rights_fen = fen_iter.next()?.chars();
     let mut castling_rights = CastlingRights::empty();
     for c in castling_rights_fen {
@@ -81,6 +82,8 @@ pub fn position_from_fen(fen: &str) -> Option<Position> {
             '-' => break,
             _ => {
                 // Other letters are used as the file in Chess960.
+                is_chess960 = true;
+
                 let color = if c.is_lowercase() { Color::Black } else { Color::White };
                 let file = match c.to_ascii_lowercase() {
                     'a' => 0,
@@ -131,6 +134,7 @@ pub fn position_from_fen(fen: &str) -> Option<Position> {
         en_passant_square,
         halfmove_clock,
         fullmove_number,
+        is_chess960,
     })
 }
 

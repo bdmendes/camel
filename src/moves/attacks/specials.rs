@@ -170,7 +170,10 @@ fn generate_white_king_castles(position: &Position, moves: &mut Vec<Move>) {
         if may_castle {
             moves.push(Move::new(
                 white_king_square.unwrap(),
-                white_king_square.unwrap().shift(MoveDirection::EAST * 2).unwrap(),
+                position
+                    .is_chess960
+                    .then(|| right_hand_side_rook_square.unwrap())
+                    .unwrap_or(white_king_square.unwrap().shift(MoveDirection::EAST * 2).unwrap()),
                 MoveFlag::KingsideCastle,
             ));
         }
@@ -189,7 +192,10 @@ fn generate_white_king_castles(position: &Position, moves: &mut Vec<Move>) {
         if may_castle {
             moves.push(Move::new(
                 white_king_square.unwrap(),
-                white_king_square.unwrap().shift(MoveDirection::WEST * 2).unwrap(),
+                position
+                    .is_chess960
+                    .then(|| left_hand_side_rook_square.unwrap())
+                    .unwrap_or(white_king_square.unwrap().shift(MoveDirection::WEST * 2).unwrap()),
                 MoveFlag::QueensideCastle,
             ));
         }
@@ -219,7 +225,10 @@ fn generate_black_king_castles(position: &Position, moves: &mut Vec<Move>) {
         if may_castle {
             moves.push(Move::new(
                 black_king_square.unwrap(),
-                black_king_square.unwrap().shift(MoveDirection::EAST * 2).unwrap(),
+                position
+                    .is_chess960
+                    .then(|| right_hand_side_rook_square.unwrap())
+                    .unwrap_or(black_king_square.unwrap().shift(MoveDirection::EAST * 2).unwrap()),
                 MoveFlag::KingsideCastle,
             ));
         }
@@ -238,7 +247,10 @@ fn generate_black_king_castles(position: &Position, moves: &mut Vec<Move>) {
         if may_castle {
             moves.push(Move::new(
                 black_king_square.unwrap(),
-                black_king_square.unwrap().shift(MoveDirection::WEST * 2).unwrap(),
+                position
+                    .is_chess960
+                    .then(|| left_hand_side_rook_square.unwrap())
+                    .unwrap_or(black_king_square.unwrap().shift(MoveDirection::WEST * 2).unwrap()),
                 MoveFlag::QueensideCastle,
             ));
         }

@@ -318,6 +318,7 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
         } else {
             position.fullmove_number
         },
+        is_chess960: position.is_chess960,
     }
 }
 
