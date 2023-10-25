@@ -1,7 +1,7 @@
 use super::{table::SearchTable, Depth};
 use crate::{
     evaluation::{moves::evaluate_move, Evaluable, ValueScore},
-    moves::Move,
+    moves::{gen::MoveStage, Move},
     position::{board::Piece, Position},
 };
 use std::sync::{Arc, Mutex};
@@ -34,12 +34,6 @@ fn find_next_max_and_swap(moves: &mut ScoredVec<Move>, index: &mut usize) -> Opt
     Some((moves[*index - 1].0, moves[*index - 1].1, *index - 1))
 }
 
-enum MoveStage {
-    HashMove,
-    Captures,
-    Others,
-}
-
 pub struct MovePicker<const QUIESCE: bool> {
     index: usize,
     moves: ScoredVec<Move>,
@@ -51,7 +45,7 @@ pub struct MovePicker<const QUIESCE: bool> {
 
 impl MovePicker<true> {
     pub fn new(position: &Position, is_check: bool) -> Self {
-        let moves = position.moves(!is_check);
+        let moves = position.moves(if is_check { MoveStage::All } else { MoveStage::Captures });
         Self {
             index: 0,
             moves: decorate_moves_with_score(&moves, |mov| evaluate_move(position, mov)),
@@ -102,21 +96,17 @@ impl std::iter::Iterator for MovePicker<false> {
         match self.stage {
             MoveStage::HashMove => {
                 self.stage = MoveStage::Captures;
-                self.moves = decorate_moves_with_score(&self.position.moves(true), |mov| {
-                    evaluate_move(&self.position, mov)
-                });
+                self.moves =
+                    decorate_moves_with_score(&self.position.moves(MoveStage::Captures), |mov| {
+                        evaluate_move(&self.position, mov)
+                    });
 
                 self.index = 0;
                 self.next()
             }
             MoveStage::Captures => {
-                self.stage = MoveStage::Others;
-                let all_non_capture_moves = self
-                    .position
-                    .moves(false)
-                    .into_iter()
-                    .filter(|mov| !mov.flag().is_capture())
-                    .collect::<Vec<_>>();
+                self.stage = MoveStage::NonCaptures;
+                let all_non_capture_moves = self.position.moves(MoveStage::NonCaptures);
 
                 let killers =
                     self.table.as_ref().unwrap().lock().unwrap().get_killers(self.depth.unwrap());
@@ -131,7 +121,7 @@ impl std::iter::Iterator for MovePicker<false> {
                 self.index = 0;
                 self.next()
             }
-            MoveStage::Others => None,
+            _ => None,
         }
     }
 }

@@ -1,5 +1,8 @@
 use camel::{
-    moves::{gen::generate_moves, make_move},
+    moves::{
+        gen::{generate_moves, MoveStage},
+        make_move,
+    },
     position::{board::ZobristHash, Position},
     search::Depth,
 };
@@ -20,7 +23,7 @@ fn perft<const ROOT: bool, const BULK_AT_HORIZON: bool, const HASH: bool>(
         }
     }
 
-    let moves = generate_moves::<false, false>(position);
+    let moves = generate_moves(MoveStage::All, position);
 
     if BULK_AT_HORIZON && depth == 1 {
         return moves.len() as u64;
