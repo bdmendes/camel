@@ -265,9 +265,21 @@ fn castle_range_ok(color: Color, board: Board, king_square: Square, rook_square:
             Color::Black => Square::C8,
         }
     };
+    let final_rook_square = if rook_square.file() > king_square.file() {
+        match color {
+            Color::White => Square::F1,
+            Color::Black => Square::F8,
+        }
+    } else {
+        match color {
+            Color::White => Square::D1,
+            Color::Black => Square::D8,
+        }
+    };
 
-    let occupied_range =
-        Bitboard::range(king_square, rook_square) | Bitboard::range(king_square, final_king_square);
+    let occupied_range = Bitboard::range(king_square, rook_square)
+        | Bitboard::range(king_square, final_king_square)
+        | Bitboard::range(rook_square, final_rook_square);
 
     if !king_rook_range_occupied_ok(occupied_range, color, board) {
         return false;
