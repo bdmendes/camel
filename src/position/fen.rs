@@ -10,6 +10,42 @@ pub const KIWIPETE_WHITE_FEN: &str =
 pub const KIWIPETE_BLACK_FEN: &str =
     "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1";
 
+fn chess960_compliant(castling_rights: CastlingRights, board: Board) -> bool {
+    let white_can_castle_kingside = castling_rights.contains(CastlingRights::WHITE_KINGSIDE);
+    let white_can_castle_queenside = castling_rights.contains(CastlingRights::WHITE_QUEENSIDE);
+
+    let black_can_castle_kingside = castling_rights.contains(CastlingRights::BLACK_KINGSIDE);
+    let black_can_castle_queenside = castling_rights.contains(CastlingRights::BLACK_QUEENSIDE);
+
+    let white_can_castle = white_can_castle_kingside || white_can_castle_queenside;
+    let black_can_castle = black_can_castle_kingside || black_can_castle_queenside;
+
+    if (white_can_castle && board.piece_color_at(Square::E1) != Some((Piece::King, Color::White)))
+        || (black_can_castle
+            && board.piece_color_at(Square::E8) != Some((Piece::King, Color::Black)))
+    {
+        return true;
+    }
+
+    if (white_can_castle_kingside
+        && board.piece_color_at(Square::H1) != Some((Piece::Rook, Color::White)))
+        || (black_can_castle_kingside
+            && board.piece_color_at(Square::H8) != Some((Piece::Rook, Color::Black)))
+    {
+        return true;
+    }
+
+    if (white_can_castle_queenside
+        && board.piece_color_at(Square::A1) != Some((Piece::Rook, Color::White)))
+        || (black_can_castle_queenside
+            && board.piece_color_at(Square::A8) != Some((Piece::Rook, Color::Black)))
+    {
+        return true;
+    }
+
+    false
+}
+
 pub fn board_from_fen(board_fen: &str) -> Option<Board> {
     let chars = board_fen.chars();
 
@@ -115,6 +151,10 @@ pub fn position_from_fen(fen: &str) -> Option<Position> {
                 }
             }
         }
+    }
+
+    if !is_chess960 && chess960_compliant(castling_rights, board) {
+        is_chess960 = true;
     }
 
     let en_passant_square_fen = fen_iter.next()?;
