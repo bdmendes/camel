@@ -170,10 +170,9 @@ fn generate_white_king_castles(position: &Position, moves: &mut Vec<Move>) {
         if may_castle {
             moves.push(Move::new(
                 white_king_square.unwrap(),
-                position
-                    .is_chess960
-                    .then(|| right_hand_side_rook_square.unwrap())
-                    .unwrap_or(white_king_square.unwrap().shift(MoveDirection::EAST * 2).unwrap()),
+                position.is_chess960.then(|| right_hand_side_rook_square.unwrap()).unwrap_or_else(
+                    || white_king_square.unwrap().shift(MoveDirection::EAST * 2).unwrap(),
+                ),
                 MoveFlag::KingsideCastle,
             ));
         }
@@ -192,10 +191,9 @@ fn generate_white_king_castles(position: &Position, moves: &mut Vec<Move>) {
         if may_castle {
             moves.push(Move::new(
                 white_king_square.unwrap(),
-                position
-                    .is_chess960
-                    .then(|| left_hand_side_rook_square.unwrap())
-                    .unwrap_or(white_king_square.unwrap().shift(MoveDirection::WEST * 2).unwrap()),
+                position.is_chess960.then(|| left_hand_side_rook_square.unwrap()).unwrap_or_else(
+                    || white_king_square.unwrap().shift(MoveDirection::WEST * 2).unwrap(),
+                ),
                 MoveFlag::QueensideCastle,
             ));
         }
@@ -225,10 +223,9 @@ fn generate_black_king_castles(position: &Position, moves: &mut Vec<Move>) {
         if may_castle {
             moves.push(Move::new(
                 black_king_square.unwrap(),
-                position
-                    .is_chess960
-                    .then(|| right_hand_side_rook_square.unwrap())
-                    .unwrap_or(black_king_square.unwrap().shift(MoveDirection::EAST * 2).unwrap()),
+                position.is_chess960.then(|| right_hand_side_rook_square.unwrap()).unwrap_or_else(
+                    || black_king_square.unwrap().shift(MoveDirection::EAST * 2).unwrap(),
+                ),
                 MoveFlag::KingsideCastle,
             ));
         }
@@ -247,10 +244,9 @@ fn generate_black_king_castles(position: &Position, moves: &mut Vec<Move>) {
         if may_castle {
             moves.push(Move::new(
                 black_king_square.unwrap(),
-                position
-                    .is_chess960
-                    .then(|| left_hand_side_rook_square.unwrap())
-                    .unwrap_or(black_king_square.unwrap().shift(MoveDirection::WEST * 2).unwrap()),
+                position.is_chess960.then(|| left_hand_side_rook_square.unwrap()).unwrap_or_else(
+                    || black_king_square.unwrap().shift(MoveDirection::WEST * 2).unwrap(),
+                ),
                 MoveFlag::QueensideCastle,
             ));
         }
@@ -270,22 +266,46 @@ fn castle_range_ok(color: Color, board: Board, king_square: Square, rook_square:
         }
     };
 
-    let mut occupied_range = if rook_square.file() > king_square.file() {
-        Bitboard::range(
-            king_square.shift(MoveDirection::EAST).unwrap(),
-            rook_square.shift(MoveDirection::WEST).unwrap(),
-        )
-    } else {
-        Bitboard::range(
-            king_square.shift(MoveDirection::WEST).unwrap(),
-            rook_square.shift(MoveDirection::EAST).unwrap(),
-        )
-    };
+    let occupied_range =
+        Bitboard::range(king_square, rook_square) | Bitboard::range(king_square, final_king_square);
+
+    if !king_rook_range_occupied_ok(occupied_range, color, board) {
+        return false;
+    }
 
     let mut attacked_range = Bitboard::range(king_square, final_king_square);
 
-    occupied_range.all(|sq| board.color_at(sq).is_none())
-        && attacked_range.all(|sq| !square_attacked_by(&board, sq, color.opposite()))
+    attacked_range.all(|sq| !square_attacked_by(&board, sq, color.opposite()))
+}
+
+fn king_rook_range_occupied_ok(range: Bitboard, own_color: Color, board: Board) -> bool {
+    let mut found_own_king = false;
+    let mut found_own_rook = false;
+
+    for square in range {
+        let color = board.color_at(square);
+        if let Some(color) = color {
+            if color != own_color {
+                return false;
+            }
+            let piece = board.piece_at(square).unwrap();
+            if piece == Piece::King {
+                if found_own_king {
+                    return false;
+                }
+                found_own_king = true;
+            } else if piece == Piece::Rook {
+                if found_own_rook {
+                    return false;
+                }
+                found_own_rook = true;
+            } else {
+                return false;
+            }
+        }
+    }
+
+    true
 }
 
 #[cfg(test)]

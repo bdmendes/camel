@@ -131,6 +131,7 @@ pub fn execute_display(position: &Position) {
     print!("{}", position.board);
     println!("{}", position.to_fen());
     println!("Static evaluation: {}", position.value());
+    println!("Chess960: {}", position.is_chess960);
 }
 
 pub fn execute_all_moves(position: &Position) {
