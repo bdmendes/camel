@@ -13,6 +13,8 @@ use crate::{
 
 const PAWN_WEST_EDGE_FILE: Bitboard = Bitboard::file_mask(0);
 const PAWN_EAST_EDGE_FILE: Bitboard = Bitboard::file_mask(7);
+const PAWN_PROMOTION_RANKS: Bitboard =
+    Bitboard::new(Bitboard::rank_mask(0).raw() | Bitboard::rank_mask(7).raw());
 
 pub fn pawn_attacks(board: &Board, color: Color) -> Bitboard {
     let our_pawns = board.pieces_bb(Piece::Pawn) & board.occupancy_bb(color);
@@ -30,14 +32,20 @@ pub fn generate_pawn_moves(stage: MoveStage, position: &Position, moves: &mut Ve
 
     let direction = MoveDirection::pawn_direction(position.side_to_move);
 
-    if matches!(stage, MoveStage::All | MoveStage::NonCaptures) {
-        // Single push
-        let single_push_pawns = our_pawns.shift(direction) & !occupancy;
-        for to_square in single_push_pawns {
-            let from_square = to_square.shift(-direction).unwrap();
-            push_pawn_move(occupancy, moves, from_square, to_square);
-        }
+    // Single push
+    let single_push_pawns = our_pawns.shift(direction) & !occupancy;
+    let single_push_pawns_on_stage = match stage {
+        MoveStage::HashMove => panic!("Hash move should not be generated here"),
+        MoveStage::CapturesAndPromotions => single_push_pawns & PAWN_PROMOTION_RANKS,
+        MoveStage::NonCaptures => single_push_pawns & !PAWN_PROMOTION_RANKS,
+        MoveStage::All => single_push_pawns,
+    };
+    for to_square in single_push_pawns_on_stage {
+        let from_square = to_square.shift(-direction).unwrap();
+        push_pawn_move(occupancy, moves, from_square, to_square);
+    }
 
+    if matches!(stage, MoveStage::All | MoveStage::NonCaptures) {
         // Double push
         let third_row_bb =
             Bitboard::rank_mask(if position.side_to_move == Color::White { 2 } else { 5 });
@@ -49,7 +57,7 @@ pub fn generate_pawn_moves(stage: MoveStage, position: &Position, moves: &mut Ve
         }
     }
 
-    if matches!(stage, MoveStage::All | MoveStage::Captures) {
+    if matches!(stage, MoveStage::All | MoveStage::CapturesAndPromotions) {
         // West capture
         let west_pawns = (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST)
             & occupancy_them;

@@ -45,11 +45,15 @@ pub struct MovePicker<const QUIESCE: bool> {
 
 impl MovePicker<true> {
     pub fn new(position: &Position, is_check: bool) -> Self {
-        let moves = position.moves(if is_check { MoveStage::All } else { MoveStage::Captures });
+        let moves = position.moves(if is_check {
+            MoveStage::All
+        } else {
+            MoveStage::CapturesAndPromotions
+        });
         Self {
             index: 0,
             moves: decorate_moves_with_score(&moves, |mov| evaluate_move(position, mov)),
-            stage: MoveStage::Captures,
+            stage: MoveStage::CapturesAndPromotions,
             position: *position,
             table: None,
             depth: None,
@@ -95,16 +99,16 @@ impl std::iter::Iterator for MovePicker<false> {
 
         match self.stage {
             MoveStage::HashMove => {
-                self.stage = MoveStage::Captures;
-                self.moves =
-                    decorate_moves_with_score(&self.position.moves(MoveStage::Captures), |mov| {
-                        evaluate_move(&self.position, mov)
-                    });
+                self.stage = MoveStage::CapturesAndPromotions;
+                self.moves = decorate_moves_with_score(
+                    &self.position.moves(MoveStage::CapturesAndPromotions),
+                    |mov| evaluate_move(&self.position, mov),
+                );
 
                 self.index = 0;
                 self.next()
             }
-            MoveStage::Captures => {
+            MoveStage::CapturesAndPromotions => {
                 self.stage = MoveStage::NonCaptures;
                 let all_non_capture_moves = self.position.moves(MoveStage::NonCaptures);
 

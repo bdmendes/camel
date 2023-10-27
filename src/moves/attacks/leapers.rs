@@ -153,7 +153,7 @@ mod tests {
         let us_color = Color::White;
 
         let mut moves = Vec::new();
-        generate_knight_moves(MoveStage::Captures, &board, us_color, &mut moves);
+        generate_knight_moves(MoveStage::CapturesAndPromotions, &board, us_color, &mut moves);
 
         let expected_moves = [
             Move::new(Square::E5, Square::G6, MoveFlag::Capture),

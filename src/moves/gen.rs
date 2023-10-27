@@ -19,7 +19,7 @@ use crate::position::{
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MoveStage {
     HashMove,
-    Captures,
+    CapturesAndPromotions,
     NonCaptures,
     All,
 }
@@ -129,7 +129,7 @@ pub fn generate_regular_moves(
     for from_square in pieces {
         let attacks = match stage {
             MoveStage::HashMove => panic!("Hash move should not be generated here"),
-            MoveStage::Captures => {
+            MoveStage::CapturesAndPromotions => {
                 piece_attacks(piece, from_square, occupancy) & occupancy_them & !occupancy_us
             }
             MoveStage::NonCaptures => {
