@@ -10,6 +10,42 @@ pub const KIWIPETE_WHITE_FEN: &str =
 pub const KIWIPETE_BLACK_FEN: &str =
     "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1";
 
+fn chess960_compliant(castling_rights: CastlingRights, board: Board) -> bool {
+    let white_can_castle_kingside = castling_rights.contains(CastlingRights::WHITE_KINGSIDE);
+    let white_can_castle_queenside = castling_rights.contains(CastlingRights::WHITE_QUEENSIDE);
+
+    let black_can_castle_kingside = castling_rights.contains(CastlingRights::BLACK_KINGSIDE);
+    let black_can_castle_queenside = castling_rights.contains(CastlingRights::BLACK_QUEENSIDE);
+
+    let white_can_castle = white_can_castle_kingside || white_can_castle_queenside;
+    let black_can_castle = black_can_castle_kingside || black_can_castle_queenside;
+
+    if (white_can_castle && board.piece_color_at(Square::E1) != Some((Piece::King, Color::White)))
+        || (black_can_castle
+            && board.piece_color_at(Square::E8) != Some((Piece::King, Color::Black)))
+    {
+        return true;
+    }
+
+    if (white_can_castle_kingside
+        && board.piece_color_at(Square::H1) != Some((Piece::Rook, Color::White)))
+        || (black_can_castle_kingside
+            && board.piece_color_at(Square::H8) != Some((Piece::Rook, Color::Black)))
+    {
+        return true;
+    }
+
+    if (white_can_castle_queenside
+        && board.piece_color_at(Square::A1) != Some((Piece::Rook, Color::White)))
+        || (black_can_castle_queenside
+            && board.piece_color_at(Square::A8) != Some((Piece::Rook, Color::Black)))
+    {
+        return true;
+    }
+
+    false
+}
+
 pub fn board_from_fen(board_fen: &str) -> Option<Board> {
     let chars = board_fen.chars();
 
@@ -69,6 +105,7 @@ pub fn position_from_fen(fen: &str) -> Option<Position> {
         _ => return None,
     };
 
+    let mut is_chess960 = false;
     let castling_rights_fen = fen_iter.next()?.chars();
     let mut castling_rights = CastlingRights::empty();
     for c in castling_rights_fen {
@@ -79,8 +116,45 @@ pub fn position_from_fen(fen: &str) -> Option<Position> {
             'k' => castling_rights |= CastlingRights::BLACK_KINGSIDE,
             'q' => castling_rights |= CastlingRights::BLACK_QUEENSIDE,
             '-' => break,
-            _ => return None,
+            _ => {
+                // Other letters are used as the file in Chess960.
+                is_chess960 = true;
+
+                let color = if c.is_lowercase() { Color::Black } else { Color::White };
+                let file = match c.to_ascii_lowercase() {
+                    'a' => 0,
+                    'b' => 1,
+                    'c' => 2,
+                    'd' => 3,
+                    'e' => 4,
+                    'f' => 5,
+                    'g' => 6,
+                    'h' => 7,
+                    _ => return None,
+                };
+                let color_king_square = board.pieces_bb(Piece::King) & board.occupancy_bb(color);
+                if let Some(color_king_square) = color_king_square.into_iter().next() {
+                    let king_file = color_king_square.file();
+                    if file > king_file {
+                        castling_rights |= match color {
+                            Color::White => CastlingRights::WHITE_KINGSIDE,
+                            Color::Black => CastlingRights::BLACK_KINGSIDE,
+                        };
+                    } else {
+                        castling_rights |= match color {
+                            Color::White => CastlingRights::WHITE_QUEENSIDE,
+                            Color::Black => CastlingRights::BLACK_QUEENSIDE,
+                        };
+                    }
+                } else {
+                    return None;
+                }
+            }
         }
+    }
+
+    if !is_chess960 && chess960_compliant(castling_rights, board) {
+        is_chess960 = true;
     }
 
     let en_passant_square_fen = fen_iter.next()?;
@@ -100,6 +174,7 @@ pub fn position_from_fen(fen: &str) -> Option<Position> {
         en_passant_square,
         halfmove_clock,
         fullmove_number,
+        is_chess960,
     })
 }
 

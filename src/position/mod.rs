@@ -4,7 +4,7 @@ use self::{
     square::Square,
 };
 use crate::moves::{
-    gen::{checked_by, generate_moves},
+    gen::{checked_by, generate_moves, MoveStage},
     make_move, Move,
 };
 use bitflags::bitflags;
@@ -55,6 +55,7 @@ pub struct Position {
     pub castling_rights: CastlingRights,
     pub halfmove_clock: u8,
     pub fullmove_number: u16,
+    pub is_chess960: bool,
 }
 
 impl Position {
@@ -84,17 +85,13 @@ impl Position {
     }
 
     pub fn make_move_str(&self, mov_str: &str) -> Option<Self> {
-        let moves = self.moves(false);
+        let moves = self.moves(MoveStage::All);
         let mov = moves.iter().find(|mov| mov.to_string() == mov_str)?;
         Some(self.make_move(*mov))
     }
 
-    pub fn moves(&self, quiesce: bool) -> Vec<Move> {
-        if quiesce {
-            generate_moves::<true, false>(self)
-        } else {
-            generate_moves::<false, false>(self)
-        }
+    pub fn moves(&self, stage: MoveStage) -> Vec<Move> {
+        generate_moves(stage, self)
     }
 
     pub fn is_check(&self) -> bool {

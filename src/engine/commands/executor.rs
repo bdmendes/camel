@@ -1,6 +1,7 @@
 use crate::engine::{time::get_duration, Engine};
 use camel::{
     evaluation::Evaluable,
+    moves::gen::MoveStage,
     position::{fen::START_FEN, Position},
     search::{
         constraint::{HistoryEntry, SearchConstraint, TimeConstraint},
@@ -89,6 +90,8 @@ pub fn execute_uci() {
         DEFAULT_TABLE_SIZE_MB, MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB
     );
 
+    println!("option name UCI_Chess960 type check default true",);
+
     println!("uciok");
 }
 
@@ -104,6 +107,9 @@ pub fn execute_set_option(name: &str, value: &str, engine: &mut Engine) {
             engine.table.lock().unwrap().set_size(size.clamp(MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB));
         }
     }
+    if name == "UCI_Chess960" {
+        // The engine is compliant with Chess 960 by design, so do nothing.
+    }
 }
 
 pub fn execute_uci_new_game(engine: &mut Engine) {
@@ -113,7 +119,8 @@ pub fn execute_uci_new_game(engine: &mut Engine) {
 }
 
 pub fn execute_do_move(mov_str: &str, position: &mut Position) {
-    if let Some(mov) = position.moves(false).iter().find(|mov| mov.to_string() == mov_str) {
+    if let Some(mov) = position.moves(MoveStage::All).iter().find(|mov| mov.to_string() == mov_str)
+    {
         *position = position.make_move(*mov);
     } else {
         println!("Illegal move: {}", mov_str);
@@ -124,10 +131,11 @@ pub fn execute_display(position: &Position) {
     print!("{}", position.board);
     println!("{}", position.to_fen());
     println!("Static evaluation: {}", position.value());
+    println!("Chess960: {}", position.is_chess960);
 }
 
 pub fn execute_all_moves(position: &Position) {
-    let moves = position.moves(false);
+    let moves = position.moves(MoveStage::All);
     for mov in moves {
         print!("{} ", mov);
     }

@@ -16,6 +16,14 @@ use crate::position::{
     Color, Position,
 };
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum MoveStage {
+    HashMove,
+    CapturesAndPromotions,
+    NonCaptures,
+    All,
+}
+
 pub struct MoveDirection;
 
 impl MoveDirection {
@@ -105,7 +113,8 @@ pub fn piece_attacks(piece: Piece, square: Square, occupancy: Bitboard) -> Bitbo
     }
 }
 
-pub fn generate_regular_moves<const QUIESCE: bool>(
+pub fn generate_regular_moves(
+    stage: MoveStage,
     board: &Board,
     piece: Piece,
     color: Color,
@@ -118,62 +127,59 @@ pub fn generate_regular_moves<const QUIESCE: bool>(
     let occupancy_them = board.occupancy_bb(color.opposite());
 
     for from_square in pieces {
-        let attacks = if QUIESCE {
-            piece_attacks(piece, from_square, occupancy) & occupancy_them & !occupancy_us
-        } else {
-            piece_attacks(piece, from_square, occupancy) & !occupancy_us
+        let attacks = match stage {
+            MoveStage::HashMove => panic!("Hash move should not be generated here"),
+            MoveStage::CapturesAndPromotions => {
+                piece_attacks(piece, from_square, occupancy) & occupancy_them & !occupancy_us
+            }
+            MoveStage::NonCaptures => {
+                piece_attacks(piece, from_square, occupancy) & !occupancy_them & !occupancy_us
+            }
+            MoveStage::All => piece_attacks(piece, from_square, occupancy) & !occupancy_us,
         };
 
         for to_square in attacks {
             moves.push(Move::new(
                 from_square,
                 to_square,
-                if QUIESCE || occupancy_them.is_set(to_square) {
-                    MoveFlag::Capture
-                } else {
-                    MoveFlag::Quiet
-                },
+                if occupancy_them.is_set(to_square) { MoveFlag::Capture } else { MoveFlag::Quiet },
             ));
         }
     }
 }
 
-pub fn generate_moves<const QUIESCE: bool, const PSEUDO: bool>(position: &Position) -> Vec<Move> {
+pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
     let mut moves = Vec::with_capacity(
         position.board.occupancy_bb(position.side_to_move).count_ones() as usize * 4,
     );
 
     for piece in Piece::list().iter().filter(|p| **p != Piece::Pawn) {
-        generate_regular_moves::<QUIESCE>(
-            &position.board,
-            *piece,
-            position.side_to_move,
-            &mut moves,
-        );
+        generate_regular_moves(stage, &position.board, *piece, position.side_to_move, &mut moves);
     }
 
-    generate_pawn_moves::<QUIESCE>(position, &mut moves);
+    generate_pawn_moves(stage, position, &mut moves);
 
-    if !QUIESCE {
+    if matches!(stage, MoveStage::All | MoveStage::NonCaptures) {
         generate_king_castles(position, &mut moves);
     }
 
-    if !PSEUDO {
-        moves.retain(|mov| match mov.flag() {
-            MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => true,
-            _ => {
-                let new_position = make_move::<false>(position, *mov);
-                !checked_by(&new_position.board, new_position.side_to_move)
-            }
-        });
-    }
+    moves.retain(|mov| match mov.flag() {
+        MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => true,
+        _ => {
+            let new_position = make_move::<false>(position, *mov);
+            !checked_by(&new_position.board, new_position.side_to_move)
+        }
+    });
 
     moves
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::position::{fen::KIWIPETE_WHITE_FEN, Color, Position};
+    use crate::{
+        moves::gen::MoveStage,
+        position::{fen::KIWIPETE_WHITE_FEN, Color, Position},
+    };
 
     #[test]
     fn square_is_attacked_1() {
@@ -195,39 +201,20 @@ mod tests {
     }
 
     #[test]
-    fn gen_kiwipete_pseudo_regular() {
-        let position = Position::from_fen(KIWIPETE_WHITE_FEN).unwrap();
-        let moves = super::generate_moves::<false, true>(&position);
-
-        assert_eq!(moves.len(), 48);
-    }
-
-    #[test]
-    fn gen_kiwipete_pseudo_quiesce() {
-        let position = Position::from_fen(KIWIPETE_WHITE_FEN).unwrap();
-        let moves = super::generate_moves::<true, true>(&position);
-
-        assert_eq!(moves.len(), 8);
-    }
-
-    #[test]
-    fn gen_legals_simple() {
+    fn gen_simple() {
         let position = Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ").unwrap();
 
-        let pseudo_moves = super::generate_moves::<false, true>(&position);
-        assert_eq!(pseudo_moves.len(), 16);
-
-        let legal_moves = super::generate_moves::<false, false>(&position);
-        assert_eq!(legal_moves.len(), 14);
+        let moves = super::generate_moves(MoveStage::All, &position);
+        assert_eq!(moves.len(), 14);
     }
 
     #[test]
-    fn gen_legals_in_check() {
+    fn gen_in_check() {
         let position =
             Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
                 .unwrap();
 
-        let moves = super::generate_moves::<false, false>(&position);
+        let moves = super::generate_moves(MoveStage::All, &position);
         assert_eq!(moves.len(), 6);
     }
 }

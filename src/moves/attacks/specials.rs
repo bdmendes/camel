@@ -1,6 +1,6 @@
 use crate::{
     moves::{
-        gen::{square_attacked_by, MoveDirection},
+        gen::{square_attacked_by, MoveDirection, MoveStage},
         Move, MoveFlag,
     },
     position::{
@@ -13,6 +13,8 @@ use crate::{
 
 const PAWN_WEST_EDGE_FILE: Bitboard = Bitboard::file_mask(0);
 const PAWN_EAST_EDGE_FILE: Bitboard = Bitboard::file_mask(7);
+const PAWN_PROMOTION_RANKS: Bitboard =
+    Bitboard::new(Bitboard::rank_mask(0).raw() | Bitboard::rank_mask(7).raw());
 
 pub fn pawn_attacks(board: &Board, color: Color) -> Bitboard {
     let our_pawns = board.pieces_bb(Piece::Pawn) & board.occupancy_bb(color);
@@ -22,7 +24,7 @@ pub fn pawn_attacks(board: &Board, color: Color) -> Bitboard {
         | (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST)
 }
 
-pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, moves: &mut Vec<Move>) {
+pub fn generate_pawn_moves(stage: MoveStage, position: &Position, moves: &mut Vec<Move>) {
     let occupancy = position.board.occupancy_bb_all();
     let occupancy_them = position.board.occupancy_bb(position.side_to_move.opposite());
     let our_pawns =
@@ -32,12 +34,18 @@ pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, moves: &mut
 
     // Single push
     let single_push_pawns = our_pawns.shift(direction) & !occupancy;
-    for to_square in single_push_pawns {
+    let single_push_pawns_on_stage = match stage {
+        MoveStage::HashMove => panic!("Hash move should not be generated here"),
+        MoveStage::CapturesAndPromotions => single_push_pawns & PAWN_PROMOTION_RANKS,
+        MoveStage::NonCaptures => single_push_pawns & !PAWN_PROMOTION_RANKS,
+        MoveStage::All => single_push_pawns,
+    };
+    for to_square in single_push_pawns_on_stage {
         let from_square = to_square.shift(-direction).unwrap();
-        push_pawn_move::<QUIESCE>(occupancy, moves, from_square, to_square);
+        push_pawn_move(occupancy, moves, from_square, to_square);
     }
 
-    if !QUIESCE {
+    if matches!(stage, MoveStage::All | MoveStage::NonCaptures) {
         // Double push
         let third_row_bb =
             Bitboard::rank_mask(if position.side_to_move == Color::White { 2 } else { 5 });
@@ -49,43 +57,45 @@ pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, moves: &mut
         }
     }
 
-    // West capture
-    let west_pawns =
-        (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST) & occupancy_them;
-    for to_square in west_pawns {
-        let from_square = to_square.shift(-direction - MoveDirection::WEST).unwrap();
-        push_pawn_move::<QUIESCE>(occupancy_them, moves, from_square, to_square);
-    }
-
-    // East capture
-    let east_pawns =
-        (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST) & occupancy_them;
-    for to_square in east_pawns {
-        let from_square = to_square.shift(-direction - MoveDirection::EAST).unwrap();
-        push_pawn_move::<QUIESCE>(occupancy_them, moves, from_square, to_square);
-    }
-
-    // En passant
-    if let Some(en_passant_square) = position.en_passant_square {
-        let ep_bb = Bitboard::new(1 << en_passant_square as u8);
-
-        let west_pawns =
-            (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST) & ep_bb;
+    if matches!(stage, MoveStage::All | MoveStage::CapturesAndPromotions) {
+        // West capture
+        let west_pawns = (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST)
+            & occupancy_them;
         for to_square in west_pawns {
             let from_square = to_square.shift(-direction - MoveDirection::WEST).unwrap();
-            moves.push(Move::new(from_square, to_square, MoveFlag::EnPassantCapture));
+            push_pawn_move(occupancy_them, moves, from_square, to_square);
         }
 
-        let east_pawns =
-            (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST) & ep_bb;
+        // East capture
+        let east_pawns = (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST)
+            & occupancy_them;
         for to_square in east_pawns {
             let from_square = to_square.shift(-direction - MoveDirection::EAST).unwrap();
-            moves.push(Move::new(from_square, to_square, MoveFlag::EnPassantCapture));
+            push_pawn_move(occupancy_them, moves, from_square, to_square);
+        }
+
+        // En passant
+        if let Some(en_passant_square) = position.en_passant_square {
+            let ep_bb = Bitboard::new(1 << en_passant_square as u8);
+
+            let west_pawns =
+                (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST) & ep_bb;
+            for to_square in west_pawns {
+                let from_square = to_square.shift(-direction - MoveDirection::WEST).unwrap();
+                moves.push(Move::new(from_square, to_square, MoveFlag::EnPassantCapture));
+            }
+
+            let east_pawns =
+                (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST) & ep_bb;
+            for to_square in east_pawns {
+                let from_square = to_square.shift(-direction - MoveDirection::EAST).unwrap();
+                moves.push(Move::new(from_square, to_square, MoveFlag::EnPassantCapture));
+            }
         }
     }
 }
 
-fn push_pawn_move<const QUIESCE: bool>(
+fn push_pawn_move(
     occupancy_them: Bitboard,
     moves: &mut Vec<Move>,
     from_square: Square,
@@ -94,12 +104,9 @@ fn push_pawn_move<const QUIESCE: bool>(
     let is_promotion = to_square.rank() == 0 || to_square.rank() == 7;
 
     if is_promotion {
-        push_pawn_promotion::<QUIESCE>(occupancy_them, moves, from_square, to_square);
+        push_pawn_promotion(occupancy_them, moves, from_square, to_square);
     } else {
         let is_capture = occupancy_them.is_set(to_square);
-        if QUIESCE && !is_capture {
-            return;
-        }
         moves.push(Move::new(
             from_square,
             to_square,
@@ -108,7 +115,7 @@ fn push_pawn_move<const QUIESCE: bool>(
     }
 }
 
-fn push_pawn_promotion<const QUIESCE: bool>(
+fn push_pawn_promotion(
     occupancy: Bitboard,
     moves: &mut Vec<Move>,
     from_square: Square,
@@ -121,10 +128,6 @@ fn push_pawn_promotion<const QUIESCE: bool>(
         to_square,
         if is_capture { MoveFlag::QueenPromotionCapture } else { MoveFlag::QueenPromotion },
     ));
-
-    if QUIESCE {
-        return;
-    }
 
     moves.push(Move::new(
         from_square,
@@ -147,73 +150,161 @@ fn push_pawn_promotion<const QUIESCE: bool>(
 
 pub fn generate_king_castles(position: &Position, moves: &mut Vec<Move>) {
     match position.side_to_move {
-        Color::White => generate_white_king_castles(position, moves),
-        Color::Black => generate_black_king_castles(position, moves),
+        Color::White => {
+            if position.castling_rights.contains(CastlingRights::WHITE_KINGSIDE) {
+                generate_kingside_castle(Color::White, position, moves);
+            }
+            if position.castling_rights.contains(CastlingRights::WHITE_QUEENSIDE) {
+                generate_queenside_castle(Color::White, position, moves);
+            }
+        }
+        Color::Black => {
+            if position.castling_rights.contains(CastlingRights::BLACK_KINGSIDE) {
+                generate_kingside_castle(Color::Black, position, moves);
+            }
+            if position.castling_rights.contains(CastlingRights::BLACK_QUEENSIDE) {
+                generate_queenside_castle(Color::Black, position, moves);
+            }
+        }
     }
 }
 
-fn generate_white_king_castles(position: &Position, moves: &mut Vec<Move>) {
-    if position.castling_rights.contains(CastlingRights::WHITE_KINGSIDE)
-        && position.board.piece_color_at(Square::E1) == Some((Piece::King, Color::White))
-        && position.board.piece_color_at(Square::H1) == Some((Piece::Rook, Color::White))
-        && position.board.color_at(Square::F1).is_none()
-        && position.board.color_at(Square::G1).is_none()
-        && !square_attacked_by(&position.board, Square::E1, Color::Black)
-        && !square_attacked_by(&position.board, Square::F1, Color::Black)
-        && !square_attacked_by(&position.board, Square::G1, Color::Black)
-    {
-        moves.push(Move::new(Square::E1, Square::G1, MoveFlag::KingsideCastle));
-    }
+fn generate_kingside_castle(color: Color, position: &Position, moves: &mut Vec<Move>) {
+    let rooks = position.board.pieces_bb(Piece::Rook) & position.board.occupancy_bb(color);
+    let king_square =
+        (position.board.pieces_bb(Piece::King) & position.board.occupancy_bb(color)).next();
+    let right_hand_side_rook_square = (Bitboard::rank_mask(match color {
+        Color::White => 0,
+        Color::Black => 7,
+    }) & rooks)
+        .into_iter()
+        .next_back();
 
-    if position.castling_rights.contains(CastlingRights::WHITE_QUEENSIDE)
-        && position.board.piece_color_at(Square::E1) == Some((Piece::King, Color::White))
-        && position.board.piece_color_at(Square::A1) == Some((Piece::Rook, Color::White))
-        && position.board.color_at(Square::B1).is_none()
-        && position.board.color_at(Square::C1).is_none()
-        && position.board.color_at(Square::D1).is_none()
-        && !square_attacked_by(&position.board, Square::E1, Color::Black)
-        && !square_attacked_by(&position.board, Square::D1, Color::Black)
-        && !square_attacked_by(&position.board, Square::C1, Color::Black)
-    {
-        moves.push(Move::new(Square::E1, Square::C1, MoveFlag::QueensideCastle));
+    let may_castle = right_hand_side_rook_square.is_some()
+        && right_hand_side_rook_square.unwrap().file() > king_square.unwrap().file()
+        && castle_range_ok(
+            color,
+            position.board,
+            king_square.unwrap(),
+            right_hand_side_rook_square.unwrap(),
+        );
+    if may_castle {
+        moves.push(Move::new(
+            king_square.unwrap(),
+            position
+                .is_chess960
+                .then(|| right_hand_side_rook_square.unwrap())
+                .unwrap_or_else(|| king_square.unwrap().shift(MoveDirection::EAST * 2).unwrap()),
+            MoveFlag::KingsideCastle,
+        ));
     }
 }
 
-fn generate_black_king_castles(position: &Position, moves: &mut Vec<Move>) {
-    if position.castling_rights.contains(CastlingRights::BLACK_KINGSIDE)
-        && position.board.piece_color_at(Square::E8) == Some((Piece::King, Color::Black))
-        && position.board.piece_color_at(Square::H8) == Some((Piece::Rook, Color::Black))
-        && position.board.color_at(Square::F8).is_none()
-        && position.board.color_at(Square::G8).is_none()
-        && !square_attacked_by(&position.board, Square::E8, Color::White)
-        && !square_attacked_by(&position.board, Square::F8, Color::White)
-        && !square_attacked_by(&position.board, Square::G8, Color::White)
-    {
-        moves.push(Move::new(Square::E8, Square::G8, MoveFlag::KingsideCastle));
+fn generate_queenside_castle(color: Color, position: &Position, moves: &mut Vec<Move>) {
+    let rooks = position.board.pieces_bb(Piece::Rook) & position.board.occupancy_bb(color);
+    let king_square =
+        (position.board.pieces_bb(Piece::King) & position.board.occupancy_bb(color)).next();
+    let left_hand_side_rook_square = (Bitboard::rank_mask(match color {
+        Color::White => 0,
+        Color::Black => 7,
+    }) & rooks)
+        .into_iter()
+        .next();
+
+    let may_castle = left_hand_side_rook_square.is_some()
+        && left_hand_side_rook_square.unwrap().file() < king_square.unwrap().file()
+        && castle_range_ok(
+            color,
+            position.board,
+            king_square.unwrap(),
+            left_hand_side_rook_square.unwrap(),
+        );
+    if may_castle {
+        moves.push(Move::new(
+            king_square.unwrap(),
+            position
+                .is_chess960
+                .then(|| left_hand_side_rook_square.unwrap())
+                .unwrap_or_else(|| king_square.unwrap().shift(MoveDirection::WEST * 2).unwrap()),
+            MoveFlag::QueensideCastle,
+        ));
+    }
+}
+
+fn castle_range_ok(color: Color, board: Board, king_square: Square, rook_square: Square) -> bool {
+    let final_king_square = if rook_square.file() > king_square.file() {
+        match color {
+            Color::White => Square::G1,
+            Color::Black => Square::G8,
+        }
+    } else {
+        match color {
+            Color::White => Square::C1,
+            Color::Black => Square::C8,
+        }
+    };
+    let final_rook_square = if rook_square.file() > king_square.file() {
+        match color {
+            Color::White => Square::F1,
+            Color::Black => Square::F8,
+        }
+    } else {
+        match color {
+            Color::White => Square::D1,
+            Color::Black => Square::D8,
+        }
+    };
+
+    let occupied_range = Bitboard::range(king_square, rook_square)
+        | Bitboard::range(king_square, final_king_square)
+        | Bitboard::range(rook_square, final_rook_square);
+
+    if !king_rook_range_occupied_ok(occupied_range, color, board) {
+        return false;
     }
 
-    if position.castling_rights.contains(CastlingRights::BLACK_QUEENSIDE)
-        && position.board.piece_color_at(Square::E8) == Some((Piece::King, Color::Black))
-        && position.board.piece_color_at(Square::A8) == Some((Piece::Rook, Color::Black))
-        && position.board.color_at(Square::B8).is_none()
-        && position.board.color_at(Square::C8).is_none()
-        && position.board.color_at(Square::D8).is_none()
-        && !square_attacked_by(&position.board, Square::E8, Color::White)
-        && !square_attacked_by(&position.board, Square::D8, Color::White)
-        && !square_attacked_by(&position.board, Square::C8, Color::White)
-    {
-        moves.push(Move::new(Square::E8, Square::C8, MoveFlag::QueensideCastle));
+    let mut attacked_range = Bitboard::range(king_square, final_king_square);
+
+    attacked_range.all(|sq| !square_attacked_by(&board, sq, color.opposite()))
+}
+
+fn king_rook_range_occupied_ok(range: Bitboard, own_color: Color, board: Board) -> bool {
+    let mut found_own_king = false;
+    let mut found_own_rook = false;
+
+    for square in range {
+        let color = board.color_at(square);
+        if let Some(color) = color {
+            if color != own_color {
+                return false;
+            }
+            let piece = board.piece_at(square).unwrap();
+            if piece == Piece::King {
+                if found_own_king {
+                    return false;
+                }
+                found_own_king = true;
+            } else if piece == Piece::Rook {
+                if found_own_rook {
+                    return false;
+                }
+                found_own_rook = true;
+            } else {
+                return false;
+            }
+        }
     }
+
+    true
 }
 
 #[cfg(test)]
 mod tests {
+    use super::generate_king_castles;
     use crate::{
-        moves::{attacks::specials::generate_pawn_moves, Move, MoveFlag},
+        moves::{attacks::specials::generate_pawn_moves, gen::MoveStage, Move, MoveFlag},
         position::{square::Square, Position},
     };
-
-    use super::generate_king_castles;
 
     #[test]
     fn pawn_moves_white() {
@@ -241,7 +332,7 @@ mod tests {
         ];
 
         let mut moves = Vec::new();
-        generate_pawn_moves::<false>(&position, &mut moves);
+        generate_pawn_moves(MoveStage::All, &position, &mut moves);
 
         for mov in &moves {
             assert!(expected_moves.contains(mov));
@@ -277,7 +368,7 @@ mod tests {
         ];
 
         let mut moves = Vec::new();
-        generate_pawn_moves::<false>(&position, &mut moves);
+        generate_pawn_moves(MoveStage::All, &position, &mut moves);
 
         for mov in &moves {
             assert!(expected_moves.contains(mov));

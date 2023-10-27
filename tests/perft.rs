@@ -1,5 +1,8 @@
 use camel::{
-    moves::{gen::generate_moves, make_move},
+    moves::{
+        gen::{generate_moves, MoveStage},
+        make_move,
+    },
     position::{board::ZobristHash, Position},
     search::Depth,
 };
@@ -20,7 +23,7 @@ fn perft<const ROOT: bool, const BULK_AT_HORIZON: bool, const HASH: bool>(
         }
     }
 
-    let moves = generate_moves::<false, false>(position);
+    let moves = generate_moves(MoveStage::All, position);
 
     if BULK_AT_HORIZON && depth == 1 {
         return moves.len() as u64;
@@ -164,4 +167,58 @@ fn perft_gh_22() {
 #[test]
 fn perft_gh_23() {
     expect_perft("8/8/2k5/5q2/5n2/8/5K2/8 b - - 0 1", 4, 23527);
+}
+
+#[test]
+fn perft_chess960_1() {
+    expect_perft("bqnb1rkr/pp3ppp/3ppn2/2p5/5P2/P2P4/NPP1P1PP/BQ1BNRKR w HFhf - 2 9", 5, 8146062);
+}
+
+#[test]
+fn perft_chess960_2() {
+    expect_perft("nnr1kqbr/pp1pp1p1/2p5/b4p1p/P7/1PNP4/2P1PPPP/N1RBKQBR w HChc - 1 9", 5, 4266410);
+}
+
+#[test]
+fn perft_chess960_3() {
+    expect_perft("1rqkbnrb/pp1ppp1p/1n4p1/B1p5/3PP3/4N3/PPP2PPP/NRQK2RB w GBgb - 0 9", 5, 19715083);
+}
+
+#[test]
+fn perft_chess960_4() {
+    expect_perft("nrkq1rbb/pp1ppp1p/2pn4/8/PP3Pp1/7P/2PPP1P1/NRKQNRBB w FBfb - 0 9", 5, 19867117)
+}
+
+#[test]
+fn perft_chess960_5() {
+    expect_perft("rbqnbknr/pp1pppp1/8/2p5/3P3p/5N1P/PPP1PPPR/RBQNBK2 w Aha - 0 9", 5, 26363334);
+}
+
+#[test]
+fn perft_chess960_6() {
+    expect_perft("rbnnkr1q/1ppp2pp/p4p2/P2bp3/4P2P/8/1PPP1PP1/RBNNKRBQ w FAfa - 1 9", 5, 21591790);
+}
+
+#[test]
+fn perft_chess960_7() {
+    expect_perft(
+        "brqkr1nb/2ppp1pp/1p2np2/p7/2P1PN2/8/PP1P1PPP/BRQKRN1B w EBeb - 0 9 	",
+        5,
+        15516491,
+    );
+}
+
+#[test]
+fn perft_chess960_8() {
+    expect_perft("rkbbqr1n/1p1pppp1/2p2n2/p4NBp/8/3P4/PPP1PPPP/RK1BQRN1 w FAfa - 0 9", 5, 26676373);
+}
+
+#[test]
+fn perft_chess960_9() {
+    expect_perft("rkr1nbbq/2ppp1pp/1pn5/p4p2/P6P/3P4/1PP1PPPB/RKRNNB1Q w CAca - 1 9", 5, 11484012);
+}
+
+#[test]
+fn perft_chess960_10() {
+    expect_perft("bbq1nr1r/pppppk1p/2n2p2/6p1/P4P2/4P1P1/1PPP3P/BBQNNRKR w HF - 1 9", 5, 10316716);
 }

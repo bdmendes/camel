@@ -10,6 +10,12 @@ impl Bitboard {
         Bitboard(bb)
     }
 
+    pub fn range(from: Square, to: Square) -> Self {
+        let from = 1 << from as u64;
+        let to = 1 << to as u64;
+        Bitboard::new(((from - 1) ^ (to - 1)) | from | to)
+    }
+
     pub fn set(&mut self, square: Square) {
         self.0 |= 1 << (square as u8);
     }
@@ -182,5 +188,29 @@ mod tests {
             Bitboard::ranks_mask_up(square.rank(),),
             Bitboard::new(0xFF_FF_FF_FF_00_00_00_00)
         );
+    }
+
+    fn assert_range_squares(range_result: Bitboard, squares: &[Square]) {
+        assert!(range_result.count() == squares.len());
+        for square in squares {
+            assert!(range_result.is_set(*square));
+        }
+    }
+
+    #[test]
+    fn range() {
+        assert_range_squares(
+            Bitboard::range(Square::E1, Square::H1),
+            &[Square::E1, Square::F1, Square::G1, Square::H1],
+        );
+
+        assert_range_squares(
+            Bitboard::range(Square::E1, Square::A1),
+            &[Square::E1, Square::D1, Square::C1, Square::B1, Square::A1],
+        );
+
+        assert_range_squares(Bitboard::range(Square::E1, Square::E1), &[Square::E1]);
+
+        assert_range_squares(Bitboard::range(Square::A1, Square::A1), &[Square::A1]);
     }
 }
