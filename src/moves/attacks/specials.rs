@@ -142,114 +142,84 @@ fn push_pawn_promotion(
 
 pub fn generate_king_castles(position: &Position, moves: &mut Vec<Move>) {
     match position.side_to_move {
-        Color::White => generate_white_king_castles(position, moves),
-        Color::Black => generate_black_king_castles(position, moves),
-    }
-}
-
-fn generate_white_king_castles(position: &Position, moves: &mut Vec<Move>) {
-    let white_occupancy = position.board.occupancy_bb(Color::White);
-    let white_rooks = position.board.pieces_bb(Piece::Rook) & white_occupancy;
-    let white_king_square =
-        (position.board.pieces_bb(Piece::King) & position.board.occupancy_bb(Color::White)).next();
-    if white_king_square.is_none() {
-        return;
-    }
-
-    if position.castling_rights.contains(CastlingRights::WHITE_KINGSIDE) {
-        let right_hand_side_rook_square =
-            (Bitboard::rank_mask(0) & white_rooks).into_iter().next_back();
-        let may_castle = right_hand_side_rook_square.is_some()
-            && right_hand_side_rook_square.unwrap().file() > white_king_square.unwrap().file()
-            && castle_range_ok(
-                Color::White,
-                position.board,
-                white_king_square.unwrap(),
-                right_hand_side_rook_square.unwrap(),
-            );
-        if may_castle {
-            moves.push(Move::new(
-                white_king_square.unwrap(),
-                position.is_chess960.then(|| right_hand_side_rook_square.unwrap()).unwrap_or_else(
-                    || white_king_square.unwrap().shift(MoveDirection::EAST * 2).unwrap(),
-                ),
-                MoveFlag::KingsideCastle,
-            ));
+        Color::White => {
+            if position.castling_rights.contains(CastlingRights::WHITE_KINGSIDE) {
+                generate_kingside_castle(Color::White, position, moves);
+            }
+            if position.castling_rights.contains(CastlingRights::WHITE_QUEENSIDE) {
+                generate_queenside_castle(Color::White, position, moves);
+            }
         }
-    }
-
-    if position.castling_rights.contains(CastlingRights::WHITE_QUEENSIDE) {
-        let left_hand_side_rook_square = (Bitboard::rank_mask(0) & white_rooks).into_iter().next();
-        let may_castle = left_hand_side_rook_square.is_some()
-            && left_hand_side_rook_square.unwrap().file() < white_king_square.unwrap().file()
-            && castle_range_ok(
-                Color::White,
-                position.board,
-                white_king_square.unwrap(),
-                left_hand_side_rook_square.unwrap(),
-            );
-        if may_castle {
-            moves.push(Move::new(
-                white_king_square.unwrap(),
-                position.is_chess960.then(|| left_hand_side_rook_square.unwrap()).unwrap_or_else(
-                    || white_king_square.unwrap().shift(MoveDirection::WEST * 2).unwrap(),
-                ),
-                MoveFlag::QueensideCastle,
-            ));
+        Color::Black => {
+            if position.castling_rights.contains(CastlingRights::BLACK_KINGSIDE) {
+                generate_kingside_castle(Color::Black, position, moves);
+            }
+            if position.castling_rights.contains(CastlingRights::BLACK_QUEENSIDE) {
+                generate_queenside_castle(Color::Black, position, moves);
+            }
         }
     }
 }
 
-fn generate_black_king_castles(position: &Position, moves: &mut Vec<Move>) {
-    let black_occupancy = position.board.occupancy_bb(Color::Black);
-    let black_rooks = position.board.pieces_bb(Piece::Rook) & black_occupancy;
-    let black_king_square =
-        (position.board.pieces_bb(Piece::King) & position.board.occupancy_bb(Color::Black)).next();
-    if black_king_square.is_none() {
-        return;
-    }
+fn generate_kingside_castle(color: Color, position: &Position, moves: &mut Vec<Move>) {
+    let rooks = position.board.pieces_bb(Piece::Rook) & position.board.occupancy_bb(color);
+    let king_square =
+        (position.board.pieces_bb(Piece::King) & position.board.occupancy_bb(color)).next();
+    let right_hand_side_rook_square = (Bitboard::rank_mask(match color {
+        Color::White => 0,
+        Color::Black => 7,
+    }) & rooks)
+        .into_iter()
+        .next_back();
 
-    if position.castling_rights.contains(CastlingRights::BLACK_KINGSIDE) {
-        let right_hand_side_rook_square =
-            (Bitboard::rank_mask(7) & black_rooks).into_iter().next_back();
-        let may_castle = right_hand_side_rook_square.is_some()
-            && right_hand_side_rook_square.unwrap().file() > black_king_square.unwrap().file()
-            && castle_range_ok(
-                Color::Black,
-                position.board,
-                black_king_square.unwrap(),
-                right_hand_side_rook_square.unwrap(),
-            );
-        if may_castle {
-            moves.push(Move::new(
-                black_king_square.unwrap(),
-                position.is_chess960.then(|| right_hand_side_rook_square.unwrap()).unwrap_or_else(
-                    || black_king_square.unwrap().shift(MoveDirection::EAST * 2).unwrap(),
-                ),
-                MoveFlag::KingsideCastle,
-            ));
-        }
+    let may_castle = right_hand_side_rook_square.is_some()
+        && right_hand_side_rook_square.unwrap().file() > king_square.unwrap().file()
+        && castle_range_ok(
+            color,
+            position.board,
+            king_square.unwrap(),
+            right_hand_side_rook_square.unwrap(),
+        );
+    if may_castle {
+        moves.push(Move::new(
+            king_square.unwrap(),
+            position
+                .is_chess960
+                .then(|| right_hand_side_rook_square.unwrap())
+                .unwrap_or_else(|| king_square.unwrap().shift(MoveDirection::EAST * 2).unwrap()),
+            MoveFlag::KingsideCastle,
+        ));
     }
+}
 
-    if position.castling_rights.contains(CastlingRights::BLACK_QUEENSIDE) {
-        let left_hand_side_rook_square = (Bitboard::rank_mask(7) & black_rooks).into_iter().next();
-        let may_castle = left_hand_side_rook_square.is_some()
-            && left_hand_side_rook_square.unwrap().file() < black_king_square.unwrap().file()
-            && castle_range_ok(
-                Color::Black,
-                position.board,
-                black_king_square.unwrap(),
-                left_hand_side_rook_square.unwrap(),
-            );
-        if may_castle {
-            moves.push(Move::new(
-                black_king_square.unwrap(),
-                position.is_chess960.then(|| left_hand_side_rook_square.unwrap()).unwrap_or_else(
-                    || black_king_square.unwrap().shift(MoveDirection::WEST * 2).unwrap(),
-                ),
-                MoveFlag::QueensideCastle,
-            ));
-        }
+fn generate_queenside_castle(color: Color, position: &Position, moves: &mut Vec<Move>) {
+    let rooks = position.board.pieces_bb(Piece::Rook) & position.board.occupancy_bb(color);
+    let king_square =
+        (position.board.pieces_bb(Piece::King) & position.board.occupancy_bb(color)).next();
+    let left_hand_side_rook_square = (Bitboard::rank_mask(match color {
+        Color::White => 0,
+        Color::Black => 7,
+    }) & rooks)
+        .into_iter()
+        .next();
+
+    let may_castle = left_hand_side_rook_square.is_some()
+        && left_hand_side_rook_square.unwrap().file() < king_square.unwrap().file()
+        && castle_range_ok(
+            color,
+            position.board,
+            king_square.unwrap(),
+            left_hand_side_rook_square.unwrap(),
+        );
+    if may_castle {
+        moves.push(Move::new(
+            king_square.unwrap(),
+            position
+                .is_chess960
+                .then(|| left_hand_side_rook_square.unwrap())
+                .unwrap_or_else(|| king_square.unwrap().shift(MoveDirection::WEST * 2).unwrap()),
+            MoveFlag::QueensideCastle,
+        ));
     }
 }
 

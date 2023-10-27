@@ -133,11 +133,8 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
     match mov.flag() {
         MoveFlag::KingsideCastle => match position.side_to_move {
             Color::White => {
-                let white_pieces = new_board.occupancy_bb(Color::White);
                 let right_hand_side_rook =
-                    (Bitboard::rank_mask(0) & new_board.pieces_bb(Piece::Rook) & white_pieces)
-                        .next_back()
-                        .unwrap();
+                    position.is_chess960.then(|| mov.to()).unwrap_or(Square::H1);
                 new_board.clear_square(right_hand_side_rook);
                 new_board.set_square::<false>(Square::G1, Piece::King, Color::White);
                 new_board.set_square::<false>(Square::F1, Piece::Rook, Color::White);
@@ -147,11 +144,8 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
                 }
             }
             Color::Black => {
-                let black_pieces = new_board.occupancy_bb(Color::Black);
                 let right_hand_side_rook =
-                    (Bitboard::rank_mask(7) & new_board.pieces_bb(Piece::Rook) & black_pieces)
-                        .next_back()
-                        .unwrap();
+                    position.is_chess960.then(|| mov.to()).unwrap_or(Square::H8);
                 new_board.clear_square(right_hand_side_rook);
                 new_board.set_square::<false>(Square::G8, Piece::King, Color::Black);
                 new_board.set_square::<false>(Square::F8, Piece::Rook, Color::Black);
@@ -163,11 +157,8 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
         },
         MoveFlag::QueensideCastle => match position.side_to_move {
             Color::White => {
-                let white_pieces = new_board.occupancy_bb(Color::White);
                 let left_hand_side_rook =
-                    (Bitboard::rank_mask(0) & new_board.pieces_bb(Piece::Rook) & white_pieces)
-                        .next()
-                        .unwrap();
+                    position.is_chess960.then(|| mov.to()).unwrap_or(Square::A1);
                 new_board.clear_square(left_hand_side_rook);
                 new_board.set_square::<false>(Square::C1, Piece::King, Color::White);
                 new_board.set_square::<false>(Square::D1, Piece::Rook, Color::White);
@@ -177,11 +168,8 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
                 }
             }
             Color::Black => {
-                let black_pieces = new_board.occupancy_bb(Color::Black);
                 let left_hand_side_rook =
-                    (Bitboard::rank_mask(7) & new_board.pieces_bb(Piece::Rook) & black_pieces)
-                        .next()
-                        .unwrap();
+                    position.is_chess960.then(|| mov.to()).unwrap_or(Square::A8);
                 new_board.clear_square(left_hand_side_rook);
                 new_board.set_square::<false>(Square::C8, Piece::King, Color::Black);
                 new_board.set_square::<false>(Square::D8, Piece::Rook, Color::Black);
