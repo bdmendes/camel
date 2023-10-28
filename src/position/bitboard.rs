@@ -1,4 +1,7 @@
-use super::square::Square;
+use super::{
+    square::{Square, WHITE_SQUARES},
+    Color,
+};
 use derive_more::{BitAnd, BitOr, Deref, DerefMut, Not};
 use std::fmt::{Display, Formatter};
 
@@ -10,10 +13,26 @@ impl Bitboard {
         Bitboard(bb)
     }
 
-    pub fn range(from: Square, to: Square) -> Self {
+    pub fn color_squares(self, color: Color) -> Self {
+        match color {
+            Color::White => self & Bitboard::new(WHITE_SQUARES),
+            Color::Black => self & !Bitboard::new(WHITE_SQUARES),
+        }
+    }
+
+    pub fn rank_range(from: Square, to: Square) -> Self {
         let from = 1 << from as u64;
         let to = 1 << to as u64;
         Bitboard::new(((from - 1) ^ (to - 1)) | from | to)
+    }
+
+    pub fn file_range(from: Square, to: Square) -> Self {
+        let from_file = from.file();
+        let min_rank = from.rank().min(to.rank());
+        let max_rank = from.rank().max(to.rank());
+        Bitboard::file_mask(from_file)
+            & !Bitboard::ranks_mask_down(min_rank)
+            & !Bitboard::ranks_mask_up(max_rank)
     }
 
     pub fn set(&mut self, square: Square) {
@@ -129,7 +148,7 @@ impl Display for Bitboard {
 
 #[cfg(test)]
 mod tests {
-    use crate::position::square::Square;
+    use crate::position::{square::Square, Color};
 
     use super::Bitboard;
 
@@ -190,7 +209,7 @@ mod tests {
         );
     }
 
-    fn assert_range_squares(range_result: Bitboard, squares: &[Square]) {
+    fn assert_squares(range_result: Bitboard, squares: &[Square]) {
         assert!(range_result.count() == squares.len());
         for square in squares {
             assert!(range_result.is_set(*square));
@@ -198,19 +217,45 @@ mod tests {
     }
 
     #[test]
-    fn range() {
-        assert_range_squares(
-            Bitboard::range(Square::E1, Square::H1),
+    fn rank_range() {
+        assert_squares(
+            Bitboard::rank_range(Square::E1, Square::H1),
             &[Square::E1, Square::F1, Square::G1, Square::H1],
         );
 
-        assert_range_squares(
-            Bitboard::range(Square::E1, Square::A1),
+        assert_squares(
+            Bitboard::rank_range(Square::E1, Square::A1),
             &[Square::E1, Square::D1, Square::C1, Square::B1, Square::A1],
         );
 
-        assert_range_squares(Bitboard::range(Square::E1, Square::E1), &[Square::E1]);
+        assert_squares(Bitboard::rank_range(Square::E1, Square::E1), &[Square::E1]);
 
-        assert_range_squares(Bitboard::range(Square::A1, Square::A1), &[Square::A1]);
+        assert_squares(Bitboard::rank_range(Square::A1, Square::A1), &[Square::A1]);
+    }
+
+    #[test]
+    fn file_range() {
+        assert_squares(
+            Bitboard::file_range(Square::E1, Square::E4),
+            &[Square::E1, Square::E2, Square::E3, Square::E4],
+        );
+
+        assert_squares(
+            Bitboard::file_range(Square::E4, Square::E1),
+            &[Square::E1, Square::E2, Square::E3, Square::E4],
+        );
+
+        assert_squares(Bitboard::file_range(Square::E1, Square::E1), &[Square::E1]);
+    }
+
+    #[test]
+    fn color_squares() {
+        let bb =
+            Bitboard::new(1 << Square::E4 as u64 | 1 << Square::D5 as u64 | 1 << Square::D4 as u64);
+        assert!(bb.color_squares(Color::White).is_set(Square::E4));
+        assert!(bb.color_squares(Color::White).is_set(Square::D5));
+        assert!(bb.color_squares(Color::White).count_ones() == 2);
+        assert!(bb.color_squares(Color::Black).is_set(Square::D4));
+        assert!(bb.color_squares(Color::Black).count_ones() == 1);
     }
 }

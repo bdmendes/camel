@@ -261,15 +261,15 @@ fn castle_range_ok(color: Color, board: Board, king_square: Square, rook_square:
         }
     };
 
-    let occupied_range = Bitboard::range(king_square, rook_square)
-        | Bitboard::range(king_square, final_king_square)
-        | Bitboard::range(rook_square, final_rook_square);
+    let occupied_range = Bitboard::rank_range(king_square, rook_square)
+        | Bitboard::rank_range(king_square, final_king_square)
+        | Bitboard::rank_range(rook_square, final_rook_square);
 
     if !king_rook_range_occupied_ok(occupied_range, color, board) {
         return false;
     }
 
-    let mut attacked_range = Bitboard::range(king_square, final_king_square);
+    let mut attacked_range = Bitboard::rank_range(king_square, final_king_square);
 
     attacked_range.all(|sq| !square_attacked_by(&board, sq, color.opposite()))
 }

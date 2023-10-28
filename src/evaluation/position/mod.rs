@@ -1,12 +1,17 @@
-use self::{king::evaluate_king_safety, pawns::evaluate_pawn_structure};
+use self::{
+    bishops::evaluate_bishops, king::evaluate_king_safety, pawns::evaluate_pawn_structure,
+    rooks::evaluate_rooks,
+};
 use super::{psqt::psqt_value, Evaluable, ValueScore};
 use crate::{
     moves::gen::piece_attacks,
     position::{board::Piece, Color, Position},
 };
 
+mod bishops;
 mod king;
 mod pawns;
+mod rooks;
 
 pub const MAX_POSITIONAL_GAIN: ValueScore = 300;
 
@@ -107,7 +112,13 @@ impl Evaluable for Position {
             acc + material_bonus + positional_bonus + mobility_bonus
         });
 
-        base_score + evaluate_pawn_structure(self) + evaluate_king_safety(self, midgame_ratio)
+        // Evaluate pieces
+        let pawns_score = evaluate_pawn_structure(self);
+        let king_score = evaluate_king_safety(self, endgame_ratio);
+        let rooks_score = evaluate_rooks(self);
+        let bishops_score = evaluate_bishops(self);
+
+        base_score + pawns_score + king_score + rooks_score + bishops_score
     }
 }
 
