@@ -3,8 +3,8 @@ use crate::{
     position::{bitboard::Bitboard, board::Piece, square::Square, Color, Position},
 };
 
-const BISHOP_PAIR_BONUS: ValueScore = 30;
-const SAME_COLOR_CENTER_PAWN_PENALTY: ValueScore = -10;
+const BISHOP_PAIR_BONUS: ValueScore = 50;
+const SAME_COLOR_CENTER_PAWN_PENALTY: ValueScore = -20;
 const CENTER_PAWNS: Bitboard = Bitboard::new(
     1 << Square::E4 as u64
         | 1 << Square::D4 as u64
