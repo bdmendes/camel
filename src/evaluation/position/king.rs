@@ -49,7 +49,7 @@ fn king_tropism(position: &Position, king_color: Color, king_square: Square) -> 
         & !position.board.pieces_bb(Piece::King);
 
     let tropism = them_occupancy.fold(0, |acc, sq| {
-        let distance = sq.distance(king_square);
+        let distance = sq.manhattan_distance(king_square);
         let piece_cof = match position.board.piece_at(sq) {
             Some(Piece::Queen) | Some(Piece::Rook) => 2,
             Some(Piece::Bishop) | Some(Piece::Knight) => 1,

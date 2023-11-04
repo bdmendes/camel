@@ -15,6 +15,10 @@ const PAWN_WEST_EDGE_FILE: Bitboard = Bitboard::file_mask(0);
 const PAWN_EAST_EDGE_FILE: Bitboard = Bitboard::file_mask(7);
 const PAWN_PROMOTION_RANKS: Bitboard =
     Bitboard::new(Bitboard::rank_mask(0).raw() | Bitboard::rank_mask(7).raw());
+const THIRD_ROW_WHITE: Bitboard = Bitboard::rank_mask(2);
+const THIRD_ROW_BLACK: Bitboard = Bitboard::rank_mask(5);
+const FIRST_ROW_WHITE: Bitboard = Bitboard::rank_mask(0);
+const FIRST_ROW_BLACK: Bitboard = Bitboard::rank_mask(7);
 
 pub fn pawn_attacks(board: &Board, color: Color) -> Bitboard {
     let our_pawns = board.pieces_bb(Piece::Pawn) & board.occupancy_bb(color);
@@ -47,8 +51,10 @@ pub fn generate_pawn_moves(stage: MoveStage, position: &Position, moves: &mut Ve
 
     if matches!(stage, MoveStage::All | MoveStage::NonCaptures) {
         // Double push
-        let third_row_bb =
-            Bitboard::rank_mask(if position.side_to_move == Color::White { 2 } else { 5 });
+        let third_row_bb = match position.side_to_move {
+            Color::White => THIRD_ROW_WHITE,
+            Color::Black => THIRD_ROW_BLACK,
+        };
         let double_push_pawns = (single_push_pawns & third_row_bb).shift(direction) & !occupancy;
 
         for to_square in double_push_pawns {
@@ -78,16 +84,16 @@ pub fn generate_pawn_moves(stage: MoveStage, position: &Position, moves: &mut Ve
         if let Some(en_passant_square) = position.en_passant_square {
             let ep_bb = Bitboard::new(1 << en_passant_square as u8);
 
-            let west_pawns =
+            let west_pawn =
                 (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST) & ep_bb;
-            for to_square in west_pawns {
+            if let Some(to_square) = west_pawn.into_iter().next() {
                 let from_square = to_square.shift(-direction - MoveDirection::WEST).unwrap();
                 moves.push(Move::new(from_square, to_square, MoveFlag::EnPassantCapture));
             }
 
             let east_pawns =
                 (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST) & ep_bb;
-            for to_square in east_pawns {
+            if let Some(to_square) = east_pawns.into_iter().next() {
                 let from_square = to_square.shift(-direction - MoveDirection::EAST).unwrap();
                 moves.push(Move::new(from_square, to_square, MoveFlag::EnPassantCapture));
             }
@@ -173,10 +179,10 @@ fn generate_kingside_castle(color: Color, position: &Position, moves: &mut Vec<M
     let rooks = position.board.pieces_bb(Piece::Rook) & position.board.occupancy_bb(color);
     let king_square =
         (position.board.pieces_bb(Piece::King) & position.board.occupancy_bb(color)).next();
-    let right_hand_side_rook_square = (Bitboard::rank_mask(match color {
-        Color::White => 0,
-        Color::Black => 7,
-    }) & rooks)
+    let right_hand_side_rook_square = (match color {
+        Color::White => FIRST_ROW_WHITE,
+        Color::Black => FIRST_ROW_BLACK,
+    } & rooks)
         .into_iter()
         .next_back();
 
@@ -204,10 +210,10 @@ fn generate_queenside_castle(color: Color, position: &Position, moves: &mut Vec<
     let rooks = position.board.pieces_bb(Piece::Rook) & position.board.occupancy_bb(color);
     let king_square =
         (position.board.pieces_bb(Piece::King) & position.board.occupancy_bb(color)).next();
-    let left_hand_side_rook_square = (Bitboard::rank_mask(match color {
-        Color::White => 0,
-        Color::Black => 7,
-    }) & rooks)
+    let left_hand_side_rook_square = (match color {
+        Color::White => FIRST_ROW_WHITE,
+        Color::Black => FIRST_ROW_BLACK,
+    } & rooks)
         .into_iter()
         .next();
 
@@ -255,15 +261,15 @@ fn castle_range_ok(color: Color, board: Board, king_square: Square, rook_square:
         }
     };
 
-    let occupied_range = Bitboard::range(king_square, rook_square)
-        | Bitboard::range(king_square, final_king_square)
-        | Bitboard::range(rook_square, final_rook_square);
+    let occupied_range = Bitboard::rank_range(king_square, rook_square)
+        | Bitboard::rank_range(king_square, final_king_square)
+        | Bitboard::rank_range(rook_square, final_rook_square);
 
     if !king_rook_range_occupied_ok(occupied_range, color, board) {
         return false;
     }
 
-    let mut attacked_range = Bitboard::range(king_square, final_king_square);
+    let mut attacked_range = Bitboard::rank_range(king_square, final_king_square);
 
     attacked_range.all(|sq| !square_attacked_by(&board, sq, color.opposite()))
 }

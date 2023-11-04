@@ -152,12 +152,15 @@ pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
     let mut moves = Vec::with_capacity(
         position.board.occupancy_bb(position.side_to_move).count_ones() as usize * 4,
     );
-
-    for piece in Piece::list().iter().filter(|p| **p != Piece::Pawn) {
-        generate_regular_moves(stage, &position.board, *piece, position.side_to_move, &mut moves);
-    }
+    let board = &position.board;
+    let side_to_move = position.side_to_move;
 
     generate_pawn_moves(stage, position, &mut moves);
+    generate_regular_moves(stage, board, Piece::Queen, side_to_move, &mut moves);
+    generate_regular_moves(stage, board, Piece::Rook, side_to_move, &mut moves);
+    generate_regular_moves(stage, board, Piece::Bishop, side_to_move, &mut moves);
+    generate_regular_moves(stage, board, Piece::Knight, side_to_move, &mut moves);
+    generate_regular_moves(stage, board, Piece::King, side_to_move, &mut moves);
 
     if matches!(stage, MoveStage::All | MoveStage::NonCaptures) {
         generate_king_castles(position, &mut moves);

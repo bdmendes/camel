@@ -1,10 +1,13 @@
+use super::Color;
 use primitive_enum::primitive_enum;
+
+pub const WHITE_SQUARES: u64 = 0x55_AA_55_AA_55_AA_55_AA;
 
 #[rustfmt::skip]
 primitive_enum!(
     Square u8;
-    A1, B1, C1, D1, E1, F1, G1, H1,
-    A2, B2, C2, D2, E2, F2, G2, H2,
+    A1=0, B1=1, C1, D1, E1, F1, G1, H1,
+    A2=8, B2, C2, D2, E2, F2, G2, H2,
     A3, B3, C3, D3, E3, F3, G3, H3,
     A4, B4, C4, D4, E4, F4, G4, H4,
     A5, B5, C5, D5, E5, F5, G5, H5,
@@ -22,13 +25,21 @@ impl Square {
         (self as u8) % 8
     }
 
+    pub fn color(self) -> Color {
+        if ((1 << self as u8) & WHITE_SQUARES) != 0 {
+            Color::White
+        } else {
+            Color::Black
+        }
+    }
+
     pub fn flip(self) -> Square {
         let file = self.file();
         let rank = 7 - self.rank();
         Square::from(rank * 8 + file).unwrap()
     }
 
-    pub fn distance(self, other: Square) -> u8 {
+    pub fn manhattan_distance(self, other: Square) -> u8 {
         let file_diff = (self.file() as i8 - other.file() as i8).unsigned_abs();
         let rank_diff = (self.rank() as i8 - other.rank() as i8).unsigned_abs();
         file_diff + rank_diff
@@ -130,5 +141,48 @@ mod tests {
         assert_eq!(Square::H8.to_string(), "h8");
         assert_eq!(Square::E4.to_string(), "e4");
         assert_eq!(Square::D5.to_string(), "d5");
+    }
+
+    #[test]
+    fn square_file() {
+        assert_eq!(Square::A1.file(), 0);
+        assert_eq!(Square::A8.file(), 0);
+        assert_eq!(Square::H1.file(), 7);
+        assert_eq!(Square::H8.file(), 7);
+        assert_eq!(Square::E4.file(), 4);
+        assert_eq!(Square::D5.file(), 3);
+    }
+
+    #[test]
+    fn square_rank() {
+        assert_eq!(Square::A1.rank(), 0);
+        assert_eq!(Square::A8.rank(), 7);
+        assert_eq!(Square::H1.rank(), 0);
+        assert_eq!(Square::H8.rank(), 7);
+        assert_eq!(Square::E4.rank(), 3);
+        assert_eq!(Square::D5.rank(), 4);
+    }
+
+    #[test]
+    fn square_distance() {
+        assert_eq!(Square::A1.manhattan_distance(Square::A1), 0);
+        assert_eq!(Square::A1.manhattan_distance(Square::A8), 7);
+        assert_eq!(Square::A1.manhattan_distance(Square::H1), 7);
+        assert_eq!(Square::A1.manhattan_distance(Square::H8), 14);
+        assert_eq!(Square::A1.manhattan_distance(Square::E4), 7);
+        assert_eq!(Square::A1.manhattan_distance(Square::D5), 7);
+    }
+
+    #[test]
+    fn square_color() {
+        assert_eq!(Square::A1.color(), Color::Black);
+        assert_eq!(Square::A8.color(), Color::White);
+        assert_eq!(Square::H1.color(), Color::White);
+        assert_eq!(Square::H8.color(), Color::Black);
+        assert_eq!(Square::E4.color(), Color::White);
+        assert_eq!(Square::D5.color(), Color::White);
+        assert_eq!(Square::D6.color(), Color::Black);
+        assert_eq!(Square::D4.color(), Color::Black);
+        assert_eq!(Square::E5.color(), Color::Black);
     }
 }
