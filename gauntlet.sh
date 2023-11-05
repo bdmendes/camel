@@ -11,10 +11,56 @@ readonly BOOK_FORMAT=epd
 readonly THREADS=4
 readonly BUILD_PATH=./target/release/$ENGINE_NAME
 readonly MESSAGE_FILE=message.txt
-readonly ROUNDS=300
-readonly TIME_CONTROL=10+0.1
+readonly FAST_ROUNDS=500
+readonly SLOW_ROUNDS=100
+readonly FAST_TIME_CONTROL=1+0.1
+readonly SLOW_TIME_CONTROL=30+0.3
 readonly ELO_THRESHOLD=25
 readonly UPSTREAM=${1:-master} # Default to master if no argument is given
+
+function run_gauntlet {
+    # (rounds, time_control)
+    local rounds=$1
+    local time_control=$2
+
+    echo "Running gauntlet with $rounds rounds and $time_control time control"
+
+    # Run the gauntlet and store output in temp file
+    OUTPUT_FILE=$(mktemp)
+    stdbuf -i0 -o0 -e0 ./${RUNNER} \
+        -engine cmd="${CURRENT_BRANCH_BIN_NAME}" name="${CURRENT_BRANCH_BIN_NAME}" \
+        -engine cmd="${UPSTREAM_BIN_NAME}" name="${UPSTREAM_BIN_NAME}" \
+        -each tc="${time_control}" -rounds "${rounds}" -repeat -concurrency ${THREADS} -openings \
+        file=${BOOK_NAME} format=${BOOK_FORMAT} order=random -draw movecount=8 score=8 movenumber=30 | tee "$OUTPUT_FILE"
+
+    # Error if the elo difference line is not found
+    result=$(grep +/- "$OUTPUT_FILE" | tail -1)
+    if [ -z "$result" ]; then
+        echo "Could not find result line in output"
+        exit 1
+    fi
+
+    # Parse elo difference from output
+    elo_diff=$(echo "$result" | grep -o -E '[+-]?[0-9]+([.][0-9]+)?' | head -1 | awk '{printf("%d\n",$1 + 0.5)}')
+
+    # Print result
+    failed=0
+    if [ $((elo_diff)) -lt -$ELO_THRESHOLD ]; then
+        echo -n "${time_control} ❌ " | tee -a $MESSAGE_FILE
+        failed=1
+    elif [ $((elo_diff)) -lt $ELO_THRESHOLD ]; then
+        echo -n "${time_control} 🆗 " | tee -a $MESSAGE_FILE
+    else
+        echo -n "${time_control} ✅ " | tee -a $MESSAGE_FILE
+    fi
+    echo "$result" | tee -a $MESSAGE_FILE
+    echo ""
+
+    # Exit with error code if the new version is worse
+    if [ $failed == 1 ]; then
+        exit 1
+    fi
+}
 
 if ! git diff --quiet; then
     echo "Commit or stash your changes first"
@@ -63,38 +109,9 @@ git switch -f "$CURRENT_BRANCH" || exit 1
 
 cd $INSTALL_PATH || exit 1
 
-# Run the gauntlet and store output in temp file
-OUTPUT_FILE=$(mktemp)
-stdbuf -i0 -o0 -e0 ./${RUNNER} \
-    -engine cmd="${CURRENT_BRANCH_BIN_NAME}" name="${CURRENT_BRANCH_BIN_NAME}" \
-    -engine cmd="${UPSTREAM_BIN_NAME}" name="${UPSTREAM_BIN_NAME}" \
-    -each tc=${TIME_CONTROL} -rounds ${ROUNDS} -repeat -concurrency ${THREADS} -openings \
-    file=${BOOK_NAME} format=${BOOK_FORMAT} order=random -draw movecount=8 score=8 movenumber=30 | tee "$OUTPUT_FILE"
+# Truncate message file
+echo -n "" >$MESSAGE_FILE
 
-# Error if the elo difference line is not found
-result=$(grep +/- "$OUTPUT_FILE" | tail -1)
-if [ -z "$result" ]; then
-    echo "Could not find result line in output"
-    exit 1
-fi
+run_gauntlet $FAST_ROUNDS $FAST_TIME_CONTROL
 
-# Parse elo difference from output
-elo_diff=$(echo "$result" | grep -o -E '[+-]?[0-9]+([.][0-9]+)?' | head -1 | awk '{printf("%d\n",$1 + 0.5)}')
-
-# Print result
-failed=0
-if [ $((elo_diff)) -lt -$ELO_THRESHOLD ]; then
-    echo -n "❌ " | tee $MESSAGE_FILE
-    failed=1
-elif [ $((elo_diff)) -lt $ELO_THRESHOLD ]; then
-    echo -n "🆗 " | tee $MESSAGE_FILE
-else
-    echo -n "✅ " | tee $MESSAGE_FILE
-fi
-echo -n "$result" | tee -a $MESSAGE_FILE
-echo ""
-
-# Exit with error code if the new version is worse
-if [ $failed == 1 ]; then
-    exit 1
-fi
+run_gauntlet $SLOW_ROUNDS $SLOW_TIME_CONTROL
