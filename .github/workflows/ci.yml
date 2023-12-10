@@ -1,52 +1,55 @@
 name: ci
 
 on:
-  push:
-    branches:
-      - master
-  pull_request:
-
+    pull_request:
+        branches:
+            - master
+    
 env:
-  CARGO_TERM_COLOR: always
+    CARGO_TERM_COLOR: always
+    FORMAT: true
 
 jobs:
-  format:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Format Rust
-        run: cargo fmt --check
-
-      - name: Format Shell
-        run: |
-          sudo apt-get install shfmt
-          shfmt -i 4 -d .
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Lint Rust
-        run: cargo clippy --verbose -- -D warnings
-
-      - name: Lint Shell
-        uses: ludeeus/action-shellcheck@2.0.0
-
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-
-      - name: Test with coverage
-        run: cargo llvm-cov --all-features --workspace --codecov --output-path codecov.json
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          files: codecov.json
-          fail_ci_if_error: true
+    format:
+        env:
+            SHFMT_RULESET: 1
+        
+        runs-on: ubuntu-latest
+        
+        steps:
+            - uses: actions/checkout@v3
+            - run: |
+                cargo fmt --check
+            - run: |
+                sudo apt-get install shfmt; shfmt -i 4 -d .
+    
+    lint:
+        env:
+            CARGO_TERM_COLOR: always
+        
+        needs: [format]
+        runs-on: ubuntu-latest
+        
+        steps:
+            - uses: actions/checkout@v3
+            - run: |
+                cargo clippy --verbose -- -D warnings
+            - uses: ludeeus/action-shellcheck@2.0.0
+    
+    test:
+        
+        needs: [lint]
+        runs-on: ubuntu-latest
+        
+        steps:
+            - uses: actions/checkout@v3
+              with:
+                submodules: true
+            - uses: taiki-e/install-action@cargo-llvm-cov
+            - run: |
+                cargo llvm-cov --all-features --workspace --codecov --output-path codecov.json
+            - uses: codecov/codecov-action@v3
+              with:
+                files: codecov.json
+                fail_ci_if_error: true
+    
