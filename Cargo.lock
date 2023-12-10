@@ -409,9 +409,9 @@ checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
 
 [[package]]
 name = "primitive_enum"
-version = "1.1.1"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c29afb3703c1cfcea9c70be7dc3fd52b93b8714e12df8e51a68a874bcffbb17"
+checksum = "9b596942df75c18adb3697b3b5e949b850bbed6a4015c58375b0b082e5a0fc5f"
 
 [[package]]
 name = "proc-macro2"
