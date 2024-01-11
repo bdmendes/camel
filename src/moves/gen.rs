@@ -41,7 +41,7 @@ impl MoveDirection {
 }
 
 pub fn checked_by(board: &Board, color: Color) -> bool {
-    let checked_king = board.pieces_bb(Piece::King) & board.occupancy_bb(color.opposite());
+    let checked_king = board.pieces_bb_color(Piece::King, color.opposite());
     checked_king
         .into_iter()
         .next()

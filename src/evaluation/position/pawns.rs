@@ -75,10 +75,8 @@ fn passed_pawns(us_direction: i8, us_bb: Bitboard, them_bb: Bitboard) -> Vec<Rel
 pub fn evaluate_pawn_structure(position: &Position) -> ValueScore {
     let mut score = 0;
 
-    let white_pawns =
-        position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
-    let black_pawns =
-        position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::Black);
+    let white_pawns = position.board.pieces_bb_color(Piece::Pawn, Color::White);
+    let black_pawns = position.board.pieces_bb_color(Piece::Pawn, Color::Black);
 
     const DOUBLED_PAWNS_PENALTY: ValueScore = -10;
     score += doubled_pawns(white_pawns) as ValueScore * DOUBLED_PAWNS_PENALTY;
@@ -110,8 +108,7 @@ mod tests {
     #[test]
     fn doubled_pawns_1() {
         let position = Position::from_fen("8/8/8/P7/P4P2/8/PPPP1PP1/8 w - - 0 1").unwrap();
-        let white_pawns =
-            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
+        let white_pawns = position.board.pieces_bb_color(Piece::Pawn, Color::White);
 
         assert_eq!(super::doubled_pawns(white_pawns), 3);
     }
@@ -119,8 +116,7 @@ mod tests {
     #[test]
     fn double_pawns_2() {
         let position = Position::from_fen("8/8/7P/8/2P5/5PP1/PP1PP3/8 w - - 0 1").unwrap();
-        let white_pawns =
-            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
+        let white_pawns = position.board.pieces_bb_color(Piece::Pawn, Color::White);
 
         assert_eq!(super::doubled_pawns(white_pawns), 0);
     }
@@ -128,8 +124,7 @@ mod tests {
     #[test]
     fn pawn_islands_1() {
         let position = Position::from_fen("8/8/7P/8/2P5/5PP1/PP1PP3/8 w - - 0 1").unwrap();
-        let white_pawns =
-            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
+        let white_pawns = position.board.pieces_bb_color(Piece::Pawn, Color::White);
 
         assert_eq!(super::pawn_islands(white_pawns), 1);
     }
@@ -137,8 +132,7 @@ mod tests {
     #[test]
     fn pawn_islands_2() {
         let position = Position::from_fen("8/8/8/8/2P5/5PP1/1P1PP3/8 w - - 0 1").unwrap();
-        let white_pawns =
-            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
+        let white_pawns = position.board.pieces_bb_color(Piece::Pawn, Color::White);
 
         assert_eq!(super::pawn_islands(white_pawns), 1);
     }
@@ -146,8 +140,7 @@ mod tests {
     #[test]
     fn pawn_islands_3() {
         let position = Position::from_fen("8/8/8/8/2P5/5PP1/1P1P4/8 w - - 0 1").unwrap();
-        let white_pawns =
-            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
+        let white_pawns = position.board.pieces_bb_color(Piece::Pawn, Color::White);
 
         assert_eq!(super::pawn_islands(white_pawns), 2);
     }
@@ -155,8 +148,7 @@ mod tests {
     #[test]
     fn pawn_islands_4() {
         let position = Position::from_fen("8/8/8/8/8/P4PP1/1P1P4/8 w - - 0 1").unwrap();
-        let white_pawns =
-            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
+        let white_pawns = position.board.pieces_bb_color(Piece::Pawn, Color::White);
 
         assert_eq!(super::pawn_islands(white_pawns), 3);
     }
@@ -164,8 +156,7 @@ mod tests {
     #[test]
     fn pawn_islands_5() {
         let position = Position::from_fen("8/8/8/8/8/P2P3P/8/8 w - - 0 1").unwrap();
-        let white_pawns =
-            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
+        let white_pawns = position.board.pieces_bb_color(Piece::Pawn, Color::White);
 
         assert_eq!(super::pawn_islands(white_pawns), 3);
     }
@@ -173,10 +164,8 @@ mod tests {
     #[test]
     fn passed_pawns_1() {
         let position = Position::from_fen("8/1p6/8/1pPP4/5p2/7P/5P2/8 w - - 0 1").unwrap();
-        let white_pawns =
-            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
-        let black_pawns =
-            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::Black);
+        let white_pawns = position.board.pieces_bb_color(Piece::Pawn, Color::White);
+        let black_pawns = position.board.pieces_bb_color(Piece::Pawn, Color::Black);
 
         assert_eq!(
             passed_pawns(MoveDirection::pawn_direction(Color::White), white_pawns, black_pawns),
@@ -192,10 +181,8 @@ mod tests {
     #[test]
     fn passed_pawns_2() {
         let position = Position::from_fen("8/8/8/1pPPp1P1/1p3pP1/7P/8/8 w - - 0 1").unwrap();
-        let white_pawns =
-            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::White);
-        let black_pawns =
-            position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(Color::Black);
+        let white_pawns = position.board.pieces_bb_color(Piece::Pawn, Color::White);
+        let black_pawns = position.board.pieces_bb_color(Piece::Pawn, Color::Black);
 
         assert_eq!(
             passed_pawns(MoveDirection::pawn_direction(Color::White), white_pawns, black_pawns),

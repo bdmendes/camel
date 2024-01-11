@@ -21,7 +21,7 @@ const FIRST_ROW_WHITE: Bitboard = Bitboard::rank_mask(0);
 const FIRST_ROW_BLACK: Bitboard = Bitboard::rank_mask(7);
 
 pub fn pawn_attacks(board: &Board, color: Color) -> Bitboard {
-    let our_pawns = board.pieces_bb(Piece::Pawn) & board.occupancy_bb(color);
+    let our_pawns = board.pieces_bb_color(Piece::Pawn, color);
     let direction = MoveDirection::pawn_direction(color);
 
     (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST)
@@ -31,8 +31,7 @@ pub fn pawn_attacks(board: &Board, color: Color) -> Bitboard {
 pub fn generate_pawn_moves(stage: MoveStage, position: &Position, moves: &mut Vec<Move>) {
     let occupancy = position.board.occupancy_bb_all();
     let occupancy_them = position.board.occupancy_bb(position.side_to_move.opposite());
-    let our_pawns =
-        position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(position.side_to_move);
+    let our_pawns = position.board.pieces_bb_color(Piece::Pawn, position.side_to_move);
 
     let direction = MoveDirection::pawn_direction(position.side_to_move);
 
@@ -176,9 +175,8 @@ pub fn generate_king_castles(position: &Position, moves: &mut Vec<Move>) {
 }
 
 fn generate_kingside_castle(color: Color, position: &Position, moves: &mut Vec<Move>) {
-    let rooks = position.board.pieces_bb(Piece::Rook) & position.board.occupancy_bb(color);
-    let king_square =
-        (position.board.pieces_bb(Piece::King) & position.board.occupancy_bb(color)).next();
+    let rooks = position.board.pieces_bb_color(Piece::Rook, color);
+    let king_square = (position.board.pieces_bb_color(Piece::King, color)).next();
     let right_hand_side_rook_square = (match color {
         Color::White => FIRST_ROW_WHITE,
         Color::Black => FIRST_ROW_BLACK,
@@ -207,9 +205,8 @@ fn generate_kingside_castle(color: Color, position: &Position, moves: &mut Vec<M
 }
 
 fn generate_queenside_castle(color: Color, position: &Position, moves: &mut Vec<Move>) {
-    let rooks = position.board.pieces_bb(Piece::Rook) & position.board.occupancy_bb(color);
-    let king_square =
-        (position.board.pieces_bb(Piece::King) & position.board.occupancy_bb(color)).next();
+    let rooks = position.board.pieces_bb_color(Piece::Rook, color);
+    let king_square = (position.board.pieces_bb_color(Piece::King, color)).next();
     let left_hand_side_rook_square = (match color {
         Color::White => FIRST_ROW_WHITE,
         Color::Black => FIRST_ROW_BLACK,
