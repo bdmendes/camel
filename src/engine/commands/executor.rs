@@ -24,25 +24,29 @@ pub fn execute_go(
     engine: &mut Engine,
     depth: Option<u8>,
     move_time: Option<Duration>,
-    mut white_time: Option<Duration>,
-    mut black_time: Option<Duration>,
-    white_increment: Option<Duration>,
-    black_increment: Option<Duration>,
+    players_time: (Option<Duration>, Option<Duration>),
+    players_increment: (Option<Duration>, Option<Duration>),
     ponder: bool,
 ) {
     if !engine.stop.load(Ordering::Relaxed) {
         return;
     }
 
-    engine.ponder.store(ponder, Ordering::Relaxed);
+    engine.pondering.store(ponder, Ordering::Relaxed);
 
     let position = engine.position;
+
+    let mut white_time = players_time.0;
+    let mut black_time = players_time.1;
 
     if white_time.is_some() && black_time.is_none() {
         black_time = white_time;
     } else if black_time.is_some() && white_time.is_none() {
         white_time = black_time;
     }
+
+    let white_increment = players_increment.0;
+    let black_increment = players_increment.1;
 
     let calc_move_time = match move_time {
         Some(t) => Some(t),
@@ -52,6 +56,7 @@ pub fn execute_go(
             black_time.unwrap(),
             white_increment,
             black_increment,
+            ponder,
         )),
         None => None,
     };
@@ -64,7 +69,7 @@ pub fn execute_go(
         time_constraint: calc_move_time
             .map(|t| TimeConstraint { initial_instant: std::time::Instant::now(), move_time: t }),
         stop_now: Some(stop_now.clone()),
-        ponder_mode: Some(engine.ponder.clone()),
+        ponder_mode: Some(engine.pondering.clone()),
     };
 
     thread::spawn(move || {
@@ -83,15 +88,15 @@ pub fn execute_stop(engine: &mut Engine) {
     if engine.stop.load(Ordering::Relaxed) {
         return;
     }
-    engine.ponder.store(false, Ordering::Relaxed);
+    engine.pondering.store(false, Ordering::Relaxed);
     engine.stop.store(true, Ordering::Relaxed);
 }
 
 pub fn execute_ponderhit(engine: &mut Engine) {
-    if !engine.ponder.load(Ordering::Relaxed) {
+    if !engine.pondering.load(Ordering::Relaxed) {
         return;
     }
-    engine.ponder.store(false, Ordering::Relaxed);
+    engine.pondering.store(false, Ordering::Relaxed);
 }
 
 pub fn execute_uci() {
@@ -119,6 +124,9 @@ pub fn execute_set_option(name: &str, value: &str, engine: &mut Engine) {
         if let Ok(size) = value.parse::<usize>() {
             engine.table.lock().unwrap().set_size(size.clamp(MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB));
         }
+    }
+    if name == "Ponder" {
+        // The time management bonus already takes pondering into account, so do nothing.
     }
     if name == "UCI_Chess960" {
         // The engine is compliant with Chess 960 by design, so do nothing.

@@ -56,7 +56,7 @@ pub struct Engine {
     pub game_history: Vec<HistoryEntry>,
     pub table: Arc<Mutex<SearchTable>>,
     pub stop: Arc<AtomicBool>,
-    pub ponder: Arc<AtomicBool>,
+    pub pondering: Arc<AtomicBool>,
 }
 
 pub fn uci_loop() {
@@ -65,7 +65,7 @@ pub fn uci_loop() {
         stop: Arc::new(AtomicBool::new(true)),
         game_history: Vec::new(),
         table: Arc::new(Mutex::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB))),
-        ponder: Arc::new(AtomicBool::new(false)),
+        pondering: Arc::new(AtomicBool::new(false)),
     };
 
     loop {

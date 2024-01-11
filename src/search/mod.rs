@@ -106,6 +106,6 @@ pub fn search_iter(
     if let Some(ponder_move) = table.lock().unwrap().get_hash_move(&new_position) {
         println!(" ponder {}", ponder_move);
     } else {
-        println!("");
+        println!();
     }
 }
