@@ -41,7 +41,7 @@ impl MoveDirection {
 }
 
 pub fn checked_by(board: &Board, color: Color) -> bool {
-    let checked_king = board.pieces_bb(Piece::King) & board.occupancy_bb(color.opposite());
+    let checked_king = board.pieces_bb_color(Piece::King, color.opposite());
     checked_king
         .into_iter()
         .next()
@@ -167,8 +167,7 @@ pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
     }
 
     let is_check = checked_by(board, side_to_move.opposite());
-    let king_square =
-        (board.pieces_bb(Piece::King) & board.occupancy_bb(side_to_move)).next().unwrap();
+    let king_square = board.pieces_bb_color(Piece::King, side_to_move).next().unwrap();
 
     moves.retain(|mov| match mov.flag() {
         MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => true,

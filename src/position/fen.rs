@@ -132,7 +132,7 @@ pub fn position_from_fen(fen: &str) -> Option<Position> {
                     'h' => 7,
                     _ => return None,
                 };
-                let color_king_square = board.pieces_bb(Piece::King) & board.occupancy_bb(color);
+                let color_king_square = board.pieces_bb_color(Piece::King, color);
                 if let Some(color_king_square) = color_king_square.into_iter().next() {
                     let king_file = color_king_square.file();
                     if file > king_file {

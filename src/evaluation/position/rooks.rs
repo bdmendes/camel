@@ -11,14 +11,12 @@ pub fn evaluate_rooks(position: &Position) -> ValueScore {
     let mut score = 0;
 
     for color in Color::list() {
-        let rooks = position.board.pieces_bb(Piece::Rook) & position.board.occupancy_bb(*color);
+        let rooks = position.board.pieces_bb_color(Piece::Rook, *color);
 
         if let Some(rook) = rooks.into_iter().next() {
             let occupancy = position.board.occupancy_bb_all();
-            let our_pawns =
-                position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(*color);
-            let their_pawns = position.board.pieces_bb(Piece::Pawn)
-                & position.board.occupancy_bb(color.opposite());
+            let our_pawns = position.board.pieces_bb_color(Piece::Pawn, *color);
+            let their_pawns = position.board.pieces_bb_color(Piece::Pawn, color.opposite());
             let our_file = Bitboard::file_mask(rook.file());
             let our_rank = Bitboard::rank_mask(rook.rank());
 
