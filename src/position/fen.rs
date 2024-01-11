@@ -52,7 +52,7 @@ pub fn board_from_fen(board_fen: &str) -> Option<Board> {
     let mut rank = 7;
     let mut file = 0;
 
-    let mut board = Board::new();
+    let mut board = Board::default();
 
     for c in chars {
         match c {

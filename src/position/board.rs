@@ -24,18 +24,26 @@ primitive_enum!(
     King
 );
 
-#[derive(Default, Hash, PartialEq, Copy, Clone, Debug)]
+#[derive(Hash, PartialEq, Copy, Clone, Debug)]
 pub struct Board {
     pieces: [Bitboard; 6],
     occupancy: [Bitboard; 2],
+    mailbox: [Option<Piece>; 64],
     hash: ZobristHash,
 }
 
-impl Board {
-    pub fn new() -> Self {
-        Board { pieces: Default::default(), occupancy: Default::default(), hash: 0 }
+impl Default for Board {
+    fn default() -> Self {
+        Self {
+            pieces: [Bitboard::new(0); 6],
+            occupancy: [Bitboard::new(0); 2],
+            mailbox: [None; 64],
+            hash: 0,
+        }
     }
+}
 
+impl Board {
     pub fn from_fen(board_fen: &str) -> Option<Board> {
         board_from_fen(board_fen)
     }
@@ -55,6 +63,7 @@ impl Board {
         }
         self.pieces[piece as usize].set(square);
         self.occupancy[color as usize].set(square);
+        self.mailbox[square as usize] = Some(piece);
         self.xor_hash(square, piece, color);
     }
 
@@ -62,6 +71,7 @@ impl Board {
         if let Some((piece, color)) = self.piece_color_at(square) {
             self.pieces[piece as usize].clear(square);
             self.occupancy[color as usize].clear(square);
+            self.mailbox[square as usize] = None;
             self.xor_hash(square, piece, color);
         }
     }
@@ -71,7 +81,7 @@ impl Board {
     }
 
     pub fn piece_at(&self, square: Square) -> Option<Piece> {
-        self.pieces.iter().position(|bb| bb.is_set(square)).map(|i| Piece::from(i as u8).unwrap())
+        self.mailbox[square as usize]
     }
 
     pub fn color_at(&self, square: Square) -> Option<Color> {
@@ -151,6 +161,7 @@ mod tests {
 
         *board.pieces[Piece::King as usize] = 1 << Square::E1 as u8;
         *board.occupancy[Color::White as usize] = 1 << Square::E1 as u8;
+        board.mailbox[Square::E1 as usize] = Some(Piece::King);
 
         assert_eq!(board.piece_color_at(Square::E1), Some((Piece::King, Color::White)));
         assert_eq!(board.piece_color_at(Square::E2), None);
