@@ -13,8 +13,8 @@ readonly BUILD_PATH=./target/release/$ENGINE_NAME
 readonly MESSAGE_FILE=message.txt
 readonly FAST_ROUNDS=500
 readonly SLOW_ROUNDS=100
-readonly FAST_TIME_CONTROL=1+0.1
-readonly SLOW_TIME_CONTROL=30+0.3
+readonly FAST_TIME_CONTROL=5+0.1
+readonly SLOW_TIME_CONTROL=10+0.2
 readonly ELO_THRESHOLD=25
 readonly UPSTREAM=${1:-master} # Default to master if no argument is given
 
