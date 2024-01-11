@@ -96,5 +96,15 @@ pub fn search_iter(
         current_depth += 1;
     }
 
-    println!("bestmove {}", table.lock().unwrap().get_hash_move(position).unwrap_or(moves[0]));
+    // Best move found
+    let best_move = table.lock().unwrap().get_hash_move(position).unwrap_or(moves[0]);
+    print!("bestmove {}", best_move);
+
+    // Ponder move if possible
+    let new_position = position.make_move(best_move);
+    if let Some(ponder_move) = table.lock().unwrap().get_hash_move(&new_position) {
+        println!(" ponder {}", ponder_move);
+    } else {
+        println!("");
+    }
 }
