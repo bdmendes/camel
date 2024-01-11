@@ -48,6 +48,12 @@ impl Square {
     pub fn shift(self, offset: i8) -> Option<Square> {
         Square::from((self as i8 + offset) as u8)
     }
+
+    pub fn same_diagonal(self, other: Square) -> bool {
+        let file_diff = (self.file() as i8 - other.file() as i8).unsigned_abs();
+        let rank_diff = (self.rank() as i8 - other.rank() as i8).unsigned_abs();
+        file_diff == rank_diff
+    }
 }
 
 impl std::str::FromStr for Square {

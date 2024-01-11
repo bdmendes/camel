@@ -166,9 +166,27 @@ pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
         generate_king_castles(position, &mut moves);
     }
 
+    let is_check = checked_by(board, side_to_move.opposite());
     moves.retain(|mov| match mov.flag() {
         MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => true,
         _ => {
+            // If we were not in check and didn't enter check, no need to validate
+            if !is_check {
+                let piece = board.piece_at(mov.from()).unwrap();
+                if piece != Piece::King {
+                    let king_square = (board.pieces_bb(Piece::King)
+                        & board.occupancy_bb(side_to_move))
+                    .next()
+                    .unwrap();
+                    if !king_square.same_diagonal(mov.from())
+                        && king_square.rank() != mov.from().rank()
+                        && king_square.file() != mov.from().file()
+                    {
+                        return true;
+                    }
+                }
+            }
+
             let new_position = make_move::<false>(position, *mov);
             !checked_by(&new_position.board, new_position.side_to_move)
         }
