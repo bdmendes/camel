@@ -167,22 +167,34 @@ pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
     }
 
     let is_check = checked_by(board, side_to_move.opposite());
+    let king_square =
+        (board.pieces_bb(Piece::King) & board.occupancy_bb(side_to_move)).next().unwrap();
+
     moves.retain(|mov| match mov.flag() {
         MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => true,
         _ => {
-            // If we were not in check and didn't enter check, no need to validate
-            if !is_check {
-                let piece = board.piece_at(mov.from()).unwrap();
-                if piece != Piece::King {
-                    let king_square = (board.pieces_bb(Piece::King)
-                        & board.occupancy_bb(side_to_move))
-                    .next()
-                    .unwrap();
+            let piece = board.piece_at(mov.from()).unwrap();
+
+            if piece != Piece::King {
+                if !is_check {
+                    // If there is no risk of moving a blocker, the move is legal
                     if !king_square.same_diagonal(mov.from())
                         && king_square.rank() != mov.from().rank()
                         && king_square.file() != mov.from().file()
                     {
                         return true;
+                    }
+                } else if board.piece_at(mov.to()) != Some(Piece::Knight)
+                    && mov.flag() != MoveFlag::EnPassantCapture
+                {
+                    // We must attempt to block the check or capture a piece in the king's rays
+                    // The knight is an exception, since it is not in the king's rays
+                    // Enpassant is also an exception, since the final square is not the threat
+                    if !king_square.same_diagonal(mov.to())
+                        && king_square.rank() != mov.to().rank()
+                        && king_square.file() != mov.to().file()
+                    {
+                        return false;
                     }
                 }
             }
