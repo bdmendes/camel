@@ -54,6 +54,7 @@ pub fn parse_go(words: &mut VecDeque<&str>) -> Result<Command, String> {
     let mut black_time = None;
     let mut white_increment = None;
     let mut black_increment = None;
+    let mut ponder = false;
 
     loop {
         let word = words.pop_front();
@@ -62,6 +63,9 @@ pub fn parse_go(words: &mut VecDeque<&str>) -> Result<Command, String> {
         }
         let word = word.unwrap();
         match word {
+            "ponder" => {
+                ponder = true;
+            }
             "depth" => {
                 let value = words.pop_front().ok_or("No value found")?;
                 depth = Some(value.parse::<u8>().map_err(|_| "Invalid depth value")?);
@@ -100,7 +104,15 @@ pub fn parse_go(words: &mut VecDeque<&str>) -> Result<Command, String> {
         }
     }
 
-    Ok(Command::Go { depth, move_time, white_time, black_time, white_increment, black_increment })
+    Ok(Command::Go {
+        depth,
+        move_time,
+        white_time,
+        black_time,
+        white_increment,
+        black_increment,
+        ponder,
+    })
 }
 
 pub fn parse_domove(words: &mut VecDeque<&str>) -> Result<Command, ()> {

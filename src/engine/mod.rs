@@ -27,8 +27,10 @@ pub enum Command {
         black_time: Option<Duration>,
         white_increment: Option<Duration>,
         black_increment: Option<Duration>,
+        ponder: bool,
     },
     Stop,
+    PonderHit,
     Uci,
     Debug(bool),
     IsReady,
@@ -52,8 +54,9 @@ pub enum Command {
 pub struct Engine {
     pub position: Position,
     pub game_history: Vec<HistoryEntry>,
-    pub stop: Arc<AtomicBool>,
     pub table: Arc<Mutex<SearchTable>>,
+    pub stop: Arc<AtomicBool>,
+    pub ponder: Arc<AtomicBool>,
 }
 
 pub fn uci_loop() {
@@ -62,6 +65,7 @@ pub fn uci_loop() {
         stop: Arc::new(AtomicBool::new(true)),
         game_history: Vec::new(),
         table: Arc::new(Mutex::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB))),
+        ponder: Arc::new(AtomicBool::new(false)),
     };
 
     loop {
