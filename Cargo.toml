@@ -15,9 +15,10 @@ opt-level = 1
 
 [profile.release]
 opt-level = 3
-lto = true
+lto = "fat"
 codegen-units = 1
 panic = "abort"
+strip = "debuginfo"
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports"] }
