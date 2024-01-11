@@ -83,6 +83,7 @@ pub fn execute_stop(engine: &mut Engine) {
     if engine.stop.load(Ordering::Relaxed) {
         return;
     }
+    engine.ponder.store(false, Ordering::Relaxed);
     engine.stop.store(true, Ordering::Relaxed);
 }
 
