@@ -28,10 +28,14 @@ pub fn execute_go(
     mut black_time: Option<Duration>,
     white_increment: Option<Duration>,
     black_increment: Option<Duration>,
+    ponder: bool,
 ) {
     if !engine.stop.load(Ordering::Relaxed) {
         return;
     }
+
+    engine.ponder.store(ponder, Ordering::Relaxed);
+
     let position = engine.position;
 
     if white_time.is_some() && black_time.is_none() {
@@ -60,6 +64,7 @@ pub fn execute_go(
         time_constraint: calc_move_time
             .map(|t| TimeConstraint { initial_instant: std::time::Instant::now(), move_time: t }),
         stop_now: Some(stop_now.clone()),
+        ponder_mode: Some(engine.ponder.clone()),
     };
 
     thread::spawn(move || {
@@ -79,6 +84,13 @@ pub fn execute_stop(engine: &mut Engine) {
         return;
     }
     engine.stop.store(true, Ordering::Relaxed);
+}
+
+pub fn execute_ponderhit(engine: &mut Engine) {
+    if !engine.ponder.load(Ordering::Relaxed) {
+        return;
+    }
+    engine.ponder.store(false, Ordering::Relaxed);
 }
 
 pub fn execute_uci() {

@@ -20,6 +20,7 @@ pub struct SearchConstraint {
     pub branch_history: Vec<HistoryEntry>,
     pub time_constraint: Option<TimeConstraint>,
     pub stop_now: Option<Arc<AtomicBool>>,
+    pub ponder_mode: Option<Arc<AtomicBool>>,
 }
 
 impl Default for SearchConstraint {
@@ -28,12 +29,19 @@ impl Default for SearchConstraint {
             branch_history: Vec::with_capacity(MAX_DEPTH as usize),
             time_constraint: None,
             stop_now: None,
+            ponder_mode: None,
         }
     }
 }
 
 impl SearchConstraint {
     pub fn should_stop_search(&self) -> bool {
+        if let Some(ponder_mode) = &self.ponder_mode {
+            if ponder_mode.load(std::sync::atomic::Ordering::Relaxed) {
+                return false;
+            }
+        }
+
         if let Some(stop_now) = &self.stop_now {
             if stop_now.load(std::sync::atomic::Ordering::Relaxed) {
                 return true;
@@ -45,6 +53,13 @@ impl SearchConstraint {
             return elapsed >= time_constraint.move_time;
         }
 
+        false
+    }
+
+    pub fn pondering(&self) -> bool {
+        if let Some(ponder_mode) = &self.ponder_mode {
+            return ponder_mode.load(std::sync::atomic::Ordering::Relaxed);
+        }
         false
     }
 
@@ -98,6 +113,7 @@ mod tests {
                 move_time: Duration::from_millis(100),
             }),
             stop_now: None,
+            ponder_mode: None,
         };
 
         thread::sleep(Duration::from_millis(90));
@@ -121,6 +137,7 @@ mod tests {
                 move_time: Duration::from_millis(100),
             }),
             stop_now: Some(stop_now.clone()),
+            ponder_mode: None,
         };
 
         assert!(!constraint.should_stop_search());
@@ -133,8 +150,12 @@ mod tests {
 
     #[test]
     fn repeated_times() {
-        let mut constraint =
-            SearchConstraint { branch_history: Vec::new(), time_constraint: None, stop_now: None };
+        let mut constraint = SearchConstraint {
+            branch_history: Vec::new(),
+            time_constraint: None,
+            stop_now: None,
+            ponder_mode: None,
+        };
 
         let mut position = Position::from_fen(START_FEN).unwrap();
         constraint.visit_position(&position, true);

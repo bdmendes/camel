@@ -70,7 +70,7 @@ pub fn search_iter(
     let mut current_guess = position.value() * position.side_to_move.sign();
 
     let mut current_depth = 1;
-    while current_depth <= depth {
+    while constraint.pondering() || current_depth <= depth {
         let time = std::time::Instant::now();
         let (score, count) =
             pvs::search_single(position, current_guess, current_depth, table.clone(), constraint);
@@ -86,9 +86,10 @@ pub fn search_iter(
         let elapsed = time.elapsed();
         print_iter_info(position, current_depth, score, count, elapsed, &table.lock().unwrap());
 
-        if one_legal_move
-            || matches!(score, Score::Mate(_, _))
-            || elapsed > constraint.remaining_time().unwrap_or(elapsed)
+        if !constraint.pondering()
+            && (one_legal_move
+                || matches!(score, Score::Mate(_, _))
+                || elapsed > constraint.remaining_time().unwrap_or(elapsed))
         {
             break;
         }
