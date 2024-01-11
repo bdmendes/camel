@@ -92,6 +92,10 @@ impl Board {
     pub fn pieces_bb(&self, piece: Piece) -> Bitboard {
         self.pieces[piece as usize]
     }
+
+    pub fn pieces_bb_color(&self, piece: Piece, color: Color) -> Bitboard {
+        self.pieces[piece as usize] & self.occupancy[color as usize]
+    }
 }
 
 impl std::fmt::Display for Board {

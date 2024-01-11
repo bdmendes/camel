@@ -9,8 +9,7 @@ pub fn evaluate_bishops(position: &Position) -> ValueScore {
     let mut score = 0;
 
     for color in Color::list() {
-        let our_bishops =
-            position.board.pieces_bb(Piece::Bishop) & position.board.occupancy_bb(*color);
+        let our_bishops = position.board.pieces_bb_color(Piece::Bishop, *color);
 
         // Bishop pair
         if our_bishops.count_ones() > 1 {

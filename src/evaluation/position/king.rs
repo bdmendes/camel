@@ -6,7 +6,7 @@ use crate::{
 fn king_pawn_shelter(position: &Position, king_color: Color, king_square: Square) -> ValueScore {
     let mut shelter = 0;
 
-    let our_pawns = position.board.pieces_bb(Piece::Pawn) & position.board.occupancy_bb(king_color);
+    let our_pawns = position.board.pieces_bb_color(Piece::Pawn, king_color);
 
     let file_min = match king_square.file() {
         0 => 0,
@@ -62,14 +62,10 @@ fn king_tropism(position: &Position, king_color: Color, king_square: Square) -> 
 }
 
 pub fn evaluate_king_safety(position: &Position, midgame_ratio: u8) -> ValueScore {
-    let white_king_square = (position.board.occupancy_bb(Color::White)
-        & position.board.pieces_bb(Piece::King))
-    .into_iter()
-    .next();
-    let black_king_square = (position.board.occupancy_bb(Color::Black)
-        & position.board.pieces_bb(Piece::King))
-    .into_iter()
-    .next();
+    let white_king_square =
+        position.board.pieces_bb_color(Piece::King, Color::White).into_iter().next();
+    let black_king_square =
+        position.board.pieces_bb_color(Piece::King, Color::Black).into_iter().next();
 
     if white_king_square.is_none() || black_king_square.is_none() {
         return 0;
@@ -103,32 +99,20 @@ mod tests {
     };
 
     fn position_tropism(position: &Position) -> ValueScore {
-        let white_king_square = (position.board.occupancy_bb(Color::White)
-            & position.board.pieces_bb(Piece::King))
-        .into_iter()
-        .next()
-        .unwrap();
-        let black_king_square = (position.board.occupancy_bb(Color::Black)
-            & position.board.pieces_bb(Piece::King))
-        .into_iter()
-        .next()
-        .unwrap();
+        let white_king_square =
+            position.board.pieces_bb_color(Piece::King, Color::White).into_iter().next().unwrap();
+        let black_king_square =
+            position.board.pieces_bb_color(Piece::King, Color::Black).into_iter().next().unwrap();
 
         king_tropism(position, Color::White, white_king_square)
             - king_tropism(position, Color::Black, black_king_square)
     }
 
     fn position_shelter(position: &Position) -> ValueScore {
-        let white_king_square = (position.board.occupancy_bb(Color::White)
-            & position.board.pieces_bb(Piece::King))
-        .into_iter()
-        .next()
-        .unwrap();
-        let black_king_square = (position.board.occupancy_bb(Color::Black)
-            & position.board.pieces_bb(Piece::King))
-        .into_iter()
-        .next()
-        .unwrap();
+        let white_king_square =
+            position.board.pieces_bb_color(Piece::King, Color::White).into_iter().next().unwrap();
+        let black_king_square =
+            position.board.pieces_bb_color(Piece::King, Color::Black).into_iter().next().unwrap();
 
         super::king_pawn_shelter(position, Color::White, white_king_square)
             - super::king_pawn_shelter(position, Color::Black, black_king_square)

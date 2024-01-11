@@ -238,23 +238,15 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
         && matches!(mov.flag(), MoveFlag::Capture | MoveFlag::Quiet)
     {
         let king_square = match position.side_to_move {
-            Color::White => (position.board.pieces_bb(Piece::King)
-                & position.board.occupancy_bb(Color::White))
-            .next(),
-            Color::Black => (position.board.pieces_bb(Piece::King)
-                & position.board.occupancy_bb(Color::Black))
-            .next(),
+            Color::White => (position.board.pieces_bb_color(Piece::King, Color::White)).next(),
+            Color::Black => (position.board.pieces_bb_color(Piece::King, Color::Black)).next(),
         };
         let king_rank_rooks = match position.side_to_move {
             Color::White => {
-                Bitboard::rank_mask(0)
-                    & position.board.pieces_bb(Piece::Rook)
-                    & position.board.occupancy_bb(Color::White)
+                Bitboard::rank_mask(0) & position.board.pieces_bb_color(Piece::Rook, Color::White)
             }
             Color::Black => {
-                Bitboard::rank_mask(7)
-                    & position.board.pieces_bb(Piece::Rook)
-                    & position.board.occupancy_bb(Color::Black)
+                Bitboard::rank_mask(7) & position.board.pieces_bb_color(Piece::Rook, Color::Black)
             }
         };
         let left_hand_side_rook = king_rank_rooks
