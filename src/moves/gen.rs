@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::{
     attacks::{
         leapers::{KING_ATTACKS, KNIGHT_ATTACKS},
@@ -11,14 +9,11 @@ use super::{
     },
     make_move, Move, MoveFlag,
 };
-use crate::{
-    position::{
-        bitboard::Bitboard,
-        board::{Board, Piece, ZobristHash},
-        square::Square,
-        Color, Position,
-    },
-    search::Depth,
+use crate::position::{
+    bitboard::Bitboard,
+    board::{Board, Piece},
+    square::Square,
+    Color, Position,
 };
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -46,11 +41,8 @@ impl MoveDirection {
 }
 
 pub fn checked_by(board: &Board, color: Color) -> bool {
-    let checked_king = board.pieces_bb_color(Piece::King, color.opposite());
-    checked_king
-        .into_iter()
-        .next()
-        .map_or(false, |king_square| square_attacked_by(board, king_square, color))
+    let mut checked_king = board.pieces_bb_color(Piece::King, color.opposite());
+    checked_king.next().map_or(false, |king_square| square_attacked_by(board, king_square, color))
 }
 
 pub fn square_attacked_by(board: &Board, square: Square, color: Color) -> bool {
@@ -125,21 +117,17 @@ pub fn generate_regular_moves(
     color: Color,
     moves: &mut Vec<Move>,
 ) {
-    let occupancy_us = board.occupancy_bb(color);
-    let pieces = board.pieces_bb(piece) & occupancy_us;
-
     let occupancy = board.occupancy_bb_all();
+    let occupancy_us = board.occupancy_bb(color);
     let occupancy_them = board.occupancy_bb(color.opposite());
 
-    for from_square in pieces {
+    for from_square in board.pieces_bb_color(piece, color) {
         let attacks = match stage {
             MoveStage::HashMove => panic!("Hash move should not be generated here"),
             MoveStage::CapturesAndPromotions => {
-                piece_attacks(piece, from_square, occupancy) & occupancy_them & !occupancy_us
+                piece_attacks(piece, from_square, occupancy) & occupancy_them
             }
-            MoveStage::NonCaptures => {
-                piece_attacks(piece, from_square, occupancy) & !occupancy_them & !occupancy_us
-            }
+            MoveStage::NonCaptures => piece_attacks(piece, from_square, occupancy) & !occupancy,
             MoveStage::All => piece_attacks(piece, from_square, occupancy) & !occupancy_us,
         };
 
@@ -154,9 +142,7 @@ pub fn generate_regular_moves(
 }
 
 pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
-    let mut moves = Vec::with_capacity(
-        position.board.occupancy_bb(position.side_to_move).count_ones() as usize * 4,
-    );
+    let mut moves = Vec::with_capacity(64);
     let board = &position.board;
     let side_to_move = position.side_to_move;
 
@@ -177,14 +163,14 @@ pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
     moves.retain(|mov| match mov.flag() {
         MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => true,
         _ => {
-            let piece = board.piece_at(mov.from()).unwrap();
-
-            if piece != Piece::King {
+            if board.piece_at(mov.from()).unwrap() != Piece::King {
                 if !is_check {
-                    // If there is no risk of moving a blocker, the move is legal
-                    if !king_square.same_diagonal(mov.from())
-                        && king_square.rank() != mov.from().rank()
-                        && king_square.file() != mov.from().file()
+                    // If no blocker could have been moved, then the move is legal for sure
+                    if (king_square.file() != mov.from().file()
+                        || mov.from().file() == mov.to().file())
+                        && (king_square.rank() != mov.from().rank()
+                            || mov.from().rank() == mov.to().rank())
+                        && !king_square.same_diagonal(mov.from())
                     {
                         return true;
                     }
@@ -211,24 +197,14 @@ pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
     moves
 }
 
-pub fn perft<const ROOT: bool, const BULK_AT_HORIZON: bool, const HASH: bool>(
-    position: &Position,
-    depth: u8,
-    cache: &mut HashMap<(ZobristHash, Depth), u64>,
-) -> u64 {
+pub fn perft(position: &Position, depth: u8) -> u64 {
     if depth == 0 {
         return 1;
     }
 
-    if HASH {
-        if let Some(res) = cache.get(&(position.zobrist_hash(), depth)) {
-            return *res;
-        }
-    }
-
     let moves = generate_moves(MoveStage::All, position);
 
-    if BULK_AT_HORIZON && depth == 1 {
+    if depth == 1 {
         return moves.len() as u64;
     }
 
@@ -236,12 +212,8 @@ pub fn perft<const ROOT: bool, const BULK_AT_HORIZON: bool, const HASH: bool>(
 
     for mov in moves {
         let new_position = make_move::<true>(position, mov);
-        let count = perft::<false, BULK_AT_HORIZON, HASH>(&new_position, depth - 1, cache);
+        let count = perft(&new_position, depth - 1);
         nodes += count;
-    }
-
-    if HASH {
-        cache.insert((position.zobrist_hash(), depth), nodes);
     }
 
     nodes

@@ -13,7 +13,7 @@ use camel::{
         Depth, MAX_DEPTH,
     },
 };
-use std::{collections::HashMap, sync::atomic::Ordering, thread, time::Duration};
+use std::{sync::atomic::Ordering, thread, time::Duration};
 
 pub fn execute_position(new_position: &Position, game_history: &[Position], engine: &mut Engine) {
     engine.position = *new_position;
@@ -149,7 +149,7 @@ pub fn execute_perft(depth: u8, position: &Position) {
 
     thread::spawn(move || {
         let start = std::time::Instant::now();
-        let nodes = perft::<true, false, false>(&position, depth, &mut HashMap::new());
+        let nodes = perft(&position, depth);
         let elapsed = start.elapsed();
 
         println!("Perft results for depth {}", depth);

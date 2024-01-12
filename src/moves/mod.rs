@@ -2,6 +2,7 @@ use self::{attacks::specials::pawn_attacks, gen::MoveDirection};
 use crate::position::{
     bitboard::Bitboard, board::Piece, square::Square, CastlingRights, Color, Position,
 };
+
 use primitive_enum::primitive_enum;
 
 pub mod attacks;
