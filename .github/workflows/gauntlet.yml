@@ -11,7 +11,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  upstream:
+  upstream_gauntlet:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -35,6 +35,39 @@ jobs:
       - uses: mshick/add-pr-comment@v2
         with:
           message-path: fast-chess/message.txt
+          message-id: upstream
+
+      - name: Fail if gauntlet failed
+        run: |
+          if [ -n "$GAUNTLET_FAILED" ]; then
+            exit 1
+          fi
+
+  release_gauntlet:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up script permissions
+        run: chmod +x ./gauntlet.sh
+
+      - name: Set up local release tag
+        run: git fetch origin $(git describe --tags --abbrev=0)
+
+      - name: Run script and collect results
+        env:
+          CURRENT_BRANCH: ${{ github.head_ref }}
+        run: |
+          ./gauntlet.sh $(git describe --tags --abbrev=0) || echo "GAUNTLET_FAILED=1" >> $GITHUB_ENV
+
+      - uses: mshick/add-pr-comment@v2
+        with:
+          message-path: fast-chess/message.txt
+          message-id: release
 
       - name: Fail if gauntlet failed
         run: |

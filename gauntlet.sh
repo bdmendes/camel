@@ -11,10 +11,8 @@ readonly BOOK_FORMAT=epd
 readonly THREADS=4
 readonly BUILD_PATH=./target/release/$ENGINE_NAME
 readonly MESSAGE_FILE=message.txt
-readonly FAST_ROUNDS=300
-readonly SLOW_ROUNDS=150
-readonly FAST_TIME_CONTROL=5+0.1
-readonly SLOW_TIME_CONTROL=10+0.2
+readonly ROUNDS=300
+readonly TIME_CONTROL=5+0.2
 readonly ELO_THRESHOLD=20
 readonly UPSTREAM=${1:-master} # Default to master if no argument is given
 
@@ -45,13 +43,14 @@ function run_gauntlet {
 
     # Print result
     failed=0
+    echo -n "Against ${UPSTREAM}: " | tee -a $MESSAGE_FILE
     if [ $((elo_diff)) -lt -$ELO_THRESHOLD ]; then
-        echo -n "${time_control} ❌ " | tee -a $MESSAGE_FILE
+        echo -n "❌ " | tee -a $MESSAGE_FILE
         failed=1
     elif [ $((elo_diff)) -lt $ELO_THRESHOLD ]; then
-        echo -n "${time_control} 🆗 " | tee -a $MESSAGE_FILE
+        echo -n "🆗 " | tee -a $MESSAGE_FILE
     else
-        echo -n "${time_control} ✅ " | tee -a $MESSAGE_FILE
+        echo -n "✅ " | tee -a $MESSAGE_FILE
     fi
     echo "$result" | tee -a $MESSAGE_FILE
     echo ""
@@ -112,6 +111,4 @@ cd $INSTALL_PATH || exit 1
 # Truncate message file
 echo -n "" >$MESSAGE_FILE
 
-run_gauntlet $FAST_ROUNDS $FAST_TIME_CONTROL
-
-run_gauntlet $SLOW_ROUNDS $SLOW_TIME_CONTROL
+run_gauntlet $ROUNDS $TIME_CONTROL
