@@ -125,21 +125,17 @@ pub fn generate_regular_moves(
     color: Color,
     moves: &mut Vec<Move>,
 ) {
-    let occupancy_us = board.occupancy_bb(color);
-    let pieces = board.pieces_bb(piece) & occupancy_us;
-
     let occupancy = board.occupancy_bb_all();
+    let occupancy_us = board.occupancy_bb(color);
     let occupancy_them = board.occupancy_bb(color.opposite());
 
-    for from_square in pieces {
+    for from_square in board.pieces_bb_color(piece, color) {
         let attacks = match stage {
             MoveStage::HashMove => panic!("Hash move should not be generated here"),
             MoveStage::CapturesAndPromotions => {
-                piece_attacks(piece, from_square, occupancy) & occupancy_them & !occupancy_us
+                piece_attacks(piece, from_square, occupancy) & occupancy_them
             }
-            MoveStage::NonCaptures => {
-                piece_attacks(piece, from_square, occupancy) & !occupancy_them & !occupancy_us
-            }
+            MoveStage::NonCaptures => piece_attacks(piece, from_square, occupancy) & !occupancy,
             MoveStage::All => piece_attacks(piece, from_square, occupancy) & !occupancy_us,
         };
 
@@ -177,14 +173,14 @@ pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
     moves.retain(|mov| match mov.flag() {
         MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => true,
         _ => {
-            let piece = board.piece_at(mov.from()).unwrap();
-
-            if piece != Piece::King {
+            if board.piece_at(mov.from()).unwrap() != Piece::King {
                 if !is_check {
-                    // If there is no risk of moving a blocker, the move is legal
-                    if !king_square.same_diagonal(mov.from())
-                        && king_square.rank() != mov.from().rank()
-                        && king_square.file() != mov.from().file()
+                    // If no blocker could have been moved, then the move is legal for sure
+                    if (king_square.file() != mov.from().file()
+                        || mov.from().file() == mov.to().file())
+                        && (king_square.rank() != mov.from().rank()
+                            || mov.from().rank() == mov.to().rank())
+                        && !king_square.same_diagonal(mov.from())
                     {
                         return true;
                     }
