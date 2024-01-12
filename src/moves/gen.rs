@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::{
     attacks::{
         leapers::{KING_ATTACKS, KNIGHT_ATTACKS},
@@ -11,14 +9,11 @@ use super::{
     },
     make_move, Move, MoveFlag,
 };
-use crate::{
-    position::{
-        bitboard::Bitboard,
-        board::{Board, Piece, ZobristHash},
-        square::Square,
-        Color, Position,
-    },
-    search::Depth,
+use crate::position::{
+    bitboard::Bitboard,
+    board::{Board, Piece},
+    square::Square,
+    Color, Position,
 };
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -150,9 +145,7 @@ pub fn generate_regular_moves(
 }
 
 pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
-    let mut moves = Vec::with_capacity(
-        position.board.occupancy_bb(position.side_to_move).count_ones() as usize * 4,
-    );
+    let mut moves = Vec::with_capacity(64);
     let board = &position.board;
     let side_to_move = position.side_to_move;
 
@@ -207,24 +200,14 @@ pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
     moves
 }
 
-pub fn perft<const ROOT: bool, const BULK_AT_HORIZON: bool, const HASH: bool>(
-    position: &Position,
-    depth: u8,
-    cache: &mut HashMap<(ZobristHash, Depth), u64>,
-) -> u64 {
+pub fn perft(position: &Position, depth: u8) -> u64 {
     if depth == 0 {
         return 1;
     }
 
-    if HASH {
-        if let Some(res) = cache.get(&(position.zobrist_hash(), depth)) {
-            return *res;
-        }
-    }
-
     let moves = generate_moves(MoveStage::All, position);
 
-    if BULK_AT_HORIZON && depth == 1 {
+    if depth == 1 {
         return moves.len() as u64;
     }
 
@@ -232,12 +215,8 @@ pub fn perft<const ROOT: bool, const BULK_AT_HORIZON: bool, const HASH: bool>(
 
     for mov in moves {
         let new_position = make_move::<true>(position, mov);
-        let count = perft::<false, BULK_AT_HORIZON, HASH>(&new_position, depth - 1, cache);
+        let count = perft(&new_position, depth - 1);
         nodes += count;
-    }
-
-    if HASH {
-        cache.insert((position.zobrist_hash(), depth), nodes);
     }
 
     nodes

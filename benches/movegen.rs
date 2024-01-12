@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use camel::{
     moves::gen::perft,
     position::{
@@ -12,14 +10,14 @@ use criterion::{criterion_group, criterion_main, Criterion};
 fn generate_moves_kiwipete_white(c: &mut Criterion) {
     let kiwipete_position_white = Position::from_fen(KIWIPETE_WHITE_FEN).unwrap();
     c.bench_function("generate_moves_kiwipete_white", |b| {
-        b.iter(|| perft::<true, false, false>(&kiwipete_position_white, 3, &mut HashMap::new()));
+        b.iter(|| perft(&kiwipete_position_white, 3));
     });
 }
 
 fn generate_moves_kiwipete_black(c: &mut Criterion) {
     let kiwipete_position_black = Position::from_fen(KIWIPETE_BLACK_FEN).unwrap();
     c.bench_function("generate_moves_kiwipete_black", |b| {
-        b.iter(|| perft::<true, false, false>(&kiwipete_position_black, 3, &mut HashMap::new()));
+        b.iter(|| perft(&kiwipete_position_black, 3));
     });
 }
 

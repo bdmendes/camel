@@ -35,8 +35,8 @@ fn pawn_islands(bb: Bitboard) -> u8 {
 
 type RelativeRank = u8;
 
-fn passed_pawns(us_direction: i8, us_bb: Bitboard, them_bb: Bitboard) -> Vec<RelativeRank> {
-    let mut passed_pawns_ranks = vec![];
+fn passed_pawns(us_direction: i8, us_bb: Bitboard, them_bb: Bitboard) -> [RelativeRank; 8] {
+    let mut passed_pawns_ranks = [0; 8];
 
     for file in 0..8 {
         let our_pawns_on_file = us_bb & Bitboard::file_mask(file);
@@ -60,11 +60,11 @@ fn passed_pawns(us_direction: i8, us_bb: Bitboard, them_bb: Bitboard) -> Vec<Rel
                 them_bb & challenging_pawns_file_mask & challenging_pawns_rank_mask;
 
             if challenging_pawns_bb.is_empty() {
-                passed_pawns_ranks.push(if us_direction > 0 {
+                passed_pawns_ranks[file as usize] = if us_direction > 0 {
                     our_most_advanced_pawn.rank()
                 } else {
                     7 - our_most_advanced_pawn.rank()
-                });
+                };
             }
         }
     }
@@ -169,12 +169,12 @@ mod tests {
 
         assert_eq!(
             passed_pawns(MoveDirection::pawn_direction(Color::White), white_pawns, black_pawns),
-            vec![4, 2]
+            [0, 0, 0, 4, 0, 0, 0, 2]
         );
 
         assert_eq!(
             passed_pawns(MoveDirection::pawn_direction(Color::Black), black_pawns, white_pawns),
-            vec![3]
+            [0, 3, 0, 0, 0, 0, 0, 0]
         );
     }
 
@@ -186,12 +186,12 @@ mod tests {
 
         assert_eq!(
             passed_pawns(MoveDirection::pawn_direction(Color::White), white_pawns, black_pawns),
-            vec![4, 4, 4, 2]
+            [0, 0, 4, 4, 0, 0, 4, 2]
         );
 
         assert_eq!(
             passed_pawns(MoveDirection::pawn_direction(Color::Black), black_pawns, white_pawns),
-            vec![4, 3, 4]
+            [0, 4, 0, 0, 3, 4, 0, 0]
         );
     }
 }

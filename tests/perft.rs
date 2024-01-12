@@ -1,11 +1,9 @@
-use std::collections::HashMap;
-
 use camel::position::fen::FromFen;
 use camel::{moves::gen::perft, position::Position};
 
 fn expect_perft(fen: &str, depth: u8, nodes: u64) {
     let position = Position::from_fen(fen).unwrap();
-    let res = perft::<true, true, false>(&position, depth, &mut HashMap::new());
+    let res = perft(&position, depth);
     assert_eq!(res, nodes);
 }
 

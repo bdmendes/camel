@@ -71,11 +71,10 @@ impl std::iter::Iterator for MovePicker<true> {
 
 impl MovePicker<false> {
     pub fn new(position: &Position, table: Arc<Mutex<SearchTable>>, depth: Depth) -> Self {
-        let moves = if let Some(hash_move) = table.lock().unwrap().get_hash_move(position) {
-            vec![(hash_move, ValueScore::MAX)]
-        } else {
-            vec![]
-        };
+        let mut moves = ScoredVec::with_capacity(1);
+        if let Some(hash_move) = table.lock().unwrap().get_hash_move(position) {
+            moves.push((hash_move, ValueScore::MAX));
+        }
 
         Self {
             index: 0,
