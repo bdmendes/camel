@@ -1,6 +1,9 @@
 use self::commands::{execute_command, parse_command};
 use camel::{
-    position::{fen::START_FEN, Position},
+    position::{
+        fen::{FromFen, START_FEN},
+        Position,
+    },
     search::{
         constraint::HistoryEntry,
         table::{SearchTable, DEFAULT_TABLE_SIZE_MB},

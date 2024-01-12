@@ -96,7 +96,10 @@ impl SearchConstraint {
 mod tests {
     use super::SearchConstraint;
     use crate::{
-        position::{fen::START_FEN, Position},
+        position::{
+            fen::{FromFen, START_FEN},
+            Position,
+        },
         search::constraint::TimeConstraint,
     };
     use std::{

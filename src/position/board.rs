@@ -1,4 +1,4 @@
-use super::{bitboard::Bitboard, fen::board_from_fen, Color, Square};
+use super::{bitboard::Bitboard, Color, Square};
 use ctor::ctor;
 use primitive_enum::primitive_enum;
 use rand::{rngs::StdRng, Rng, SeedableRng};
@@ -35,10 +35,6 @@ pub struct Board {
 impl Board {
     pub fn new() -> Self {
         Board { pieces: Default::default(), occupancy: Default::default(), hash: 0 }
-    }
-
-    pub fn from_fen(board_fen: &str) -> Option<Board> {
-        board_from_fen(board_fen)
     }
 
     pub fn zobrist_hash(&self) -> ZobristHash {

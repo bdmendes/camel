@@ -1,7 +1,7 @@
 use camel::{
     moves::gen::MoveStage,
     position::{
-        fen::{KIWIPETE_BLACK_FEN, KIWIPETE_WHITE_FEN},
+        fen::{FromFen, KIWIPETE_BLACK_FEN, KIWIPETE_WHITE_FEN},
         Position,
     },
 };

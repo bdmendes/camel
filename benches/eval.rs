@@ -1,7 +1,7 @@
 use camel::{
     evaluation::Evaluable,
     position::{
-        fen::{KIWIPETE_WHITE_FEN, START_FEN},
+        fen::{FromFen, KIWIPETE_WHITE_FEN, START_FEN},
         Position,
     },
 };

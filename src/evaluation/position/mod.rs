@@ -126,7 +126,10 @@ impl Evaluable for Position {
 mod tests {
     use crate::{
         evaluation::Evaluable,
-        position::{fen::START_FEN, Position},
+        position::{
+            fen::{FromFen, START_FEN},
+            Position,
+        },
     };
 
     #[test]

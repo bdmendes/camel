@@ -22,7 +22,10 @@ pub fn evaluate_bishops(position: &Position) -> ValueScore {
 
 #[cfg(test)]
 mod tests {
-    use crate::{evaluation::position::bishops::BISHOP_PAIR_BONUS, position::Position};
+    use crate::{
+        evaluation::position::bishops::BISHOP_PAIR_BONUS,
+        position::{fen::FromFen, Position},
+    };
 
     #[test]
     fn bishop_pair() {

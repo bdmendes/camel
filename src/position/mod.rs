@@ -1,6 +1,5 @@
 use self::{
     board::{Board, ZobristHash},
-    fen::{position_from_fen, position_to_fen},
     square::Square,
 };
 use crate::moves::{
@@ -70,14 +69,6 @@ impl Position {
             | (self.side_to_move as u64) << 63 // 1 bit
             | (self.castling_rights.bits() as u64) << 59 // 4 bits
             | self.en_passant_square.map(|sq| sq as u64).unwrap_or(0) << 53 // 6 bits
-    }
-
-    pub fn from_fen(fen: &str) -> Option<Position> {
-        position_from_fen(fen)
-    }
-
-    pub fn to_fen(&self) -> String {
-        position_to_fen(self)
     }
 
     pub fn make_move(&self, mov: Move) -> Self {

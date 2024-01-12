@@ -58,7 +58,7 @@ mod tests {
         },
         position::{
             board::{Board, Piece},
-            fen::KIWIPETE_WHITE_FEN,
+            fen::{FromFen, KIWIPETE_WHITE_FEN},
             square::Square,
             Color,
         },

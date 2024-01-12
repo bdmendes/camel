@@ -67,7 +67,7 @@ pub fn slider_attacks_from_square<const REMOVE_EDGES: bool>(
 
 #[cfg(test)]
 mod tests {
-    use crate::position::{square::Square, Position};
+    use crate::position::{fen::FromFen, square::Square, Position};
 
     use super::*;
 

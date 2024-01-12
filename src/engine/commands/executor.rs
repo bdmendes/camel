@@ -2,7 +2,10 @@ use crate::engine::{time::get_duration, Engine};
 use camel::{
     evaluation::Evaluable,
     moves::gen::{perft, MoveStage},
-    position::{fen::START_FEN, Position},
+    position::{
+        fen::{FromFen, ToFen, START_FEN},
+        Position,
+    },
     search::{
         constraint::{HistoryEntry, SearchConstraint, TimeConstraint},
         search_iter,

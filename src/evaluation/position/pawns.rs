@@ -102,7 +102,7 @@ mod tests {
     use crate::{
         evaluation::position::pawns::passed_pawns,
         moves::gen::MoveDirection,
-        position::{board::Piece, Color, Position},
+        position::{board::Piece, fen::FromFen, Color, Position},
     };
 
     #[test]
