@@ -3,8 +3,8 @@ use std::collections::VecDeque;
 use self::{
     executor::{
         execute_all_moves, execute_clear, execute_debug, execute_display, execute_do_move,
-        execute_go, execute_help, execute_is_ready, execute_position, execute_quit,
-        execute_set_option, execute_stop, execute_uci, execute_uci_new_game,
+        execute_go, execute_help, execute_is_ready, execute_ponderhit, execute_position,
+        execute_quit, execute_set_option, execute_stop, execute_uci, execute_uci_new_game,
     },
     parser::{parse_debug, parse_domove, parse_go, parse_position, parse_set_option},
 };
@@ -26,6 +26,7 @@ pub fn parse_command(input: &str) -> Result<Command, ()> {
         "position" => parse_position(&mut words),
         "go" => parse_go(&mut words).map_or(Result::Err(()), Result::Ok),
         "stop" => Ok(Command::Stop),
+        "ponderhit" => Ok(Command::PonderHit),
         "uci" => Ok(Command::Uci),
         "debug" => parse_debug(&mut words),
         "isready" => Ok(Command::IsReady),
@@ -53,16 +54,17 @@ pub fn execute_command(command: Command, engine: &mut Engine) {
             black_time,
             white_increment,
             black_increment,
+            ponder,
         } => execute_go(
             engine,
             depth,
             move_time,
-            white_time,
-            black_time,
-            white_increment,
-            black_increment,
+            (white_time, black_time),
+            (white_increment, black_increment),
+            ponder,
         ),
         Command::Stop => execute_stop(engine),
+        Command::PonderHit => execute_ponderhit(engine),
         Command::Uci => execute_uci(),
         Command::Debug(debug) => execute_debug(debug),
         Command::SetOption { name, value } => {

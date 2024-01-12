@@ -70,7 +70,7 @@ pub fn search_iter(
     let mut current_guess = position.value() * position.side_to_move.sign();
 
     let mut current_depth = 1;
-    while current_depth <= depth {
+    while constraint.pondering() || current_depth <= depth {
         let time = std::time::Instant::now();
         let (score, count) =
             pvs::search_single(position, current_guess, current_depth, table.clone(), constraint);
@@ -86,9 +86,10 @@ pub fn search_iter(
         let elapsed = time.elapsed();
         print_iter_info(position, current_depth, score, count, elapsed, &table.lock().unwrap());
 
-        if one_legal_move
-            || matches!(score, Score::Mate(_, _))
-            || elapsed > constraint.remaining_time().unwrap_or(elapsed)
+        if !constraint.pondering()
+            && (one_legal_move
+                || matches!(score, Score::Mate(_, _))
+                || elapsed > constraint.remaining_time().unwrap_or(elapsed))
         {
             break;
         }
@@ -96,5 +97,15 @@ pub fn search_iter(
         current_depth += 1;
     }
 
-    println!("bestmove {}", table.lock().unwrap().get_hash_move(position).unwrap_or(moves[0]));
+    // Best move found
+    let best_move = table.lock().unwrap().get_hash_move(position).unwrap_or(moves[0]);
+    print!("bestmove {}", best_move);
+
+    // Ponder move if possible
+    let new_position = position.make_move(best_move);
+    if let Some(ponder_move) = table.lock().unwrap().get_hash_move(&new_position) {
+        println!(" ponder {}", ponder_move);
+    } else {
+        println!();
+    }
 }
