@@ -103,12 +103,13 @@ pub fn execute_uci() {
     println!("id name Camel");
     println!("id author Bruno Mendes");
 
+    // Options list
     println!(
         "option name Hash type spin default {} min {} max {}",
         DEFAULT_TABLE_SIZE_MB, MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB
     );
-
     println!("option name UCI_Chess960 type check default true",);
+    println!("option name Ponder type check default true",);
 
     println!("uciok");
 }
