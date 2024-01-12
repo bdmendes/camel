@@ -191,4 +191,14 @@ mod tests {
         assert_eq!(Square::D4.color(), Color::Black);
         assert_eq!(Square::E5.color(), Color::Black);
     }
+
+    #[test]
+    fn same_diagonal() {
+        assert!(Square::A1.same_diagonal(Square::A1));
+        assert!(Square::A1.same_diagonal(Square::H8));
+        assert!(!Square::A1.same_diagonal(Square::H1));
+        assert!(!Square::A1.same_diagonal(Square::A8));
+        assert!(Square::A1.same_diagonal(Square::B2));
+        assert!(Square::B2.same_diagonal(Square::A1));
+    }
 }

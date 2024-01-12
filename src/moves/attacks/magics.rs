@@ -1,6 +1,6 @@
 use super::sliders::{slider_attacks_from_square, BISHOP_MOVE_DIRECTIONS, ROOK_MOVE_DIRECTIONS};
 use crate::position::{bitboard::Bitboard, board::Piece, square::Square};
-use once_cell::sync::Lazy;
+use ctor::ctor;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::{
     array,
@@ -8,8 +8,11 @@ use std::{
     thread,
 };
 
-pub static ROOK_MAGICS: Lazy<[SquareMagic; 64]> = Lazy::new(|| find_magics(Piece::Rook));
-pub static BISHOP_MAGICS: Lazy<[SquareMagic; 64]> = Lazy::new(|| find_magics(Piece::Bishop));
+#[ctor]
+pub static ROOK_MAGICS: [SquareMagic; 64] = find_magics(Piece::Rook);
+
+#[ctor]
+pub static BISHOP_MAGICS: [SquareMagic; 64] = find_magics(Piece::Bishop);
 
 #[derive(Debug, Default)]
 pub struct SquareMagic {
@@ -122,11 +125,6 @@ pub fn magic_index(magic: &SquareMagic, occupancy: Bitboard) -> usize {
     let blockers = occupancy & magic.blockers_mask;
     let hash = blockers.wrapping_mul(magic.magic_number.raw());
     (hash >> (64 - magic.shift)) as usize
-}
-
-pub fn init_magics() {
-    Lazy::force(&ROOK_MAGICS);
-    Lazy::force(&BISHOP_MAGICS);
 }
 
 #[cfg(test)]
