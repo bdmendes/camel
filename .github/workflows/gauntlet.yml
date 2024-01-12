@@ -35,6 +35,7 @@ jobs:
       - uses: mshick/add-pr-comment@v2
         with:
           message-path: fast-chess/message.txt
+          message-id: upstream
 
       - name: Fail if gauntlet failed
         run: |
@@ -66,6 +67,7 @@ jobs:
       - uses: mshick/add-pr-comment@v2
         with:
           message-path: fast-chess/message.txt
+          message-id: release
 
       - name: Fail if gauntlet failed
         run: |
