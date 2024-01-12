@@ -11,8 +11,6 @@ use crate::{
 use std::sync::{Arc, Mutex};
 
 const MATE_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH as ValueScore + 1;
-const NULL_MOVE_REDUCTION: Depth = 3;
-const CHECK_EXTENSION: Depth = 1;
 
 fn quiesce(
     position: &Position,
@@ -59,7 +57,7 @@ fn quiesce(
 
     let mut count = 1;
 
-    for (mov, _, _) in picker {
+    for (mov, _) in picker {
         // Delta prune move if it cannot improve the score
         if !is_check && mov.flag().is_capture() {
             let captured_piece =
@@ -85,6 +83,7 @@ fn quiesce(
     (alpha, count)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn pvs_recurse(
     position: &mut Position,
     depth: Depth,
@@ -93,12 +92,20 @@ fn pvs_recurse(
     table: Arc<Mutex<SearchTable>>,
     constraint: &mut SearchConstraint,
     do_zero_window: bool,
+    extension: Depth,
+    reduction: Depth,
 ) -> (ValueScore, usize) {
     let mut count = 0;
 
     if do_zero_window {
-        let (score, nodes) =
-            pvs::<false>(position, depth - 1, -alpha - 1, -alpha, table.clone(), constraint);
+        let (score, nodes) = pvs::<false>(
+            position,
+            depth + extension - reduction - 1,
+            -alpha - 1,
+            -alpha,
+            table.clone(),
+            constraint,
+        );
         count += nodes;
         let score = -score;
         if score <= alpha || score >= beta {
@@ -106,7 +113,8 @@ fn pvs_recurse(
         }
     }
 
-    let (score, nodes) = pvs::<false>(position, depth - 1, -beta, -alpha, table, constraint);
+    let (score, nodes) =
+        pvs::<false>(position, depth + extension - 1, -beta, -alpha, table, constraint);
     count += nodes;
     (-score, count)
 }
@@ -175,21 +183,10 @@ fn pvs<const ROOT: bool>(
     let is_check = position.is_check();
 
     // Null move pruning
-    if !ROOT
-        && !is_check
-        && !twofold_repetition
-        && depth > NULL_MOVE_REDUCTION
-        && !may_be_zugzwang(position)
-    {
+    if !ROOT && !is_check && !twofold_repetition && depth > 3 && !may_be_zugzwang(position) {
         position.side_to_move = position.side_to_move.opposite();
-        let (score, nodes) = pvs::<false>(
-            position,
-            depth - NULL_MOVE_REDUCTION,
-            -beta,
-            -alpha,
-            table.clone(),
-            constraint,
-        );
+        let (score, nodes) =
+            pvs::<false>(position, depth - 3, -beta, -alpha, table.clone(), constraint);
         position.side_to_move = position.side_to_move.opposite();
 
         count += nodes;
@@ -209,20 +206,22 @@ fn pvs<const ROOT: bool>(
     }
 
     let original_alpha = alpha;
-    let mut best_move = picker.peek().map(|(mov, _, _)| *mov).unwrap();
+    let mut best_move = picker.peek().map(|(mov, _)| *mov).unwrap();
 
-    for (mov, _, i) in picker {
+    for (i, (mov, _)) in picker.enumerate() {
         let mut new_position = position.make_move(mov);
 
         constraint.visit_position(&new_position, mov.flag().is_reversible());
         let (score, nodes) = pvs_recurse(
             &mut new_position,
-            if is_check { depth + CHECK_EXTENSION } else { depth },
+            depth,
             alpha,
             beta,
             table.clone(),
             constraint,
             i > 0,
+            if is_check { 1 } else { 0 },
+            if depth > 3 && !is_check && mov.flag().is_quiet() && i > 3 { depth / 3 } else { 0 },
         );
         constraint.leave_position();
 

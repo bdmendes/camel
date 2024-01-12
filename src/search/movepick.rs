@@ -7,7 +7,7 @@ use crate::{
 use std::sync::{Arc, Mutex};
 
 type ScoredVec<Move> = Vec<(Move, ValueScore)>;
-type PickResult = (Move, ValueScore, usize);
+type PickResult = (Move, ValueScore);
 
 fn decorate_moves_with_score<F>(moves: &[Move], f: F) -> ScoredVec<Move>
 where
@@ -31,7 +31,7 @@ fn find_next_max_and_swap(moves: &mut ScoredVec<Move>, index: &mut usize) -> Opt
     }
 
     *index += 1;
-    Some((moves[*index - 1].0, moves[*index - 1].1, *index - 1))
+    Some((moves[*index - 1].0, moves[*index - 1].1))
 }
 
 pub struct MovePicker<const QUIESCE: bool> {
@@ -91,9 +91,8 @@ impl std::iter::Iterator for MovePicker<false> {
     type Item = PickResult;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some((mov, score, index)) = find_next_max_and_swap(&mut self.moves, &mut self.index)
-        {
-            return Some((mov, score, index));
+        if let Some((mov, score)) = find_next_max_and_swap(&mut self.moves, &mut self.index) {
+            return Some((mov, score));
         }
 
         match self.stage {
