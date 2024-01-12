@@ -1,7 +1,7 @@
 use crate::engine::{time::get_duration, Engine};
 use camel::{
     evaluation::Evaluable,
-    moves::gen::MoveStage,
+    moves::gen::{perft, MoveStage},
     position::{fen::START_FEN, Position},
     search::{
         constraint::{HistoryEntry, SearchConstraint, TimeConstraint},
@@ -10,7 +10,7 @@ use camel::{
         Depth, MAX_DEPTH,
     },
 };
-use std::{sync::atomic::Ordering, thread, time::Duration};
+use std::{collections::HashMap, sync::atomic::Ordering, thread, time::Duration};
 
 pub fn execute_position(new_position: &Position, game_history: &[Position], engine: &mut Engine) {
     engine.position = *new_position;
@@ -125,12 +125,11 @@ pub fn execute_set_option(name: &str, value: &str, engine: &mut Engine) {
         if let Ok(size) = value.parse::<usize>() {
             engine.table.lock().unwrap().set_size(size.clamp(MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB));
         }
-    }
-    if name == "Ponder" {
+    } else if name == "Ponder" || name == "UCI_Chess960" {
         // The time management bonus already takes pondering into account, so do nothing.
-    }
-    if name == "UCI_Chess960" {
         // The engine is compliant with Chess 960 by design, so do nothing.
+    } else {
+        println!("Option not supported: {}", name);
     }
 }
 
@@ -138,6 +137,23 @@ pub fn execute_uci_new_game(engine: &mut Engine) {
     engine.position = Position::from_fen(START_FEN).unwrap();
     engine.game_history = Vec::new();
     engine.table.lock().unwrap().clear();
+}
+
+pub fn execute_perft(depth: u8, position: &Position) {
+    println!("Perft will run in the background and report results when done.");
+
+    let position = *position;
+
+    thread::spawn(move || {
+        let start = std::time::Instant::now();
+        let nodes = perft::<true, false, false>(&position, depth, &mut HashMap::new());
+        let elapsed = start.elapsed();
+
+        println!("Perft results for depth {}", depth);
+        println!("-> Nodes: {}", nodes);
+        println!("-> Time: {}s", elapsed.as_secs_f32());
+        println!("-> Mnps: {}", nodes as f64 / elapsed.as_secs_f64() / 1000000.0);
+    });
 }
 
 pub fn execute_do_move(mov_str: &str, position: &mut Position) {

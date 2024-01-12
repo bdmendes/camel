@@ -41,6 +41,7 @@ pub enum Command {
     },
 
     // Custom commands
+    Perft(u8),
     DoMove {
         mov_str: String,
     },

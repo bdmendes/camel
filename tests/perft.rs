@@ -1,48 +1,6 @@
-use camel::{
-    moves::{
-        gen::{generate_moves, MoveStage},
-        make_move,
-    },
-    position::{board::ZobristHash, Position},
-    search::Depth,
-};
 use std::collections::HashMap;
 
-fn perft<const ROOT: bool, const BULK_AT_HORIZON: bool, const HASH: bool>(
-    position: &Position,
-    depth: u8,
-    cache: &mut HashMap<(ZobristHash, Depth), u64>,
-) -> u64 {
-    if depth == 0 {
-        return 1;
-    }
-
-    if HASH {
-        if let Some(res) = cache.get(&(position.zobrist_hash(), depth)) {
-            return *res;
-        }
-    }
-
-    let moves = generate_moves(MoveStage::All, position);
-
-    if BULK_AT_HORIZON && depth == 1 {
-        return moves.len() as u64;
-    }
-
-    let mut nodes = 0;
-
-    for mov in moves {
-        let new_position = make_move::<true>(position, mov);
-        let count = perft::<false, BULK_AT_HORIZON, HASH>(&new_position, depth - 1, cache);
-        nodes += count;
-    }
-
-    if HASH {
-        cache.insert((position.zobrist_hash(), depth), nodes);
-    }
-
-    nodes
-}
+use camel::{moves::gen::perft, position::Position};
 
 fn expect_perft(fen: &str, depth: u8, nodes: u64) {
     let position = Position::from_fen(fen).unwrap();
