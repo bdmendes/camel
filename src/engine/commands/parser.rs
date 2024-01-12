@@ -1,7 +1,10 @@
 use super::Command;
 use camel::{
     moves::gen::MoveStage,
-    position::{fen::START_FEN, Position},
+    position::{
+        fen::{KIWIPETE_WHITE_FEN, START_FEN},
+        Position,
+    },
 };
 use std::{collections::VecDeque, time::Duration};
 
@@ -38,6 +41,10 @@ pub fn parse_position(words: &mut VecDeque<&str>) -> Result<Command, ()> {
                         return Err(());
                     }
                 }
+            }
+            "kiwi" | "kiwipete" => {
+                let kiwipete_position = Position::from_fen(KIWIPETE_WHITE_FEN).unwrap();
+                position = kiwipete_position;
             }
             "startpos" => (),
             _ => return Err(()),
