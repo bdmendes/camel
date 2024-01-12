@@ -59,7 +59,7 @@ fn quiesce(
 
     let mut count = 1;
 
-    for (mov, _, _) in picker {
+    for (mov, _) in picker {
         // Delta prune move if it cannot improve the score
         if !is_check && mov.flag().is_capture() {
             let captured_piece =
@@ -209,9 +209,9 @@ fn pvs<const ROOT: bool>(
     }
 
     let original_alpha = alpha;
-    let mut best_move = picker.peek().map(|(mov, _, _)| *mov).unwrap();
+    let mut best_move = picker.peek().map(|(mov, _)| *mov).unwrap();
 
-    for (mov, _, i) in picker {
+    for (i, (mov, _)) in picker.enumerate() {
         let mut new_position = position.make_move(mov);
 
         constraint.visit_position(&new_position, mov.flag().is_reversible());
