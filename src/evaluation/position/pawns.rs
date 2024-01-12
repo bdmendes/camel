@@ -86,7 +86,7 @@ pub fn evaluate_pawn_structure(position: &Position) -> ValueScore {
     score += pawn_islands(white_pawns) as ValueScore * PAWN_ISLAND_PENALTY;
     score -= pawn_islands(black_pawns) as ValueScore * PAWN_ISLAND_PENALTY;
 
-    const PASSED_PAWN_BONUS: [ValueScore; 8] = [0, 10, 20, 35, 50, 80, 100, 0];
+    const PASSED_PAWN_BONUS: [ValueScore; 8] = [0, 10, 20, 30, 40, 50, 80, 0];
     score += passed_pawns(MoveDirection::pawn_direction(Color::White), white_pawns, black_pawns)
         .iter()
         .fold(0, |acc, rank| acc + PASSED_PAWN_BONUS[*rank as usize]);
