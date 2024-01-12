@@ -71,45 +71,25 @@ impl Evaluable for Position {
         let endgame_ratio = 255 - midgame_ratio;
 
         let occupancy = self.board.occupancy_bb_all();
-        let white_occupancy = self.board.occupancy_bb(Color::White);
-        let black_occupancy = self.board.occupancy_bb(Color::Black);
 
         let base_score = Piece::list().iter().fold(0, |acc, piece| {
-            let bb = self.board.pieces_bb(*piece);
-            let white_pieces = bb & white_occupancy;
-            let black_pieces = bb & black_occupancy;
-
-            // Material score
-            let material_bonus = piece.value()
-                * (white_pieces.count_ones() as ValueScore
-                    - black_pieces.count_ones() as ValueScore);
-
-            // PSQT score
-            let white_positional_bonus = white_pieces.into_iter().fold(0, |acc, square| {
-                acc + psqt_value(*piece, square, Color::White, endgame_ratio)
-            });
-            let black_positional_bonus = black_pieces.into_iter().fold(0, |acc, square| {
-                acc + psqt_value(*piece, square, Color::Black, endgame_ratio)
-            });
-            let positional_bonus = white_positional_bonus - black_positional_bonus;
-
-            // Mobility score
-            let mobility_bonus = if *piece == Piece::Pawn {
-                0
-            } else {
-                let mobility_bonus = mobility_bonus(*piece);
-                let white_mobility_bonus = white_pieces.into_iter().fold(0, |acc, square| {
-                    let attacks = piece_attacks(*piece, square, occupancy) & !white_occupancy;
-                    acc + attacks.count_ones() as ValueScore * mobility_bonus
+            let mut piece_score = 0;
+            for color in Color::list() {
+                let bb = self.board.pieces_bb(*piece) & self.board.occupancy_bb(*color);
+                let positional_bonus = bb.into_iter().fold(0, |acc, square| {
+                    let mobility = match piece {
+                        Piece::Pawn => 0,
+                        _ => {
+                            piece_attacks(*piece, square, occupancy).count_ones() as ValueScore
+                                * mobility_bonus(*piece)
+                        }
+                    };
+                    acc + psqt_value(*piece, square, *color, endgame_ratio) + mobility
                 });
-                let black_mobility_bonus = black_pieces.into_iter().fold(0, |acc, square| {
-                    let attacks = piece_attacks(*piece, square, occupancy) & !black_occupancy;
-                    acc + attacks.count_ones() as ValueScore * mobility_bonus
-                });
-                white_mobility_bonus - black_mobility_bonus
-            };
-
-            acc + material_bonus + positional_bonus + mobility_bonus
+                piece_score += (positional_bonus + bb.count_ones() as ValueScore * piece.value())
+                    * color.sign();
+            }
+            acc + piece_score
         });
 
         // Evaluate pieces
