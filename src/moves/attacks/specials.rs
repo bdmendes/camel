@@ -306,7 +306,7 @@ mod tests {
     use super::generate_king_castles;
     use crate::{
         moves::{attacks::specials::generate_pawn_moves, gen::MoveStage, Move, MoveFlag},
-        position::{square::Square, Position},
+        position::{fen::FromFen, square::Square, Position},
     };
 
     #[test]

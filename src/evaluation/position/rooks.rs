@@ -62,7 +62,7 @@ mod tests {
         evaluation::position::rooks::{
             CONNECTED_ROOK_BONUS, OPEN_FILE_BONUS, SEMI_OPEN_FILE_BONUS,
         },
-        position::Position,
+        position::{fen::FromFen, Position},
     };
 
     #[test]

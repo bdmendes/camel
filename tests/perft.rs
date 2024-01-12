@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use camel::position::fen::FromFen;
 use camel::{moves::gen::perft, position::Position};
 
 fn expect_perft(fen: &str, depth: u8, nodes: u64) {

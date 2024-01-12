@@ -27,7 +27,10 @@ pub fn evaluate_move(position: &Position, mov: Move) -> ValueScore {
 
 #[cfg(test)]
 mod tests {
-    use crate::{moves::gen::MoveStage, position::Position};
+    use crate::{
+        moves::gen::MoveStage,
+        position::{fen::FromFen, Position},
+    };
 
     #[test]
     fn eval_move_heuristic_value() {

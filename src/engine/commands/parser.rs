@@ -2,7 +2,7 @@ use super::Command;
 use camel::{
     moves::gen::MoveStage,
     position::{
-        fen::{KIWIPETE_WHITE_FEN, START_FEN},
+        fen::{FromFen, KIWIPETE_WHITE_FEN, START_FEN},
         Position,
     },
 };

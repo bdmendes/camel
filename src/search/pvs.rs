@@ -323,7 +323,7 @@ pub fn search_single(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::search::table::DEFAULT_TABLE_SIZE_MB;
+    use crate::{position::fen::FromFen, search::table::DEFAULT_TABLE_SIZE_MB};
 
     fn expect_search(
         fen: &str,

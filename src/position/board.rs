@@ -1,5 +1,5 @@
-use super::{bitboard::Bitboard, fen::board_from_fen, Color, Square};
-use once_cell::sync::Lazy;
+use super::{bitboard::Bitboard, Color, Square};
+use ctor::ctor;
 use primitive_enum::primitive_enum;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
@@ -7,12 +7,13 @@ pub type ZobristHash = u64;
 
 const ZOBRIST_NUMBERS_SIZE: usize = 2 * 6 * 64; // 2 colors, 6 pieces, 64 squares
 
-static ZOBRIST_NUMBERS: Lazy<[ZobristHash; ZOBRIST_NUMBERS_SIZE]> = Lazy::new(|| {
+#[ctor]
+static ZOBRIST_NUMBERS: [ZobristHash; ZOBRIST_NUMBERS_SIZE] = {
     let mut rng = StdRng::seed_from_u64(0);
     let mut numbers = [0; ZOBRIST_NUMBERS_SIZE];
     numbers.iter_mut().take(ZOBRIST_NUMBERS_SIZE).for_each(|n| *n = rng.gen());
     numbers
-});
+};
 
 primitive_enum!(
     Piece u8;
@@ -34,10 +35,6 @@ pub struct Board {
 impl Board {
     pub fn new() -> Self {
         Board { pieces: Default::default(), occupancy: Default::default(), hash: 0 }
-    }
-
-    pub fn from_fen(board_fen: &str) -> Option<Board> {
-        board_from_fen(board_fen)
     }
 
     pub fn zobrist_hash(&self) -> ZobristHash {

@@ -306,7 +306,7 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
 mod tests {
     use super::*;
     use crate::position::{
-        fen::{KIWIPETE_BLACK_FEN, KIWIPETE_WHITE_FEN},
+        fen::{FromFen, ToFen, KIWIPETE_BLACK_FEN, KIWIPETE_WHITE_FEN},
         square::Square,
     };
 

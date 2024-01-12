@@ -251,7 +251,10 @@ pub fn perft<const ROOT: bool, const BULK_AT_HORIZON: bool, const HASH: bool>(
 mod tests {
     use crate::{
         moves::gen::MoveStage,
-        position::{fen::KIWIPETE_WHITE_FEN, Color, Position},
+        position::{
+            fen::{FromFen, KIWIPETE_WHITE_FEN},
+            Color, Position,
+        },
     };
 
     #[test]

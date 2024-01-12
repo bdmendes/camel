@@ -95,7 +95,11 @@ mod tests {
     use super::king_tropism;
     use crate::{
         evaluation::ValueScore,
-        position::{board::Piece, fen::START_FEN, Color, Position},
+        position::{
+            board::Piece,
+            fen::{FromFen, START_FEN},
+            Color, Position,
+        },
     };
 
     fn position_tropism(position: &Position) -> ValueScore {
