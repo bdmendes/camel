@@ -34,7 +34,7 @@ pub fn get_duration(
     let mut standard_move_time = get_duration_based_on_moves(position, our_duration);
 
     if ponder {
-        standard_move_time += standard_move_time / 5;
+        standard_move_time += standard_move_time / 4;
     }
 
     if standard_move_time < Duration::from_secs(1) {
