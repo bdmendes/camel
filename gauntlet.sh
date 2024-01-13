@@ -12,7 +12,7 @@ readonly THREADS=4
 readonly BUILD_PATH=./target/release/$ENGINE_NAME
 readonly MESSAGE_FILE=message.txt
 readonly ROUNDS=300
-readonly TIME_CONTROL=5+0.2
+readonly TIME_CONTROL=10+0.2
 readonly ELO_THRESHOLD=20
 readonly UPSTREAM=${1:-master} # Default to master if no argument is given
 
@@ -69,8 +69,11 @@ fi
 if [ -z "$CURRENT_BRANCH" ]; then
     CURRENT_BRANCH=$(git branch --show-current)
     if [ -z "$CURRENT_BRANCH" ]; then
-        echo "Could not get current branch name (are you in a detached state?)"
-        exit 1
+        CURRENT_BRANCH=$(git describe --tags --abbrev=0)
+        if [ -z "$CURRENT_BRANCH" ]; then
+            echo "Could not determine current branch"
+            exit 1
+        fi
     fi
 else
     # In GH Actions, the current branch is already set
