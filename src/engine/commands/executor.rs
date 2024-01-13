@@ -218,6 +218,7 @@ pub fn execute_help() {
     println!("Camel is a UCI-compatible chess engine, primarily meant to be used inside a GUI.");
     println!("You can review the UCI standard in https://backscattering.de/chess/uci/.");
     println!("Camel also bundles support for custom commands, for debugging purposes:");
+    println!("   'automove [seconds]': perform the top engine move on the current board");
     println!("   'perft <depth>': run perft on the current position with the given depth");
     println!("   'move <move>': perform given move in uci notation on the current board");
     println!("   'list': list legal moves available on the current position");
