@@ -149,7 +149,7 @@ pub fn execute_perft(depth: u8, position: &Position) {
 
     thread::spawn(move || {
         let start = std::time::Instant::now();
-        let nodes = perft(&position, depth);
+        let nodes = perft::<false>(&position, depth);
         let elapsed = start.elapsed();
 
         println!("Perft results for depth {}", depth);
