@@ -197,12 +197,18 @@ pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
     moves
 }
 
-pub fn perft(position: &Position, depth: u8) -> u64 {
+pub fn perft<const STAGED: bool>(position: &Position, depth: u8) -> u64 {
     if depth == 0 {
         return 1;
     }
 
-    let moves = generate_moves(MoveStage::All, position);
+    let moves = if STAGED {
+        let mut moves = generate_moves(MoveStage::CapturesAndPromotions, position);
+        moves.append(&mut generate_moves(MoveStage::NonCaptures, position));
+        moves
+    } else {
+        generate_moves(MoveStage::All, position)
+    };
 
     if depth == 1 {
         return moves.len() as u64;
@@ -212,7 +218,7 @@ pub fn perft(position: &Position, depth: u8) -> u64 {
 
     for mov in moves {
         let new_position = make_move::<true>(position, mov);
-        let count = perft(&new_position, depth - 1);
+        let count = perft::<STAGED>(&new_position, depth - 1);
         nodes += count;
     }
 
@@ -249,7 +255,7 @@ mod tests {
     }
 
     #[test]
-    fn gen_simple() {
+    fn gen_simple_all() {
         let position = Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ").unwrap();
 
         let moves = super::generate_moves(MoveStage::All, &position);
@@ -257,12 +263,38 @@ mod tests {
     }
 
     #[test]
-    fn gen_in_check() {
+    fn gen_simple_captures() {
+        let position = Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ").unwrap();
+
+        let moves = super::generate_moves(MoveStage::CapturesAndPromotions, &position);
+        assert_eq!(moves.len(), 1);
+    }
+
+    #[test]
+    fn gen_simple_non_captures() {
+        let position = Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ").unwrap();
+
+        let moves = super::generate_moves(MoveStage::NonCaptures, &position);
+        assert_eq!(moves.len(), 13);
+    }
+
+    #[test]
+    fn gen_in_check_all() {
         let position =
             Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
                 .unwrap();
 
         let moves = super::generate_moves(MoveStage::All, &position);
         assert_eq!(moves.len(), 6);
+    }
+
+    #[test]
+    fn gen_in_check_captures() {
+        let position =
+            Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
+                .unwrap();
+
+        let moves = super::generate_moves(MoveStage::CapturesAndPromotions, &position);
+        assert_eq!(moves.len(), 0);
     }
 }
