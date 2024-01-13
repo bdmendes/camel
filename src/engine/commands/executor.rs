@@ -4,7 +4,7 @@ use camel::{
     moves::gen::{perft, MoveStage},
     position::{
         fen::{FromFen, ToFen, START_FEN},
-        Position,
+        Color, Position,
     },
     search::{
         constraint::{HistoryEntry, SearchConstraint, TimeConstraint},
@@ -142,6 +142,29 @@ pub fn execute_uci_new_game(engine: &mut Engine) {
     engine.table.lock().unwrap().clear();
 }
 
+pub fn execute_auto_move(seconds: u16, engine: &mut Engine) {
+    println!("The engine is thinking...");
+
+    let mut constraint = SearchConstraint {
+        branch_history: engine.game_history.clone(),
+        time_constraint: Some(TimeConstraint {
+            initial_instant: std::time::Instant::now(),
+            move_time: Duration::from_secs(seconds.into()),
+        }),
+        stop_now: None,
+        ponder_mode: None,
+    };
+
+    search_iter(&engine.position, MAX_DEPTH, engine.table.clone(), &mut constraint);
+
+    if let Some(mov) = engine.table.lock().unwrap().get_hash_move(&engine.position) {
+        engine.position = engine.position.make_move(mov);
+        execute_display(&engine.position);
+    } else {
+        println!("The game is over.");
+    }
+}
+
 pub fn execute_perft(depth: u8, position: &Position) {
     println!("Perft will run in the background and report results when done.");
 
@@ -173,6 +196,13 @@ pub fn execute_display(position: &Position) {
     println!("{}", position.to_fen());
     println!("Static evaluation: {}", position.value());
     println!("Chess960: {}", position.is_chess960);
+    println!(
+        "{} to play.",
+        match position.side_to_move {
+            Color::White => "White",
+            Color::Black => "Black",
+        }
+    );
 }
 
 pub fn execute_all_moves(position: &Position) {
@@ -188,7 +218,8 @@ pub fn execute_help() {
     println!("Camel is a UCI-compatible chess engine, primarily meant to be used inside a GUI.");
     println!("You can review the UCI standard in https://backscattering.de/chess/uci/.");
     println!("Camel also bundles support for custom commands, for debugging purposes:");
-    println!("   'domove <move>': perform given move in uci notation on the current board");
+    println!("   'perft <depth>': run perft on the current position with the given depth");
+    println!("   'move <move>': perform given move in uci notation on the current board");
     println!("   'list': list legal moves available on the current position");
     println!("   'display': print current position");
     println!("   'help': print this help message");

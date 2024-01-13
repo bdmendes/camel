@@ -15,7 +15,7 @@
 
 ## Overview
 
-Camel is a chess engine written from scratch in Rust. It aims to achieve a high level of play, while also being easy to understand and modify. It is primarily meant to be used within a GUI compatible with the [UCI protocol](https://backscattering.de/chess/uci/), but may also be operated in a CLI.
+Camel is a chess and chess960 engine written from scratch in Rust. It aims to achieve a high level of play, while also being easy to understand and modify. It is primarily meant to be used within a GUI compatible with the [UCI protocol](https://backscattering.de/chess/uci/), but may also be operated in a CLI.
 
 ## Compilation
 
@@ -72,7 +72,7 @@ You can use a GUI such as [Scid](https://flathub.org/apps/details/io.github.beni
   info depth 5 score cp 307 time 1166 nodes 19830 nps 16992 pv e5g6 e7e6 g6e7 a7a6 b5d3
   info depth 6 score cp 312 time 3716 nodes 112194 nps 30189 pv e3g5 h6g5 e5d7 f6d7 d5e7 g7d4
   bestmove e3g5
-  $ <b>domove e3g5</b>
+  $ <b>move e3g5</b>
   $ <b>display</b>
   ♜ - ♛ - ♚ - ♜ - 
   ♟ ♟ - ♞ ♟ - ♝ - 
