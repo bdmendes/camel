@@ -1,18 +1,30 @@
-use self::{
-    board::{Board, ZobristHash},
-    square::Square,
-};
+use self::{board::Board, square::Square};
 use crate::moves::{
     gen::{checked_by, generate_moves, MoveStage},
     make_move, Move,
 };
 use bitflags::bitflags;
+use ctor::ctor;
 use primitive_enum::primitive_enum;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 
 pub mod bitboard;
 pub mod board;
 pub mod fen;
 pub mod square;
+
+pub type ZobristHash = u64;
+
+// 2 colors, 6 pieces, 64 squares, 16 castling rights, 1 side to move, 64 en passant squares
+const ZOBRIST_NUMBERS_SIZE: usize = 2 * 6 * 64 + 16 + 1 + 64;
+
+#[ctor]
+pub static ZOBRIST_NUMBERS: [ZobristHash; ZOBRIST_NUMBERS_SIZE] = {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut numbers = [0; ZOBRIST_NUMBERS_SIZE];
+    numbers.iter_mut().take(ZOBRIST_NUMBERS_SIZE).for_each(|n| *n = rng.gen());
+    numbers
+};
 
 primitive_enum!(
     Color u8;
@@ -59,16 +71,15 @@ pub struct Position {
 
 impl Position {
     pub fn zobrist_hash(&self) -> ZobristHash {
-        let board_hash = self.board.zobrist_hash();
-
-        // Meta data is stored in the upper bits of the hash, since the lower bits will determine
-        // the index of this position in the transposition table
-        let position_hash = board_hash & 0x001F_FFFF_FFFF_FFFF;
-
-        position_hash
-            | (self.side_to_move as u64) << 63 // 1 bit
-            | (self.castling_rights.bits() as u64) << 59 // 4 bits
-            | self.en_passant_square.map(|sq| sq as u64).unwrap_or(0) << 53 // 6 bits
+        let mut board_hash = self.board.zobrist_hash();
+        board_hash ^= ZOBRIST_NUMBERS[2 * 6 * 64 + self.castling_rights.bits() as usize];
+        if self.side_to_move == Color::Black {
+            board_hash ^= ZOBRIST_NUMBERS[2 * 6 * 64 + 16];
+        }
+        if let Some(square) = self.en_passant_square {
+            board_hash ^= ZOBRIST_NUMBERS[2 * 6 * 64 + 16 + 1 + square as usize];
+        }
+        board_hash
     }
 
     pub fn make_move(&self, mov: Move) -> Self {

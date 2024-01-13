@@ -1,5 +1,5 @@
 use super::MAX_DEPTH;
-use crate::position::{board::ZobristHash, Position};
+use crate::position::{Position, ZobristHash};
 use std::{
     sync::{atomic::AtomicBool, Arc},
     time::{Duration, Instant},
