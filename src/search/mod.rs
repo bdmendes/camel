@@ -101,7 +101,7 @@ pub fn search_iter(
             break;
         }
 
-        current_depth += 1;
+        current_depth = current_depth.saturating_add(1);
     }
 
     // Best move found
