@@ -100,7 +100,7 @@ fn pvs_recurse(
     if do_zero_window {
         let (score, nodes) = pvs::<false>(
             position,
-            depth + extension - reduction - 1,
+            depth.saturating_sub(reduction).saturating_sub(1) + extension,
             -alpha - 1,
             -alpha,
             table.clone(),
@@ -113,8 +113,14 @@ fn pvs_recurse(
         }
     }
 
-    let (score, nodes) =
-        pvs::<false>(position, depth + extension - 1, -beta, -alpha, table, constraint);
+    let (score, nodes) = pvs::<false>(
+        position,
+        depth.saturating_sub(1) + extension,
+        -beta,
+        -alpha,
+        table,
+        constraint,
+    );
     count += nodes;
     (-score, count)
 }
@@ -210,6 +216,7 @@ fn pvs<const ROOT: bool>(
 
     for (i, (mov, _)) in picker.enumerate() {
         let mut new_position = position.make_move(mov);
+        let puts_in_check = new_position.is_check();
 
         constraint.visit_position(&new_position, mov.flag().is_reversible());
         let (score, nodes) = pvs_recurse(
@@ -221,7 +228,17 @@ fn pvs<const ROOT: bool>(
             constraint,
             i > 0,
             if is_check { 1 } else { 0 },
-            if depth > 3 && !is_check && mov.flag().is_quiet() && i > 3 { depth / 3 } else { 0 },
+            if depth > 2
+                && !is_check
+                && !puts_in_check
+                && mov.flag().is_quiet()
+                && i > 0
+                && beta - alpha == 1
+            {
+                1
+            } else {
+                0
+            },
         );
         constraint.leave_position();
 
