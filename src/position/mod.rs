@@ -4,7 +4,7 @@ use self::{
 };
 use crate::moves::{
     gen::{checked_by, generate_moves, MoveStage},
-    make_move, Move,
+    make_move, Move, MoveVec,
 };
 use bitflags::bitflags;
 use primitive_enum::primitive_enum;
@@ -81,7 +81,7 @@ impl Position {
         Some(self.make_move(*mov))
     }
 
-    pub fn moves(&self, stage: MoveStage) -> Vec<Move> {
+    pub fn moves(&self, stage: MoveStage) -> MoveVec {
         generate_moves(stage, self)
     }
 

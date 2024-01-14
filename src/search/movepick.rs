@@ -1,3 +1,5 @@
+use smallvec::{smallvec, SmallVec};
+
 use super::{table::SearchTable, Depth};
 use crate::{
     evaluation::{moves::evaluate_move, Evaluable, ValueScore},
@@ -6,17 +8,17 @@ use crate::{
 };
 use std::sync::{Arc, Mutex};
 
-type ScoredVec<Move> = Vec<(Move, ValueScore)>;
+type ScoredMoveVec = SmallVec<[(Move, ValueScore); 64]>;
 type PickResult = (Move, ValueScore);
 
-fn decorate_moves_with_score<F>(moves: &[Move], f: F) -> ScoredVec<Move>
+fn decorate_moves_with_score<F>(moves: &[Move], f: F) -> ScoredMoveVec
 where
     F: Fn(Move) -> ValueScore,
 {
     moves.iter().map(|mov| (*mov, f(*mov))).collect()
 }
 
-fn find_next_max_and_swap(moves: &mut ScoredVec<Move>, index: &mut usize) -> Option<PickResult> {
+fn find_next_max_and_swap(moves: &mut ScoredMoveVec, index: &mut usize) -> Option<PickResult> {
     if index >= &mut moves.len() {
         return None;
     }
@@ -36,7 +38,7 @@ fn find_next_max_and_swap(moves: &mut ScoredVec<Move>, index: &mut usize) -> Opt
 
 pub struct MovePicker<const QUIESCE: bool> {
     index: usize,
-    moves: ScoredVec<Move>,
+    moves: ScoredMoveVec,
     stage: MoveStage,
     position: Position,
     table: Option<Arc<Mutex<SearchTable>>>,
@@ -71,10 +73,11 @@ impl std::iter::Iterator for MovePicker<true> {
 
 impl MovePicker<false> {
     pub fn new(position: &Position, table: Arc<Mutex<SearchTable>>, depth: Depth) -> Self {
-        let mut moves = ScoredVec::with_capacity(1);
-        if let Some(hash_move) = table.lock().unwrap().get_hash_move(position) {
-            moves.push((hash_move, ValueScore::MAX));
-        }
+        let moves = if let Some(hash_move) = table.lock().unwrap().get_hash_move(position) {
+            smallvec![(hash_move, ValueScore::MAX)]
+        } else {
+            smallvec![]
+        };
 
         Self {
             index: 0,

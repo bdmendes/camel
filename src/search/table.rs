@@ -1,5 +1,9 @@
 use super::{Depth, MAX_DEPTH};
-use crate::{evaluation::ValueScore, moves::Move, position::Position};
+use crate::{
+    evaluation::ValueScore,
+    moves::{Move, MoveVec},
+    position::Position,
+};
 
 pub const MAX_TABLE_SIZE_MB: usize = 2048;
 pub const MIN_TABLE_SIZE_MB: usize = 1;
@@ -140,8 +144,8 @@ impl SearchTable {
         [self.killer_moves[index], self.killer_moves[index + 1]]
     }
 
-    pub fn get_pv(&self, position: &Position, mut depth: Depth) -> Vec<Move> {
-        let mut pv = Vec::new();
+    pub fn get_pv(&self, position: &Position, mut depth: Depth) -> MoveVec {
+        let mut pv = MoveVec::new();
         let mut position = *position;
 
         while let Some(entry) = self.get_hash_move(&position) {

@@ -1,7 +1,7 @@
 use crate::{
     moves::{
         gen::{square_attacked_by, MoveDirection, MoveStage},
-        Move, MoveFlag,
+        Move, MoveFlag, MoveVec,
     },
     position::{
         bitboard::Bitboard,
@@ -28,7 +28,7 @@ pub fn pawn_attacks(board: &Board, color: Color) -> Bitboard {
         | (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST)
 }
 
-pub fn generate_pawn_moves(stage: MoveStage, position: &Position, moves: &mut Vec<Move>) {
+pub fn generate_pawn_moves(stage: MoveStage, position: &Position, moves: &mut MoveVec) {
     let occupancy = position.board.occupancy_bb_all();
     let occupancy_them = position.board.occupancy_bb(position.side_to_move.opposite());
     let our_pawns = position.board.pieces_bb_color(Piece::Pawn, position.side_to_move);
@@ -102,7 +102,7 @@ pub fn generate_pawn_moves(stage: MoveStage, position: &Position, moves: &mut Ve
 
 fn push_pawn_move(
     occupancy_them: Bitboard,
-    moves: &mut Vec<Move>,
+    moves: &mut MoveVec,
     from_square: Square,
     to_square: Square,
 ) {
@@ -122,7 +122,7 @@ fn push_pawn_move(
 
 fn push_pawn_promotion(
     occupancy: Bitboard,
-    moves: &mut Vec<Move>,
+    moves: &mut MoveVec,
     from_square: Square,
     to_square: Square,
 ) {
@@ -153,7 +153,7 @@ fn push_pawn_promotion(
     ));
 }
 
-pub fn generate_king_castles(position: &Position, moves: &mut Vec<Move>) {
+pub fn generate_king_castles(position: &Position, moves: &mut MoveVec) {
     match position.side_to_move {
         Color::White => {
             if position.castling_rights.contains(CastlingRights::WHITE_KINGSIDE) {
@@ -174,7 +174,7 @@ pub fn generate_king_castles(position: &Position, moves: &mut Vec<Move>) {
     }
 }
 
-fn generate_kingside_castle(color: Color, position: &Position, moves: &mut Vec<Move>) {
+fn generate_kingside_castle(color: Color, position: &Position, moves: &mut MoveVec) {
     let rooks = position.board.pieces_bb_color(Piece::Rook, color);
     let king_square = (position.board.pieces_bb_color(Piece::King, color)).next();
     let right_hand_side_rook_square = (match color {
@@ -204,7 +204,7 @@ fn generate_kingside_castle(color: Color, position: &Position, moves: &mut Vec<M
     }
 }
 
-fn generate_queenside_castle(color: Color, position: &Position, moves: &mut Vec<Move>) {
+fn generate_queenside_castle(color: Color, position: &Position, moves: &mut MoveVec) {
     let rooks = position.board.pieces_bb_color(Piece::Rook, color);
     let king_square = (position.board.pieces_bb_color(Piece::King, color)).next();
     let left_hand_side_rook_square = (match color {
@@ -305,7 +305,7 @@ fn king_rook_range_occupied_ok(range: Bitboard, own_color: Color, board: Board) 
 mod tests {
     use super::generate_king_castles;
     use crate::{
-        moves::{attacks::specials::generate_pawn_moves, gen::MoveStage, Move, MoveFlag},
+        moves::{attacks::specials::generate_pawn_moves, gen::MoveStage, Move, MoveFlag, MoveVec},
         position::{fen::FromFen, square::Square, Position},
     };
 
@@ -334,7 +334,7 @@ mod tests {
             Move::new(Square::H4, Square::H5, MoveFlag::Quiet),
         ];
 
-        let mut moves = Vec::new();
+        let mut moves = MoveVec::new();
         generate_pawn_moves(MoveStage::All, &position, &mut moves);
 
         for mov in &moves {
@@ -370,7 +370,7 @@ mod tests {
             Move::new(Square::A5, Square::B4, MoveFlag::Capture),
         ];
 
-        let mut moves = Vec::new();
+        let mut moves = MoveVec::new();
         generate_pawn_moves(MoveStage::All, &position, &mut moves);
 
         for mov in &moves {
@@ -390,7 +390,7 @@ mod tests {
             Move::new(Square::E1, Square::C1, MoveFlag::QueensideCastle),
         ];
 
-        let mut moves = Vec::new();
+        let mut moves = MoveVec::new();
         generate_king_castles(&position, &mut moves);
 
         for mov in &moves {
@@ -410,7 +410,7 @@ mod tests {
             Move::new(Square::E8, Square::C8, MoveFlag::QueensideCastle),
         ];
 
-        let mut moves = Vec::new();
+        let mut moves = MoveVec::new();
         generate_king_castles(&position, &mut moves);
 
         for mov in &moves {
@@ -425,7 +425,7 @@ mod tests {
         let position =
             Position::from_fen("r3k2r/pppppppp/8/8/8/8/PPPPPPPP/1R2K1NR w Kkq - 0 1").unwrap();
 
-        let mut moves = Vec::new();
+        let mut moves = MoveVec::new();
         generate_king_castles(&position, &mut moves);
 
         assert_eq!(moves.len(), 0);
@@ -437,7 +437,7 @@ mod tests {
             Position::from_fen("r3kbnr/pP3ppp/n3p3/q2pN2b/8/2N5/PPP1PP1P/R1BQKB1R b KQkq - 0 1")
                 .unwrap();
 
-        let mut moves = Vec::new();
+        let mut moves = MoveVec::new();
         generate_king_castles(&position, &mut moves);
 
         assert_eq!(moves.len(), 0);

@@ -54,7 +54,7 @@ mod tests {
     use crate::{
         moves::{
             gen::{generate_regular_moves, MoveStage},
-            Move, MoveFlag,
+            Move, MoveFlag, MoveVec,
         },
         position::{
             board::{Board, Piece},
@@ -64,7 +64,7 @@ mod tests {
         },
     };
 
-    fn generate_knight_moves(stage: MoveStage, board: &Board, color: Color, moves: &mut Vec<Move>) {
+    fn generate_knight_moves(stage: MoveStage, board: &Board, color: Color, moves: &mut MoveVec) {
         generate_regular_moves(stage, board, Piece::Knight, color, moves);
     }
 
@@ -75,7 +75,7 @@ mod tests {
 
         board.set_square::<true>(Square::E4, Piece::Knight, us_color);
 
-        let mut moves = Vec::new();
+        let mut moves = MoveVec::new();
         generate_knight_moves(MoveStage::All, &board, us_color, &mut moves);
 
         assert_eq!(moves.len(), 8);
@@ -103,7 +103,7 @@ mod tests {
 
         board.set_square::<true>(Square::A8, Piece::Knight, us_color);
 
-        let mut moves = Vec::new();
+        let mut moves = MoveVec::new();
         generate_knight_moves(MoveStage::All, &board, us_color, &mut moves);
 
         let expected_moves = vec![
@@ -123,7 +123,7 @@ mod tests {
         let board = Board::from_fen(KIWIPETE_WHITE_FEN).unwrap();
         let us_color = Color::White;
 
-        let mut moves = Vec::new();
+        let mut moves = MoveVec::new();
         generate_knight_moves(MoveStage::All, &board, us_color, &mut moves);
 
         let expected_moves = [
@@ -152,7 +152,7 @@ mod tests {
         let board = Board::from_fen(KIWIPETE_WHITE_FEN).unwrap();
         let us_color = Color::White;
 
-        let mut moves = Vec::new();
+        let mut moves = MoveVec::new();
         generate_knight_moves(MoveStage::CapturesAndPromotions, &board, us_color, &mut moves);
 
         let expected_moves = [
