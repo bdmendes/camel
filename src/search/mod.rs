@@ -1,7 +1,6 @@
 use self::{constraint::SearchConstraint, table::SearchTable};
 use crate::{
     evaluation::{Evaluable, Score},
-    moves::gen::MoveStage,
     position::Position,
 };
 use std::{
@@ -67,7 +66,7 @@ pub fn search_iter(
     table: Arc<Mutex<SearchTable>>,
     constraint: &mut SearchConstraint,
 ) {
-    let moves = position.moves(MoveStage::All);
+    let moves = position.moves::<false>();
 
     if moves.is_empty() {
         return;

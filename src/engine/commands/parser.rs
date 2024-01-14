@@ -1,10 +1,7 @@
 use super::Command;
-use camel::{
-    moves::gen::MoveStage,
-    position::{
-        fen::{FromFen, KIWIPETE_WHITE_FEN, START_FEN},
-        Position,
-    },
+use camel::position::{
+    fen::{FromFen, KIWIPETE_WHITE_FEN, START_FEN},
+    Position,
 };
 use std::{collections::VecDeque, time::Duration};
 
@@ -33,7 +30,7 @@ pub fn parse_position(words: &mut VecDeque<&str>) -> Result<Command, ()> {
             }
             "moves" => {
                 while let Some(mov_str) = words.pop_front() {
-                    let actual_moves = position.moves(MoveStage::All);
+                    let actual_moves = position.moves::<false>();
                     if let Some(mov) = actual_moves.iter().find(|mov| mov.to_string() == mov_str) {
                         position = position.make_move(*mov);
                         game_history.push(position);

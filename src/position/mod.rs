@@ -3,7 +3,7 @@ use self::{
     square::Square,
 };
 use crate::moves::{
-    gen::{checked_by, generate_moves, MoveStage},
+    gen::{checked_by, generate_moves},
     make_move, Move,
 };
 use bitflags::bitflags;
@@ -76,13 +76,13 @@ impl Position {
     }
 
     pub fn make_move_str(&self, mov_str: &str) -> Option<Self> {
-        let moves = self.moves(MoveStage::All);
+        let moves = self.moves::<false>();
         let mov = moves.iter().find(|mov| mov.to_string() == mov_str)?;
         Some(self.make_move(*mov))
     }
 
-    pub fn moves(&self, stage: MoveStage) -> Vec<Move> {
-        generate_moves(stage, self)
+    pub fn moves<const QUIESCE: bool>(&self) -> Vec<Move> {
+        generate_moves::<QUIESCE>(self)
     }
 
     pub fn is_check(&self) -> bool {

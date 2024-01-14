@@ -1,7 +1,7 @@
 use super::{table::SearchTable, Depth};
 use crate::{
     evaluation::{moves::evaluate_move, Evaluable, ValueScore},
-    moves::{gen::MoveStage, Move},
+    moves::Move,
     position::{board::Piece, Position},
 };
 use std::sync::{Arc, Mutex};
@@ -14,6 +14,12 @@ where
     F: Fn(Move) -> ValueScore,
 {
     moves.iter().map(|mov| (*mov, f(*mov))).collect()
+}
+
+#[derive(Debug, PartialEq, Copy, Clone)]
+enum MoveStage {
+    HashMove,
+    All,
 }
 
 fn find_next_max_and_swap(moves: &mut ScoredVec<Move>, index: &mut usize) -> Option<PickResult> {
@@ -37,26 +43,22 @@ fn find_next_max_and_swap(moves: &mut ScoredVec<Move>, index: &mut usize) -> Opt
 pub struct MovePicker<const QUIESCE: bool> {
     index: usize,
     moves: ScoredVec<Move>,
-    stage: MoveStage,
     position: Position,
+    stage: MoveStage,
     table: Option<Arc<Mutex<SearchTable>>>,
     depth: Option<Depth>,
 }
 
 impl MovePicker<true> {
     pub fn new(position: &Position, is_check: bool) -> Self {
-        let moves = position.moves(if is_check {
-            MoveStage::All
-        } else {
-            MoveStage::CapturesAndPromotions
-        });
+        let moves = if is_check { position.moves::<false>() } else { position.moves::<true>() };
         Self {
             index: 0,
             moves: decorate_moves_with_score(&moves, |mov| evaluate_move(position, mov)),
-            stage: MoveStage::CapturesAndPromotions,
             position: *position,
             table: None,
             depth: None,
+            stage: MoveStage::All,
         }
     }
 }
@@ -71,7 +73,7 @@ impl std::iter::Iterator for MovePicker<true> {
 
 impl MovePicker<false> {
     pub fn new(position: &Position, table: Arc<Mutex<SearchTable>>, depth: Depth) -> Self {
-        let mut moves = ScoredVec::with_capacity(1);
+        let mut moves = ScoredVec::new();
         if let Some(hash_move) = table.lock().unwrap().get_hash_move(position) {
             moves.push((hash_move, ValueScore::MAX));
         }
@@ -79,10 +81,10 @@ impl MovePicker<false> {
         Self {
             index: 0,
             moves,
-            stage: MoveStage::HashMove,
             position: *position,
             table: Some(table),
             depth: Some(depth),
+            stage: MoveStage::HashMove,
         }
     }
 }
@@ -97,27 +99,14 @@ impl std::iter::Iterator for MovePicker<false> {
 
         match self.stage {
             MoveStage::HashMove => {
-                self.stage = MoveStage::CapturesAndPromotions;
-                self.moves = decorate_moves_with_score(
-                    &self.position.moves(MoveStage::CapturesAndPromotions),
-                    |mov| evaluate_move(&self.position, mov),
-                );
-
-                self.index = 0;
-                self.next()
-            }
-            MoveStage::CapturesAndPromotions => {
-                self.stage = MoveStage::NonCaptures;
-                let all_non_capture_moves = self.position.moves(MoveStage::NonCaptures);
-
+                self.stage = MoveStage::All;
                 let killers =
                     self.table.as_ref().unwrap().lock().unwrap().get_killers(self.depth.unwrap());
-                self.moves = decorate_moves_with_score(&all_non_capture_moves, |mov| {
+                self.moves = decorate_moves_with_score(&self.position.moves::<false>(), |mov| {
                     if killers[0] == Some(mov) || killers[1] == Some(mov) {
-                        Piece::Queen.value()
-                    } else {
-                        evaluate_move(&self.position, mov)
+                        return Piece::Pawn.value();
                     }
+                    evaluate_move(&self.position, mov)
                 });
 
                 self.index = 0;

@@ -16,14 +16,6 @@ use crate::position::{
     Color, Position,
 };
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum MoveStage {
-    HashMove,
-    CapturesAndPromotions,
-    NonCaptures,
-    All,
-}
-
 pub struct MoveDirection;
 
 impl MoveDirection {
@@ -110,8 +102,7 @@ pub fn piece_attacks(piece: Piece, square: Square, occupancy: Bitboard) -> Bitbo
     }
 }
 
-pub fn generate_regular_moves(
-    stage: MoveStage,
+pub fn generate_regular_moves<const QUIESCE: bool>(
     board: &Board,
     piece: Piece,
     color: Color,
@@ -122,13 +113,10 @@ pub fn generate_regular_moves(
     let occupancy_them = board.occupancy_bb(color.opposite());
 
     for from_square in board.pieces_bb_color(piece, color) {
-        let attacks = match stage {
-            MoveStage::HashMove => panic!("Hash move should not be generated here"),
-            MoveStage::CapturesAndPromotions => {
-                piece_attacks(piece, from_square, occupancy) & occupancy_them
-            }
-            MoveStage::NonCaptures => piece_attacks(piece, from_square, occupancy) & !occupancy,
-            MoveStage::All => piece_attacks(piece, from_square, occupancy) & !occupancy_us,
+        let attacks = if QUIESCE {
+            piece_attacks(piece, from_square, occupancy) & occupancy_them
+        } else {
+            piece_attacks(piece, from_square, occupancy) & !occupancy_us
         };
 
         for to_square in attacks {
@@ -141,19 +129,19 @@ pub fn generate_regular_moves(
     }
 }
 
-pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
+pub fn generate_moves<const QUIESCE: bool>(position: &Position) -> Vec<Move> {
     let mut moves = Vec::with_capacity(64);
     let board = &position.board;
     let side_to_move = position.side_to_move;
 
-    generate_pawn_moves(stage, position, &mut moves);
-    generate_regular_moves(stage, board, Piece::Queen, side_to_move, &mut moves);
-    generate_regular_moves(stage, board, Piece::Rook, side_to_move, &mut moves);
-    generate_regular_moves(stage, board, Piece::Bishop, side_to_move, &mut moves);
-    generate_regular_moves(stage, board, Piece::Knight, side_to_move, &mut moves);
-    generate_regular_moves(stage, board, Piece::King, side_to_move, &mut moves);
+    generate_pawn_moves::<QUIESCE>(position, &mut moves);
+    generate_regular_moves::<QUIESCE>(board, Piece::Queen, side_to_move, &mut moves);
+    generate_regular_moves::<QUIESCE>(board, Piece::Rook, side_to_move, &mut moves);
+    generate_regular_moves::<QUIESCE>(board, Piece::Bishop, side_to_move, &mut moves);
+    generate_regular_moves::<QUIESCE>(board, Piece::Knight, side_to_move, &mut moves);
+    generate_regular_moves::<QUIESCE>(board, Piece::King, side_to_move, &mut moves);
 
-    if matches!(stage, MoveStage::All | MoveStage::NonCaptures) {
+    if !QUIESCE {
         generate_king_castles(position, &mut moves);
     }
 
@@ -202,18 +190,12 @@ pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
     moves
 }
 
-pub fn perft<const STAGED: bool>(position: &Position, depth: u8) -> u64 {
+pub fn perft(position: &Position, depth: u8) -> u64 {
     if depth == 0 {
         return 1;
     }
 
-    let moves = if STAGED {
-        let mut moves = generate_moves(MoveStage::CapturesAndPromotions, position);
-        moves.append(&mut generate_moves(MoveStage::NonCaptures, position));
-        moves
-    } else {
-        generate_moves(MoveStage::All, position)
-    };
+    let moves = generate_moves::<false>(position);
 
     if depth == 1 {
         return moves.len() as u64;
@@ -223,7 +205,7 @@ pub fn perft<const STAGED: bool>(position: &Position, depth: u8) -> u64 {
 
     for mov in moves {
         let new_position = make_move::<true>(position, mov);
-        let count = perft::<STAGED>(&new_position, depth - 1);
+        let count = perft(&new_position, depth - 1);
         nodes += count;
     }
 
@@ -232,12 +214,9 @@ pub fn perft<const STAGED: bool>(position: &Position, depth: u8) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        moves::gen::MoveStage,
-        position::{
-            fen::{FromFen, KIWIPETE_WHITE_FEN},
-            Color, Position,
-        },
+    use crate::position::{
+        fen::{FromFen, KIWIPETE_WHITE_FEN},
+        Color, Position,
     };
 
     #[test]
@@ -260,46 +239,20 @@ mod tests {
     }
 
     #[test]
-    fn gen_simple_all() {
+    fn gen_simple() {
         let position = Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ").unwrap();
 
-        let moves = super::generate_moves(MoveStage::All, &position);
+        let moves = super::generate_moves::<false>(&position);
         assert_eq!(moves.len(), 14);
     }
 
     #[test]
-    fn gen_simple_captures() {
-        let position = Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ").unwrap();
-
-        let moves = super::generate_moves(MoveStage::CapturesAndPromotions, &position);
-        assert_eq!(moves.len(), 1);
-    }
-
-    #[test]
-    fn gen_simple_non_captures() {
-        let position = Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ").unwrap();
-
-        let moves = super::generate_moves(MoveStage::NonCaptures, &position);
-        assert_eq!(moves.len(), 13);
-    }
-
-    #[test]
-    fn gen_in_check_all() {
+    fn gen_in_check() {
         let position =
             Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
                 .unwrap();
 
-        let moves = super::generate_moves(MoveStage::All, &position);
+        let moves = super::generate_moves::<false>(&position);
         assert_eq!(moves.len(), 6);
-    }
-
-    #[test]
-    fn gen_in_check_captures() {
-        let position =
-            Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
-                .unwrap();
-
-        let moves = super::generate_moves(MoveStage::CapturesAndPromotions, &position);
-        assert_eq!(moves.len(), 0);
     }
 }

@@ -1,6 +1,6 @@
 use crate::{
     moves::{
-        gen::{square_attacked_by, MoveDirection, MoveStage},
+        gen::{square_attacked_by, MoveDirection},
         Move, MoveFlag,
     },
     position::{
@@ -28,7 +28,7 @@ pub fn pawn_attacks(board: &Board, color: Color) -> Bitboard {
         | (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST)
 }
 
-pub fn generate_pawn_moves(stage: MoveStage, position: &Position, moves: &mut Vec<Move>) {
+pub fn generate_pawn_moves<const QUIESCE: bool>(position: &Position, moves: &mut Vec<Move>) {
     let occupancy = position.board.occupancy_bb_all();
     let occupancy_them = position.board.occupancy_bb(position.side_to_move.opposite());
     let our_pawns = position.board.pieces_bb_color(Piece::Pawn, position.side_to_move);
@@ -37,18 +37,15 @@ pub fn generate_pawn_moves(stage: MoveStage, position: &Position, moves: &mut Ve
 
     // Single push
     let single_push_pawns = our_pawns.shift(direction) & !occupancy;
-    let single_push_pawns_on_stage = match stage {
-        MoveStage::HashMove => panic!("Hash move should not be generated here"),
-        MoveStage::CapturesAndPromotions => single_push_pawns & PAWN_PROMOTION_RANKS,
-        MoveStage::NonCaptures => single_push_pawns & !PAWN_PROMOTION_RANKS,
-        MoveStage::All => single_push_pawns,
-    };
+    let single_push_pawns_on_stage =
+        if QUIESCE { single_push_pawns & PAWN_PROMOTION_RANKS } else { single_push_pawns };
+
     for to_square in single_push_pawns_on_stage {
         let from_square = to_square.shift(-direction).unwrap();
         push_pawn_move(occupancy, moves, from_square, to_square);
     }
 
-    if matches!(stage, MoveStage::All | MoveStage::NonCaptures) {
+    if !QUIESCE {
         // Double push
         let third_row_bb = match position.side_to_move {
             Color::White => THIRD_ROW_WHITE,
@@ -62,40 +59,38 @@ pub fn generate_pawn_moves(stage: MoveStage, position: &Position, moves: &mut Ve
         }
     }
 
-    if matches!(stage, MoveStage::All | MoveStage::CapturesAndPromotions) {
-        // West capture
-        let west_pawns = (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST)
-            & occupancy_them;
-        for to_square in west_pawns {
+    // West capture
+    let west_pawns =
+        (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST) & occupancy_them;
+    for to_square in west_pawns {
+        let from_square = to_square.shift(-direction - MoveDirection::WEST).unwrap();
+        push_pawn_move(occupancy_them, moves, from_square, to_square);
+    }
+
+    // East capture
+    let east_pawns =
+        (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST) & occupancy_them;
+    for to_square in east_pawns {
+        let from_square = to_square.shift(-direction - MoveDirection::EAST).unwrap();
+        push_pawn_move(occupancy_them, moves, from_square, to_square);
+    }
+
+    // En passant
+    if let Some(en_passant_square) = position.en_passant_square {
+        let ep_bb = Bitboard::new(1 << en_passant_square as u8);
+
+        let west_pawn =
+            (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST) & ep_bb;
+        if let Some(to_square) = west_pawn.into_iter().next() {
             let from_square = to_square.shift(-direction - MoveDirection::WEST).unwrap();
-            push_pawn_move(occupancy_them, moves, from_square, to_square);
+            moves.push(Move::new(from_square, to_square, MoveFlag::EnPassantCapture));
         }
 
-        // East capture
-        let east_pawns = (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST)
-            & occupancy_them;
-        for to_square in east_pawns {
+        let east_pawns =
+            (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST) & ep_bb;
+        if let Some(to_square) = east_pawns.into_iter().next() {
             let from_square = to_square.shift(-direction - MoveDirection::EAST).unwrap();
-            push_pawn_move(occupancy_them, moves, from_square, to_square);
-        }
-
-        // En passant
-        if let Some(en_passant_square) = position.en_passant_square {
-            let ep_bb = Bitboard::new(1 << en_passant_square as u8);
-
-            let west_pawn =
-                (our_pawns & !PAWN_WEST_EDGE_FILE).shift(direction + MoveDirection::WEST) & ep_bb;
-            if let Some(to_square) = west_pawn.into_iter().next() {
-                let from_square = to_square.shift(-direction - MoveDirection::WEST).unwrap();
-                moves.push(Move::new(from_square, to_square, MoveFlag::EnPassantCapture));
-            }
-
-            let east_pawns =
-                (our_pawns & !PAWN_EAST_EDGE_FILE).shift(direction + MoveDirection::EAST) & ep_bb;
-            if let Some(to_square) = east_pawns.into_iter().next() {
-                let from_square = to_square.shift(-direction - MoveDirection::EAST).unwrap();
-                moves.push(Move::new(from_square, to_square, MoveFlag::EnPassantCapture));
-            }
+            moves.push(Move::new(from_square, to_square, MoveFlag::EnPassantCapture));
         }
     }
 }
@@ -304,7 +299,7 @@ fn king_rook_range_occupied_ok(range: Bitboard, own_color: Color, board: Board) 
 mod tests {
     use super::generate_king_castles;
     use crate::{
-        moves::{attacks::specials::generate_pawn_moves, gen::MoveStage, Move, MoveFlag},
+        moves::{attacks::specials::generate_pawn_moves, Move, MoveFlag},
         position::{fen::FromFen, square::Square, Position},
     };
 
@@ -334,7 +329,7 @@ mod tests {
         ];
 
         let mut moves = Vec::new();
-        generate_pawn_moves(MoveStage::All, &position, &mut moves);
+        generate_pawn_moves::<false>(&position, &mut moves);
 
         for mov in &moves {
             assert!(expected_moves.contains(mov));
@@ -370,7 +365,7 @@ mod tests {
         ];
 
         let mut moves = Vec::new();
-        generate_pawn_moves(MoveStage::All, &position, &mut moves);
+        generate_pawn_moves::<false>(&position, &mut moves);
 
         for mov in &moves {
             assert!(expected_moves.contains(mov));

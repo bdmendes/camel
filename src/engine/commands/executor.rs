@@ -1,7 +1,7 @@
 use crate::engine::{time::get_duration, Engine};
 use camel::{
     evaluation::Evaluable,
-    moves::gen::{perft, MoveStage},
+    moves::gen::perft,
     position::{
         fen::{FromFen, ToFen, START_FEN},
         Color, Position,
@@ -172,7 +172,7 @@ pub fn execute_perft(depth: u8, position: &Position) {
 
     thread::spawn(move || {
         let start = std::time::Instant::now();
-        let nodes = perft::<false>(&position, depth);
+        let nodes = perft(&position, depth);
         let elapsed = start.elapsed();
 
         println!("Perft results for depth {}", depth);
@@ -183,8 +183,7 @@ pub fn execute_perft(depth: u8, position: &Position) {
 }
 
 pub fn execute_do_move(mov_str: &str, position: &mut Position) {
-    if let Some(mov) = position.moves(MoveStage::All).iter().find(|mov| mov.to_string() == mov_str)
-    {
+    if let Some(mov) = position.moves::<false>().iter().find(|mov| mov.to_string() == mov_str) {
         *position = position.make_move(*mov);
     } else {
         println!("Illegal move: {}", mov_str);
@@ -206,7 +205,7 @@ pub fn execute_display(position: &Position) {
 }
 
 pub fn execute_all_moves(position: &Position) {
-    let moves = position.moves(MoveStage::All);
+    let moves = position.moves::<false>();
     for mov in moves {
         print!("{} ", mov);
     }

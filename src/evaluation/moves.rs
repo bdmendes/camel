@@ -27,10 +27,7 @@ pub fn evaluate_move(position: &Position, mov: Move) -> ValueScore {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        moves::gen::MoveStage,
-        position::{fen::FromFen, Position},
-    };
+    use crate::position::{fen::FromFen, Position};
 
     #[test]
     fn eval_move_heuristic_value() {
@@ -38,7 +35,7 @@ mod tests {
             "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
         )
         .unwrap();
-        let mut moves = position.moves(MoveStage::All);
+        let mut moves = position.moves::<false>();
         moves.sort_by(|a, b| {
             super::evaluate_move(&position, *b).cmp(&super::evaluate_move(&position, *a))
         });
