@@ -29,7 +29,7 @@ fn print_iter_info(
     let elapsed_micros = elapsed.as_micros();
     let nps = (count as f64 / (elapsed_micros.max(1) as f64 / 1000000.0)) as usize;
 
-    print!("info depth {} hashfull {} ", depth, table.hashfull_millis());
+    print!("info depth {} ", depth);
 
     match score {
         Score::Value(score) => {
@@ -45,12 +45,19 @@ fn print_iter_info(
         }
     }
 
-    print!("time {} nodes {} nps {} pv", (elapsed_micros / 1000).max(1), count, nps);
+    print!(
+        "time {} nodes {} nps {} hashfull {} pv",
+        (elapsed_micros / 1000).max(1),
+        count,
+        nps,
+        table.hashfull_millis()
+    );
 
     let pv = table.get_pv(position, depth);
     for mov in pv {
         print!(" {}", mov);
     }
+
     println!();
 }
 
