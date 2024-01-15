@@ -228,14 +228,14 @@ fn pvs<const ROOT: bool>(
             constraint,
             i > 0,
             if is_check { 1 } else { 0 },
-            if depth > 4
+            if depth > 3
                 && !is_check
                 && !puts_in_check
                 && mov.flag().is_quiet()
                 && i > 0
                 && beta - alpha == 1
             {
-                depth / 4
+                depth / 3
             } else {
                 0
             },
