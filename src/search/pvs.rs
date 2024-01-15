@@ -216,7 +216,6 @@ fn pvs<const ROOT: bool>(
 
     for (i, (mov, _)) in picker.enumerate() {
         let mut new_position = position.make_move(mov);
-        let puts_in_check = new_position.is_check();
 
         constraint.visit_position(&new_position, mov.flag().is_reversible());
         let (score, nodes) = pvs_recurse(
@@ -228,17 +227,7 @@ fn pvs<const ROOT: bool>(
             constraint,
             i > 0,
             if is_check { 1 } else { 0 },
-            if depth > 3
-                && !is_check
-                && !puts_in_check
-                && mov.flag().is_quiet()
-                && i > 0
-                && beta - alpha == 1
-            {
-                depth / 3
-            } else {
-                0
-            },
+            if depth > 3 && !is_check && mov.flag().is_quiet() && i > 0 { depth / 3 } else { 0 },
         );
         constraint.leave_position();
 
