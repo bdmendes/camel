@@ -7,10 +7,11 @@ use crate::{
 pub fn evaluate_move(position: &Position, mov: Move) -> ValueScore {
     let mut score = 0;
 
+    let moving_piece = position.board.piece_at(mov.from()).unwrap();
+
     if mov.flag().is_capture() {
         let captured_piece = position.board.piece_at(mov.to()).unwrap_or(Piece::Pawn);
-        let capturing_piece = position.board.piece_at(mov.from()).unwrap();
-        score += captured_piece.value() - capturing_piece.value() + Piece::Queen.value();
+        score += captured_piece.value() - moving_piece.value() + Piece::Queen.value();
     }
 
     if mov.flag().is_promotion() {
@@ -18,9 +19,8 @@ pub fn evaluate_move(position: &Position, mov: Move) -> ValueScore {
         score += promoted_piece.value();
     }
 
-    let piece = position.board.piece_at(mov.from()).unwrap();
-    score += psqt_value(piece, mov.to(), position.side_to_move, 0);
-    score -= psqt_value(piece, mov.from(), position.side_to_move, 0);
+    score += psqt_value(moving_piece, mov.to(), position.side_to_move, 0);
+    score -= psqt_value(moving_piece, mov.from(), position.side_to_move, 0);
 
     score
 }

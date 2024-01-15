@@ -159,38 +159,43 @@ pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
 
     let is_check = checked_by(board, side_to_move.opposite());
     let king_square = board.pieces_bb_color(Piece::King, side_to_move).next().unwrap();
+    let king_rays = piece_attacks(Piece::Queen, king_square, board.occupancy_bb_all());
+    let possibly_pinned = king_rays & position.board.occupancy_bb(side_to_move);
 
     moves.retain(|mov| match mov.flag() {
-        MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => true,
-        _ => {
-            if board.piece_at(mov.from()).unwrap() != Piece::King {
-                if !is_check {
-                    // If no blocker could have been moved, then the move is legal for sure
-                    if (king_square.file() != mov.from().file()
-                        || mov.from().file() == mov.to().file())
-                        && (king_square.rank() != mov.from().rank()
-                            || mov.from().rank() == mov.to().rank())
-                        && !king_square.same_diagonal(mov.from())
-                    {
-                        return true;
-                    }
-                } else if board.piece_at(mov.to()) != Some(Piece::Knight)
-                    && mov.flag() != MoveFlag::EnPassantCapture
-                {
-                    // We must attempt to block the check or capture a piece in the king's rays
-                    // The knight is an exception, since it is not in the king's rays
-                    // Enpassant is also an exception, since the final square is not the threat
-                    if !king_square.same_diagonal(mov.to())
-                        && king_square.rank() != mov.to().rank()
-                        && king_square.file() != mov.to().file()
-                    {
-                        return false;
-                    }
-                }
-            }
-
+        MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => {
+            // Already validated by the castle generator
+            true
+        }
+        MoveFlag::EnPassantCapture => {
+            // Enpassant is a complex case. We must resort to full move making
             let new_position = make_move::<false>(position, *mov);
             !checked_by(&new_position.board, new_position.side_to_move)
+        }
+        _ if mov.from() != king_square => {
+            if !is_check && !possibly_pinned.is_set(mov.from()) {
+                // We are moving a piece not in the kings ray, so we can't end up in check
+                return true;
+            }
+
+            if is_check
+                && !board.pieces_bb(Piece::Knight).is_set(mov.to())
+                && !king_rays.is_set(mov.to())
+            {
+                // We are in check and not attempting to block or capture the checking piece
+                return false;
+            }
+
+            let mut new_board = *board;
+            new_board.clear_square(mov.from());
+            new_board.set_square::<true>(mov.to(), Piece::Pawn, side_to_move);
+            !checked_by(&new_board, side_to_move.opposite())
+        }
+        _ => {
+            let mut new_board = *board;
+            new_board.clear_square(king_square);
+            new_board.set_square::<true>(mov.to(), Piece::King, side_to_move);
+            !checked_by(&new_board, side_to_move.opposite())
         }
     });
 

@@ -100,7 +100,7 @@ fn pvs_recurse(
     if do_zero_window {
         let (score, nodes) = pvs::<false>(
             position,
-            depth.saturating_sub(reduction).saturating_sub(1) + extension,
+            depth.saturating_add(extension).saturating_sub(reduction).saturating_sub(1),
             -alpha - 1,
             -alpha,
             table.clone(),
@@ -115,7 +115,7 @@ fn pvs_recurse(
 
     let (score, nodes) = pvs::<false>(
         position,
-        depth.saturating_sub(1) + extension,
+        depth.saturating_add(extension).saturating_sub(1),
         -beta,
         -alpha,
         table,
@@ -228,14 +228,14 @@ fn pvs<const ROOT: bool>(
             constraint,
             i > 0,
             if is_check { 1 } else { 0 },
-            if depth > 2
+            if depth > 4
                 && !is_check
                 && !puts_in_check
                 && mov.flag().is_quiet()
                 && i > 0
                 && beta - alpha == 1
             {
-                1
+                depth / 4
             } else {
                 0
             },

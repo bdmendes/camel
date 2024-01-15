@@ -281,13 +281,12 @@ fn king_rook_range_occupied_ok(range: Bitboard, own_color: Color, board: Board) 
             if color != own_color {
                 return false;
             }
-            let piece = board.piece_at(square).unwrap();
-            if piece == Piece::King {
+            if board.pieces_bb(Piece::King).is_set(square) {
                 if found_own_king {
                     return false;
                 }
                 found_own_king = true;
-            } else if piece == Piece::Rook {
+            } else if board.pieces_bb(Piece::Rook).is_set(square) {
                 if found_own_rook {
                     return false;
                 }
