@@ -13,7 +13,7 @@ readonly BUILD_PATH=./target/release/$ENGINE_NAME
 readonly MESSAGE_FILE=message.txt
 readonly ROUNDS=300
 readonly TIME_CONTROL=10+0.2
-readonly ELO_THRESHOLD=20
+readonly ELO_THRESHOLD=25
 readonly UPSTREAM=${1:-master} # Default to master if no argument is given
 
 function run_gauntlet {
