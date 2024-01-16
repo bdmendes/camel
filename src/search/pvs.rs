@@ -227,7 +227,7 @@ fn pvs<const ROOT: bool>(
             constraint,
             i > 0,
             if is_check { 1 } else { 0 },
-            if depth > 3 && !is_check && mov.flag().is_quiet() && i > 0 { depth / 3 } else { 0 },
+            if depth > 2 && !is_check && mov.flag().is_quiet() && i > 0 { 1 } else { 0 },
         );
         constraint.leave_position();
 
