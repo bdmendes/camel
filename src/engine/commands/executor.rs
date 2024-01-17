@@ -103,7 +103,7 @@ pub fn execute_ponderhit(engine: &mut Engine) {
 }
 
 pub fn execute_uci() {
-    println!("id name Camel");
+    println!("id name Camel {}", env!("CARGO_PKG_VERSION"));
     println!("id author Bruno Mendes");
 
     // Options list
