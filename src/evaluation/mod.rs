@@ -13,11 +13,11 @@ pub enum Score {
 }
 
 pub trait Evaluable {
-    fn value(&self) -> ValueScore;
+    fn value<const LAZY: bool>(&self) -> ValueScore;
 }
 
 impl Evaluable for Piece {
-    fn value(&self) -> ValueScore {
+    fn value<const LAZY: bool>(&self) -> ValueScore {
         match self {
             Piece::Pawn => 100,
             Piece::Knight => 310,

@@ -11,11 +11,12 @@ pub fn evaluate_move(position: &Position, mov: Move) -> ValueScore {
 
     if mov.flag().is_capture() {
         let captured_piece = position.board.piece_at(mov.to()).unwrap_or(Piece::Pawn);
-        score += captured_piece.value() - moving_piece.value() + Piece::Queen.value();
+        score += captured_piece.value::<false>() - moving_piece.value::<false>()
+            + Piece::Queen.value::<false>();
     }
 
     if let Some(promotion_piece) = mov.promotion_piece() {
-        score += promotion_piece.value();
+        score += promotion_piece.value::<false>();
     }
 
     score += psqt_value(moving_piece, mov.to(), position.side_to_move, 0);

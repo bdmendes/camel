@@ -5,7 +5,10 @@ use super::{
     Depth, MAX_DEPTH,
 };
 use crate::{
-    evaluation::{position::MAX_POSITIONAL_GAIN, Evaluable, Score, ValueScore},
+    evaluation::{
+        position::{MAX_POSITIONAL_GAIN, MAX_POSITIONAL_GAIN_LAZY},
+        Evaluable, Score, ValueScore,
+    },
     position::{board::Piece, Color, Position},
 };
 use std::{
@@ -29,10 +32,24 @@ pub fn quiesce(
     // If we are in check, the position is certainly not quiet,
     // so we must search all check evasions. Otherwise, search only captures
     let is_check = position.is_check();
+    let mut picker = MovePicker::<true>::new(position, is_check).peekable();
+
+    // Stable position reached
+    if picker.peek().is_none() {
+        let score = if is_check {
+            MATE_SCORE
+        } else {
+            position.value::<false>() * position.side_to_move.sign()
+        };
+        return (score, 1);
+    }
+
+    // We need a full static evaluation for pruning techniques.
+    // We can't afford to do the lazy version here, to avoid incorrect leaf results.
     let static_evaluation = if is_check {
         alpha
     } else {
-        let static_evaluation = position.value() * position.side_to_move.sign();
+        let static_evaluation = position.value::<true>() * position.side_to_move.sign();
 
         // Standing pat: captures are not forced
         alpha = alpha.max(static_evaluation);
@@ -43,20 +60,12 @@ pub fn quiesce(
         }
 
         // Delta pruning: sequence cannot improve the score
-        if static_evaluation < alpha.saturating_sub(Piece::Queen.value()) {
+        if static_evaluation < alpha.saturating_sub(Piece::Queen.value::<false>()) {
             return (alpha, 1);
         }
 
         static_evaluation
     };
-
-    let mut picker = MovePicker::<true>::new(position, is_check).peekable();
-
-    // Stable position reached
-    if picker.peek().is_none() {
-        let score = if is_check { MATE_SCORE } else { static_evaluation };
-        return (score, 1);
-    }
 
     let mut count = 1;
 
@@ -65,7 +74,7 @@ pub fn quiesce(
         if !is_check && mov.flag().is_capture() {
             let captured_piece =
                 position.board.piece_color_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
-            if static_evaluation + captured_piece.value() + MAX_POSITIONAL_GAIN < alpha {
+            if static_evaluation + captured_piece.value::<false>() + MAX_POSITIONAL_GAIN < alpha {
                 continue;
             }
         }
@@ -207,13 +216,16 @@ fn pvs<const ROOT: bool>(
     for (i, (mov, _)) in picker.enumerate() {
         // Extended futility pruning: discard moves without potential
         if depth <= 2 {
-            let move_potential = MAX_POSITIONAL_GAIN * depth as ValueScore
+            let move_potential = MAX_POSITIONAL_GAIN_LAZY * depth as ValueScore
                 + mov
                     .flag()
                     .is_capture()
-                    .then(|| position.board.piece_at(mov.to()).unwrap_or(Piece::Pawn).value())
+                    .then(|| {
+                        position.board.piece_at(mov.to()).unwrap_or(Piece::Pawn).value::<true>()
+                    })
                     .unwrap_or(0);
-            if static_evaluation.get_or_init(|| position.value() * position.side_to_move.sign())
+            if static_evaluation
+                .get_or_init(|| position.value::<true>() * position.side_to_move.sign())
                 + move_potential
                 < alpha
             {

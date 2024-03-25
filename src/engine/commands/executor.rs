@@ -197,7 +197,7 @@ pub fn execute_do_move(mov_str: &str, position: &mut Position) {
 pub fn execute_display(position: &Position) {
     print!("{}", position.board);
     println!("{}", position.to_fen());
-    println!("Static evaluation: {}", position.value());
+    println!("Static evaluation: {}", position.value::<false>());
     println!("Chess960: {}", position.is_chess960);
     println!(
         "{} to play.",
