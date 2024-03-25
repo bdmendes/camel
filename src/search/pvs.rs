@@ -49,7 +49,7 @@ pub fn quiesce(
     let static_evaluation = if is_check {
         alpha
     } else {
-        let static_evaluation = position.value::<true>() * position.side_to_move.sign();
+        let static_evaluation = position.value::<false>() * position.side_to_move.sign();
 
         // Standing pat: captures are not forced
         alpha = alpha.max(static_evaluation);
