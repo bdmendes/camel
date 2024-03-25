@@ -80,7 +80,8 @@ impl Evaluable for Position {
                     let mobility = match piece {
                         Piece::Pawn => 0,
                         _ => {
-                            piece_attacks(*piece, square, occupancy).count_ones() as ValueScore
+                            piece_attacks(*piece, square, occupancy, *color).count_ones()
+                                as ValueScore
                                 * mobility_bonus(*piece)
                         }
                     };

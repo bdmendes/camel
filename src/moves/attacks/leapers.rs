@@ -2,6 +2,16 @@ use crate::{moves::gen::MoveDirection, position::bitboard::Bitboard};
 
 pub type LeaperAttackMap = [Bitboard; 64];
 
+pub static PAWN_ATTACKS_WHITE: LeaperAttackMap = init_leaper_attacks(&[
+    MoveDirection::NORTH + MoveDirection::WEST,
+    MoveDirection::NORTH + MoveDirection::EAST,
+]);
+
+pub static PAWN_ATTACKS_BLACK: LeaperAttackMap = init_leaper_attacks(&[
+    MoveDirection::SOUTH + MoveDirection::WEST,
+    MoveDirection::SOUTH + MoveDirection::EAST,
+]);
+
 pub static KNIGHT_ATTACKS: LeaperAttackMap = init_leaper_attacks(&[
     MoveDirection::NORTH + 2 * MoveDirection::WEST,
     MoveDirection::NORTH + 2 * MoveDirection::EAST,

@@ -1,6 +1,6 @@
 use crate::{
     moves::{
-        gen::{square_attacked_by, MoveDirection, MoveStage},
+        gen::{square_attackers, MoveDirection, MoveStage},
         Move, MoveFlag,
     },
     position::{
@@ -268,7 +268,7 @@ fn castle_range_ok(color: Color, board: Board, king_square: Square, rook_square:
 
     let mut attacked_range = Bitboard::rank_range(king_square, final_king_square);
 
-    attacked_range.all(|sq| !square_attacked_by(&board, sq, color.opposite()))
+    attacked_range.all(|sq| square_attackers::<true>(&board, sq, color.opposite()).is_empty())
 }
 
 fn king_rook_range_occupied_ok(range: Bitboard, own_color: Color, board: Board) -> bool {
