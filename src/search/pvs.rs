@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 
 const MATE_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH as ValueScore + 1;
 
-fn quiesce(
+pub fn quiesce(
     position: &Position,
     mut alpha: ValueScore,
     beta: ValueScore,

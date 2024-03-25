@@ -1,6 +1,6 @@
 use self::{constraint::SearchConstraint, table::SearchTable};
 use crate::{
-    evaluation::{Evaluable, Score},
+    evaluation::{Score, ValueScore},
     moves::gen::MoveStage,
     position::Position,
 };
@@ -63,6 +63,7 @@ fn print_iter_info(
 
 pub fn search_iter(
     position: &Position,
+    mut current_guess: ValueScore,
     depth: Depth,
     table: Arc<Mutex<SearchTable>>,
     constraint: &mut SearchConstraint,
@@ -74,7 +75,6 @@ pub fn search_iter(
     }
 
     let one_legal_move = moves.len() == 1;
-    let mut current_guess = position.value() * position.side_to_move.sign();
 
     let mut current_depth = 1;
     while constraint.pondering() || current_depth <= depth {
