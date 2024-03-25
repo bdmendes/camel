@@ -3,7 +3,7 @@ use self::{
     square::Square,
 };
 use crate::moves::{
-    gen::{checked_by, generate_moves, MoveStage},
+    gen::{generate_moves, king_square_attackers, MoveStage},
     make_move, Move,
 };
 use bitflags::bitflags;
@@ -72,7 +72,7 @@ impl Position {
     }
 
     pub fn make_move(&self, mov: Move) -> Self {
-        make_move::<true>(self, mov)
+        make_move(self, mov)
     }
 
     pub fn make_move_str(&self, mov_str: &str) -> Option<Self> {
@@ -86,6 +86,6 @@ impl Position {
     }
 
     pub fn is_check(&self) -> bool {
-        checked_by(&self.board, self.side_to_move.opposite())
+        king_square_attackers::<true>(&self.board, self.side_to_move.opposite()).is_not_empty()
     }
 }

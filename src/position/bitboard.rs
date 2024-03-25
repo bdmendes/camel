@@ -2,10 +2,25 @@ use super::{
     square::{Square, WHITE_SQUARES},
     Color,
 };
-use derive_more::{BitAnd, BitOr, Deref, DerefMut, Not};
+use derive_more::{BitAnd, BitAndAssign, BitOr, BitOrAssign, Deref, DerefMut, Not};
 use std::fmt::{Display, Formatter};
 
-#[derive(Default, Debug, Hash, PartialEq, BitOr, BitAnd, Not, Deref, DerefMut, Copy, Clone, Eq)]
+#[derive(
+    Default,
+    Debug,
+    Hash,
+    PartialEq,
+    BitAndAssign,
+    BitOrAssign,
+    BitOr,
+    BitAnd,
+    Not,
+    Deref,
+    DerefMut,
+    Copy,
+    Clone,
+    Eq,
+)]
 pub struct Bitboard(u64);
 
 impl Bitboard {

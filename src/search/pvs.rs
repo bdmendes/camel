@@ -125,7 +125,7 @@ fn pvs_recurse(
     (-score, count)
 }
 
-pub fn may_be_zugzwang(position: &Position) -> bool {
+fn may_be_zugzwang(position: &Position) -> bool {
     let pieces_bb = position.board.pieces_bb(Piece::Queen)
         | position.board.pieces_bb(Piece::Rook)
         | position.board.pieces_bb(Piece::Bishop)
@@ -265,7 +265,7 @@ fn pvs<const ROOT: bool>(
     (alpha, count)
 }
 
-pub fn search_single(
+pub fn pvs_aspiration(
     position: &Position,
     guess: ValueScore,
     depth: Depth,
@@ -340,7 +340,7 @@ mod tests {
         let table = Arc::new(Mutex::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB)));
         let mut constraint = SearchConstraint::default();
 
-        let score = search_single(&position, 0, depth, table.clone(), &mut constraint).0;
+        let score = pvs_aspiration(&position, 0, depth, table.clone(), &mut constraint).0;
         let pv = table.lock().unwrap().get_pv(&position, depth);
 
         assert!(pv.len() >= expected_moves.len());

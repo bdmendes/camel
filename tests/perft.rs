@@ -3,8 +3,8 @@ use camel::{moves::gen::perft, position::Position};
 
 fn expect_perft(fen: &str, depth: u8, nodes: u64) {
     let position = Position::from_fen(fen).unwrap();
-    assert_eq!(perft::<false>(&position, depth), nodes);
-    assert_eq!(perft::<true>(&position, depth), nodes);
+    assert_eq!(perft::<false, true>(&position, depth), nodes);
+    assert_eq!(perft::<true, true>(&position, depth), nodes);
 }
 
 #[test]

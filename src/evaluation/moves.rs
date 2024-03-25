@@ -14,9 +14,8 @@ pub fn evaluate_move(position: &Position, mov: Move) -> ValueScore {
         score += captured_piece.value() - moving_piece.value() + Piece::Queen.value();
     }
 
-    if mov.flag().is_promotion() {
-        let promoted_piece = mov.promotion_piece().unwrap();
-        score += promoted_piece.value();
+    if let Some(promotion_piece) = mov.promotion_piece() {
+        score += promotion_piece.value();
     }
 
     score += psqt_value(moving_piece, mov.to(), position.side_to_move, 0);

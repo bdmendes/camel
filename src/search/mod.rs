@@ -80,7 +80,7 @@ pub fn search_iter(
     while constraint.pondering() || current_depth <= depth {
         let time = std::time::Instant::now();
         let (score, count) =
-            pvs::search_single(position, current_guess, current_depth, table.clone(), constraint);
+            pvs::pvs_aspiration(position, current_guess, current_depth, table.clone(), constraint);
 
         if constraint.should_stop_search() {
             break;
