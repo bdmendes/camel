@@ -83,7 +83,6 @@ pub fn quiesce(
     (alpha, count)
 }
 
-#[allow(clippy::too_many_arguments)]
 fn pvs_recurse(
     position: &mut Position,
     depth: Depth,
@@ -92,20 +91,12 @@ fn pvs_recurse(
     table: Arc<Mutex<SearchTable>>,
     constraint: &mut SearchConstraint,
     do_zero_window: bool,
-    extension: Depth,
-    reduction: Depth,
 ) -> (ValueScore, usize) {
     let mut count = 0;
 
     if do_zero_window {
-        let (score, nodes) = pvs::<false>(
-            position,
-            depth.saturating_add(extension).saturating_sub(reduction).saturating_sub(1),
-            -alpha - 1,
-            -alpha,
-            table.clone(),
-            constraint,
-        );
+        let (score, nodes) =
+            pvs::<false>(position, depth, -alpha - 1, -alpha, table.clone(), constraint);
         count += nodes;
         let score = -score;
         if score <= alpha || score >= beta {
@@ -113,19 +104,12 @@ fn pvs_recurse(
         }
     }
 
-    let (score, nodes) = pvs::<false>(
-        position,
-        depth.saturating_add(extension).saturating_sub(1),
-        -beta,
-        -alpha,
-        table,
-        constraint,
-    );
+    let (score, nodes) = pvs::<false>(position, depth, -beta, -alpha, table, constraint);
     count += nodes;
     (-score, count)
 }
 
-pub fn may_be_zugzwang(position: &Position) -> bool {
+fn may_be_zugzwang(position: &Position) -> bool {
     let pawns_bb = position.board.pieces_bb(Piece::Pawn);
     let kings_bb = position.board.pieces_bb(Piece::King);
 
@@ -216,18 +200,24 @@ fn pvs<const ROOT: bool>(
 
     for (i, (mov, _)) in picker.enumerate() {
         let mut new_position = position.make_move(mov);
+        let new_depth = depth
+            .saturating_sub(1)
+            .saturating_sub(if depth > 2 && !is_check && mov.flag().is_quiet() && i > 0 {
+                1
+            } else {
+                0
+            })
+            .saturating_add(if is_check { 1 } else { 0 });
 
         constraint.visit_position(&new_position, mov.flag().is_reversible());
         let (score, nodes) = pvs_recurse(
             &mut new_position,
-            depth,
+            new_depth,
             alpha,
             beta,
             table.clone(),
             constraint,
             i > 0,
-            if is_check { 1 } else { 0 },
-            if depth > 2 && !is_check && mov.flag().is_quiet() && i > 0 { 1 } else { 0 },
         );
         constraint.leave_position();
 
