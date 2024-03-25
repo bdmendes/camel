@@ -1,6 +1,6 @@
 use crate::engine::{time::get_duration, Engine};
 use camel::{
-    evaluation::Evaluable,
+    evaluation::{Evaluable, ValueScore},
     moves::gen::{perft, MoveStage},
     position::{
         fen::{FromFen, ToFen, START_FEN},
@@ -8,6 +8,7 @@ use camel::{
     },
     search::{
         constraint::{HistoryEntry, SearchConstraint, TimeConstraint},
+        pvs::quiesce,
         search_iter,
         table::{DEFAULT_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB, MIN_TABLE_SIZE_MB},
         Depth, MAX_DEPTH,
@@ -77,8 +78,10 @@ pub fn execute_go(
 
     thread::spawn(move || {
         stop_now.store(false, Ordering::Relaxed);
+        let current_guess = quiesce(&position, ValueScore::MIN + 1, ValueScore::MAX, &constraint).0;
         search_iter(
             &position,
+            current_guess,
             depth.map_or_else(|| MAX_DEPTH, |d| d as Depth),
             table.clone(),
             &mut constraint,
@@ -155,7 +158,7 @@ pub fn execute_auto_move(seconds: u16, engine: &mut Engine) {
         ponder_mode: None,
     };
 
-    search_iter(&engine.position, MAX_DEPTH, engine.table.clone(), &mut constraint);
+    search_iter(&engine.position, 0, MAX_DEPTH, engine.table.clone(), &mut constraint);
 
     if let Some(mov) = engine.table.lock().unwrap().get_hash_move(&engine.position) {
         engine.position = engine.position.make_move(mov);
