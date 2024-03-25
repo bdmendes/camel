@@ -224,14 +224,10 @@ fn pvs<const ROOT: bool>(
         // Apply reductions and extensions accordingly. As of now,
         // we extend checks since they are forced
         // and reduce late quiet moves.
-        let new_depth = depth
-            .saturating_sub(1)
-            .saturating_sub(if depth > 2 && !is_check && mov.flag().is_quiet() && i > 0 {
-                1
-            } else {
-                0
-            })
-            .saturating_add(if is_check { 1 } else { 0 });
+        let reduction =
+            if depth > 2 && !is_check && mov.flag().is_quiet() && i > 0 { 1 } else { 0 };
+        let extension = if is_check { 1 } else { 0 };
+        let new_depth = depth.saturating_sub(1 + reduction).saturating_add(extension);
 
         let mut new_position = position.make_move(mov);
 

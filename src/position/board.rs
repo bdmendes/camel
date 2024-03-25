@@ -79,7 +79,7 @@ impl Board {
     }
 
     pub fn occupancy_bb_all(&self) -> Bitboard {
-        self.occupancy[0] | self.occupancy[1]
+        self.occupancy[1] | self.occupancy[0]
     }
 
     pub fn occupancy_bb(&self, color: Color) -> Bitboard {

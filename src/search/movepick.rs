@@ -17,7 +17,7 @@ where
 }
 
 fn find_next_max_and_swap(moves: &mut ScoredVec<Move>, index: &mut usize) -> Option<PickResult> {
-    if index >= &mut moves.len() {
+    if *index >= moves.len() {
         return None;
     }
 
@@ -113,7 +113,7 @@ impl std::iter::Iterator for MovePicker<false> {
                 let killers =
                     self.table.as_ref().unwrap().lock().unwrap().get_killers(self.depth.unwrap());
                 self.moves = decorate_moves_with_score(&all_non_capture_moves, |mov| {
-                    if killers[0] == Some(mov) || killers[1] == Some(mov) {
+                    if killers[1] == Some(mov) || killers[0] == Some(mov) {
                         Piece::Queen.value()
                     } else {
                         evaluate_move(&self.position, mov)
