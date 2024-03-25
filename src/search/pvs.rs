@@ -126,12 +126,12 @@ fn pvs_recurse(
 }
 
 pub fn may_be_zugzwang(position: &Position) -> bool {
-    let pieces_bb = position.board.pieces_bb(Piece::Queen)
-        | position.board.pieces_bb(Piece::Rook)
-        | position.board.pieces_bb(Piece::Bishop)
-        | position.board.pieces_bb(Piece::Knight);
-    let white_pieces_bb = pieces_bb & position.board.occupancy_bb(Color::White);
-    let black_pieces_bb = pieces_bb & position.board.occupancy_bb(Color::Black);
+    let pawns_bb = position.board.pieces_bb(Piece::Pawn);
+    let kings_bb = position.board.pieces_bb(Piece::King);
+
+    let white_pieces_bb = position.board.occupancy_bb(Color::White) & !pawns_bb & !kings_bb;
+    let black_pieces_bb = position.board.occupancy_bb(Color::Black) & !pawns_bb & !kings_bb;
+
     white_pieces_bb.is_empty() || black_pieces_bb.is_empty()
 }
 
