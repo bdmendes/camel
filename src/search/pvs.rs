@@ -8,7 +8,10 @@ use crate::{
     evaluation::{position::MAX_POSITIONAL_GAIN, Evaluable, Score, ValueScore},
     position::{board::Piece, Color, Position},
 };
-use std::sync::{Arc, Mutex};
+use std::{
+    cell::OnceCell,
+    sync::{Arc, Mutex},
+};
 
 const MATE_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH as ValueScore + 1;
 
@@ -195,11 +198,32 @@ fn pvs<const ROOT: bool>(
         return (score, count);
     }
 
+    // The static evaluation is useful for pruning techniques.
+    let static_evaluation = OnceCell::new();
+
     let original_alpha = alpha;
     let mut best_move = picker.peek().map(|(mov, _)| *mov).unwrap();
 
     for (i, (mov, _)) in picker.enumerate() {
-        let mut new_position = position.make_move(mov);
+        // Extended futility pruning: discard moves without potential
+        if depth <= 2 {
+            let move_potential = MAX_POSITIONAL_GAIN * depth as ValueScore
+                + mov
+                    .flag()
+                    .is_capture()
+                    .then(|| position.board.piece_at(mov.to()).unwrap_or(Piece::Pawn).value())
+                    .unwrap_or(0);
+            if static_evaluation.get_or_init(|| position.value() * position.side_to_move.sign())
+                + move_potential
+                < alpha
+            {
+                continue;
+            }
+        }
+
+        // Apply reductions and extensions accordingly. As of now,
+        // we extend checks since they are forced
+        // and reduce late quiet moves.
         let new_depth = depth
             .saturating_sub(1)
             .saturating_sub(if depth > 2 && !is_check && mov.flag().is_quiet() && i > 0 {
@@ -208,6 +232,8 @@ fn pvs<const ROOT: bool>(
                 0
             })
             .saturating_add(if is_check { 1 } else { 0 });
+
+        let mut new_position = position.make_move(mov);
 
         constraint.visit_position(&new_position, mov.flag().is_reversible());
         let (score, nodes) = pvs_recurse(

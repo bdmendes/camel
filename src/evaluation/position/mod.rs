@@ -13,7 +13,7 @@ mod king;
 mod pawns;
 mod rooks;
 
-pub const MAX_POSITIONAL_GAIN: ValueScore = 300;
+pub const MAX_POSITIONAL_GAIN: ValueScore = 200;
 
 fn midgame_ratio(position: &Position) -> u8 {
     Piece::list().iter().fold(0, |acc, piece| {
