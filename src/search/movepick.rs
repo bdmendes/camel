@@ -114,7 +114,7 @@ impl std::iter::Iterator for MovePicker<false> {
                     self.table.as_ref().unwrap().lock().unwrap().get_killers(self.depth.unwrap());
                 self.moves = decorate_moves_with_score(&all_non_capture_moves, |mov| {
                     if killers[0] == Some(mov) || killers[1] == Some(mov) {
-                        Piece::Queen.value()
+                        Piece::Queen.value::<false>()
                     } else {
                         evaluate_move(&self.position, mov)
                     }

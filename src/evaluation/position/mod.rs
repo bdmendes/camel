@@ -14,6 +14,8 @@ mod pawns;
 mod rooks;
 
 pub const MAX_POSITIONAL_GAIN: ValueScore = 200;
+pub const POSITIONAL_LAZY_DIFF: ValueScore = 150;
+pub const MAX_POSITIONAL_GAIN_LAZY: ValueScore = MAX_POSITIONAL_GAIN + POSITIONAL_LAZY_DIFF;
 
 fn midgame_ratio(position: &Position) -> u8 {
     Piece::list().iter().fold(0, |acc, piece| {
@@ -62,7 +64,7 @@ fn insufficient_material(position: &Position) -> bool {
 }
 
 impl Evaluable for Position {
-    fn value(&self) -> ValueScore {
+    fn value<const LAZY: bool>(&self) -> ValueScore {
         if insufficient_material(self) {
             return 0;
         }
@@ -86,13 +88,17 @@ impl Evaluable for Position {
                     };
                     acc + psqt_value(*piece, square, *color, endgame_ratio) + mobility
                 });
-                piece_score += (positional_bonus + bb.count_ones() as ValueScore * piece.value())
+                piece_score += (positional_bonus
+                    + bb.count_ones() as ValueScore * piece.value::<LAZY>())
                     * color.sign();
             }
             acc + piece_score
         });
 
-        // Evaluate pieces
+        if LAZY {
+            return base_score;
+        }
+
         let pawns_score = evaluate_pawn_structure(self);
         let king_score = evaluate_king_safety(self, endgame_ratio);
         let rooks_score = evaluate_rooks(self);
@@ -115,14 +121,14 @@ mod tests {
     #[test]
     fn eval_starts_zero() {
         let position = Position::from_fen(START_FEN).unwrap();
-        assert_eq!(position.value(), 0);
+        assert_eq!(position.value::<false>(), 0);
     }
 
     #[test]
     fn eval_passed_extra_pawn_midgame() {
         let position =
             Position::from_fen("3r3k/1p1qQ1pp/p2P1n2/2p5/7B/P7/1P3PPP/4R1K1 w - - 5 26").unwrap();
-        let evaluation = position.value();
+        let evaluation = position.value::<false>();
         assert!(evaluation > 100 && evaluation < 300);
     }
 
@@ -132,8 +138,8 @@ mod tests {
             Position::from_fen("8/8/8/3K4/8/4q3/k7/8 b - - 6 55").unwrap();
         let king_at_corner_position =
             Position::from_fen("8/1K6/8/2q5/8/1k6/8/8 w - - 11 58").unwrap();
-        let king_at_center_evaluation = king_at_center_position.value();
-        let king_at_corner_evaluation = king_at_corner_position.value();
+        let king_at_center_evaluation = king_at_center_position.value::<false>();
+        let king_at_corner_evaluation = king_at_corner_position.value::<false>();
         assert!(king_at_center_evaluation > king_at_corner_evaluation);
     }
 }
