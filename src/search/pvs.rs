@@ -8,11 +8,14 @@ use crate::{
     evaluation::{position::MAX_POSITIONAL_GAIN, Evaluable, Score, ValueScore},
     position::{board::Piece, Color, Position},
 };
-use std::sync::{Arc, Mutex};
+use std::{
+    cell::OnceCell,
+    sync::{Arc, Mutex},
+};
 
 const MATE_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH as ValueScore + 1;
 
-fn quiesce(
+pub fn quiesce(
     position: &Position,
     mut alpha: ValueScore,
     beta: ValueScore,
@@ -83,7 +86,6 @@ fn quiesce(
     (alpha, count)
 }
 
-#[allow(clippy::too_many_arguments)]
 fn pvs_recurse(
     position: &mut Position,
     depth: Depth,
@@ -92,20 +94,12 @@ fn pvs_recurse(
     table: Arc<Mutex<SearchTable>>,
     constraint: &mut SearchConstraint,
     do_zero_window: bool,
-    extension: Depth,
-    reduction: Depth,
 ) -> (ValueScore, usize) {
     let mut count = 0;
 
     if do_zero_window {
-        let (score, nodes) = pvs::<false>(
-            position,
-            depth.saturating_add(extension).saturating_sub(reduction).saturating_sub(1),
-            -alpha - 1,
-            -alpha,
-            table.clone(),
-            constraint,
-        );
+        let (score, nodes) =
+            pvs::<false>(position, depth, -alpha - 1, -alpha, table.clone(), constraint);
         count += nodes;
         let score = -score;
         if score <= alpha || score >= beta {
@@ -113,25 +107,18 @@ fn pvs_recurse(
         }
     }
 
-    let (score, nodes) = pvs::<false>(
-        position,
-        depth.saturating_add(extension).saturating_sub(1),
-        -beta,
-        -alpha,
-        table,
-        constraint,
-    );
+    let (score, nodes) = pvs::<false>(position, depth, -beta, -alpha, table, constraint);
     count += nodes;
     (-score, count)
 }
 
 fn may_be_zugzwang(position: &Position) -> bool {
-    let pieces_bb = position.board.pieces_bb(Piece::Queen)
-        | position.board.pieces_bb(Piece::Rook)
-        | position.board.pieces_bb(Piece::Bishop)
-        | position.board.pieces_bb(Piece::Knight);
-    let white_pieces_bb = pieces_bb & position.board.occupancy_bb(Color::White);
-    let black_pieces_bb = pieces_bb & position.board.occupancy_bb(Color::Black);
+    let pawns_bb = position.board.pieces_bb(Piece::Pawn);
+    let kings_bb = position.board.pieces_bb(Piece::King);
+
+    let white_pieces_bb = position.board.occupancy_bb(Color::White) & !pawns_bb & !kings_bb;
+    let black_pieces_bb = position.board.occupancy_bb(Color::Black) & !pawns_bb & !kings_bb;
+
     white_pieces_bb.is_empty() || black_pieces_bb.is_empty()
 }
 
@@ -211,23 +198,52 @@ fn pvs<const ROOT: bool>(
         return (score, count);
     }
 
+    // The static evaluation is useful for pruning techniques.
+    let static_evaluation = OnceCell::new();
+
     let original_alpha = alpha;
     let mut best_move = picker.peek().map(|(mov, _)| *mov).unwrap();
 
     for (i, (mov, _)) in picker.enumerate() {
+        // Extended futility pruning: discard moves without potential
+        if depth <= 2 {
+            let move_potential = MAX_POSITIONAL_GAIN * depth as ValueScore
+                + mov
+                    .flag()
+                    .is_capture()
+                    .then(|| position.board.piece_at(mov.to()).unwrap_or(Piece::Pawn).value())
+                    .unwrap_or(0);
+            if static_evaluation.get_or_init(|| position.value() * position.side_to_move.sign())
+                + move_potential
+                < alpha
+            {
+                continue;
+            }
+        }
+
+        // Apply reductions and extensions accordingly. As of now,
+        // we extend checks since they are forced
+        // and reduce late quiet moves.
+        let new_depth = depth
+            .saturating_sub(1)
+            .saturating_sub(if depth > 2 && !is_check && mov.flag().is_quiet() && i > 0 {
+                1
+            } else {
+                0
+            })
+            .saturating_add(if is_check { 1 } else { 0 });
+
         let mut new_position = position.make_move(mov);
 
         constraint.visit_position(&new_position, mov.flag().is_reversible());
         let (score, nodes) = pvs_recurse(
             &mut new_position,
-            depth,
+            new_depth,
             alpha,
             beta,
             table.clone(),
             constraint,
             i > 0,
-            if is_check { 1 } else { 0 },
-            if depth > 2 && !is_check && mov.flag().is_quiet() && i > 0 { 1 } else { 0 },
         );
         constraint.leave_position();
 
