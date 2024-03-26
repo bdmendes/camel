@@ -67,38 +67,32 @@ impl Evaluable for Position {
             return 0;
         }
 
-        let endgame_ratio = 255 - midgame_ratio(self);
+        let midgame_ratio = midgame_ratio(self);
+        let endgame_ratio = 255 - midgame_ratio;
         let occupancy = self.board.occupancy_bb_all();
 
-        let base_score = Color::list()
-            .iter()
-            .map(|color| {
-                let material_score = Piece::list()
-                    .iter()
-                    .map(|piece| {
-                        piece.value()
-                            * self.board.pieces_bb_color(*piece, *color).count_ones() as ValueScore
-                    })
-                    .sum::<ValueScore>();
+        let base_score = Piece::list().iter().fold(0, |acc, piece| {
+            let piece_value = piece.value();
+            let piece_mobility_bonus = mobility_bonus(*piece);
+            let pieces_bb = self.board.pieces_bb(*piece);
 
-                let positional_score = self
-                    .board
-                    .occupancy_bb(*color)
-                    .map(|square| {
-                        let piece = self.board.piece_at(square).unwrap();
-                        psqt_value(piece, square, *color, endgame_ratio)
-                            + piece_attacks(piece, square, occupancy, *color).count_ones()
+            acc + Color::list().iter().fold(0, |acc, color| {
+                let bb = pieces_bb & self.board.occupancy_bb(*color);
+
+                let material_score = bb.count_ones() as ValueScore * piece_value;
+                let positional_score = bb.into_iter().fold(0, |acc, square| {
+                    acc + psqt_value(*piece, square, *color, endgame_ratio)
+                        + piece_mobility_bonus
+                            * piece_attacks(*piece, square, occupancy, *color).count_ones()
                                 as ValueScore
-                                * mobility_bonus(piece)
-                    })
-                    .sum::<ValueScore>();
+                });
 
-                color.sign() * (material_score + positional_score)
+                acc + (positional_score + material_score) * color.sign()
             })
-            .sum::<ValueScore>();
+        });
 
         let pawns_score = evaluate_pawn_structure(self);
-        let king_score = evaluate_king_safety(self, endgame_ratio);
+        let king_score = evaluate_king_safety(self, midgame_ratio);
         let rooks_score = evaluate_rooks(self);
         let bishops_score = evaluate_bishops(self);
 
