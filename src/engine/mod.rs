@@ -75,6 +75,8 @@ pub fn uci_loop() {
         pondering: Arc::new(AtomicBool::new(false)),
     };
 
+    println!("Camel {} by Bruno Mendes", env!("CARGO_PKG_VERSION"));
+
     loop {
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).unwrap();
