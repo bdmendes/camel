@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 readonly RUNNER=lichess-bot
-readonly REPO_URL=git@github.com:lichess-bot-devs/lichess-bot.git
+readonly REPO_URL=https://github.com/lichess-bot-devs/lichess-bot.git
 readonly INSTALL_PATH=./$RUNNER
 readonly CONFIG_PATH=./config.yml
 readonly LOG_PATH=./lichess-bot.log
@@ -15,7 +15,7 @@ fi
 # Clone lichess-bot if directory does not exist
 if [ ! -d "$INSTALL_PATH" ]; then
     echo "$RUNNER not found, cloning"
-    git clone $REPO_URL --single-branch $INSTALL_PATH &>/dev/null || exit 1
+    git clone $REPO_URL --single-branch $INSTALL_PATH || exit 1
 fi
 
 # Compile the engine and copy it to the lichess-bot directory
