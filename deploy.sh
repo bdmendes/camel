@@ -47,6 +47,7 @@ touch $LOG_PATH
 # Run the bot
 # Loop to keep the bot alive in case of network issues.
 while true
+do
     python3 lichess-bot.py -v --logfile $LOG_PATH --config $CONFIG_PATH
     sleep 10
 done
