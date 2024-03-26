@@ -9,13 +9,17 @@
 
 [![lichess-bullet](https://lichess-shield.vercel.app/api?username=camel_bot&format=bullet)](https://lichess.org/@/camel_bot/perf/bullet)
 [![lichess-blitz](https://lichess-shield.vercel.app/api?username=camel_bot&format=blitz)](https://lichess.org/@/camel_bot/perf/blitz)
-[![lichess-rapid](https://lichess-shield.vercel.app/api?username=camel_bot&format=rapid)](https://lichess.org/@/camel_bot/perf/rapid)
+[![ccrl-blitz](https://img.shields.io/badge/CCRL_Blitz-2037-red)](https://computerchess.org.uk/ccrl/404/)
+[![mcerl](https://img.shields.io/badge/MCERL-2208-red)](https://www.chessengeria.eu/mcerl)
+[![cedr](https://img.shields.io/badge/CEDR-2191-red)](https://chessengines.blogspot.com/p/rating-jcer.html)
 
 </div>
 
 ## Overview
 
 Camel is a chess and chess960 engine written from scratch in Rust. It aims to achieve a high level of play, while also being easy to understand and modify. It is primarily meant to be used within a GUI compatible with the [UCI protocol](https://backscattering.de/chess/uci/), but may also be operated in a CLI.
+
+Camel participates in various community chess engine competitions, such as the [CCRL](https://computerchess.org.uk/ccrl/404/). It may also be seen playing on [Lichess](https://lichess.org/@/camel_bot/).
 
 ## Compilation
 
@@ -96,14 +100,15 @@ Dive into the [chess programming wiki](https://www.chessprogramming.org/Main_Pag
 
 ## What can I do with it?
 
-Camel is licensed under the [GNU General Public License v3.0](./LICENSE.md). You can use it for any purpose, including commercial use, provided you always include the license and the source code. Feel free to fork the repository and propose your own changes.
+Camel is licensed under the [GNU General Public License v3.0](./LICENSE.md). You can use it for any purpose, including commercial use, provided you always include the license and the source code. Feel free to fork the repository and propose your changes.
 
-## Credits
+## Acknowledgments
 
-- [@biromiro](https://github.com/biromiro): for designing the cute camel logo.
 - [Chess Programming Wiki](https://www.chessprogramming.org/Main_Page): for the great explanations on the state of the art.
+- [CCRL](https://computerchess.org.uk/ccrl/404/): for kindly including the engine in their competitions.
 - [Lichess](https://lichess.org/): for the friendly bot API.
 - [Fast-Chess](https://github.com/Disservin/fast-chess): for a lightweight, dependency-free way to set up engine matches.
+- [@biromiro](https://github.com/biromiro): for designing the cute camel logo.
 
 ## Why Camel?
 
