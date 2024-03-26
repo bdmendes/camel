@@ -42,7 +42,7 @@ pub fn get_duration(
     }
 
     if let Some(our_increment) = our_increment {
-        let new_move_time = standard_move_time + our_increment;
+        let new_move_time = standard_move_time + our_increment.mul_f32(0.9);
         if new_move_time < our_duration {
             return new_move_time;
         }
