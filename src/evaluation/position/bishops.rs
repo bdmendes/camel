@@ -10,8 +10,6 @@ pub fn evaluate_bishops(position: &Position) -> ValueScore {
 
     for color in Color::list() {
         let our_bishops = position.board.pieces_bb_color(Piece::Bishop, *color);
-
-        // Bishop pair
         if our_bishops.count_ones() > 1 {
             score += BISHOP_PAIR_BONUS * color.sign();
         }

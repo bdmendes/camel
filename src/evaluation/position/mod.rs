@@ -69,33 +69,30 @@ impl Evaluable for Position {
 
         let midgame_ratio = midgame_ratio(self);
         let endgame_ratio = 255 - midgame_ratio;
-
         let occupancy = self.board.occupancy_bb_all();
 
         let base_score = Piece::list().iter().fold(0, |acc, piece| {
-            let mut piece_score = 0;
-            for color in Color::list() {
-                let bb = self.board.pieces_bb(*piece) & self.board.occupancy_bb(*color);
-                let positional_bonus = bb.into_iter().fold(0, |acc, square| {
-                    let mobility = match piece {
-                        Piece::Pawn => 0,
-                        _ => {
-                            piece_attacks(*piece, square, occupancy, *color).count_ones()
+            let piece_value = piece.value();
+            let piece_mobility_bonus = mobility_bonus(*piece);
+            let pieces_bb = self.board.pieces_bb(*piece);
+
+            acc + Color::list().iter().fold(0, |acc, color| {
+                let bb = pieces_bb & self.board.occupancy_bb(*color);
+
+                let material_score = bb.count_ones() as ValueScore * piece_value;
+                let positional_score = bb.into_iter().fold(0, |acc, square| {
+                    acc + psqt_value(*piece, square, *color, endgame_ratio)
+                        + piece_mobility_bonus
+                            * piece_attacks(*piece, square, occupancy, *color).count_ones()
                                 as ValueScore
-                                * mobility_bonus(*piece)
-                        }
-                    };
-                    acc + psqt_value(*piece, square, *color, endgame_ratio) + mobility
                 });
-                piece_score += (positional_bonus + bb.count_ones() as ValueScore * piece.value())
-                    * color.sign();
-            }
-            acc + piece_score
+
+                acc + (positional_score + material_score) * color.sign()
+            })
         });
 
-        // Evaluate pieces
         let pawns_score = evaluate_pawn_structure(self);
-        let king_score = evaluate_king_safety(self, endgame_ratio);
+        let king_score = evaluate_king_safety(self, midgame_ratio);
         let rooks_score = evaluate_rooks(self);
         let bishops_score = evaluate_bishops(self);
 
