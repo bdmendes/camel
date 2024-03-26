@@ -11,17 +11,17 @@ readonly BOOK_FORMAT=epd
 readonly THREADS=4
 readonly BUILD_PATH=./target/release/$ENGINE_NAME
 readonly MESSAGE_FILE=message.txt
-readonly ROUNDS=400
-readonly TIME_CONTROL=5+0.2
 readonly ELO_THRESHOLD=25
-readonly UPSTREAM=${1:-master} # Default to master if no argument is given
+readonly UPSTREAM=${1:-"master"}
+readonly ROUNDS=${2:-"400"}
+readonly TIME_CONTROL=${3:-"5+0.2"}
 
 function run_gauntlet {
     # (rounds, time_control)
     local rounds=$1
     local time_control=$2
 
-    echo "Running gauntlet with $rounds rounds and $time_control time control"
+    echo "Running gauntlet with $rounds rounds and $time_control time control against $UPSTREAM"
 
     # Run the gauntlet and store output in temp file
     OUTPUT_FILE=$(mktemp)
@@ -114,4 +114,4 @@ cd $INSTALL_PATH || exit 1
 # Truncate message file
 echo -n "" >$MESSAGE_FILE
 
-run_gauntlet $ROUNDS $TIME_CONTROL
+run_gauntlet "$ROUNDS" "$TIME_CONTROL"
