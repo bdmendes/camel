@@ -2,7 +2,7 @@ use self::{
     bishops::evaluate_bishops, king::evaluate_king_safety, pawns::evaluate_pawn_structure,
     rooks::evaluate_rooks,
 };
-use super::{psqt::psqt_value, Evaluable, ValueScore};
+use super::{Evaluable, ValueScore};
 use crate::{
     moves::gen::piece_attacks,
     position::{board::Piece, Color, Position},
@@ -68,7 +68,6 @@ impl Evaluable for Position {
         }
 
         let midgame_ratio = midgame_ratio(self);
-        let endgame_ratio = 255 - midgame_ratio;
         let occupancy = self.board.occupancy_bb_all();
 
         let base_score = Piece::list().iter().fold(0, |acc, piece| {
@@ -81,10 +80,9 @@ impl Evaluable for Position {
 
                 let material_score = bb.count_ones() as ValueScore * piece_value;
                 let positional_score = bb.into_iter().fold(0, |acc, square| {
-                    acc + psqt_value(*piece, square, *color, endgame_ratio)
-                        + piece_mobility_bonus
-                            * piece_attacks(*piece, square, occupancy, *color).count_ones()
-                                as ValueScore
+                    acc + piece_mobility_bonus
+                        * piece_attacks(*piece, square, occupancy, *color).count_ones()
+                            as ValueScore
                 });
 
                 acc + (positional_score + material_score) * color.sign()
