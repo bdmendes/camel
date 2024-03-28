@@ -10,7 +10,8 @@ use std::{
 };
 
 pub mod constraint;
-mod movepick;
+pub mod history;
+pub mod movepick;
 pub mod pvs;
 pub mod table;
 
@@ -61,12 +62,12 @@ fn print_iter_info(
     println!();
 }
 
-pub fn search_iter(
+pub fn search_iterative_deepening_multithread(
     position: &Position,
     mut current_guess: ValueScore,
     depth: Depth,
     table: Arc<Mutex<SearchTable>>,
-    constraint: &mut SearchConstraint,
+    constraint: &SearchConstraint,
 ) {
     let moves = position.moves(MoveStage::All);
 
@@ -86,6 +87,17 @@ pub fn search_iter(
             table.clone(),
             constraint,
         );
+
+        // std::thread::spawn(|| {
+        //     let position = *position;
+        //     pvs::pvs_aspiration::<0>(
+        //         &position,
+        //         current_guess,
+        //         current_depth,
+        //         table.clone(),
+        //         constraint,
+        //     )
+        // });
 
         if constraint.should_stop_search() {
             break;

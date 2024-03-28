@@ -5,7 +5,7 @@ use camel::{
         Position,
     },
     search::{
-        constraint::HistoryEntry,
+        history::HistoryEntry,
         table::{SearchTable, DEFAULT_TABLE_SIZE_MB},
     },
 };

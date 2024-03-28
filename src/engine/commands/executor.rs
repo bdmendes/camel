@@ -7,9 +7,10 @@ use camel::{
         Color, Position,
     },
     search::{
-        constraint::{HistoryEntry, SearchConstraint, TimeConstraint},
+        constraint::{SearchConstraint, TimeConstraint},
+        history::HistoryEntry,
         pvs::quiesce,
-        search_iter,
+        search_iterative_deepening_multithread,
         table::{DEFAULT_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB, MIN_TABLE_SIZE_MB},
         Depth, MAX_DEPTH,
     },
@@ -69,7 +70,7 @@ pub fn execute_go(
     let table = engine.table.clone();
 
     let mut constraint = SearchConstraint {
-        branch_history: engine.game_history.clone(),
+        game_history: engine.game_history.clone(),
         time_constraint: calc_move_time
             .map(|t| TimeConstraint { initial_instant: std::time::Instant::now(), move_time: t }),
         stop_now: Some(stop_now.clone()),
@@ -79,7 +80,7 @@ pub fn execute_go(
     thread::spawn(move || {
         stop_now.store(false, Ordering::Relaxed);
         let current_guess = quiesce(&position, ValueScore::MIN + 1, ValueScore::MAX, &constraint).0;
-        search_iter(
+        search_iterative_deepening_multithread(
             &position,
             current_guess,
             depth.map_or_else(|| MAX_DEPTH, |d| d as Depth),
@@ -149,7 +150,7 @@ pub fn execute_auto_move(seconds: u16, engine: &mut Engine) {
     println!("The engine is thinking...");
 
     let mut constraint = SearchConstraint {
-        branch_history: engine.game_history.clone(),
+        game_history: engine.game_history.clone(),
         time_constraint: Some(TimeConstraint {
             initial_instant: std::time::Instant::now(),
             move_time: Duration::from_secs(seconds.into()),
@@ -158,7 +159,13 @@ pub fn execute_auto_move(seconds: u16, engine: &mut Engine) {
         ponder_mode: None,
     };
 
-    search_iter(&engine.position, 0, MAX_DEPTH, engine.table.clone(), &mut constraint);
+    search_iterative_deepening_multithread(
+        &engine.position,
+        0,
+        MAX_DEPTH,
+        engine.table.clone(),
+        &mut constraint,
+    );
 
     if let Some(mov) = engine.table.lock().unwrap().get_hash_move(&engine.position) {
         engine.position = engine.position.make_move(mov);

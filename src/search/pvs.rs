@@ -1,5 +1,6 @@
 use super::{
     constraint::SearchConstraint,
+    history::BranchHistory,
     movepick::MovePicker,
     table::{SearchTable, TableEntry, TableScore},
     Depth, MAX_DEPTH,
@@ -92,7 +93,8 @@ fn pvs_recurse<const RANDOM_FACTOR: ValueScore>(
     alpha: ValueScore,
     beta: ValueScore,
     table: Arc<Mutex<SearchTable>>,
-    constraint: &mut SearchConstraint,
+    constraint: &SearchConstraint,
+    history: &mut BranchHistory,
     do_zero_window: bool,
 ) -> (ValueScore, usize) {
     let mut count = 0;
@@ -105,6 +107,7 @@ fn pvs_recurse<const RANDOM_FACTOR: ValueScore>(
             -alpha,
             table.clone(),
             constraint,
+            history,
         );
         count += nodes;
         let score = -score;
@@ -114,7 +117,7 @@ fn pvs_recurse<const RANDOM_FACTOR: ValueScore>(
     }
 
     let (score, nodes) =
-        pvs::<false, RANDOM_FACTOR>(position, depth, -beta, -alpha, table, constraint);
+        pvs::<false, RANDOM_FACTOR>(position, depth, -beta, -alpha, table, constraint, history);
     count += nodes;
     (-score, count)
 }
@@ -135,13 +138,14 @@ fn pvs<const ROOT: bool, const RANDOM_FACTOR: ValueScore>(
     mut alpha: ValueScore,
     mut beta: ValueScore,
     table: Arc<Mutex<SearchTable>>,
-    constraint: &mut SearchConstraint,
+    constraint: &SearchConstraint,
+    history: &mut BranchHistory,
 ) -> (ValueScore, usize) {
     if ROOT {
         table.lock().unwrap().prepare_for_new_search(position.fullmove_number);
     }
 
-    let repeated_times = constraint.repeated(position);
+    let repeated_times = history.repeated(position);
     let twofold_repetition = repeated_times >= 2;
     let threefold_repetition = repeated_times >= 3;
 
@@ -192,6 +196,7 @@ fn pvs<const ROOT: bool, const RANDOM_FACTOR: ValueScore>(
             -alpha,
             table.clone(),
             constraint,
+            history,
         );
         position.side_to_move = position.side_to_move.opposite();
 
@@ -245,7 +250,7 @@ fn pvs<const ROOT: bool, const RANDOM_FACTOR: ValueScore>(
 
         let mut new_position = position.make_move(mov);
 
-        constraint.visit_position(&new_position, mov.flag().is_reversible());
+        history.visit_position(&new_position, mov.flag().is_reversible());
         let (score, nodes) = pvs_recurse::<RANDOM_FACTOR>(
             &mut new_position,
             new_depth,
@@ -253,9 +258,10 @@ fn pvs<const ROOT: bool, const RANDOM_FACTOR: ValueScore>(
             beta,
             table.clone(),
             constraint,
+            history,
             i > 0,
         );
-        constraint.leave_position();
+        history.leave_position();
 
         count += nodes;
 
@@ -296,7 +302,7 @@ pub fn pvs_aspiration<const RANDOM_FACTOR: ValueScore>(
     guess: ValueScore,
     depth: Depth,
     table: Arc<Mutex<SearchTable>>,
-    constraint: &mut SearchConstraint,
+    constraint: &SearchConstraint,
 ) -> (Score, usize) {
     let depth = depth.min(MAX_DEPTH);
     let mut position = *position;
@@ -315,6 +321,7 @@ pub fn pvs_aspiration<const RANDOM_FACTOR: ValueScore>(
             upper_bound,
             table.clone(),
             constraint,
+            &mut BranchHistory(constraint.game_history.clone()),
         );
         all_count += count;
 
