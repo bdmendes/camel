@@ -1,10 +1,14 @@
 use std::{
-    sync::{atomic::AtomicBool, Arc},
+    sync::{
+        atomic::{AtomicBool, AtomicU16},
+        Arc,
+    },
     time::{Duration, Instant},
 };
 
 use super::history::HistoryEntry;
 
+#[derive(Copy, Clone)]
 pub struct TimeConstraint {
     pub initial_instant: Instant,
     pub move_time: Duration,
@@ -12,27 +16,42 @@ pub struct TimeConstraint {
 
 pub struct SearchConstraint {
     pub time_constraint: Option<TimeConstraint>,
-    pub stop_now: Option<Arc<AtomicBool>>,
+    pub global_stop: Option<Arc<AtomicBool>>,
+    pub threads_stop: Option<Arc<AtomicBool>>,
     pub ponder_mode: Option<Arc<AtomicBool>>,
+    pub number_threads: Option<Arc<AtomicU16>>,
     pub game_history: Vec<HistoryEntry>,
 }
 
 impl Default for SearchConstraint {
     fn default() -> Self {
-        Self { time_constraint: None, stop_now: None, ponder_mode: None, game_history: vec![] }
+        Self {
+            time_constraint: None,
+            global_stop: None,
+            threads_stop: None,
+            ponder_mode: None,
+            number_threads: None,
+            game_history: vec![],
+        }
     }
 }
 
 impl SearchConstraint {
     pub fn should_stop_search(&self) -> bool {
+        if let Some(threads_stop) = &self.threads_stop {
+            if threads_stop.load(std::sync::atomic::Ordering::Relaxed) {
+                return true;
+            }
+        }
+
         if let Some(ponder_mode) = &self.ponder_mode {
             if ponder_mode.load(std::sync::atomic::Ordering::Relaxed) {
                 return false;
             }
         }
 
-        if let Some(stop_now) = &self.stop_now {
-            if stop_now.load(std::sync::atomic::Ordering::Relaxed) {
+        if let Some(global_stop) = &self.global_stop {
+            if global_stop.load(std::sync::atomic::Ordering::Relaxed) {
                 return true;
             }
         }
@@ -75,8 +94,10 @@ mod tests {
                 initial_instant: Instant::now(),
                 move_time: Duration::from_millis(100),
             }),
-            stop_now: None,
+            global_stop: None,
+            threads_stop: None,
             ponder_mode: None,
+            number_threads: None,
             game_history: vec![],
         };
 
@@ -99,8 +120,10 @@ mod tests {
                 initial_instant: Instant::now(),
                 move_time: Duration::from_millis(100),
             }),
-            stop_now: Some(stop_now.clone()),
+            global_stop: Some(stop_now.clone()),
+            threads_stop: None,
             ponder_mode: None,
+            number_threads: None,
             game_history: vec![],
         };
 

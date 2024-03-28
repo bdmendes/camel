@@ -6,7 +6,7 @@ use crate::{
     moves::{gen::MoveStage, Move},
     position::{board::Piece, Position},
 };
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 type ScoredVec<Move> = Vec<(Move, ValueScore)>;
 type PickResult = (Move, ValueScore);
@@ -16,7 +16,7 @@ pub struct MovePicker<const QUIESCE: bool> {
     moves: ScoredVec<Move>,
     stage: MoveStage,
     position: Position,
-    table: Option<Arc<Mutex<SearchTable>>>,
+    table: Option<Arc<RwLock<SearchTable>>>,
     depth: Option<Depth>,
     random_factor: ValueScore,
 }
@@ -51,12 +51,12 @@ impl std::iter::Iterator for MovePicker<true> {
 impl MovePicker<false> {
     pub fn new(
         position: &Position,
-        table: Arc<Mutex<SearchTable>>,
+        table: Arc<RwLock<SearchTable>>,
         depth: Depth,
         random_factor: ValueScore,
     ) -> Self {
         let mut moves = ScoredVec::with_capacity(1);
-        if let Some(hash_move) = table.lock().unwrap().get_hash_move(position) {
+        if let Some(hash_move) = table.read().unwrap().get_hash_move(position) {
             moves.push((hash_move, ValueScore::MAX));
         }
 
@@ -103,7 +103,7 @@ impl std::iter::Iterator for MovePicker<false> {
                 let all_non_capture_moves = self.position.moves(MoveStage::NonCaptures);
 
                 let killers =
-                    self.table.as_ref().unwrap().lock().unwrap().get_killers(self.depth.unwrap());
+                    self.table.as_ref().unwrap().read().unwrap().get_killers(self.depth.unwrap());
                 self.moves = decorate_moves_with_score(&all_non_capture_moves, |mov| {
                     if killers[1] == Some(mov) || killers[0] == Some(mov) {
                         Piece::Queen.value()

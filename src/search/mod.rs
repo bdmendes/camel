@@ -5,7 +5,7 @@ use crate::{
     position::Position,
 };
 use std::{
-    sync::{Arc, Mutex},
+    sync::{atomic::Ordering, Arc, RwLock},
     time::Duration,
 };
 
@@ -18,6 +18,8 @@ pub mod table;
 pub type Depth = u8;
 
 pub const MAX_DEPTH: Depth = 50;
+
+const EVAL_THREADS_RANDOM_FACTOR: ValueScore = 1000;
 
 fn print_iter_info(
     position: &Position,
@@ -66,7 +68,7 @@ pub fn search_iterative_deepening_multithread(
     position: &Position,
     mut current_guess: ValueScore,
     depth: Depth,
-    table: Arc<Mutex<SearchTable>>,
+    table: Arc<RwLock<SearchTable>>,
     constraint: &SearchConstraint,
 ) {
     let moves = position.moves(MoveStage::All);
@@ -76,28 +78,60 @@ pub fn search_iterative_deepening_multithread(
     }
 
     let one_legal_move = moves.len() == 1;
+    let number_threads = constraint
+        .number_threads
+        .as_ref()
+        .map(|n| n.load(std::sync::atomic::Ordering::Relaxed))
+        .unwrap_or(1);
 
     let mut current_depth = 1;
     while constraint.pondering() || current_depth <= depth {
         let time = std::time::Instant::now();
+
+        // Start helper threads.
+        // These will be terminated after the main thread exits.
+        let handles = (1..number_threads)
+            .map(|_| {
+                let (table, position) = (table.clone(), *position);
+                let constraint = SearchConstraint {
+                    time_constraint: constraint.time_constraint,
+                    global_stop: constraint.global_stop.clone(),
+                    threads_stop: constraint.threads_stop.clone(),
+                    ponder_mode: constraint.ponder_mode.clone(),
+                    number_threads: constraint.number_threads.clone(),
+                    game_history: constraint.game_history.clone(),
+                };
+                std::thread::spawn(move || {
+                    pvs::pvs_aspiration::<EVAL_THREADS_RANDOM_FACTOR>(
+                        &position,
+                        current_guess,
+                        current_depth,
+                        table,
+                        &constraint,
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+
+        // The main thread.
         let (score, count) = pvs::pvs_aspiration::<0>(
-            position,
+            &position,
             current_guess,
             current_depth,
             table.clone(),
             constraint,
         );
 
-        // std::thread::spawn(|| {
-        //     let position = *position;
-        //     pvs::pvs_aspiration::<0>(
-        //         &position,
-        //         current_guess,
-        //         current_depth,
-        //         table.clone(),
-        //         constraint,
-        //     )
-        // });
+        // Stop helper threads now.
+        if let Some(threads_stop) = &constraint.threads_stop {
+            threads_stop.store(true, Ordering::Relaxed);
+        }
+        for handle in handles {
+            handle.join().unwrap();
+        }
+        if let Some(threads_stop) = &constraint.threads_stop {
+            threads_stop.store(false, Ordering::Relaxed);
+        }
 
         if constraint.should_stop_search() {
             break;
@@ -108,7 +142,7 @@ pub fn search_iterative_deepening_multithread(
         }
 
         let elapsed = time.elapsed();
-        print_iter_info(position, current_depth, score, count, elapsed, &table.lock().unwrap());
+        print_iter_info(&position, current_depth, score, count, elapsed, &table.read().unwrap());
 
         if !constraint.pondering()
             && (one_legal_move
@@ -122,12 +156,12 @@ pub fn search_iterative_deepening_multithread(
     }
 
     // Best move found
-    let best_move = table.lock().unwrap().get_hash_move(position).unwrap_or(moves[0]);
+    let best_move = table.read().unwrap().get_hash_move(&position).unwrap_or(moves[0]);
     print!("bestmove {}", best_move);
 
     // Ponder move if possible
     let new_position = position.make_move(best_move);
-    if let Some(ponder_move) = table.lock().unwrap().get_hash_move(&new_position) {
+    if let Some(ponder_move) = table.read().unwrap().get_hash_move(&new_position) {
         println!(" ponder {}", ponder_move);
     } else {
         println!();

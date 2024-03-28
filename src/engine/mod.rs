@@ -10,12 +10,18 @@ use camel::{
     },
 };
 use std::{
-    sync::{atomic::AtomicBool, Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, AtomicU16},
+        Arc, RwLock,
+    },
     time::Duration,
 };
 
 mod commands;
 mod time;
+
+pub const DEFAULT_NUMBER_THREADS: u16 = 1;
+pub const MAX_THREADS: u16 = 1024;
 
 pub enum Command {
     // Standard UCI commands
@@ -61,9 +67,10 @@ pub enum Command {
 pub struct Engine {
     pub position: Position,
     pub game_history: Vec<HistoryEntry>,
-    pub table: Arc<Mutex<SearchTable>>,
+    pub table: Arc<RwLock<SearchTable>>,
     pub stop: Arc<AtomicBool>,
     pub pondering: Arc<AtomicBool>,
+    pub number_threads: Arc<AtomicU16>,
 }
 
 pub fn uci_loop() {
@@ -71,8 +78,9 @@ pub fn uci_loop() {
         position: Position::from_fen(START_FEN).unwrap(),
         stop: Arc::new(AtomicBool::new(true)),
         game_history: Vec::new(),
-        table: Arc::new(Mutex::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB))),
+        table: Arc::new(RwLock::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB))),
         pondering: Arc::new(AtomicBool::new(false)),
+        number_threads: Arc::new(AtomicU16::new(DEFAULT_NUMBER_THREADS)),
     };
 
     println!("Camel {} by Bruno Mendes", env!("CARGO_PKG_VERSION"));

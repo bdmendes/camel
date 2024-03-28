@@ -1,4 +1,4 @@
-use crate::engine::{time::get_duration, Engine};
+use crate::engine::{time::get_duration, Engine, DEFAULT_NUMBER_THREADS, MAX_THREADS};
 use camel::{
     evaluation::{Evaluable, ValueScore},
     moves::gen::{perft, MoveStage},
@@ -15,7 +15,14 @@ use camel::{
         Depth, MAX_DEPTH,
     },
 };
-use std::{sync::atomic::Ordering, thread, time::Duration};
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    thread,
+    time::Duration,
+};
 
 pub fn execute_position(new_position: &Position, game_history: &[Position], engine: &mut Engine) {
     engine.position = *new_position;
@@ -73,8 +80,10 @@ pub fn execute_go(
         game_history: engine.game_history.clone(),
         time_constraint: calc_move_time
             .map(|t| TimeConstraint { initial_instant: std::time::Instant::now(), move_time: t }),
-        stop_now: Some(stop_now.clone()),
+        global_stop: Some(stop_now.clone()),
+        threads_stop: Some(Arc::new(AtomicBool::new(false))),
         ponder_mode: Some(engine.pondering.clone()),
+        number_threads: Some(engine.number_threads.clone()),
     };
 
     thread::spawn(move || {
@@ -110,7 +119,10 @@ pub fn execute_uci() {
     println!("id name Camel {}", env!("CARGO_PKG_VERSION"));
     println!("id author Bruno Mendes");
 
-    // Options list
+    println!(
+        "option name Threads type spin default {} min 1 max {}",
+        DEFAULT_NUMBER_THREADS, MAX_THREADS
+    );
     println!(
         "option name Hash type spin default {} min {} max {}",
         DEFAULT_TABLE_SIZE_MB, MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB
@@ -130,7 +142,15 @@ pub fn execute_debug(_: bool) {}
 pub fn execute_set_option(name: &str, value: &str, engine: &mut Engine) {
     if name == "Hash" {
         if let Ok(size) = value.parse::<usize>() {
-            engine.table.lock().unwrap().set_size(size.clamp(MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB));
+            engine
+                .table
+                .write()
+                .unwrap()
+                .set_size(size.clamp(MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB));
+        }
+    } else if name == "Threads" {
+        if let Ok(threads) = value.parse::<u16>() {
+            engine.number_threads.store(threads.clamp(1, MAX_THREADS), Ordering::Relaxed);
         }
     } else if name == "Ponder" || name == "UCI_Chess960" {
         // The time management bonus already takes pondering into account, so do nothing.
@@ -143,7 +163,7 @@ pub fn execute_set_option(name: &str, value: &str, engine: &mut Engine) {
 pub fn execute_uci_new_game(engine: &mut Engine) {
     engine.position = Position::from_fen(START_FEN).unwrap();
     engine.game_history = Vec::new();
-    engine.table.lock().unwrap().clear();
+    engine.table.write().unwrap().clear();
 }
 
 pub fn execute_auto_move(seconds: u16, engine: &mut Engine) {
@@ -155,8 +175,10 @@ pub fn execute_auto_move(seconds: u16, engine: &mut Engine) {
             initial_instant: std::time::Instant::now(),
             move_time: Duration::from_secs(seconds.into()),
         }),
-        stop_now: None,
+        number_threads: None,
+        global_stop: None,
         ponder_mode: None,
+        threads_stop: Some(Arc::new(AtomicBool::new(false))),
     };
 
     search_iterative_deepening_multithread(
@@ -167,7 +189,7 @@ pub fn execute_auto_move(seconds: u16, engine: &mut Engine) {
         &mut constraint,
     );
 
-    if let Some(mov) = engine.table.lock().unwrap().get_hash_move(&engine.position) {
+    if let Some(mov) = engine.table.read().unwrap().get_hash_move(&engine.position) {
         engine.position = engine.position.make_move(mov);
         execute_display(&engine.position);
     } else {
