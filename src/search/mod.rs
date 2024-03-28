@@ -79,8 +79,13 @@ pub fn search_iter(
     let mut current_depth = 1;
     while constraint.pondering() || current_depth <= depth {
         let time = std::time::Instant::now();
-        let (score, count) =
-            pvs::pvs_aspiration(position, current_guess, current_depth, table.clone(), constraint);
+        let (score, count) = pvs::pvs_aspiration::<0>(
+            position,
+            current_guess,
+            current_depth,
+            table.clone(),
+            constraint,
+        );
 
         if constraint.should_stop_search() {
             break;

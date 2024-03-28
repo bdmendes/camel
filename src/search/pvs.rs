@@ -86,7 +86,7 @@ pub fn quiesce(
     (alpha, count)
 }
 
-fn pvs_recurse(
+fn pvs_recurse<const RANDOM_FACTOR: ValueScore>(
     position: &mut Position,
     depth: Depth,
     alpha: ValueScore,
@@ -98,8 +98,14 @@ fn pvs_recurse(
     let mut count = 0;
 
     if do_zero_window {
-        let (score, nodes) =
-            pvs::<false>(position, depth, -alpha - 1, -alpha, table.clone(), constraint);
+        let (score, nodes) = pvs::<false, RANDOM_FACTOR>(
+            position,
+            depth,
+            -alpha - 1,
+            -alpha,
+            table.clone(),
+            constraint,
+        );
         count += nodes;
         let score = -score;
         if score <= alpha || score >= beta {
@@ -107,7 +113,8 @@ fn pvs_recurse(
         }
     }
 
-    let (score, nodes) = pvs::<false>(position, depth, -beta, -alpha, table, constraint);
+    let (score, nodes) =
+        pvs::<false, RANDOM_FACTOR>(position, depth, -beta, -alpha, table, constraint);
     count += nodes;
     (-score, count)
 }
@@ -122,7 +129,7 @@ fn may_be_zugzwang(position: &Position) -> bool {
     white_pieces_bb.is_empty() || black_pieces_bb.is_empty()
 }
 
-fn pvs<const ROOT: bool>(
+fn pvs<const ROOT: bool, const RANDOM_FACTOR: ValueScore>(
     position: &mut Position,
     depth: Depth,
     mut alpha: ValueScore,
@@ -178,8 +185,14 @@ fn pvs<const ROOT: bool>(
     // Null move pruning
     if !ROOT && !is_check && !twofold_repetition && depth > 3 && !may_be_zugzwang(position) {
         position.side_to_move = position.side_to_move.opposite();
-        let (score, nodes) =
-            pvs::<false>(position, depth - 3, -beta, -alpha, table.clone(), constraint);
+        let (score, nodes) = pvs::<false, RANDOM_FACTOR>(
+            position,
+            depth - 3,
+            -beta,
+            -alpha,
+            table.clone(),
+            constraint,
+        );
         position.side_to_move = position.side_to_move.opposite();
 
         count += nodes;
@@ -190,7 +203,8 @@ fn pvs<const ROOT: bool>(
         }
     }
 
-    let mut picker = MovePicker::<false>::new(position, table.clone(), depth).peekable();
+    let mut picker =
+        MovePicker::<false>::new(position, table.clone(), depth, RANDOM_FACTOR).peekable();
 
     // Detect checkmate and stalemate
     if picker.peek().is_none() {
@@ -232,7 +246,7 @@ fn pvs<const ROOT: bool>(
         let mut new_position = position.make_move(mov);
 
         constraint.visit_position(&new_position, mov.flag().is_reversible());
-        let (score, nodes) = pvs_recurse(
+        let (score, nodes) = pvs_recurse::<RANDOM_FACTOR>(
             &mut new_position,
             new_depth,
             alpha,
@@ -277,7 +291,7 @@ fn pvs<const ROOT: bool>(
     (alpha, count)
 }
 
-pub fn pvs_aspiration(
+pub fn pvs_aspiration<const RANDOM_FACTOR: ValueScore>(
     position: &Position,
     guess: ValueScore,
     depth: Depth,
@@ -294,8 +308,14 @@ pub fn pvs_aspiration(
     let mut upper_bound = guess + WINDOW_SIZE;
 
     for cof in 1.. {
-        let (score, count) =
-            pvs::<true>(&mut position, depth, lower_bound, upper_bound, table.clone(), constraint);
+        let (score, count) = pvs::<true, RANDOM_FACTOR>(
+            &mut position,
+            depth,
+            lower_bound,
+            upper_bound,
+            table.clone(),
+            constraint,
+        );
         all_count += count;
 
         if !constraint.should_stop_search() {
@@ -352,7 +372,7 @@ mod tests {
         let table = Arc::new(Mutex::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB)));
         let mut constraint = SearchConstraint::default();
 
-        let score = pvs_aspiration(&position, 0, depth, table.clone(), &mut constraint).0;
+        let score = pvs_aspiration::<0>(&position, 0, depth, table.clone(), &mut constraint).0;
         let pv = table.lock().unwrap().get_pv(&position, depth);
 
         assert!(pv.len() >= expected_moves.len());
