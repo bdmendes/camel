@@ -190,10 +190,7 @@ pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
                 return true;
             }
             MoveFlag::EnPassantCapture => {
-                // Enpassant is too "wild" to deduce rules, so resort to full move making.
-                let new_position = make_move(position, *mov);
-                return king_square_attackers::<true>(&new_position.board, side_to_move.opposite())
-                    .is_empty();
+                // Enpassant is too "wild" to deduce rules.
             }
             _ if mov.from() != king_square => {
                 let king_rays = piece_attacks(
@@ -220,7 +217,7 @@ pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
                     }
                     0 => {
                         if !possibly_pinned.is_set(mov.from()) {
-                            // We are moving a piece not in the kings ray, so we can't end up in check
+                            // We are moving a piece not in the kings ray, so we can't end up in check.
                             return true;
                         }
                     }
@@ -232,6 +229,16 @@ pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
 
         let mut new_board = *board;
         new_board.clear_square(mov.from());
+        if matches!(mov.flag(), MoveFlag::EnPassantCapture) {
+            new_board.clear_square(
+                mov.to()
+                    .shift(match position.side_to_move {
+                        Color::White => MoveDirection::SOUTH,
+                        Color::Black => MoveDirection::NORTH,
+                    })
+                    .unwrap(),
+            );
+        }
         new_board.set_square::<true>(
             mov.to(),
             if king_square == mov.from() { Piece::King } else { Piece::Pawn },
