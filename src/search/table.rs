@@ -1,3 +1,7 @@
+use std::array;
+
+use parking_lot::RwLock;
+
 use super::{Depth, MAX_DEPTH};
 use crate::{evaluation::ValueScore, moves::Move, position::Position};
 
@@ -27,7 +31,7 @@ struct TranspositionEntry {
 }
 
 struct TranspositionTable {
-    data: Vec<Option<TranspositionEntry>>,
+    data: Vec<RwLock<Option<TranspositionEntry>>>,
     size: usize,
     root_fullmove_number: u16,
 }
@@ -36,7 +40,7 @@ impl TranspositionTable {
     pub fn new(size_mb: usize) -> Self {
         let data_len = Self::calculate_data_len(size_mb);
         Self {
-            data: (0..data_len).map(|_| None).collect(),
+            data: (0..data_len).map(|_| RwLock::new(None)).collect(),
             size: data_len,
             root_fullmove_number: 0,
         }
@@ -50,25 +54,25 @@ impl TranspositionTable {
 
     pub fn set_size(&mut self, size_mb: usize) {
         let data_len = Self::calculate_data_len(size_mb);
-        self.data = (0..data_len).map(|_| None).collect();
+        self.data = (0..data_len).map(|_| RwLock::new(None)).collect();
         self.size = data_len;
     }
 
     pub fn hashfull_millis(&self) -> usize {
-        self.data.iter().filter(|entry| entry.is_some()).count() * 1000 / self.size
+        self.data.iter().filter(|entry| entry.read().is_some()).count() * 1000 / self.size
     }
 
     pub fn get(&self, position: &Position) -> Option<TranspositionEntry> {
         let hash = position.zobrist_hash();
-        let entry = self.data[hash as usize % self.size];
+        let entry = self.data[hash as usize % self.size].read();
         entry.filter(|entry| entry.hash == hash)
     }
 
-    pub fn insert(&mut self, position: &Position, entry: TableEntry) {
+    pub fn insert(&self, position: &Position, entry: TableEntry) {
         let hash = position.zobrist_hash();
         let index = hash as usize % self.size;
 
-        if let Some(old_entry) = self.data[index] {
+        if let Some(old_entry) = *self.data[index].read() {
             if old_entry.entry.depth > entry.depth
                 && old_entry.full_move_number >= self.root_fullmove_number
             {
@@ -76,38 +80,38 @@ impl TranspositionTable {
             }
         }
 
-        self.data[index] =
+        *self.data[index].write() =
             Some(TranspositionEntry { entry, hash, full_move_number: position.fullmove_number });
     }
 }
 
 pub struct SearchTable {
-    transposition: TranspositionTable,
-    killer_moves: [Option<Move>; 2 * (MAX_DEPTH + 1) as usize],
+    transposition: RwLock<TranspositionTable>,
+    killer_moves: [RwLock<Option<Move>>; 2 * (MAX_DEPTH + 1) as usize],
 }
 
 impl SearchTable {
     pub fn new(size_mb: usize) -> Self {
         Self {
-            transposition: TranspositionTable::new(size_mb),
-            killer_moves: [None; 2 * (MAX_DEPTH + 1) as usize],
+            transposition: RwLock::new(TranspositionTable::new(size_mb)),
+            killer_moves: array::from_fn(|_| RwLock::new(None)),
         }
     }
 
-    pub fn prepare_for_new_search(&mut self, fullmove_number: u16) {
-        self.transposition.root_fullmove_number = fullmove_number;
+    pub fn prepare_for_new_search(&self, fullmove_number: u16) {
+        self.transposition.write().root_fullmove_number = fullmove_number;
     }
 
-    pub fn set_size(&mut self, size_mb: usize) {
-        self.transposition.set_size(size_mb)
+    pub fn set_size(&self, size_mb: usize) {
+        self.transposition.write().set_size(size_mb)
     }
 
     pub fn get_hash_move(&self, position: &Position) -> Option<Move> {
-        self.transposition.get(position).map(|entry| entry.entry.best_move)
+        self.transposition.read().get(position).map(|entry| entry.entry.best_move)
     }
 
     pub fn get_table_score(&self, position: &Position, depth: Depth) -> Option<TableScore> {
-        self.transposition.get(position).and_then(|entry| {
+        self.transposition.read().get(position).and_then(|entry| {
             if entry.entry.depth >= depth {
                 Some(entry.entry.score)
             } else {
@@ -116,26 +120,25 @@ impl SearchTable {
         })
     }
 
-    pub fn insert_entry(&mut self, position: &Position, entry: TableEntry) {
-        self.transposition.insert(position, entry);
+    pub fn insert_entry(&self, position: &Position, entry: TableEntry) {
+        self.transposition.read().insert(position, entry);
     }
 
-    pub fn put_killer_move(&mut self, depth: Depth, mov: Move) {
+    pub fn put_killer_move(&self, depth: Depth, mov: Move) {
         let index = 2 * depth as usize;
-
-        if self.killer_moves[index].is_none() {
-            self.killer_moves[index] = Some(mov);
-        } else if self.killer_moves[index + 1].is_none() {
-            self.killer_moves[index + 1] = Some(mov);
+        if self.killer_moves[index].read().is_none() {
+            *self.killer_moves[index].write() = Some(mov);
+        } else if self.killer_moves[index + 1].read().is_none() {
+            *self.killer_moves[index + 1].write() = Some(mov);
         } else {
-            self.killer_moves[index] = self.killer_moves[index + 1];
-            self.killer_moves[index + 1] = Some(mov);
+            *self.killer_moves[index].write() = *self.killer_moves[index + 1].read();
+            *self.killer_moves[index + 1].write() = Some(mov);
         }
     }
 
     pub fn get_killers(&self, depth: Depth) -> [Option<Move>; 2] {
         let index = 2 * depth as usize;
-        [self.killer_moves[index], self.killer_moves[index + 1]]
+        [*self.killer_moves[index].read(), *self.killer_moves[index + 1].read()]
     }
 
     pub fn get_pv(&self, position: &Position, mut depth: Depth) -> Vec<Move> {
@@ -155,11 +158,11 @@ impl SearchTable {
     }
 
     pub fn hashfull_millis(&self) -> usize {
-        self.transposition.hashfull_millis()
+        self.transposition.read().hashfull_millis()
     }
 
-    pub fn clear(&mut self) {
-        self.transposition.data.iter_mut().for_each(|entry| *entry = None);
-        self.killer_moves.iter_mut().for_each(|entry| *entry = None);
+    pub fn clear(&self) {
+        self.transposition.write().data.iter_mut().for_each(|entry| *entry = RwLock::new(None));
+        self.killer_moves.iter().for_each(|entry| *entry.write() = None);
     }
 }

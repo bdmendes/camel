@@ -142,11 +142,7 @@ pub fn execute_debug(_: bool) {}
 pub fn execute_set_option(name: &str, value: &str, engine: &mut Engine) {
     if name == "Hash" {
         if let Ok(size) = value.parse::<usize>() {
-            engine
-                .table
-                .write()
-                .unwrap()
-                .set_size(size.clamp(MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB));
+            engine.table.set_size(size.clamp(MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB));
         }
     } else if name == "Threads" {
         if let Ok(threads) = value.parse::<u16>() {
@@ -163,7 +159,7 @@ pub fn execute_set_option(name: &str, value: &str, engine: &mut Engine) {
 pub fn execute_uci_new_game(engine: &mut Engine) {
     engine.position = Position::from_fen(START_FEN).unwrap();
     engine.game_history = Vec::new();
-    engine.table.write().unwrap().clear();
+    engine.table.clear();
 }
 
 pub fn execute_perft(depth: u8, position: &Position) {

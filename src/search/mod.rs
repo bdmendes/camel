@@ -5,7 +5,7 @@ use crate::{
     position::Position,
 };
 use std::{
-    sync::{atomic::Ordering, Arc, RwLock},
+    sync::{atomic::Ordering, Arc},
     thread::{self},
     time::Duration,
 };
@@ -67,7 +67,7 @@ pub fn search_iterative_deepening_multithread(
     position: &Position,
     mut current_guess: ValueScore,
     depth: Depth,
-    table: Arc<RwLock<SearchTable>>,
+    table: Arc<SearchTable>,
     constraint: &SearchConstraint,
 ) {
     let moves = position.moves(MoveStage::All);
@@ -130,14 +130,7 @@ pub fn search_iterative_deepening_multithread(
         }
 
         let elapsed = time.elapsed();
-        print_iter_info(
-            position,
-            current_depth,
-            score,
-            count,
-            time.elapsed(),
-            &table.read().unwrap(),
-        );
+        print_iter_info(position, current_depth, score, count, time.elapsed(), &table);
 
         if !constraint.pondering()
             && (one_legal_move
@@ -151,12 +144,12 @@ pub fn search_iterative_deepening_multithread(
     }
 
     // Best move found
-    let best_move = table.read().unwrap().get_hash_move(position).unwrap_or(moves[0]);
+    let best_move = table.get_hash_move(position).unwrap_or(moves[0]);
     print!("bestmove {}", best_move);
 
     // Ponder move if possible
     let new_position = position.make_move(best_move);
-    if let Some(ponder_move) = table.read().unwrap().get_hash_move(&new_position) {
+    if let Some(ponder_move) = table.get_hash_move(&new_position) {
         println!(" ponder {}", ponder_move);
     } else {
         println!();

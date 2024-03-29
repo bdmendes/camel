@@ -9,10 +9,7 @@ use crate::{
     evaluation::{position::MAX_POSITIONAL_GAIN, Evaluable, Score, ValueScore},
     position::{board::Piece, Color, Position},
 };
-use std::{
-    cell::OnceCell,
-    sync::{Arc, RwLock},
-};
+use std::{cell::OnceCell, sync::Arc};
 
 const MATE_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH as ValueScore + 1;
 
@@ -94,7 +91,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
     depth: Depth,
     alpha: ValueScore,
     beta: ValueScore,
-    table: Arc<RwLock<SearchTable>>,
+    table: Arc<SearchTable>,
     constraint: &SearchConstraint,
     history: &mut BranchHistory,
     do_zero_window: bool,
@@ -142,12 +139,12 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
     depth: Depth,
     mut alpha: ValueScore,
     mut beta: ValueScore,
-    table: Arc<RwLock<SearchTable>>,
+    table: Arc<SearchTable>,
     constraint: &SearchConstraint,
     history: &mut BranchHistory,
 ) -> (ValueScore, usize) {
     if ROOT && MAIN_THREAD {
-        table.write().unwrap().prepare_for_new_search(position.fullmove_number);
+        table.prepare_for_new_search(position.fullmove_number);
     }
 
     let repeated_times = history.repeated(position);
@@ -162,7 +159,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
 
         // Get known score from transposition table
         if !twofold_repetition {
-            if let Some(tt_entry) = table.read().unwrap().get_table_score(position, depth) {
+            if let Some(tt_entry) = table.get_table_score(position, depth) {
                 match tt_entry {
                     TableScore::Exact(score) => return (score, 1),
                     TableScore::LowerBound(score) => alpha = alpha.max(score),
@@ -276,7 +273,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
 
             if score >= beta {
                 if MAIN_THREAD && mov.flag().is_quiet() {
-                    table.write().unwrap().put_killer_move(depth, mov);
+                    table.put_killer_move(depth, mov);
                 }
                 break;
             }
@@ -296,7 +293,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
             best_move,
         };
 
-        table.write().unwrap().insert_entry(position, entry);
+        table.insert_entry(position, entry);
     }
 
     (alpha, count)
@@ -306,7 +303,7 @@ pub fn pvs_aspiration<const MAIN_THREAD: bool>(
     position: &Position,
     guess: ValueScore,
     depth: Depth,
-    table: Arc<RwLock<SearchTable>>,
+    table: Arc<SearchTable>,
     constraint: &SearchConstraint,
 ) -> (Score, usize) {
     let depth = depth.min(MAX_DEPTH);
@@ -348,7 +345,7 @@ pub fn pvs_aspiration<const MAIN_THREAD: bool>(
         }
 
         return if score.abs() >= MATE_SCORE.abs() {
-            let pv = table.read().unwrap().get_pv(&position, depth);
+            let pv = table.get_pv(&position, depth);
             let plys_to_mate = pv.len() as u8;
             (
                 Score::Mate(
@@ -381,11 +378,11 @@ mod tests {
         expected_score: Option<Score>,
     ) {
         let position = Position::from_fen(fen).unwrap();
-        let table = Arc::new(RwLock::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB)));
+        let table = Arc::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB));
         let constraint = SearchConstraint::default();
 
         let score = pvs_aspiration::<true>(&position, 0, depth, table.clone(), &constraint).0;
-        let pv = table.read().unwrap().get_pv(&position, depth);
+        let pv = table.get_pv(&position, depth);
 
         assert!(pv.len() >= expected_moves.len());
 

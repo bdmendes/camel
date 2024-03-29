@@ -12,7 +12,7 @@ use camel::{
 use std::{
     sync::{
         atomic::{AtomicBool, AtomicU16},
-        Arc, RwLock,
+        Arc,
     },
     time::Duration,
 };
@@ -64,7 +64,7 @@ pub enum Command {
 pub struct Engine {
     pub position: Position,
     pub game_history: Vec<HistoryEntry>,
-    pub table: Arc<RwLock<SearchTable>>,
+    pub table: Arc<SearchTable>,
     pub stop: Arc<AtomicBool>,
     pub pondering: Arc<AtomicBool>,
     pub number_threads: Arc<AtomicU16>,
@@ -75,7 +75,7 @@ pub fn uci_loop() {
         position: Position::from_fen(START_FEN).unwrap(),
         stop: Arc::new(AtomicBool::new(true)),
         game_history: Vec::new(),
-        table: Arc::new(RwLock::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB))),
+        table: Arc::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB)),
         pondering: Arc::new(AtomicBool::new(false)),
         number_threads: Arc::new(AtomicU16::new(DEFAULT_NUMBER_THREADS)),
     };
