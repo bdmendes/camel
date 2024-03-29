@@ -57,7 +57,7 @@ impl MovePicker<false> {
     ) -> Self {
         let moves = if !shuffle {
             if let Some(hash_move) = table.read().unwrap().get_hash_move(position) {
-                vec![((hash_move, ValueScore::MAX))]
+                vec![(hash_move, ValueScore::MAX)]
             } else {
                 vec![]
             }

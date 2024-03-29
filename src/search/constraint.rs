@@ -14,46 +14,28 @@ pub struct TimeConstraint {
     pub move_time: Duration,
 }
 
+#[derive(Default)]
 pub struct SearchConstraint {
     pub time_constraint: Option<TimeConstraint>,
-    pub global_stop: Option<Arc<AtomicBool>>,
-    pub threads_stop: Option<Arc<AtomicBool>>,
-    pub ponder_mode: Option<Arc<AtomicBool>>,
-    pub number_threads: Option<Arc<AtomicU16>>,
+    pub global_stop: Arc<AtomicBool>,
+    pub threads_stop: Arc<AtomicBool>,
+    pub ponder_mode: Arc<AtomicBool>,
+    pub number_threads: Arc<AtomicU16>,
     pub game_history: Vec<HistoryEntry>,
-}
-
-impl Default for SearchConstraint {
-    fn default() -> Self {
-        Self {
-            time_constraint: None,
-            global_stop: None,
-            threads_stop: None,
-            ponder_mode: None,
-            number_threads: None,
-            game_history: vec![],
-        }
-    }
 }
 
 impl SearchConstraint {
     pub fn should_stop_search(&self) -> bool {
-        if let Some(threads_stop) = &self.threads_stop {
-            if threads_stop.load(std::sync::atomic::Ordering::Relaxed) {
-                return true;
-            }
+        if self.threads_stop.load(std::sync::atomic::Ordering::Relaxed) {
+            return true;
         }
 
-        if let Some(ponder_mode) = &self.ponder_mode {
-            if ponder_mode.load(std::sync::atomic::Ordering::Relaxed) {
-                return false;
-            }
+        if self.ponder_mode.load(std::sync::atomic::Ordering::Relaxed) {
+            return false;
         }
 
-        if let Some(global_stop) = &self.global_stop {
-            if global_stop.load(std::sync::atomic::Ordering::Relaxed) {
-                return true;
-            }
+        if self.global_stop.load(std::sync::atomic::Ordering::Relaxed) {
+            return true;
         }
 
         if let Some(time_constraint) = &self.time_constraint {
@@ -65,10 +47,7 @@ impl SearchConstraint {
     }
 
     pub fn pondering(&self) -> bool {
-        if let Some(ponder_mode) = &self.ponder_mode {
-            return ponder_mode.load(std::sync::atomic::Ordering::Relaxed);
-        }
-        false
+        self.ponder_mode.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     pub fn remaining_time(&self) -> Option<Duration> {
@@ -83,6 +62,10 @@ mod tests {
     use super::SearchConstraint;
     use crate::search::constraint::TimeConstraint;
     use std::{
+        sync::{
+            atomic::{AtomicBool, AtomicU16},
+            Arc,
+        },
         thread,
         time::{Duration, Instant},
     };
@@ -94,10 +77,10 @@ mod tests {
                 initial_instant: Instant::now(),
                 move_time: Duration::from_millis(100),
             }),
-            global_stop: None,
-            threads_stop: None,
-            ponder_mode: None,
-            number_threads: None,
+            global_stop: Arc::new(AtomicBool::new(false)),
+            threads_stop: Arc::new(AtomicBool::new(false)),
+            ponder_mode: Arc::new(AtomicBool::new(false)),
+            number_threads: Arc::new(AtomicU16::new(1)),
             game_history: vec![],
         };
 
@@ -120,10 +103,10 @@ mod tests {
                 initial_instant: Instant::now(),
                 move_time: Duration::from_millis(100),
             }),
-            global_stop: Some(stop_now.clone()),
-            threads_stop: None,
-            ponder_mode: None,
-            number_threads: None,
+            global_stop: stop_now.clone(),
+            threads_stop: Arc::new(AtomicBool::new(false)),
+            ponder_mode: Arc::new(AtomicBool::new(false)),
+            number_threads: Arc::new(AtomicU16::new(1)),
             game_history: vec![],
         };
 

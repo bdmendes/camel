@@ -87,6 +87,8 @@ pub fn quiesce(
     (alpha, count)
 }
 
+#[allow(clippy::too_many_arguments)]
+#[inline(always)]
 fn pvs_recurse<const MAIN_THREAD: bool>(
     position: &mut Position,
     depth: Depth,
@@ -100,6 +102,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
     let mut count = 0;
 
     if do_zero_window {
+        // We expect this tree to not raise alpha, so we search with tight bounds.
         let (score, nodes) = pvs::<false, MAIN_THREAD>(
             position,
             depth,
@@ -112,10 +115,12 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
         count += nodes;
         let score = -score;
         if score <= alpha || score >= beta {
+            // We did not exceed alpha, so our fast search is ok.
             return (score, count);
         }
     }
 
+    // We found a better move, so we must search with full window to confirm.
     let (score, nodes) =
         pvs::<false, MAIN_THREAD>(position, depth, -beta, -alpha, table, constraint, history);
     count += nodes;
@@ -377,9 +382,9 @@ mod tests {
     ) {
         let position = Position::from_fen(fen).unwrap();
         let table = Arc::new(RwLock::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB)));
-        let mut constraint = SearchConstraint::default();
+        let constraint = SearchConstraint::default();
 
-        let score = pvs_aspiration::<true>(&position, 0, depth, table.clone(), &mut constraint).0;
+        let score = pvs_aspiration::<true>(&position, 0, depth, table.clone(), &constraint).0;
         let pv = table.read().unwrap().get_pv(&position, depth);
 
         assert!(pv.len() >= expected_moves.len());

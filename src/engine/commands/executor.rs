@@ -76,14 +76,14 @@ pub fn execute_go(
     let stop_now = engine.stop.clone();
     let table = engine.table.clone();
 
-    let mut constraint = SearchConstraint {
+    let constraint = SearchConstraint {
         game_history: engine.game_history.clone(),
         time_constraint: calc_move_time
             .map(|t| TimeConstraint { initial_instant: std::time::Instant::now(), move_time: t }),
-        global_stop: Some(stop_now.clone()),
-        threads_stop: Some(Arc::new(AtomicBool::new(false))),
-        ponder_mode: Some(engine.pondering.clone()),
-        number_threads: Some(engine.number_threads.clone()),
+        global_stop: stop_now.clone(),
+        threads_stop: Arc::new(AtomicBool::new(false)),
+        ponder_mode: engine.pondering.clone(),
+        number_threads: engine.number_threads.clone(),
     };
 
     thread::spawn(move || {
@@ -94,7 +94,7 @@ pub fn execute_go(
             current_guess,
             depth.map_or_else(|| MAX_DEPTH, |d| d as Depth),
             table.clone(),
-            &mut constraint,
+            &constraint,
         );
         stop_now.store(true, Ordering::Relaxed);
     });
@@ -166,37 +166,6 @@ pub fn execute_uci_new_game(engine: &mut Engine) {
     engine.table.write().unwrap().clear();
 }
 
-pub fn execute_auto_move(seconds: u16, engine: &mut Engine) {
-    println!("The engine is thinking...");
-
-    let mut constraint = SearchConstraint {
-        game_history: engine.game_history.clone(),
-        time_constraint: Some(TimeConstraint {
-            initial_instant: std::time::Instant::now(),
-            move_time: Duration::from_secs(seconds.into()),
-        }),
-        number_threads: None,
-        global_stop: None,
-        ponder_mode: None,
-        threads_stop: Some(Arc::new(AtomicBool::new(false))),
-    };
-
-    search_iterative_deepening_multithread(
-        &engine.position,
-        0,
-        MAX_DEPTH,
-        engine.table.clone(),
-        &mut constraint,
-    );
-
-    if let Some(mov) = engine.table.read().unwrap().get_hash_move(&engine.position) {
-        engine.position = engine.position.make_move(mov);
-        execute_display(&engine.position);
-    } else {
-        println!("The game is over.");
-    }
-}
-
 pub fn execute_perft(depth: u8, position: &Position) {
     println!("Perft will run in the background and report results when done.");
 
@@ -250,7 +219,6 @@ pub fn execute_help() {
     println!("Camel is a UCI-compatible chess engine, primarily meant to be used inside a GUI.");
     println!("You can review the UCI standard in https://backscattering.de/chess/uci/.");
     println!("Camel also bundles support for custom commands, for debugging purposes:");
-    println!("   'automove [seconds]': perform the top engine move on the current board");
     println!("   'perft <depth>': run perft on the current position with the given depth");
     println!("   'move <move>': perform given move in uci notation on the current board");
     println!("   'list': list legal moves available on the current position");

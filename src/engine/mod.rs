@@ -50,9 +50,6 @@ pub enum Command {
     },
 
     // Custom commands
-    AutoMove {
-        seconds: u16,
-    },
     Perft(u8),
     DoMove {
         mov_str: String,
