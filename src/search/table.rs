@@ -64,17 +64,15 @@ impl TranspositionTable {
         entry.filter(|entry| entry.hash == hash)
     }
 
-    pub fn insert<const FORCE: bool>(&mut self, position: &Position, entry: TableEntry) {
+    pub fn insert(&mut self, position: &Position, entry: TableEntry) {
         let hash = position.zobrist_hash();
         let index = hash as usize % self.size;
 
-        if !FORCE {
-            if let Some(old_entry) = self.data[index] {
-                if old_entry.entry.depth > entry.depth
-                    && old_entry.full_move_number >= self.root_fullmove_number
-                {
-                    return;
-                }
+        if let Some(old_entry) = self.data[index] {
+            if old_entry.entry.depth > entry.depth
+                && old_entry.full_move_number >= self.root_fullmove_number
+            {
+                return;
             }
         }
 
@@ -118,8 +116,8 @@ impl SearchTable {
         })
     }
 
-    pub fn insert_entry<const FORCE: bool>(&mut self, position: &Position, entry: TableEntry) {
-        self.transposition.insert::<FORCE>(position, entry);
+    pub fn insert_entry(&mut self, position: &Position, entry: TableEntry) {
+        self.transposition.insert(position, entry);
     }
 
     pub fn put_killer_move(&mut self, depth: Depth, mov: Move) {

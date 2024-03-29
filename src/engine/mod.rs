@@ -21,7 +21,7 @@ mod commands;
 mod time;
 
 pub const DEFAULT_NUMBER_THREADS: u16 = 1;
-pub const MAX_THREADS: u16 = 1024;
+pub const MAX_THREADS: u16 = 8;
 
 pub enum Command {
     // Standard UCI commands

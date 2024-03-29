@@ -19,8 +19,6 @@ pub type Depth = u8;
 
 pub const MAX_DEPTH: Depth = 50;
 
-const EVAL_THREADS_RANDOM_FACTOR: ValueScore = 1000;
-
 fn print_iter_info(
     position: &Position,
     depth: Depth,
@@ -102,7 +100,7 @@ pub fn search_iterative_deepening_multithread(
                     game_history: constraint.game_history.clone(),
                 };
                 std::thread::spawn(move || {
-                    pvs::pvs_aspiration::<EVAL_THREADS_RANDOM_FACTOR>(
+                    pvs::pvs_aspiration::<false>(
                         &position,
                         current_guess,
                         current_depth,
@@ -114,7 +112,7 @@ pub fn search_iterative_deepening_multithread(
             .collect::<Vec<_>>();
 
         // The main thread.
-        let (score, count) = pvs::pvs_aspiration::<0>(
+        let (score, count) = pvs::pvs_aspiration::<true>(
             &position,
             current_guess,
             current_depth,

@@ -11,6 +11,8 @@ use std::sync::{Arc, RwLock};
 type ScoredVec<Move> = Vec<(Move, ValueScore)>;
 type PickResult = (Move, ValueScore);
 
+const RANDOM_FACTOR: ValueScore = 1000;
+
 pub struct MovePicker<const QUIESCE: bool> {
     index: usize,
     moves: ScoredVec<Move>,
@@ -18,7 +20,6 @@ pub struct MovePicker<const QUIESCE: bool> {
     position: Position,
     table: Option<Arc<RwLock<SearchTable>>>,
     depth: Option<Depth>,
-    random_factor: ValueScore,
 }
 
 impl MovePicker<true> {
@@ -35,7 +36,6 @@ impl MovePicker<true> {
             position: *position,
             table: None,
             depth: None,
-            random_factor: 0,
         }
     }
 }
@@ -53,21 +53,29 @@ impl MovePicker<false> {
         position: &Position,
         table: Arc<RwLock<SearchTable>>,
         depth: Depth,
-        random_factor: ValueScore,
+        shuffle: bool,
     ) -> Self {
-        let mut moves = ScoredVec::with_capacity(1);
-        if let Some(hash_move) = table.read().unwrap().get_hash_move(position) {
-            moves.push((hash_move, ValueScore::MAX));
-        }
+        let moves = if !shuffle {
+            if let Some(hash_move) = table.read().unwrap().get_hash_move(position) {
+                vec![((hash_move, ValueScore::MAX))]
+            } else {
+                vec![]
+            }
+        } else {
+            position
+                .moves(MoveStage::All)
+                .into_iter()
+                .map(|m| (m, thread_rng().gen_range(0..RANDOM_FACTOR)))
+                .collect::<Vec<_>>()
+        };
 
         Self {
             index: 0,
             moves,
-            stage: MoveStage::HashMove,
+            stage: if !shuffle { MoveStage::HashMove } else { MoveStage::All },
             position: *position,
             table: Some(table),
             depth: Some(depth),
-            random_factor,
         }
     }
 }
@@ -85,14 +93,7 @@ impl std::iter::Iterator for MovePicker<false> {
                 self.stage = MoveStage::CapturesAndPromotions;
                 self.moves = decorate_moves_with_score(
                     &self.position.moves(MoveStage::CapturesAndPromotions),
-                    |mov| {
-                        evaluate_move(&self.position, mov)
-                            + if self.random_factor > 0 {
-                                thread_rng().gen_range(0..self.random_factor)
-                            } else {
-                                0
-                            }
-                    },
+                    |mov| evaluate_move(&self.position, mov),
                 );
 
                 self.index = 0;
@@ -109,11 +110,6 @@ impl std::iter::Iterator for MovePicker<false> {
                         Piece::Queen.value()
                     } else {
                         evaluate_move(&self.position, mov)
-                            + if self.random_factor > 0 {
-                                thread_rng().gen_range(0..self.random_factor)
-                            } else {
-                                0
-                            }
                     }
                 });
 

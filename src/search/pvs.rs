@@ -87,7 +87,7 @@ pub fn quiesce(
     (alpha, count)
 }
 
-fn pvs_recurse<const RANDOM_FACTOR: ValueScore>(
+fn pvs_recurse<const MAIN_THREAD: bool>(
     position: &mut Position,
     depth: Depth,
     alpha: ValueScore,
@@ -100,7 +100,7 @@ fn pvs_recurse<const RANDOM_FACTOR: ValueScore>(
     let mut count = 0;
 
     if do_zero_window {
-        let (score, nodes) = pvs::<false, RANDOM_FACTOR>(
+        let (score, nodes) = pvs::<false, MAIN_THREAD>(
             position,
             depth,
             -alpha - 1,
@@ -117,7 +117,7 @@ fn pvs_recurse<const RANDOM_FACTOR: ValueScore>(
     }
 
     let (score, nodes) =
-        pvs::<false, RANDOM_FACTOR>(position, depth, -beta, -alpha, table, constraint, history);
+        pvs::<false, MAIN_THREAD>(position, depth, -beta, -alpha, table, constraint, history);
     count += nodes;
     (-score, count)
 }
@@ -132,7 +132,7 @@ fn may_be_zugzwang(position: &Position) -> bool {
     white_pieces_bb.is_empty() || black_pieces_bb.is_empty()
 }
 
-fn pvs<const ROOT: bool, const RANDOM_FACTOR: ValueScore>(
+fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
     position: &mut Position,
     depth: Depth,
     mut alpha: ValueScore,
@@ -141,7 +141,7 @@ fn pvs<const ROOT: bool, const RANDOM_FACTOR: ValueScore>(
     constraint: &SearchConstraint,
     history: &mut BranchHistory,
 ) -> (ValueScore, usize) {
-    if ROOT {
+    if ROOT && MAIN_THREAD {
         table.write().unwrap().prepare_for_new_search(position.fullmove_number);
     }
 
@@ -189,7 +189,7 @@ fn pvs<const ROOT: bool, const RANDOM_FACTOR: ValueScore>(
     // Null move pruning
     if !ROOT && !is_check && !twofold_repetition && depth > 3 && !may_be_zugzwang(position) {
         position.side_to_move = position.side_to_move.opposite();
-        let (score, nodes) = pvs::<false, RANDOM_FACTOR>(
+        let (score, nodes) = pvs::<false, MAIN_THREAD>(
             position,
             depth - 3,
             -beta,
@@ -209,7 +209,7 @@ fn pvs<const ROOT: bool, const RANDOM_FACTOR: ValueScore>(
     }
 
     let mut picker =
-        MovePicker::<false>::new(position, table.clone(), depth, RANDOM_FACTOR).peekable();
+        MovePicker::<false>::new(position, table.clone(), depth, ROOT && !MAIN_THREAD).peekable();
 
     // Detect checkmate and stalemate
     if picker.peek().is_none() {
@@ -251,7 +251,7 @@ fn pvs<const ROOT: bool, const RANDOM_FACTOR: ValueScore>(
         let mut new_position = position.make_move(mov);
 
         history.visit_position(&new_position, mov.flag().is_reversible());
-        let (score, nodes) = pvs_recurse::<RANDOM_FACTOR>(
+        let (score, nodes) = pvs_recurse::<MAIN_THREAD>(
             &mut new_position,
             new_depth,
             alpha,
@@ -270,7 +270,7 @@ fn pvs<const ROOT: bool, const RANDOM_FACTOR: ValueScore>(
             alpha = score;
 
             if score >= beta {
-                if mov.flag().is_quiet() {
+                if MAIN_THREAD && mov.flag().is_quiet() {
                     table.write().unwrap().put_killer_move(depth, mov);
                 }
                 break;
@@ -291,13 +291,13 @@ fn pvs<const ROOT: bool, const RANDOM_FACTOR: ValueScore>(
             best_move,
         };
 
-        table.write().unwrap().insert_entry::<ROOT>(position, entry);
+        table.write().unwrap().insert_entry(position, entry);
     }
 
     (alpha, count)
 }
 
-pub fn pvs_aspiration<const RANDOM_FACTOR: ValueScore>(
+pub fn pvs_aspiration<const MAIN_THREAD: bool>(
     position: &Position,
     guess: ValueScore,
     depth: Depth,
@@ -314,7 +314,7 @@ pub fn pvs_aspiration<const RANDOM_FACTOR: ValueScore>(
     let mut upper_bound = guess + WINDOW_SIZE;
 
     for cof in 1.. {
-        let (score, count) = pvs::<true, RANDOM_FACTOR>(
+        let (score, count) = pvs::<true, MAIN_THREAD>(
             &mut position,
             depth,
             lower_bound,
@@ -379,7 +379,7 @@ mod tests {
         let table = Arc::new(RwLock::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB)));
         let mut constraint = SearchConstraint::default();
 
-        let score = pvs_aspiration::<0>(&position, 0, depth, table.clone(), &mut constraint).0;
+        let score = pvs_aspiration::<true>(&position, 0, depth, table.clone(), &mut constraint).0;
         let pv = table.read().unwrap().get_pv(&position, depth);
 
         assert!(pv.len() >= expected_moves.len());
