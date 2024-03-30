@@ -144,7 +144,7 @@ pub fn search_iterative_deepening_multithread(
     }
 
     // Best move found
-    let best_move = table.get_hash_move(position).unwrap_or(moves[0]);
+    let best_move = table.get_hash_move(position).unwrap();
     print!("bestmove {}", best_move);
 
     // Ponder move if possible

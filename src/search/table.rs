@@ -26,11 +26,38 @@ pub enum TableScore {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct TableEntry {
-    pub depth: Depth,
-    pub score: TableScore,
-    pub best_move: Move,
-    pub move_number: u8,
+struct TableEntry {
+    data: u8,
+    score: TableScore,
+    best_move: Move,
+}
+
+impl TableEntry {
+    pub fn new(
+        score: TableScore,
+        best_move: Move,
+        depth: Depth,
+        root: bool,
+        search_id: u8,
+    ) -> Self {
+        TableEntry {
+            score,
+            best_move,
+            data: (depth & 0x3F) | ((root as u8 & 1) << 7) | ((search_id & 1) << 6),
+        }
+    }
+
+    fn same_search(&self, id: u8) -> bool {
+        ((self.data & 0x40) >> 6) == (id & 1)
+    }
+
+    fn is_root(&self) -> bool {
+        ((self.data & 0x80) >> 7) == 1
+    }
+
+    fn depth(&self) -> Depth {
+        self.data & 0x3F
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -52,7 +79,8 @@ impl TranspositionEntry {
 
 struct TranspositionTable {
     data: Vec<AtomicU128>,
-    size: usize,
+    current_id: u8,
+    last_position: Option<Position>,
 }
 
 impl TranspositionTable {
@@ -60,7 +88,8 @@ impl TranspositionTable {
         let data_len = Self::calculate_data_len(size_mb);
         Self {
             data: (0..data_len).map(|_| AtomicU128::new(NULL_TT_ENTRY)).collect(),
-            size: data_len,
+            current_id: 0,
+            last_position: None,
         }
     }
 
@@ -73,30 +102,36 @@ impl TranspositionTable {
     pub fn set_size(&mut self, size_mb: usize) {
         let data_len = Self::calculate_data_len(size_mb);
         self.data = (0..data_len).map(|_| AtomicU128::new(NULL_TT_ENTRY)).collect();
-        self.size = data_len;
     }
 
     pub fn hashfull_millis(&self) -> usize {
-        self.data.iter().filter(|entry| entry.load(Ordering::Relaxed) != NULL_TT_ENTRY).count()
-            * 1000
-            / self.size
+        // The hash keys are disperse, so a small sample should suffice for a relevant statistic.
+        self.data
+            .iter()
+            .take(10000)
+            .filter(|entry| entry.load(Ordering::Relaxed) != NULL_TT_ENTRY)
+            .count()
+            * 10
     }
 
     pub fn get(&self, position: &Position) -> Option<TranspositionEntry> {
         let hash = position.zobrist_hash();
-        let entry = self.load_tt_entry(hash as usize % self.size);
+        let entry = self.load_tt_entry(hash as usize % self.data.len());
         entry.filter(|entry| entry.hash == hash)
     }
 
-    pub fn insert(&self, position: &Position, entry: TableEntry) {
+    pub fn insert(&self, position: &Position, entry: TableEntry, current_id: u8) {
         let hash = position.zobrist_hash();
-        let index = hash as usize % self.size;
+        let index = hash as usize % self.data.len();
 
-        if let Some(old_entry) = self.load_tt_entry(index) {
-            if old_entry.entry.depth > entry.depth
-                && old_entry.entry.move_number >= entry.move_number
-            {
-                return;
+        if !entry.is_root() {
+            if let Some(old_entry) = self.load_tt_entry(index) {
+                let replace = (old_entry.entry.depth() <= entry.depth()
+                    && !old_entry.entry.is_root())
+                    || (old_entry.entry.is_root() && !old_entry.entry.same_search(current_id));
+                if !replace {
+                    return;
+                }
             }
         }
 
@@ -130,6 +165,16 @@ impl SearchTable {
         }
     }
 
+    pub fn prepare_for_new_search(&self, position: &Position) {
+        let mut table = self.transposition.write().unwrap();
+        if let Some(last_position) = table.last_position {
+            if position.zobrist_hash() != last_position.zobrist_hash() {
+                table.current_id = table.current_id.saturating_add(1);
+                table.last_position = Some(*position);
+            }
+        }
+    }
+
     pub fn set_size(&self, size_mb: usize) {
         self.transposition.write().unwrap().set_size(size_mb)
     }
@@ -140,7 +185,7 @@ impl SearchTable {
 
     pub fn get_table_score(&self, position: &Position, depth: Depth) -> Option<TableScore> {
         self.transposition.read().unwrap().get(position).and_then(|entry| {
-            if entry.entry.depth >= depth {
+            if entry.entry.depth() >= depth {
                 Some(entry.entry.score)
             } else {
                 None
@@ -148,8 +193,17 @@ impl SearchTable {
         })
     }
 
-    pub fn insert_entry(&self, position: &Position, entry: TableEntry) {
-        self.transposition.read().unwrap().insert(position, entry);
+    pub fn insert_entry(
+        &self,
+        position: &Position,
+        score: TableScore,
+        best_move: Move,
+        depth: Depth,
+        root: bool,
+    ) {
+        let tt = self.transposition.read().unwrap();
+        let entry = TableEntry::new(score, best_move, depth, root, tt.current_id);
+        tt.insert(position, entry, tt.current_id);
     }
 
     pub fn put_killer_move(&self, depth: Depth, mov: Move) {

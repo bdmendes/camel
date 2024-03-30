@@ -2,7 +2,7 @@ use super::{
     constraint::SearchConstraint,
     history::BranchHistory,
     movepick::MovePicker,
-    table::{SearchTable, TableEntry, TableScore},
+    table::{SearchTable, TableScore},
     Depth, MAX_DEPTH,
 };
 use crate::{
@@ -143,6 +143,10 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
     constraint: &SearchConstraint,
     history: &mut BranchHistory,
 ) -> (ValueScore, usize) {
+    if MAIN_THREAD && ROOT {
+        table.prepare_for_new_search(position);
+    }
+
     let repeated_times = history.repeated(position);
     let twofold_repetition = repeated_times >= 2;
     let threefold_repetition = repeated_times >= 3;
@@ -277,9 +281,9 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
     }
 
     if !constraint.should_stop_search() {
-        let entry = TableEntry {
-            depth,
-            score: if alpha <= original_alpha {
+        table.insert_entry(
+            position,
+            if alpha <= original_alpha {
                 TableScore::UpperBound(alpha)
             } else if alpha >= beta {
                 TableScore::LowerBound(alpha)
@@ -287,10 +291,9 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
                 TableScore::Exact(alpha)
             },
             best_move,
-            move_number: position.fullmove_number as u8,
-        };
-
-        table.insert_entry(position, entry);
+            depth,
+            ROOT && MAIN_THREAD,
+        );
     }
 
     (alpha, count)
