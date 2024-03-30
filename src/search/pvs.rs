@@ -290,7 +290,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
             move_number: position.fullmove_number as u8,
         };
 
-        table.insert_entry(position, entry);
+        table.insert_entry(position, entry, ROOT && MAIN_THREAD);
     }
 
     (alpha, count)

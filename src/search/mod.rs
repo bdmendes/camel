@@ -87,13 +87,13 @@ pub fn search_iterative_deepening_multithread(
         let (score, count) = thread::scope(|s| {
             // Start helper threads.
             let handles = (1..number_threads)
-                .map(|_| {
+                .map(|i| {
                     let table = table.clone();
                     s.spawn(move || {
                         pvs::pvs_aspiration::<false>(
                             position,
                             current_guess,
-                            current_depth,
+                            current_depth + 1 + i.trailing_zeros() as Depth,
                             table,
                             constraint,
                         )
@@ -144,7 +144,7 @@ pub fn search_iterative_deepening_multithread(
     }
 
     // Best move found
-    let best_move = table.get_hash_move(position).unwrap_or(moves[0]);
+    let best_move = table.get_hash_move(position).unwrap();
     print!("bestmove {}", best_move);
 
     // Ponder move if possible

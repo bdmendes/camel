@@ -41,6 +41,7 @@ struct TranspositionEntry {
 
 impl TranspositionEntry {
     pub fn from_raw(bytes: u128) -> Self {
+        debug_assert!(size_of::<TranspositionEntry>() == 16);
         unsafe { transmute::<u128, TranspositionEntry>(bytes) }
     }
 
@@ -50,18 +51,12 @@ impl TranspositionEntry {
     }
 }
 
-struct TranspositionTable {
-    data: Vec<AtomicU128>,
-    size: usize,
-}
+struct TranspositionTable(Vec<AtomicU128>);
 
 impl TranspositionTable {
     pub fn new(size_mb: usize) -> Self {
         let data_len = Self::calculate_data_len(size_mb);
-        Self {
-            data: (0..data_len).map(|_| AtomicU128::new(NULL_TT_ENTRY)).collect(),
-            size: data_len,
-        }
+        Self((0..data_len).map(|_| AtomicU128::new(NULL_TT_ENTRY)).collect())
     }
 
     fn calculate_data_len(size_mb: usize) -> usize {
@@ -72,31 +67,37 @@ impl TranspositionTable {
 
     pub fn set_size(&mut self, size_mb: usize) {
         let data_len = Self::calculate_data_len(size_mb);
-        self.data = (0..data_len).map(|_| AtomicU128::new(NULL_TT_ENTRY)).collect();
-        self.size = data_len;
+        self.0 = (0..data_len).map(|_| AtomicU128::new(NULL_TT_ENTRY)).collect();
     }
 
     pub fn hashfull_millis(&self) -> usize {
-        self.data.iter().filter(|entry| entry.load(Ordering::Relaxed) != NULL_TT_ENTRY).count()
-            * 1000
-            / self.size
+        // The first 10000 elements should suffice as a good sample,
+        // given that hashes should be different enough.
+        self.0
+            .iter()
+            .take(10000)
+            .filter(|entry| entry.load(Ordering::Relaxed) != NULL_TT_ENTRY)
+            .count()
+            / 10
     }
 
     pub fn get(&self, position: &Position) -> Option<TranspositionEntry> {
         let hash = position.zobrist_hash();
-        let entry = self.load_tt_entry(hash as usize % self.size);
+        let entry = self.load_tt_entry(hash as usize % self.0.len());
         entry.filter(|entry| entry.hash == hash)
     }
 
-    pub fn insert(&self, position: &Position, entry: TableEntry) {
+    pub fn insert(&self, position: &Position, entry: TableEntry, force: bool) {
         let hash = position.zobrist_hash();
-        let index = hash as usize % self.size;
+        let index = hash as usize % self.0.len();
 
-        if let Some(old_entry) = self.load_tt_entry(index) {
-            if old_entry.entry.depth > entry.depth
-                && old_entry.entry.move_number >= entry.move_number
-            {
-                return;
+        if !force {
+            if let Some(old_entry) = self.load_tt_entry(index) {
+                if old_entry.entry.depth > entry.depth
+                    && old_entry.entry.move_number >= entry.move_number
+                {
+                    return;
+                }
             }
         }
 
@@ -104,7 +105,7 @@ impl TranspositionTable {
     }
 
     fn load_tt_entry(&self, index: usize) -> Option<TranspositionEntry> {
-        let entry = self.data[index].load(Ordering::Relaxed);
+        let entry = self.0[index].load(Ordering::Relaxed);
         if entry == NULL_TT_ENTRY {
             None
         } else {
@@ -113,7 +114,7 @@ impl TranspositionTable {
     }
 
     fn store_tt_entry(&self, index: usize, entry: TranspositionEntry) {
-        self.data[index].store(entry.raw(), Ordering::Relaxed)
+        self.0[index].store(entry.raw(), Ordering::Relaxed)
     }
 }
 
@@ -148,8 +149,8 @@ impl SearchTable {
         })
     }
 
-    pub fn insert_entry(&self, position: &Position, entry: TableEntry) {
-        self.transposition.read().unwrap().insert(position, entry);
+    pub fn insert_entry(&self, position: &Position, entry: TableEntry, force: bool) {
+        self.transposition.read().unwrap().insert(position, entry, force);
     }
 
     pub fn put_killer_move(&self, depth: Depth, mov: Move) {
@@ -196,7 +197,7 @@ impl SearchTable {
         self.transposition
             .write()
             .unwrap()
-            .data
+            .0
             .iter_mut()
             .for_each(|entry| *entry = AtomicU128::new(NULL_TT_ENTRY));
         self.killer_moves.iter().for_each(|entry| entry.store(NULL_KILLER, Ordering::Relaxed));
