@@ -26,29 +26,24 @@ pub struct TableEntry {
     pub depth: Depth,
     pub score: TableScore,
     pub best_move: Move,
+    pub move_number: u8,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct TranspositionEntry {
     entry: TableEntry,
     hash: u64,
-    full_move_number: u16,
 }
 
 struct TranspositionTable {
     data: Vec<RwLock<Option<TranspositionEntry>>>,
     size: usize,
-    root_fullmove_number: u16,
 }
 
 impl TranspositionTable {
     pub fn new(size_mb: usize) -> Self {
         let data_len = Self::calculate_data_len(size_mb);
-        Self {
-            data: (0..data_len).map(|_| RwLock::new(None)).collect(),
-            size: data_len,
-            root_fullmove_number: 0,
-        }
+        Self { data: (0..data_len).map(|_| RwLock::new(None)).collect(), size: data_len }
     }
 
     fn calculate_data_len(size_mb: usize) -> usize {
@@ -79,14 +74,13 @@ impl TranspositionTable {
 
         if let Some(old_entry) = *self.data[index].read().unwrap() {
             if old_entry.entry.depth > entry.depth
-                && old_entry.full_move_number >= self.root_fullmove_number
+                && old_entry.entry.move_number >= entry.move_number
             {
                 return;
             }
         }
 
-        *self.data[index].write().unwrap() =
-            Some(TranspositionEntry { entry, hash, full_move_number: position.fullmove_number });
+        *self.data[index].write().unwrap() = Some(TranspositionEntry { entry, hash });
     }
 }
 
@@ -101,10 +95,6 @@ impl SearchTable {
             transposition: RwLock::new(TranspositionTable::new(size_mb)),
             killer_moves: array::from_fn(|_| AtomicU16::new(NULL_KILLER)),
         }
-    }
-
-    pub fn prepare_for_new_search(&self, fullmove_number: u16) {
-        self.transposition.write().unwrap().root_fullmove_number = fullmove_number;
     }
 
     pub fn set_size(&self, size_mb: usize) {
