@@ -1,7 +1,10 @@
+use portable_atomic::AtomicU128;
+
 use super::{Depth, MAX_DEPTH};
 use crate::{evaluation::ValueScore, moves::Move, position::Position};
 use std::{
     array,
+    mem::{size_of, transmute},
     sync::{
         atomic::{AtomicU16, Ordering},
         RwLock,
@@ -13,6 +16,7 @@ pub const MIN_TABLE_SIZE_MB: usize = 1;
 pub const DEFAULT_TABLE_SIZE_MB: usize = 64;
 
 const NULL_KILLER: u16 = u16::MAX;
+const NULL_TT_ENTRY: u128 = u128::MAX;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TableScore {
@@ -35,15 +39,29 @@ struct TranspositionEntry {
     hash: u64,
 }
 
+impl TranspositionEntry {
+    pub fn from_raw(bytes: u128) -> Self {
+        unsafe { transmute::<u128, TranspositionEntry>(bytes) }
+    }
+
+    pub fn raw(&self) -> u128 {
+        debug_assert!(size_of::<TranspositionEntry>() == 16);
+        unsafe { transmute::<TranspositionEntry, u128>(*self) }
+    }
+}
+
 struct TranspositionTable {
-    data: Vec<RwLock<Option<TranspositionEntry>>>,
+    data: Vec<AtomicU128>,
     size: usize,
 }
 
 impl TranspositionTable {
     pub fn new(size_mb: usize) -> Self {
         let data_len = Self::calculate_data_len(size_mb);
-        Self { data: (0..data_len).map(|_| RwLock::new(None)).collect(), size: data_len }
+        Self {
+            data: (0..data_len).map(|_| AtomicU128::new(NULL_TT_ENTRY)).collect(),
+            size: data_len,
+        }
     }
 
     fn calculate_data_len(size_mb: usize) -> usize {
@@ -54,17 +72,19 @@ impl TranspositionTable {
 
     pub fn set_size(&mut self, size_mb: usize) {
         let data_len = Self::calculate_data_len(size_mb);
-        self.data = (0..data_len).map(|_| RwLock::new(None)).collect();
+        self.data = (0..data_len).map(|_| AtomicU128::new(NULL_TT_ENTRY)).collect();
         self.size = data_len;
     }
 
     pub fn hashfull_millis(&self) -> usize {
-        self.data.iter().filter(|entry| entry.read().unwrap().is_some()).count() * 1000 / self.size
+        self.data.iter().filter(|entry| entry.load(Ordering::Relaxed) != NULL_TT_ENTRY).count()
+            * 1000
+            / self.size
     }
 
     pub fn get(&self, position: &Position) -> Option<TranspositionEntry> {
         let hash = position.zobrist_hash();
-        let entry = self.data[hash as usize % self.size].read().unwrap();
+        let entry = self.load_tt_entry(hash as usize % self.size);
         entry.filter(|entry| entry.hash == hash)
     }
 
@@ -72,7 +92,7 @@ impl TranspositionTable {
         let hash = position.zobrist_hash();
         let index = hash as usize % self.size;
 
-        if let Some(old_entry) = *self.data[index].read().unwrap() {
+        if let Some(old_entry) = self.load_tt_entry(index) {
             if old_entry.entry.depth > entry.depth
                 && old_entry.entry.move_number >= entry.move_number
             {
@@ -80,7 +100,20 @@ impl TranspositionTable {
             }
         }
 
-        *self.data[index].write().unwrap() = Some(TranspositionEntry { entry, hash });
+        self.store_tt_entry(index, TranspositionEntry { entry, hash });
+    }
+
+    fn load_tt_entry(&self, index: usize) -> Option<TranspositionEntry> {
+        let entry = self.data[index].load(Ordering::Relaxed);
+        if entry == NULL_TT_ENTRY {
+            None
+        } else {
+            Some(TranspositionEntry::from_raw(entry))
+        }
+    }
+
+    fn store_tt_entry(&self, index: usize, entry: TranspositionEntry) {
+        self.data[index].store(entry.raw(), Ordering::Relaxed)
     }
 }
 
@@ -165,7 +198,7 @@ impl SearchTable {
             .unwrap()
             .data
             .iter_mut()
-            .for_each(|entry| *entry = RwLock::new(None));
+            .for_each(|entry| *entry = AtomicU128::new(NULL_TT_ENTRY));
         self.killer_moves.iter().for_each(|entry| entry.store(NULL_KILLER, Ordering::Relaxed));
     }
 
