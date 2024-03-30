@@ -1,22 +1,11 @@
-use portable_atomic::AtomicU128;
-
 use super::{Depth, MAX_DEPTH};
 use crate::{evaluation::ValueScore, moves::Move, position::Position};
-use std::{
-    array,
-    mem::{size_of, transmute},
-    sync::{
-        atomic::{AtomicU16, Ordering},
-        RwLock,
-    },
-};
+use parking_lot::RwLock;
+use std::array;
 
 pub const MAX_TABLE_SIZE_MB: usize = 2048;
 pub const MIN_TABLE_SIZE_MB: usize = 1;
 pub const DEFAULT_TABLE_SIZE_MB: usize = 64;
-
-const NULL_KILLER: u16 = u16::MAX;
-const NULL_TT_ENTRY: u128 = u128::MAX;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TableScore {
@@ -30,33 +19,25 @@ pub struct TableEntry {
     pub depth: Depth,
     pub score: TableScore,
     pub best_move: Move,
-    pub move_number: u8,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct TranspositionEntry {
     entry: TableEntry,
     hash: u64,
+    full_move_number: u16,
+    root: bool,
 }
 
-impl TranspositionEntry {
-    pub fn from_raw(bytes: u128) -> Self {
-        debug_assert!(size_of::<TranspositionEntry>() == 16);
-        unsafe { transmute::<u128, TranspositionEntry>(bytes) }
-    }
-
-    pub fn raw(&self) -> u128 {
-        debug_assert!(size_of::<TranspositionEntry>() == 16);
-        unsafe { transmute::<TranspositionEntry, u128>(*self) }
-    }
+struct TranspositionTable {
+    data: Vec<RwLock<Option<TranspositionEntry>>>,
+    root_fullmove_number: u16,
 }
-
-struct TranspositionTable(Vec<AtomicU128>);
 
 impl TranspositionTable {
     pub fn new(size_mb: usize) -> Self {
         let data_len = Self::calculate_data_len(size_mb);
-        Self((0..data_len).map(|_| AtomicU128::new(NULL_TT_ENTRY)).collect())
+        Self { data: (0..data_len).map(|_| RwLock::new(None)).collect(), root_fullmove_number: 0 }
     }
 
     fn calculate_data_len(size_mb: usize) -> usize {
@@ -67,80 +48,71 @@ impl TranspositionTable {
 
     pub fn set_size(&mut self, size_mb: usize) {
         let data_len = Self::calculate_data_len(size_mb);
-        self.0 = (0..data_len).map(|_| AtomicU128::new(NULL_TT_ENTRY)).collect();
+        self.data = (0..data_len).map(|_| RwLock::new(None)).collect();
     }
 
     pub fn hashfull_millis(&self) -> usize {
         // The first 10000 elements should suffice as a good sample,
         // given that hashes should be different enough.
-        self.0
-            .iter()
-            .take(10000)
-            .filter(|entry| entry.load(Ordering::Relaxed) != NULL_TT_ENTRY)
-            .count()
-            / 10
+        self.data.iter().take(10000).filter(|entry| entry.read().is_some()).count() / 10
     }
 
     pub fn get(&self, position: &Position) -> Option<TranspositionEntry> {
         let hash = position.zobrist_hash();
-        let entry = self.load_tt_entry(hash as usize % self.0.len());
+        let entry = self.data[hash as usize % self.data.len()].read();
         entry.filter(|entry| entry.hash == hash)
     }
 
-    pub fn insert(&self, position: &Position, entry: TableEntry, force: bool) {
+    pub fn insert(&self, position: &Position, entry: TableEntry, force: bool, root: bool) {
         let hash = position.zobrist_hash();
-        let index = hash as usize % self.0.len();
+        let index = hash as usize % self.data.len();
 
         if !force {
-            if let Some(old_entry) = self.load_tt_entry(index) {
-                if old_entry.entry.depth > entry.depth
-                    && old_entry.entry.move_number >= entry.move_number
+            if let Some(old_entry) = *self.data[index].read() {
+                if (old_entry.entry.depth > entry.depth || root)
+                    && old_entry.full_move_number >= self.root_fullmove_number
                 {
                     return;
                 }
             }
         }
 
-        self.store_tt_entry(index, TranspositionEntry { entry, hash });
-    }
-
-    fn load_tt_entry(&self, index: usize) -> Option<TranspositionEntry> {
-        let entry = self.0[index].load(Ordering::Relaxed);
-        if entry == NULL_TT_ENTRY {
-            None
-        } else {
-            Some(TranspositionEntry::from_raw(entry))
-        }
-    }
-
-    fn store_tt_entry(&self, index: usize, entry: TranspositionEntry) {
-        self.0[index].store(entry.raw(), Ordering::Relaxed)
+        *self.data[index].write() = Some(TranspositionEntry {
+            entry,
+            hash,
+            root,
+            full_move_number: position.fullmove_number,
+        });
     }
 }
 
 pub struct SearchTable {
     transposition: RwLock<TranspositionTable>,
-    killer_moves: [AtomicU16; 2 * (MAX_DEPTH + 1) as usize],
+    killer_moves: [RwLock<Option<Move>>; 2 * (MAX_DEPTH + 1) as usize],
 }
 
 impl SearchTable {
     pub fn new(size_mb: usize) -> Self {
         Self {
             transposition: RwLock::new(TranspositionTable::new(size_mb)),
-            killer_moves: array::from_fn(|_| AtomicU16::new(NULL_KILLER)),
+            killer_moves: array::from_fn(|_| RwLock::new(None)),
         }
     }
 
+    pub fn prepare_for_new_search(&self, fullmove_number: u16) {
+        self.transposition.write().root_fullmove_number = fullmove_number;
+    }
+
     pub fn set_size(&self, size_mb: usize) {
-        self.transposition.write().unwrap().set_size(size_mb)
+        self.transposition.write().set_size(size_mb)
     }
 
     pub fn get_hash_move(&self, position: &Position) -> Option<Move> {
-        self.transposition.read().unwrap().get(position).map(|entry| entry.entry.best_move)
+        self.transposition.read().get(position).map(|entry| entry.entry.best_move)
     }
 
     pub fn get_table_score(&self, position: &Position, depth: Depth) -> Option<TableScore> {
-        self.transposition.read().unwrap().get(position).and_then(|entry| {
+        self.transposition.read().get(position).and_then(|entry| {
             if entry.entry.depth >= depth {
                 Some(entry.entry.score)
             } else {
@@ -149,28 +121,25 @@ impl SearchTable {
         })
     }
 
-    pub fn insert_entry(&self, position: &Position, entry: TableEntry, force: bool) {
-        self.transposition.read().unwrap().insert(position, entry, force);
+    pub fn insert_entry(&self, position: &Position, entry: TableEntry, force: bool, root: bool) {
+        self.transposition.read().insert(position, entry, force, root);
     }
 
     pub fn put_killer_move(&self, depth: Depth, mov: Move) {
         let index = 2 * depth as usize;
-        if self.load_killer(index).is_none() {
-            self.store_killer(index, mov);
-        } else if self.load_killer(index + 1).is_none() {
-            self.store_killer(index + 1, mov);
+        if self.killer_moves[index].read().is_none() {
+            *self.killer_moves[index].write() = Some(mov);
+        } else if self.killer_moves[index + 1].read().is_none() {
+            *self.killer_moves[index + 1].write() = Some(mov);
         } else {
-            self.store_killer(
-                index,
-                self.load_killer(index + 1).unwrap_or(Move::new_raw(NULL_KILLER)),
-            );
-            self.store_killer(index + 1, mov);
+            *self.killer_moves[index].write() = *self.killer_moves[index + 1].read();
+            *self.killer_moves[index + 1].write() = Some(mov);
         }
     }
 
     pub fn get_killers(&self, depth: Depth) -> [Option<Move>; 2] {
         let index = 2 * depth as usize;
-        [self.load_killer(index), self.load_killer(index + 1)]
+        [*self.killer_moves[index].read(), *self.killer_moves[index + 1].read()]
     }
 
     pub fn get_pv(&self, position: &Position, mut depth: Depth) -> Vec<Move> {
@@ -190,29 +159,11 @@ impl SearchTable {
     }
 
     pub fn hashfull_millis(&self) -> usize {
-        self.transposition.read().unwrap().hashfull_millis()
+        self.transposition.read().hashfull_millis()
     }
 
     pub fn clear(&self) {
-        self.transposition
-            .write()
-            .unwrap()
-            .0
-            .iter_mut()
-            .for_each(|entry| *entry = AtomicU128::new(NULL_TT_ENTRY));
-        self.killer_moves.iter().for_each(|entry| entry.store(NULL_KILLER, Ordering::Relaxed));
-    }
-
-    fn load_killer(&self, index: usize) -> Option<Move> {
-        let killer = self.killer_moves[index].load(Ordering::Relaxed);
-        if killer == NULL_KILLER {
-            None
-        } else {
-            Some(Move::new_raw(killer))
-        }
-    }
-
-    fn store_killer(&self, index: usize, mov: Move) {
-        self.killer_moves[index].store(mov.raw(), Ordering::Relaxed);
+        self.transposition.read().data.iter().for_each(|entry| *entry.write() = None);
+        self.killer_moves.iter().for_each(|entry| *entry.write() = None);
     }
 }

@@ -143,6 +143,10 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
     constraint: &SearchConstraint,
     history: &mut BranchHistory,
 ) -> (ValueScore, usize) {
+    if ROOT && MAIN_THREAD {
+        table.prepare_for_new_search(position.fullmove_number);
+    }
+
     let repeated_times = history.repeated(position);
     let twofold_repetition = repeated_times >= 2;
     let threefold_repetition = repeated_times >= 3;
@@ -287,10 +291,9 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
                 TableScore::Exact(alpha)
             },
             best_move,
-            move_number: position.fullmove_number as u8,
         };
 
-        table.insert_entry(position, entry, ROOT && MAIN_THREAD);
+        table.insert_entry(position, entry, ROOT && MAIN_THREAD, ROOT);
     }
 
     (alpha, count)

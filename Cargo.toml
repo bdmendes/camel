@@ -9,7 +9,7 @@ primitive_enum = "1.2.0"
 derive_more = "0.99.17"
 rand = "0.8.5"
 ctor = "0.2.7"
-portable-atomic = "1.6.0"
+parking_lot = "0.12.1"
 
 [profile.dev]
 opt-level = 1
