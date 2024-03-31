@@ -15,7 +15,7 @@ const MATE_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH as ValueScore + 1;
 const NULL_MOVE_DEPTH_REDUCTION: Depth = 3;
 const WINDOW_SIZE: ValueScore = 100;
 
-pub fn quiesce(
+fn quiesce(
     position: &Position,
     mut alpha: ValueScore,
     beta: ValueScore,

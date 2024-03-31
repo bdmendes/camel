@@ -1,6 +1,6 @@
 use crate::engine::{time::get_duration, Engine, DEFAULT_NUMBER_THREADS, MAX_THREADS};
 use camel::{
-    evaluation::{Evaluable, ValueScore},
+    evaluation::Evaluable,
     moves::gen::{perft, MoveStage},
     position::{
         fen::{FromFen, ToFen, START_FEN},
@@ -9,7 +9,6 @@ use camel::{
     search::{
         constraint::{SearchConstraint, TimeConstraint},
         history::HistoryEntry,
-        pvs::quiesce,
         search_iterative_deepening_multithread,
         table::{DEFAULT_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB, MIN_TABLE_SIZE_MB},
         Depth, MAX_DEPTH,
@@ -88,7 +87,7 @@ pub fn execute_go(
 
     thread::spawn(move || {
         stop_now.store(false, Ordering::Relaxed);
-        let current_guess = quiesce(&position, ValueScore::MIN + 1, ValueScore::MAX, &constraint).0;
+        let current_guess = position.value() * position.side_to_move.sign();
         search_iterative_deepening_multithread(
             &position,
             current_guess,

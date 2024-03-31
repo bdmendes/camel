@@ -1,6 +1,6 @@
 use self::{constraint::SearchConstraint, table::SearchTable};
 use crate::{
-    evaluation::{Score, ValueScore},
+    evaluation::{moves::evaluate_move, Score, ValueScore},
     moves::gen::MoveStage,
     position::Position,
 };
@@ -70,7 +70,7 @@ pub fn search_iterative_deepening_multithread(
     table: Arc<SearchTable>,
     constraint: &SearchConstraint,
 ) {
-    let moves = position.moves(MoveStage::All);
+    let mut moves = position.moves(MoveStage::All);
 
     if moves.is_empty() {
         return;
@@ -153,15 +153,25 @@ pub fn search_iterative_deepening_multithread(
         current_depth = current_depth.saturating_add(1);
     }
 
-    // Best move found
-    let best_move = table.get_hash_move(position).unwrap();
-    print!("bestmove {}", best_move);
+    if let Some(best_move) = table.get_hash_move(position) {
+        // Best move found, as expected.
+        print!("bestmove {}", best_move);
 
-    // Ponder move if possible
-    let new_position = position.make_move(best_move);
-    if let Some(ponder_move) = table.get_hash_move(&new_position) {
-        println!(" ponder {}", ponder_move);
+        // Tell operator we'd like to ponder on this next move next, while the opponent is thinking.
+        let new_position = position.make_move(best_move);
+        if let Some(ponder_move) = table.get_hash_move(&new_position) {
+            println!(" ponder {}", ponder_move);
+        } else {
+            println!();
+        }
     } else {
-        println!();
+        if current_depth > 1 {
+            // The hash move must be in the table, since root entries should be forced.
+            panic!("Hash move not found in the table.");
+        }
+
+        // We are in time trouble. Return a "panic" perceived best move.
+        moves.sort_by_cached_key(|m| -evaluate_move(position, *m));
+        println!("bestmove {}", moves[0]);
     }
 }
