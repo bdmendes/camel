@@ -1,11 +1,10 @@
-use rand::{thread_rng, Rng};
-
 use super::{table::SearchTable, Depth};
 use crate::{
     evaluation::{moves::evaluate_move, Evaluable, ValueScore},
     moves::{gen::MoveStage, Move},
     position::{board::Piece, Position},
 };
+use rand::{thread_rng, Rng};
 use std::sync::Arc;
 
 type ScoredVec<Move> = Vec<(Move, ValueScore)>;

@@ -1,7 +1,6 @@
-use portable_atomic::AtomicU128;
-
 use super::{Depth, MAX_DEPTH};
 use crate::{evaluation::ValueScore, moves::Move, position::Position};
+use portable_atomic::AtomicU128;
 use std::{
     array,
     mem::{size_of, transmute},
@@ -30,6 +29,7 @@ struct TableEntry {
     data: u8,
     score: TableScore,
     best_move: Move,
+    hash: u64,
 }
 
 impl TableEntry {
@@ -39,15 +39,26 @@ impl TableEntry {
         depth: Depth,
         root: bool,
         search_id: u8,
+        hash: u64,
     ) -> Self {
         TableEntry {
             score,
             best_move,
+            hash,
             data: (depth & 0x3F) | ((root as u8 & 1) << 7) | ((search_id & 1) << 6),
         }
     }
 
-    fn same_search(&self, id: u8) -> bool {
+    pub fn from_raw(bytes: u128) -> Self {
+        unsafe { transmute::<u128, TableEntry>(bytes) }
+    }
+
+    pub fn raw(&self) -> u128 {
+        debug_assert!(size_of::<TableEntry>() == 16);
+        unsafe { transmute::<TableEntry, u128>(*self) }
+    }
+
+    fn same_search_parity(&self, id: u8) -> bool {
         ((self.data & 0x40) >> 6) == (id & 1)
     }
 
@@ -57,23 +68,6 @@ impl TableEntry {
 
     fn depth(&self) -> Depth {
         self.data & 0x3F
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct TranspositionEntry {
-    entry: TableEntry,
-    hash: u64,
-}
-
-impl TranspositionEntry {
-    pub fn from_raw(bytes: u128) -> Self {
-        unsafe { transmute::<u128, TranspositionEntry>(bytes) }
-    }
-
-    pub fn raw(&self) -> u128 {
-        debug_assert!(size_of::<TranspositionEntry>() == 16);
-        unsafe { transmute::<TranspositionEntry, u128>(*self) }
     }
 }
 
@@ -94,7 +88,7 @@ impl TranspositionTable {
     }
 
     fn calculate_data_len(size_mb: usize) -> usize {
-        let element_size = std::mem::size_of::<Option<TranspositionEntry>>();
+        let element_size = std::mem::size_of::<Option<TableEntry>>();
         let size = size_mb * 1024 * 1024;
         size / element_size
     }
@@ -114,7 +108,7 @@ impl TranspositionTable {
             * 10
     }
 
-    pub fn get(&self, position: &Position) -> Option<TranspositionEntry> {
+    pub fn get(&self, position: &Position) -> Option<TableEntry> {
         let hash = position.zobrist_hash();
         let entry = self.load_tt_entry(hash as usize % self.data.len());
         entry.filter(|entry| entry.hash == hash)
@@ -126,28 +120,27 @@ impl TranspositionTable {
 
         if !entry.is_root() {
             if let Some(old_entry) = self.load_tt_entry(index) {
-                let replace = (old_entry.entry.depth() <= entry.depth()
-                    && !old_entry.entry.is_root())
-                    || (old_entry.entry.is_root() && !old_entry.entry.same_search(current_id));
+                let replace = (old_entry.depth() <= entry.depth() && !old_entry.is_root())
+                    || (old_entry.is_root() && !old_entry.same_search_parity(current_id));
                 if !replace {
                     return;
                 }
             }
         }
 
-        self.store_tt_entry(index, TranspositionEntry { entry, hash });
+        self.store_tt_entry(index, entry);
     }
 
-    fn load_tt_entry(&self, index: usize) -> Option<TranspositionEntry> {
+    fn load_tt_entry(&self, index: usize) -> Option<TableEntry> {
         let entry = self.data[index].load(Ordering::Relaxed);
         if entry == NULL_TT_ENTRY {
             None
         } else {
-            Some(TranspositionEntry::from_raw(entry))
+            Some(TableEntry::from_raw(entry))
         }
     }
 
-    fn store_tt_entry(&self, index: usize, entry: TranspositionEntry) {
+    fn store_tt_entry(&self, index: usize, entry: TableEntry) {
         self.data[index].store(entry.raw(), Ordering::Relaxed)
     }
 }
@@ -169,7 +162,7 @@ impl SearchTable {
         let mut table = self.transposition.write().unwrap();
         if let Some(last_position) = table.last_position {
             if position.zobrist_hash() != last_position.zobrist_hash() {
-                table.current_id = table.current_id.saturating_add(1);
+                table.current_id = table.current_id.wrapping_add(1);
                 table.last_position = Some(*position);
             }
         }
@@ -180,13 +173,13 @@ impl SearchTable {
     }
 
     pub fn get_hash_move(&self, position: &Position) -> Option<Move> {
-        self.transposition.read().unwrap().get(position).map(|entry| entry.entry.best_move)
+        self.transposition.read().unwrap().get(position).map(|entry| entry.best_move)
     }
 
     pub fn get_table_score(&self, position: &Position, depth: Depth) -> Option<TableScore> {
         self.transposition.read().unwrap().get(position).and_then(|entry| {
-            if entry.entry.depth() >= depth {
-                Some(entry.entry.score)
+            if entry.depth() >= depth {
+                Some(entry.score)
             } else {
                 None
             }
@@ -202,7 +195,8 @@ impl SearchTable {
         root: bool,
     ) {
         let tt = self.transposition.read().unwrap();
-        let entry = TableEntry::new(score, best_move, depth, root, tt.current_id);
+        let entry =
+            TableEntry::new(score, best_move, depth, root, tt.current_id, position.zobrist_hash());
         tt.insert(position, entry, tt.current_id);
     }
 
@@ -267,5 +261,124 @@ impl SearchTable {
 
     fn store_killer(&self, index: usize, mov: Move) {
         self.killer_moves[index].store(mov.raw(), Ordering::Relaxed);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SearchTable, TableEntry, TableScore, TranspositionTable};
+    use crate::{
+        moves::Move,
+        position::{
+            fen::{FromFen, START_FEN},
+            square::Square,
+            Position,
+        },
+        search::{
+            table::{NULL_KILLER, NULL_TT_ENTRY},
+            MAX_DEPTH,
+        },
+    };
+
+    #[test]
+    fn entry_packing() {
+        let entry1 =
+            TableEntry::new(TableScore::Exact(100), Move::new_raw(0), MAX_DEPTH, true, 1, 0);
+        let entry2 = TableEntry::new(TableScore::Exact(100), Move::new_raw(0), 0, true, 1, 0);
+        let entry3 = TableEntry::new(TableScore::Exact(100), Move::new_raw(0), 1, false, 2, 0);
+        let entry4 = TableEntry::new(TableScore::Exact(100), Move::new_raw(0), 2, false, 3, 0);
+
+        assert_eq!(entry1.depth(), MAX_DEPTH);
+        assert_eq!(entry2.depth(), 0);
+        assert_eq!(entry3.depth(), 1);
+        assert_eq!(entry4.depth(), 2);
+
+        assert!(entry1.is_root());
+        assert!(entry2.is_root());
+        assert!(!entry3.is_root());
+        assert!(!entry4.is_root());
+
+        assert!(entry1.same_search_parity(1));
+        assert!(!entry1.same_search_parity(2));
+        assert!(entry1.same_search_parity(3));
+        assert!(entry3.same_search_parity(2));
+        assert!(!entry3.same_search_parity(3));
+    }
+
+    #[test]
+    fn entry_transmutation() {
+        let entry1 =
+            TableEntry::new(TableScore::Exact(100), Move::new_raw(0), MAX_DEPTH, true, 1, 0);
+        let entry2 = TableEntry::new(TableScore::Exact(100), Move::new_raw(0), 0, true, 1, 0);
+
+        assert!(entry1.raw() != entry2.raw());
+
+        assert_eq!(TableEntry::from_raw(entry1.raw()), entry1);
+        assert_eq!(TableEntry::from_raw(entry2.raw()), entry2);
+    }
+
+    #[test]
+    fn tt_raw_contents() {
+        let table = TranspositionTable::new(1);
+        let position = Position::from_fen(START_FEN).unwrap();
+
+        assert_eq!(table.data[0].load(portable_atomic::Ordering::Relaxed), NULL_TT_ENTRY);
+        assert_eq!(table.get(&position), None);
+
+        let first_move = Move::new(Square::E2, Square::E4, crate::moves::MoveFlag::DoublePawnPush);
+        let first_move_entry =
+            TableEntry::new(TableScore::Exact(0), first_move, 2, true, 1, position.zobrist_hash());
+
+        table.insert(&position, first_move_entry, 1);
+
+        assert_eq!(
+            table.data[position.zobrist_hash() as usize % table.data.len()]
+                .load(portable_atomic::Ordering::Relaxed),
+            first_move_entry.raw()
+        );
+        assert_eq!(table.get(&position).unwrap().best_move, first_move);
+    }
+
+    #[test]
+    fn killers_raw_contents() {
+        let table = SearchTable::new(1);
+
+        assert_eq!(table.killer_moves[0].load(portable_atomic::Ordering::Relaxed), NULL_KILLER);
+        assert_eq!(table.killer_moves[1].load(portable_atomic::Ordering::Relaxed), NULL_KILLER);
+        assert_eq!(table.get_killers(0), [None, None]);
+
+        let first_move = Move::new(Square::E2, Square::E4, crate::moves::MoveFlag::DoublePawnPush);
+        let second_move = Move::new(Square::D2, Square::D4, crate::moves::MoveFlag::DoublePawnPush);
+        let third_move = Move::new(Square::C2, Square::C4, crate::moves::MoveFlag::DoublePawnPush);
+
+        table.put_killer_move(0, first_move);
+        assert_eq!(
+            table.killer_moves[0].load(portable_atomic::Ordering::Relaxed),
+            first_move.raw()
+        );
+        assert_eq!(table.killer_moves[1].load(portable_atomic::Ordering::Relaxed), NULL_KILLER);
+        assert_eq!(table.get_killers(0), [Some(first_move), None]);
+
+        table.put_killer_move(0, second_move);
+        assert_eq!(
+            table.killer_moves[0].load(portable_atomic::Ordering::Relaxed),
+            first_move.raw()
+        );
+        assert_eq!(
+            table.killer_moves[1].load(portable_atomic::Ordering::Relaxed),
+            second_move.raw()
+        );
+        assert_eq!(table.get_killers(0), [Some(first_move), Some(second_move)]);
+
+        table.put_killer_move(0, third_move);
+        assert_eq!(
+            table.killer_moves[0].load(portable_atomic::Ordering::Relaxed),
+            second_move.raw()
+        );
+        assert_eq!(
+            table.killer_moves[1].load(portable_atomic::Ordering::Relaxed),
+            third_move.raw()
+        );
+        assert_eq!(table.get_killers(0), [Some(second_move), Some(third_move)]);
     }
 }
