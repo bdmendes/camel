@@ -12,6 +12,8 @@ use crate::{
 use std::{cell::OnceCell, sync::Arc};
 
 const MATE_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH as ValueScore + 1;
+const NULL_MOVE_DEPTH_REDUCTION: Depth = 3;
+const WINDOW_SIZE: ValueScore = 100;
 
 pub fn quiesce(
     position: &Position,
@@ -143,10 +145,6 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
     constraint: &SearchConstraint,
     history: &mut BranchHistory,
 ) -> (ValueScore, usize) {
-    if MAIN_THREAD && ROOT {
-        table.prepare_for_new_search(position);
-    }
-
     let repeated_times = history.repeated(position);
     let twofold_repetition = repeated_times >= 2;
     let threefold_repetition = repeated_times >= 3;
@@ -189,11 +187,16 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
     let is_check = position.is_check();
 
     // Null move pruning
-    if !ROOT && !is_check && !twofold_repetition && depth > 3 && !may_be_zugzwang(position) {
+    if !ROOT
+        && !is_check
+        && !twofold_repetition
+        && depth > NULL_MOVE_DEPTH_REDUCTION
+        && !may_be_zugzwang(position)
+    {
         position.side_to_move = position.side_to_move.opposite();
         let (score, nodes) = pvs::<false, MAIN_THREAD>(
             position,
-            depth - 3,
+            depth - NULL_MOVE_DEPTH_REDUCTION,
             -beta,
             -alpha,
             table.clone(),
@@ -305,15 +308,17 @@ pub fn pvs_aspiration<const MAIN_THREAD: bool>(
     depth: Depth,
     table: Arc<SearchTable>,
     constraint: &SearchConstraint,
-) -> (Score, usize) {
+) -> Option<(Score, usize)> {
     let depth = depth.min(MAX_DEPTH);
     let mut position = *position;
-
     let mut all_count = 0;
-
-    const WINDOW_SIZE: ValueScore = 100;
     let mut lower_bound = guess - WINDOW_SIZE;
     let mut upper_bound = guess + WINDOW_SIZE;
+
+    if MAIN_THREAD {
+        // We must update the search id so that new table entries may be pushed.
+        table.prepare_for_new_search(&position);
+    }
 
     for cof in 1.. {
         let (score, count) = pvs::<true, MAIN_THREAD>(
@@ -342,25 +347,31 @@ pub fn pvs_aspiration<const MAIN_THREAD: bool>(
                 upper_bound = upper_bound.saturating_add(WINDOW_SIZE.saturating_mul(cof));
                 continue;
             }
+
+            // Our score is valid, so other threads can stop gracefully.
+            constraint.signal_root_finished();
+
+            return Some(if score.abs() >= MATE_SCORE.abs() {
+                let pv = table.get_pv(&position, depth);
+                let plys_to_mate = pv.len() as u8;
+                (
+                    Score::Mate(
+                        if score > 0 {
+                            position.side_to_move
+                        } else {
+                            position.side_to_move.opposite()
+                        },
+                        (plys_to_mate + 1) / 2,
+                    ),
+                    all_count,
+                )
+            } else {
+                (Score::Value(score), all_count)
+            });
         }
 
-        return if score.abs() >= MATE_SCORE.abs() {
-            let pv = table.get_pv(&position, depth);
-            let plys_to_mate = pv.len() as u8;
-            (
-                Score::Mate(
-                    if score > 0 {
-                        position.side_to_move
-                    } else {
-                        position.side_to_move.opposite()
-                    },
-                    (plys_to_mate + 1) / 2,
-                ),
-                all_count,
-            )
-        } else {
-            (Score::Value(score), all_count)
-        };
+        // Search stopped as an outside order, so this is not a valid result.
+        return None;
     }
 
     unreachable!()
@@ -381,7 +392,8 @@ mod tests {
         let table = Arc::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB));
         let constraint = SearchConstraint::default();
 
-        let score = pvs_aspiration::<true>(&position, 0, depth, table.clone(), &constraint).0;
+        let score =
+            pvs_aspiration::<true>(&position, 0, depth, table.clone(), &constraint).unwrap().0;
         let pv = table.get_pv(&position, depth);
 
         assert!(pv.len() >= expected_moves.len());

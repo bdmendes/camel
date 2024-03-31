@@ -105,7 +105,7 @@ impl TranspositionTable {
             .take(10000)
             .filter(|entry| entry.load(Ordering::Relaxed) != NULL_TT_ENTRY)
             .count()
-            * 10
+            / 10
     }
 
     pub fn get(&self, position: &Position) -> Option<TableEntry> {

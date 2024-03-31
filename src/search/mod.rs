@@ -84,46 +84,56 @@ pub fn search_iterative_deepening_multithread(
     while constraint.pondering() || current_depth <= depth {
         let time = std::time::Instant::now();
 
-        let (score, count) = thread::scope(|s| {
-            // Start helper threads.
-            let handles = (1..number_threads)
-                .map(|_| {
+        let search_result = thread::scope(|s| {
+            // We must tell threads that it is ok to run.
+            constraint.threads_stop.store(false, Ordering::Relaxed);
+
+            // It is important to at least get a move with depth == 1, so do the simplest thing possible.
+            let multi_thread = number_threads > 1 && current_depth > 1;
+
+            if !multi_thread {
+                // Simply return a single threaded result.
+                return pvs::pvs_aspiration::<true>(
+                    position,
+                    current_guess,
+                    current_depth,
+                    table.clone(),
+                    constraint,
+                );
+            }
+
+            // Start threads.
+            // The first thread to finish will signal others to stop.
+            let handles = (0..number_threads)
+                .map(|i| {
                     let table = table.clone();
+                    let pvs_function = if i == 0 {
+                        pvs::pvs_aspiration::<true>
+                    } else {
+                        pvs::pvs_aspiration::<false>
+                    };
                     s.spawn(move || {
-                        pvs::pvs_aspiration::<false>(
-                            position,
-                            current_guess,
-                            current_depth,
-                            table,
-                            constraint,
-                        )
+                        pvs_function(position, current_guess, current_depth, table, constraint)
                     })
                 })
                 .collect::<Vec<_>>();
 
-            // Run the main thread.
-            let (score, count) = pvs::pvs_aspiration::<true>(
-                position,
-                current_guess,
-                current_depth,
-                table.clone(),
-                constraint,
-            );
-
-            // Signal helper threads to stop and join them.
-            constraint.threads_stop.store(true, Ordering::Relaxed);
+            // Wait for the threads to stop and return the first valid result.
             for handle in handles {
-                handle.join().unwrap();
+                if let Some(search_result) = handle.join().unwrap() {
+                    return Some(search_result);
+                }
             }
-            constraint.threads_stop.store(false, Ordering::Release);
 
-            // Use the main thread result.
-            (score, count)
+            // No valid result. The search could not finish in time.
+            None
         });
 
-        if constraint.should_stop_search() {
+        if search_result.is_none() {
             break;
         }
+
+        let (score, count) = search_result.unwrap();
 
         if let Score::Value(score) = score {
             current_guess = score;

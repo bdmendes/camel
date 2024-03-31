@@ -1,3 +1,4 @@
+use super::history::HistoryEntry;
 use std::{
     sync::{
         atomic::{AtomicBool, AtomicU16},
@@ -5,8 +6,6 @@ use std::{
     },
     time::{Duration, Instant},
 };
-
-use super::history::HistoryEntry;
 
 #[derive(Copy, Clone)]
 pub struct TimeConstraint {
@@ -54,6 +53,10 @@ impl SearchConstraint {
         self.time_constraint.as_ref().map(|time_constraint| {
             time_constraint.move_time.saturating_sub(time_constraint.initial_instant.elapsed())
         })
+    }
+
+    pub fn signal_root_finished(&self) {
+        self.threads_stop.store(true, portable_atomic::Ordering::Relaxed);
     }
 }
 
