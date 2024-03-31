@@ -382,7 +382,7 @@ mod tests {
     use super::*;
     use crate::{position::fen::FromFen, search::table::DEFAULT_TABLE_SIZE_MB};
 
-    fn expect_search(
+    fn expect_pvs_aspiration(
         fen: &str,
         depth: Depth,
         expected_moves: Vec<&str>,
@@ -412,7 +412,7 @@ mod tests {
 
     #[test]
     fn mate_us_1() {
-        expect_search(
+        expect_pvs_aspiration(
             "rnb1r2k/pR3Qpp/2p5/4N3/3P3P/2q5/P2p1PP1/5K1R w - - 1 20",
             2,
             vec!["f7e8"],
@@ -422,7 +422,7 @@ mod tests {
 
     #[test]
     fn mate_them_2() {
-        expect_search(
+        expect_pvs_aspiration(
             "rnb1r1k1/pR3ppp/2p5/4N3/3P1Q1P/3p4/P4PP1/q4K1R w - - 3 19",
             6,
             vec!["b7b1", "a1b1", "f4c1", "b1c1"],
@@ -432,7 +432,7 @@ mod tests {
 
     #[test]
     fn mate_us_3() {
-        expect_search(
+        expect_pvs_aspiration(
             "rnb1r1k1/pR3ppp/2p5/4N3/3P1Q1P/2qp4/P4PP1/5K1R b - - 2 18",
             7,
             vec!["c3a1", "b7b1", "a1b1", "f4c1", "b1c1"],

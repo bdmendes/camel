@@ -1,7 +1,7 @@
 use self::{constraint::SearchConstraint, table::SearchTable};
 use crate::{
     evaluation::{moves::evaluate_move, Score, ValueScore},
-    moves::gen::MoveStage,
+    moves::{gen::MoveStage, Move},
     position::Position,
 };
 use std::{
@@ -69,11 +69,11 @@ pub fn search_iterative_deepening_multithread(
     depth: Depth,
     table: Arc<SearchTable>,
     constraint: &SearchConstraint,
-) {
+) -> Option<Move> {
     let mut moves = position.moves(MoveStage::All);
 
     if moves.is_empty() {
-        return;
+        return None;
     }
 
     let one_legal_move = moves.len() == 1;
@@ -164,6 +164,8 @@ pub fn search_iterative_deepening_multithread(
         } else {
             println!();
         }
+
+        Some(best_move)
     } else {
         if current_depth > 1 {
             // The hash move must be in the table, since root entries should be forced.
@@ -173,5 +175,7 @@ pub fn search_iterative_deepening_multithread(
         // We are in time trouble. Return a "panic" perceived best move.
         moves.sort_by_cached_key(|m| -evaluate_move(position, *m));
         println!("bestmove {}", moves[0]);
+
+        Some(moves[0])
     }
 }
