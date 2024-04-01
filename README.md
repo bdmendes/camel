@@ -5,13 +5,12 @@
 
 [![Build](https://img.shields.io/github/actions/workflow/status/bdmendes/camel/ci.yml)](https://github.com/bdmendes/camel/actions)
 [![Codecov](https://img.shields.io/codecov/c/github/bdmendes/camel/master)](https://app.codecov.io/gh/bdmendes/camel)
-[![Release](https://img.shields.io/github/v/release/bdmendes/camel)](https://github.com/bdmendes/camel/releases)
+[![Release](https://img.shields.io/github/v/release/bdmendes/camel?color=orange)](https://github.com/bdmendes/camel/releases)
 
 [![lichess-bullet](https://lichess-shield.vercel.app/api?username=camel_bot&format=bullet)](https://lichess.org/@/camel_bot/perf/bullet)
 [![lichess-blitz](https://lichess-shield.vercel.app/api?username=camel_bot&format=blitz)](https://lichess.org/@/camel_bot/perf/blitz)
-[![ccrl-blitz](https://img.shields.io/badge/CCRL_Blitz-2037-red)](https://computerchess.org.uk/ccrl/404/)
-[![mcerl](https://img.shields.io/badge/MCERL-2208-red)](https://www.chessengeria.eu/mcerl)
-[![cedr](https://img.shields.io/badge/CEDR-2191-red)](https://chessengines.blogspot.com/p/rating-jcer.html)
+[![lichess-blitz](https://lichess-shield.vercel.app/api?username=camel_bot&format=rapid)](https://lichess.org/@/camel_bot/perf/rapid)
+[![ccrl-blitz](https://img.shields.io/badge/CCRL_Blitz-2037-blue)](https://computerchess.org.uk/ccrl/404/)
 
 </div>
 
