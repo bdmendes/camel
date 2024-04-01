@@ -1,16 +1,18 @@
 use self::{constraint::SearchConstraint, table::SearchTable};
 use crate::{
-    evaluation::{Score, ValueScore},
-    moves::gen::MoveStage,
+    evaluation::{moves::evaluate_move, Score, ValueScore},
+    moves::{gen::MoveStage, Move},
     position::Position,
 };
 use std::{
-    sync::{Arc, Mutex},
+    sync::{atomic::Ordering, Arc},
+    thread::{self},
     time::Duration,
 };
 
 pub mod constraint;
-mod movepick;
+pub mod history;
+pub mod movepick;
 pub mod pvs;
 pub mod table;
 
@@ -61,37 +63,79 @@ fn print_iter_info(
     println!();
 }
 
-pub fn search_iter(
+pub fn search_iterative_deepening_multithread(
     position: &Position,
     mut current_guess: ValueScore,
     depth: Depth,
-    table: Arc<Mutex<SearchTable>>,
-    constraint: &mut SearchConstraint,
-) {
-    let moves = position.moves(MoveStage::All);
+    table: Arc<SearchTable>,
+    constraint: &SearchConstraint,
+) -> Option<Move> {
+    let mut moves = position.moves(MoveStage::All);
 
     if moves.is_empty() {
-        return;
+        return None;
     }
 
     let one_legal_move = moves.len() == 1;
+    let number_threads = constraint.number_threads.load(std::sync::atomic::Ordering::Relaxed);
 
     let mut current_depth = 1;
+
     while constraint.pondering() || current_depth <= depth {
         let time = std::time::Instant::now();
-        let (score, count) =
-            pvs::pvs_aspiration(position, current_guess, current_depth, table.clone(), constraint);
 
-        if constraint.should_stop_search() {
+        let search_result = thread::scope(|s| {
+            // We must tell threads that it is ok to run.
+            constraint.threads_stop.store(false, Ordering::Relaxed);
+
+            // It is important to at least get a move with depth == 1, so do the simplest thing possible.
+            let multi_thread = number_threads > 1 && current_depth > 1;
+
+            if !multi_thread {
+                // Simply return a single threaded result.
+                return pvs::pvs_aspiration::<true>(
+                    position,
+                    current_guess,
+                    current_depth,
+                    table.clone(),
+                    constraint,
+                );
+            }
+
+            // Start threads.
+            // The main thread will signal others to stop.
+            let handles = (0..number_threads)
+                .map(|i| {
+                    let table = table.clone();
+                    let pvs_function = if i == 0 {
+                        pvs::pvs_aspiration::<true>
+                    } else {
+                        pvs::pvs_aspiration::<false>
+                    };
+                    s.spawn(move || {
+                        pvs_function(position, current_guess, current_depth, table, constraint)
+                    })
+                })
+                .collect::<Vec<_>>();
+
+            // Wait for the threads to stop and return the result of the main thread.
+            let results = handles.into_iter().map(|h| h.join().unwrap()).collect::<Vec<_>>();
+            results[0]
+        });
+
+        if search_result.is_none() {
+            // The search could not finish in time.
             break;
         }
+
+        let (score, count) = search_result.unwrap();
 
         if let Score::Value(score) = score {
             current_guess = score;
         }
 
         let elapsed = time.elapsed();
-        print_iter_info(position, current_depth, score, count, elapsed, &table.lock().unwrap());
+        print_iter_info(position, current_depth, score, count, time.elapsed(), &table);
 
         if !constraint.pondering()
             && (one_legal_move
@@ -104,15 +148,29 @@ pub fn search_iter(
         current_depth = current_depth.saturating_add(1);
     }
 
-    // Best move found
-    let best_move = table.lock().unwrap().get_hash_move(position).unwrap_or(moves[0]);
-    print!("bestmove {}", best_move);
+    if let Some(best_move) = table.get_hash_move(position) {
+        // Best move found, as expected.
+        print!("bestmove {}", best_move);
 
-    // Ponder move if possible
-    let new_position = position.make_move(best_move);
-    if let Some(ponder_move) = table.lock().unwrap().get_hash_move(&new_position) {
-        println!(" ponder {}", ponder_move);
+        // Tell operator we'd like to ponder on this next move next, while the opponent is thinking.
+        let new_position = position.make_move(best_move);
+        if let Some(ponder_move) = table.get_hash_move(&new_position) {
+            println!(" ponder {}", ponder_move);
+        } else {
+            println!();
+        }
+
+        Some(best_move)
     } else {
-        println!();
+        if current_depth > 1 {
+            // The hash move must be in the table, since root entries should be forced.
+            panic!("Hash move not found in the table.");
+        }
+
+        // We are in time trouble. Return a "panic" perceived best move.
+        moves.sort_by_cached_key(|m| -evaluate_move(position, *m));
+        println!("bestmove {}", moves[0]);
+
+        Some(moves[0])
     }
 }

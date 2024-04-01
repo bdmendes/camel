@@ -94,6 +94,9 @@ if [ ! -f $INSTALL_PATH/${BOOK_NAME} ]; then
     cp "${BOOK_PATH}/${BOOK_NAME}" "${INSTALL_PATH}/${BOOK_NAME}" || exit 1
 fi
 
+# Delete old binaries
+rm $INSTALL_PATH/$ENGINE_NAME-*
+
 # Use binary names based on branch name, with slashes replaced by dashes
 CURRENT_BRANCH_BIN_NAME="${ENGINE_NAME}-${CURRENT_BRANCH//\//-}"
 UPSTREAM_BIN_NAME="${ENGINE_NAME}-${UPSTREAM//\//-}"

@@ -2,11 +2,7 @@ use super::sliders::{slider_attacks_from_square, BISHOP_MOVE_DIRECTIONS, ROOK_MO
 use crate::position::{bitboard::Bitboard, board::Piece, square::Square};
 use ctor::ctor;
 use rand::{rngs::StdRng, Rng, SeedableRng};
-use std::{
-    array,
-    sync::{Arc, Mutex},
-    thread,
-};
+use std::thread;
 
 #[ctor]
 pub static ROOK_MAGICS: [SquareMagic; 64] = find_magics(Piece::Rook);
@@ -100,25 +96,14 @@ fn find_magic(square: Square, piece: Piece) -> SquareMagic {
 }
 
 fn find_magics(piece: Piece) -> [SquareMagic; 64] {
-    let magics: [SquareMagic; 64] = array::from_fn(|_| SquareMagic::default());
-    let magics = Arc::new(Mutex::new(magics));
-
-    let handles = (0..64)
-        .map(|square| {
-            let magics = Arc::clone(&magics);
-            thread::spawn(move || {
-                let magic = find_magic(Square::from(square).unwrap(), piece);
-                let mut magics = magics.lock().unwrap();
-                magics[square as usize] = magic;
-            })
-        })
-        .collect::<Vec<_>>();
-
-    for handle in handles {
-        handle.join().unwrap();
-    }
-
-    Arc::try_unwrap(magics).unwrap().into_inner().unwrap()
+    (0..64)
+        .map(|square| thread::spawn(move || find_magic(Square::from(square).unwrap(), piece)))
+        .collect::<Vec<_>>()
+        .into_iter()
+        .map(|h| h.join().unwrap())
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap()
 }
 
 pub fn magic_index(magic: &SquareMagic, occupancy: Bitboard) -> usize {

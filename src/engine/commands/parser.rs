@@ -122,11 +122,6 @@ pub fn parse_go(words: &mut VecDeque<&str>) -> Result<Command, String> {
     })
 }
 
-pub fn parse_auto_move(words: &mut VecDeque<&str>) -> Result<Command, ()> {
-    let seconds = words.pop_front().unwrap_or("1").parse::<u16>().map_err(|_| ())?;
-    Ok(Command::AutoMove { seconds })
-}
-
 pub fn parse_perft(words: &mut VecDeque<&str>) -> Result<Command, ()> {
     let depth = words.pop_front().ok_or(())?.parse::<u8>().map_err(|_| ())?;
     Ok(Command::Perft(depth))

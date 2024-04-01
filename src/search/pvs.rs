@@ -1,21 +1,21 @@
 use super::{
     constraint::SearchConstraint,
+    history::BranchHistory,
     movepick::MovePicker,
-    table::{SearchTable, TableEntry, TableScore},
+    table::{SearchTable, TableScore},
     Depth, MAX_DEPTH,
 };
 use crate::{
     evaluation::{position::MAX_POSITIONAL_GAIN, Evaluable, Score, ValueScore},
     position::{board::Piece, Color, Position},
 };
-use std::{
-    cell::OnceCell,
-    sync::{Arc, Mutex},
-};
+use std::{cell::OnceCell, sync::Arc};
 
 const MATE_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH as ValueScore + 1;
+const NULL_MOVE_DEPTH_REDUCTION: Depth = 3;
+const WINDOW_SIZE: ValueScore = 100;
 
-pub fn quiesce(
+fn quiesce(
     position: &Position,
     mut alpha: ValueScore,
     beta: ValueScore,
@@ -86,28 +86,42 @@ pub fn quiesce(
     (alpha, count)
 }
 
-fn pvs_recurse(
+#[allow(clippy::too_many_arguments)]
+#[inline(always)]
+fn pvs_recurse<const MAIN_THREAD: bool>(
     position: &mut Position,
     depth: Depth,
     alpha: ValueScore,
     beta: ValueScore,
-    table: Arc<Mutex<SearchTable>>,
-    constraint: &mut SearchConstraint,
+    table: Arc<SearchTable>,
+    constraint: &SearchConstraint,
+    history: &mut BranchHistory,
     do_zero_window: bool,
 ) -> (ValueScore, usize) {
     let mut count = 0;
 
     if do_zero_window {
-        let (score, nodes) =
-            pvs::<false>(position, depth, -alpha - 1, -alpha, table.clone(), constraint);
+        // We expect this tree to not raise alpha, so we search with tight bounds.
+        let (score, nodes) = pvs::<false, MAIN_THREAD>(
+            position,
+            depth,
+            -alpha - 1,
+            -alpha,
+            table.clone(),
+            constraint,
+            history,
+        );
         count += nodes;
         let score = -score;
         if score <= alpha || score >= beta {
+            // We did not exceed alpha, so our fast search is ok.
             return (score, count);
         }
     }
 
-    let (score, nodes) = pvs::<false>(position, depth, -beta, -alpha, table, constraint);
+    // We found a better move, so we must search with full window to confirm.
+    let (score, nodes) =
+        pvs::<false, MAIN_THREAD>(position, depth, -beta, -alpha, table, constraint, history);
     count += nodes;
     (-score, count)
 }
@@ -122,19 +136,16 @@ fn may_be_zugzwang(position: &Position) -> bool {
     white_pieces_bb.is_empty() || black_pieces_bb.is_empty()
 }
 
-fn pvs<const ROOT: bool>(
+fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
     position: &mut Position,
     depth: Depth,
     mut alpha: ValueScore,
     mut beta: ValueScore,
-    table: Arc<Mutex<SearchTable>>,
-    constraint: &mut SearchConstraint,
+    table: Arc<SearchTable>,
+    constraint: &SearchConstraint,
+    history: &mut BranchHistory,
 ) -> (ValueScore, usize) {
-    if ROOT {
-        table.lock().unwrap().prepare_for_new_search(position.fullmove_number);
-    }
-
-    let repeated_times = constraint.repeated(position);
+    let repeated_times = history.repeated(position);
     let twofold_repetition = repeated_times >= 2;
     let threefold_repetition = repeated_times >= 3;
 
@@ -146,7 +157,7 @@ fn pvs<const ROOT: bool>(
 
         // Get known score from transposition table
         if !twofold_repetition {
-            if let Some(tt_entry) = table.lock().unwrap().get_table_score(position, depth) {
+            if let Some(tt_entry) = table.get_table_score(position, depth) {
                 match tt_entry {
                     TableScore::Exact(score) => return (score, 1),
                     TableScore::LowerBound(score) => alpha = alpha.max(score),
@@ -176,10 +187,22 @@ fn pvs<const ROOT: bool>(
     let is_check = position.is_check();
 
     // Null move pruning
-    if !ROOT && !is_check && !twofold_repetition && depth > 3 && !may_be_zugzwang(position) {
+    if !ROOT
+        && !is_check
+        && !twofold_repetition
+        && depth > NULL_MOVE_DEPTH_REDUCTION
+        && !may_be_zugzwang(position)
+    {
         position.side_to_move = position.side_to_move.opposite();
-        let (score, nodes) =
-            pvs::<false>(position, depth - 3, -beta, -alpha, table.clone(), constraint);
+        let (score, nodes) = pvs::<false, MAIN_THREAD>(
+            position,
+            depth - NULL_MOVE_DEPTH_REDUCTION,
+            -beta,
+            -alpha,
+            table.clone(),
+            constraint,
+            history,
+        );
         position.side_to_move = position.side_to_move.opposite();
 
         count += nodes;
@@ -190,7 +213,8 @@ fn pvs<const ROOT: bool>(
         }
     }
 
-    let mut picker = MovePicker::<false>::new(position, table.clone(), depth).peekable();
+    let mut picker =
+        MovePicker::<false>::new(position, table.clone(), depth, ROOT && !MAIN_THREAD).peekable();
 
     // Detect checkmate and stalemate
     if picker.peek().is_none() {
@@ -231,17 +255,18 @@ fn pvs<const ROOT: bool>(
 
         let mut new_position = position.make_move(mov);
 
-        constraint.visit_position(&new_position, mov.flag().is_reversible());
-        let (score, nodes) = pvs_recurse(
+        history.visit_position(&new_position, mov.flag().is_reversible());
+        let (score, nodes) = pvs_recurse::<MAIN_THREAD>(
             &mut new_position,
             new_depth,
             alpha,
             beta,
             table.clone(),
             constraint,
+            history,
             i > 0,
         );
-        constraint.leave_position();
+        history.leave_position();
 
         count += nodes;
 
@@ -250,8 +275,8 @@ fn pvs<const ROOT: bool>(
             alpha = score;
 
             if score >= beta {
-                if mov.flag().is_quiet() {
-                    table.lock().unwrap().put_killer_move(depth, mov);
+                if MAIN_THREAD && mov.flag().is_quiet() {
+                    table.put_killer_move(depth, mov);
                 }
                 break;
             }
@@ -259,9 +284,9 @@ fn pvs<const ROOT: bool>(
     }
 
     if !constraint.should_stop_search() {
-        let entry = TableEntry {
-            depth,
-            score: if alpha <= original_alpha {
+        table.insert_entry(
+            position,
+            if alpha <= original_alpha {
                 TableScore::UpperBound(alpha)
             } else if alpha >= beta {
                 TableScore::LowerBound(alpha)
@@ -269,33 +294,42 @@ fn pvs<const ROOT: bool>(
                 TableScore::Exact(alpha)
             },
             best_move,
-        };
-
-        table.lock().unwrap().insert_entry::<ROOT>(position, entry);
+            depth,
+            ROOT && MAIN_THREAD,
+        );
     }
 
     (alpha, count)
 }
 
-pub fn pvs_aspiration(
+pub fn pvs_aspiration<const MAIN_THREAD: bool>(
     position: &Position,
     guess: ValueScore,
     depth: Depth,
-    table: Arc<Mutex<SearchTable>>,
-    constraint: &mut SearchConstraint,
-) -> (Score, usize) {
+    table: Arc<SearchTable>,
+    constraint: &SearchConstraint,
+) -> Option<(Score, usize)> {
     let depth = depth.min(MAX_DEPTH);
     let mut position = *position;
-
     let mut all_count = 0;
-
-    const WINDOW_SIZE: ValueScore = 100;
     let mut lower_bound = guess - WINDOW_SIZE;
     let mut upper_bound = guess + WINDOW_SIZE;
 
+    if MAIN_THREAD {
+        // We must update the search id so that new table entries may be pushed.
+        table.prepare_for_new_search(&position);
+    }
+
     for cof in 1.. {
-        let (score, count) =
-            pvs::<true>(&mut position, depth, lower_bound, upper_bound, table.clone(), constraint);
+        let (score, count) = pvs::<true, MAIN_THREAD>(
+            &mut position,
+            depth,
+            lower_bound,
+            upper_bound,
+            table.clone(),
+            constraint,
+            &mut BranchHistory(constraint.game_history.clone()),
+        );
         all_count += count;
 
         if !constraint.should_stop_search() {
@@ -313,25 +347,33 @@ pub fn pvs_aspiration(
                 upper_bound = upper_bound.saturating_add(WINDOW_SIZE.saturating_mul(cof));
                 continue;
             }
+
+            // Our score is valid, so other threads can stop gracefully.
+            if MAIN_THREAD {
+                constraint.signal_root_finished();
+            }
+
+            return Some(if score.abs() >= MATE_SCORE.abs() {
+                let pv = table.get_pv(&position, depth);
+                let plys_to_mate = pv.len() as u8;
+                (
+                    Score::Mate(
+                        if score > 0 {
+                            position.side_to_move
+                        } else {
+                            position.side_to_move.opposite()
+                        },
+                        (plys_to_mate + 1) / 2,
+                    ),
+                    all_count,
+                )
+            } else {
+                (Score::Value(score), all_count)
+            });
         }
 
-        return if score.abs() >= MATE_SCORE.abs() {
-            let pv = table.lock().unwrap().get_pv(&position, depth);
-            let plys_to_mate = pv.len() as u8;
-            (
-                Score::Mate(
-                    if score > 0 {
-                        position.side_to_move
-                    } else {
-                        position.side_to_move.opposite()
-                    },
-                    (plys_to_mate + 1) / 2,
-                ),
-                all_count,
-            )
-        } else {
-            (Score::Value(score), all_count)
-        };
+        // Search stopped as an outside order, so this is not a valid result.
+        return None;
     }
 
     unreachable!()
@@ -342,18 +384,19 @@ mod tests {
     use super::*;
     use crate::{position::fen::FromFen, search::table::DEFAULT_TABLE_SIZE_MB};
 
-    fn expect_search(
+    fn expect_pvs_aspiration(
         fen: &str,
         depth: Depth,
         expected_moves: Vec<&str>,
         expected_score: Option<Score>,
     ) {
         let position = Position::from_fen(fen).unwrap();
-        let table = Arc::new(Mutex::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB)));
-        let mut constraint = SearchConstraint::default();
+        let table = Arc::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB));
+        let constraint = SearchConstraint::default();
 
-        let score = pvs_aspiration(&position, 0, depth, table.clone(), &mut constraint).0;
-        let pv = table.lock().unwrap().get_pv(&position, depth);
+        let score =
+            pvs_aspiration::<true>(&position, 0, depth, table.clone(), &constraint).unwrap().0;
+        let pv = table.get_pv(&position, depth);
 
         assert!(pv.len() >= expected_moves.len());
 
@@ -371,7 +414,7 @@ mod tests {
 
     #[test]
     fn mate_us_1() {
-        expect_search(
+        expect_pvs_aspiration(
             "rnb1r2k/pR3Qpp/2p5/4N3/3P3P/2q5/P2p1PP1/5K1R w - - 1 20",
             2,
             vec!["f7e8"],
@@ -381,7 +424,7 @@ mod tests {
 
     #[test]
     fn mate_them_2() {
-        expect_search(
+        expect_pvs_aspiration(
             "rnb1r1k1/pR3ppp/2p5/4N3/3P1Q1P/3p4/P4PP1/q4K1R w - - 3 19",
             6,
             vec!["b7b1", "a1b1", "f4c1", "b1c1"],
@@ -391,7 +434,7 @@ mod tests {
 
     #[test]
     fn mate_us_3() {
-        expect_search(
+        expect_pvs_aspiration(
             "rnb1r1k1/pR3ppp/2p5/4N3/3P1Q1P/2qp4/P4PP1/5K1R b - - 2 18",
             7,
             vec!["c3a1", "b7b1", "a1b1", "f4c1", "b1c1"],

@@ -4,42 +4,20 @@ use crate::{
     moves::{gen::MoveStage, Move},
     position::{board::Piece, Position},
 };
-use std::sync::{Arc, Mutex};
+use rand::{thread_rng, Rng};
+use std::sync::Arc;
 
 type ScoredVec<Move> = Vec<(Move, ValueScore)>;
 type PickResult = (Move, ValueScore);
 
-fn decorate_moves_with_score<F>(moves: &[Move], f: F) -> ScoredVec<Move>
-where
-    F: Fn(Move) -> ValueScore,
-{
-    moves.iter().map(|mov| (*mov, f(*mov))).collect()
-}
-
-fn find_next_max_and_swap(moves: &mut ScoredVec<Move>, index: &mut usize) -> Option<PickResult> {
-    if *index >= moves.len() {
-        return None;
-    }
-
-    let mut best_score = moves[*index].1;
-
-    for i in (*index + 1)..moves.len() {
-        if moves[i].1 > best_score {
-            best_score = moves[i].1;
-            moves.swap(i, *index);
-        }
-    }
-
-    *index += 1;
-    Some((moves[*index - 1].0, moves[*index - 1].1))
-}
+const RANDOM_FACTOR: ValueScore = 1000;
 
 pub struct MovePicker<const QUIESCE: bool> {
     index: usize,
     moves: ScoredVec<Move>,
     stage: MoveStage,
     position: Position,
-    table: Option<Arc<Mutex<SearchTable>>>,
+    table: Option<Arc<SearchTable>>,
     depth: Option<Depth>,
 }
 
@@ -70,16 +48,25 @@ impl std::iter::Iterator for MovePicker<true> {
 }
 
 impl MovePicker<false> {
-    pub fn new(position: &Position, table: Arc<Mutex<SearchTable>>, depth: Depth) -> Self {
-        let mut moves = ScoredVec::with_capacity(1);
-        if let Some(hash_move) = table.lock().unwrap().get_hash_move(position) {
-            moves.push((hash_move, ValueScore::MAX));
-        }
+    pub fn new(position: &Position, table: Arc<SearchTable>, depth: Depth, shuffle: bool) -> Self {
+        let moves = if !shuffle {
+            if let Some(hash_move) = table.get_hash_move(position) {
+                vec![(hash_move, ValueScore::MAX)]
+            } else {
+                vec![]
+            }
+        } else {
+            position
+                .moves(MoveStage::All)
+                .into_iter()
+                .map(|m| (m, thread_rng().gen_range(0..RANDOM_FACTOR)))
+                .collect::<Vec<_>>()
+        };
 
         Self {
             index: 0,
             moves,
-            stage: MoveStage::HashMove,
+            stage: if !shuffle { MoveStage::HashMove } else { MoveStage::All },
             position: *position,
             table: Some(table),
             depth: Some(depth),
@@ -110,8 +97,7 @@ impl std::iter::Iterator for MovePicker<false> {
                 self.stage = MoveStage::NonCaptures;
                 let all_non_capture_moves = self.position.moves(MoveStage::NonCaptures);
 
-                let killers =
-                    self.table.as_ref().unwrap().lock().unwrap().get_killers(self.depth.unwrap());
+                let killers = self.table.as_ref().unwrap().get_killers(self.depth.unwrap());
                 self.moves = decorate_moves_with_score(&all_non_capture_moves, |mov| {
                     if killers[1] == Some(mov) || killers[0] == Some(mov) {
                         Piece::Queen.value()
@@ -126,4 +112,29 @@ impl std::iter::Iterator for MovePicker<false> {
             _ => None,
         }
     }
+}
+
+fn decorate_moves_with_score<F>(moves: &[Move], f: F) -> ScoredVec<Move>
+where
+    F: Fn(Move) -> ValueScore,
+{
+    moves.iter().map(|mov| (*mov, f(*mov))).collect()
+}
+
+fn find_next_max_and_swap(moves: &mut ScoredVec<Move>, index: &mut usize) -> Option<PickResult> {
+    if *index >= moves.len() {
+        return None;
+    }
+
+    let mut best_score = moves[*index].1;
+
+    for i in (*index + 1)..moves.len() {
+        if moves[i].1 > best_score {
+            best_score = moves[i].1;
+            moves.swap(i, *index);
+        }
+    }
+
+    *index += 1;
+    Some((moves[*index - 1].0, moves[*index - 1].1))
 }

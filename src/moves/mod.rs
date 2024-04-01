@@ -75,6 +75,10 @@ impl MoveFlag {
 pub struct Move(u16);
 
 impl Move {
+    pub fn new_raw(bytes: u16) -> Self {
+        Move(bytes)
+    }
+
     pub fn new(from: Square, to: Square, flag: MoveFlag) -> Self {
         Move((from as u16) | ((to as u16) << 6) | ((flag as u16) << 12))
     }
@@ -99,6 +103,10 @@ impl Move {
             MoveFlag::QueenPromotion | MoveFlag::QueenPromotionCapture => Some(Piece::Queen),
             _ => None,
         }
+    }
+
+    pub fn raw(&self) -> u16 {
+        self.0
     }
 }
 
