@@ -349,7 +349,9 @@ pub fn pvs_aspiration<const MAIN_THREAD: bool>(
             }
 
             // Our score is valid, so other threads can stop gracefully.
-            constraint.signal_root_finished();
+            if MAIN_THREAD {
+                constraint.signal_root_finished();
+            }
 
             return Some(if score.abs() >= MATE_SCORE.abs() {
                 let pv = table.get_pv(&position, depth);
