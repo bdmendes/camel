@@ -16,6 +16,7 @@ use std::{
 };
 
 const SCENARIO_SEARCH_TIME: Duration = Duration::new(30, 0);
+const SCENARIO_THREADS: u16 = 2;
 
 fn expect_search(fen: &str, mov: &str) {
     let constraint = SearchConstraint {
@@ -26,7 +27,7 @@ fn expect_search(fen: &str, mov: &str) {
         global_stop: Arc::new(AtomicBool::new(false)),
         threads_stop: Arc::new(AtomicBool::new(false)),
         ponder_mode: Arc::new(AtomicBool::new(false)),
-        number_threads: Arc::new(AtomicU16::new(1)),
+        number_threads: Arc::new(AtomicU16::new(SCENARIO_THREADS)),
         game_history: vec![],
     };
     let table = SearchTable::new(DEFAULT_TABLE_SIZE_MB);
