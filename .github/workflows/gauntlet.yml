@@ -62,7 +62,7 @@ jobs:
         env:
           CURRENT_BRANCH: ${{ github.head_ref }}
         run: |
-          ./gauntlet.sh master 1 4 256 150 || echo "GAUNTLET_FAILED=1" >> $GITHUB_ENV
+          ./gauntlet.sh master 1 4 256 100 || echo "GAUNTLET_FAILED=1" >> $GITHUB_ENV
 
       - uses: mshick/add-pr-comment@v2
         with:
@@ -126,7 +126,7 @@ jobs:
         env:
           CURRENT_BRANCH: ${{ github.head_ref }}
         run: |
-          ./gauntlet.sh $(git describe --tags --abbrev=0) 1 4 256 150 || echo "GAUNTLET_FAILED=1" >> $GITHUB_ENV
+          ./gauntlet.sh $(git describe --tags --abbrev=0) 1 4 256 100 || echo "GAUNTLET_FAILED=1" >> $GITHUB_ENV
 
       - uses: mshick/add-pr-comment@v2
         with:
