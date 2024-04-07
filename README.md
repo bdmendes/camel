@@ -10,7 +10,7 @@
 [![lichess-bullet](https://lichess-shield.vercel.app/api?username=camel_bot&format=bullet)](https://lichess.org/@/camel_bot/perf/bullet)
 [![lichess-blitz](https://lichess-shield.vercel.app/api?username=camel_bot&format=blitz)](https://lichess.org/@/camel_bot/perf/blitz)
 [![lichess-blitz](https://lichess-shield.vercel.app/api?username=camel_bot&format=rapid)](https://lichess.org/@/camel_bot/perf/rapid)
-[![ccrl-blitz](https://img.shields.io/badge/CCRL_Blitz-2037-blue)](https://computerchess.org.uk/ccrl/404/)
+[![ccrl-blitz](https://img.shields.io/badge/CCRL_Blitz-2133-blue)](https://computerchess.org.uk/ccrl/404/)
 
 </div>
 
