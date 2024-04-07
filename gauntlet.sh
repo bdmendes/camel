@@ -14,11 +14,11 @@ readonly ELO_THRESHOLD=30
 
 # Arguments
 readonly UPSTREAM=${1:-"master"}
-readonly ROUNDS=${2:-"300"}
-readonly TIME_CONTROL=${3:-"5+0.2"}
-readonly CONCURRENCY_GAMES=${4:-"4"}
-readonly ENGINE_THREADS=${5:-"1"}
-readonly ENGINE_HASH=${6:-"64"}
+readonly CONCURRENCY_GAMES=${2:-"4"}
+readonly ENGINE_THREADS=${3:-"1"}
+readonly ENGINE_HASH=${4:-"64"}
+readonly ROUNDS=${5:-"300"}
+readonly TIME_CONTROL=${6:-"5+0.2"}
 
 function run_gauntlet {
     # (rounds, time_control)
@@ -27,7 +27,7 @@ function run_gauntlet {
 
     echo ""
     echo "Running gauntlet with $rounds rounds and $time_control time control against $UPSTREAM."
-    echo "concurrency=$CONCURRENCY_GAMES; hash=$ENGINE_HASH; threads=$ENGINE_THREADS]"
+    echo "Settings: concurrency=$CONCURRENCY_GAMES; hash=$ENGINE_HASH; threads=$ENGINE_THREADS."
     echo ""
 
     # Run the gauntlet and store output in temp file
@@ -50,7 +50,7 @@ function run_gauntlet {
 
     # Print result
     failed=0
-    echo -n "Against ${UPSTREAM}: " | tee -a $MESSAGE_FILE
+    echo -n "Against ${UPSTREAM} [hash=$ENGINE_HASH; threads=$ENGINE_THREADS]: " | tee -a $MESSAGE_FILE
     if [ $((elo_diff)) -lt -$ELO_THRESHOLD ]; then
         echo -n "❌ " | tee -a $MESSAGE_FILE
         failed=1
