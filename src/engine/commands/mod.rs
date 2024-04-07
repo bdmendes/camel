@@ -4,7 +4,7 @@ use self::{
     executor::{
         execute_all_moves, execute_clear, execute_debug, execute_display, execute_do_move,
         execute_go, execute_help, execute_is_ready, execute_perft, execute_ponderhit,
-        execute_position, execute_quit, execute_set_option, execute_stop, execute_uci,
+        execute_position, execute_quit, execute_set_option, execute_smp, execute_stop, execute_uci,
         execute_uci_new_game,
     },
     parser::{parse_debug, parse_go, parse_move, parse_perft, parse_position, parse_set_option},
@@ -35,6 +35,7 @@ pub fn parse_command(input: &str) -> Result<Command, ()> {
         "setoption" => parse_set_option(&mut words),
         "perft" => parse_perft(&mut words),
         "move" | "m" => parse_move(&mut words),
+        "smp" => Ok(Command::Smp),
         "display" | "d" => Ok(Command::Display),
         "list" | "l" => Ok(Command::ListMoves),
         "help" | "h" => Ok(Command::Help),
@@ -74,6 +75,7 @@ pub fn execute_command(command: Command, engine: &mut Engine) {
         }
         Command::IsReady => execute_is_ready(),
         Command::UCINewGame => execute_uci_new_game(engine),
+        Command::Smp => execute_smp(engine),
         Command::Perft(depth) => execute_perft(depth, &engine.position),
         Command::DoMove { mov_str } => execute_do_move(&mov_str, &mut engine.position),
         Command::Display => execute_display(&engine.position),

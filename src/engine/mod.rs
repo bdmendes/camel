@@ -50,6 +50,7 @@ pub enum Command {
     },
 
     // Custom commands
+    Smp,
     Perft(u8),
     DoMove {
         mov_str: String,

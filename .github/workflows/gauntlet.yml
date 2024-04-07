@@ -43,6 +43,38 @@ jobs:
             exit 1
           fi
 
+  upstream_gauntlet_multithreaded:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up script permissions
+        run: chmod +x ./gauntlet.sh
+
+      - name: Set up local master branch
+        run: git fetch origin master:master
+
+      - name: Run script and collect results
+        env:
+          CURRENT_BRANCH: ${{ github.head_ref }}
+        run: |
+          ./gauntlet.sh master 1 4 256 100 || echo "GAUNTLET_FAILED=1" >> $GITHUB_ENV
+
+      - uses: mshick/add-pr-comment@v2
+        with:
+          message-path: fast-chess/message.txt
+          message-id: upstream_multithreaded
+
+      - name: Fail if gauntlet failed
+        run: |
+          if [ -n "$GAUNTLET_FAILED" ]; then
+            exit 1
+          fi
+
   release_gauntlet:
     runs-on: ubuntu-latest
     permissions:
@@ -68,6 +100,38 @@ jobs:
         with:
           message-path: fast-chess/message.txt
           message-id: release
+
+      - name: Fail if gauntlet failed
+        run: |
+          if [ -n "$GAUNTLET_FAILED" ]; then
+            exit 1
+          fi
+
+  release_gauntlet_multithreaded:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up script permissions
+        run: chmod +x ./gauntlet.sh
+
+      - name: Set up local release tag
+        run: git fetch origin $(git describe --tags --abbrev=0)
+
+      - name: Run script and collect results
+        env:
+          CURRENT_BRANCH: ${{ github.head_ref }}
+        run: |
+          ./gauntlet.sh $(git describe --tags --abbrev=0) 1 4 256 100 || echo "GAUNTLET_FAILED=1" >> $GITHUB_ENV
+
+      - uses: mshick/add-pr-comment@v2
+        with:
+          message-path: fast-chess/message.txt
+          message-id: release_multithreaded
 
       - name: Fail if gauntlet failed
         run: |

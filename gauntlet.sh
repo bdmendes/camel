@@ -2,33 +2,40 @@
 
 readonly RUNNER=fast-chess
 readonly REPO_URL=https://github.com/Disservin/fast-chess.git
-readonly REPO_TAG=v0.6.3-alpha
+readonly REPO_TAG=v0.7.0-alpha
 readonly INSTALL_PATH=./$RUNNER
 readonly ENGINE_NAME=camel
 readonly BOOK_PATH=./books
 readonly BOOK_NAME=popularpos_lichess_v3.epd
 readonly BOOK_FORMAT=epd
-readonly THREADS=4
 readonly BUILD_PATH=./target/release/$ENGINE_NAME
 readonly MESSAGE_FILE=message.txt
-readonly ELO_THRESHOLD=25
+readonly ELO_THRESHOLD=30
+
+# Arguments
 readonly UPSTREAM=${1:-"master"}
-readonly ROUNDS=${2:-"400"}
-readonly TIME_CONTROL=${3:-"5+0.2"}
+readonly CONCURRENCY_GAMES=${2:-"4"}
+readonly ENGINE_THREADS=${3:-"1"}
+readonly ENGINE_HASH=${4:-"64"}
+readonly ROUNDS=${5:-"300"}
+readonly TIME_CONTROL=${6:-"5+0.2"}
 
 function run_gauntlet {
     # (rounds, time_control)
     local rounds=$1
     local time_control=$2
 
-    echo "Running gauntlet with $rounds rounds and $time_control time control against $UPSTREAM"
+    echo ""
+    echo "Running gauntlet with $rounds rounds and $time_control time control against $UPSTREAM."
+    echo "Settings: concurrency=$CONCURRENCY_GAMES; hash=$ENGINE_HASH; threads=$ENGINE_THREADS."
+    echo ""
 
     # Run the gauntlet and store output in temp file
     OUTPUT_FILE=$(mktemp)
     stdbuf -i0 -o0 -e0 ./${RUNNER} \
-        -engine cmd="${CURRENT_BRANCH_BIN_NAME}" name="${CURRENT_BRANCH_BIN_NAME}" \
-        -engine cmd="${UPSTREAM_BIN_NAME}" name="${UPSTREAM_BIN_NAME}" \
-        -each tc="${time_control}" -rounds "${rounds}" -repeat -concurrency ${THREADS} -openings \
+        -engine cmd="${CURRENT_BRANCH_BIN_NAME}" name="${CURRENT_BRANCH_BIN_NAME}" option.Hash="${ENGINE_HASH}" option.Threads="${ENGINE_THREADS}" \
+        -engine cmd="${UPSTREAM_BIN_NAME}" name="${UPSTREAM_BIN_NAME}" option.Hash="${ENGINE_HASH}" option.Threads="${ENGINE_THREADS}" \
+        -each tc="${time_control}" -rounds "${rounds}" -repeat -concurrency "${CONCURRENCY_GAMES}" -openings \
         file=${BOOK_NAME} format=${BOOK_FORMAT} order=random -draw movecount=8 score=8 movenumber=30 | tee "$OUTPUT_FILE"
 
     # Error if the elo difference line is not found
@@ -43,7 +50,7 @@ function run_gauntlet {
 
     # Print result
     failed=0
-    echo -n "Against ${UPSTREAM}: " | tee -a $MESSAGE_FILE
+    echo -n "Against ${UPSTREAM} [hash=$ENGINE_HASH; threads=$ENGINE_THREADS]: " | tee -a $MESSAGE_FILE
     if [ $((elo_diff)) -lt -$ELO_THRESHOLD ]; then
         echo -n "❌ " | tee -a $MESSAGE_FILE
         failed=1

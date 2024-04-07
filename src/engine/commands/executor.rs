@@ -23,6 +23,9 @@ use std::{
     time::Duration,
 };
 
+const SMP_DEFAULT_THREADS: u16 = 4;
+const SMP_DEFAULT_TABLE_SIZE_MB: usize = DEFAULT_TABLE_SIZE_MB * SMP_DEFAULT_THREADS as usize;
+
 pub fn execute_position(new_position: &Position, game_history: &[Position], engine: &mut Engine) {
     engine.position = *new_position;
     engine.game_history = game_history
@@ -161,6 +164,14 @@ pub fn execute_uci_new_game(engine: &mut Engine) {
     engine.table.clear();
 }
 
+pub fn execute_smp(engine: &mut Engine) {
+    engine.table.set_size(SMP_DEFAULT_TABLE_SIZE_MB);
+    println!("Changed hash size to {}.", SMP_DEFAULT_TABLE_SIZE_MB);
+
+    engine.number_threads.store(SMP_DEFAULT_THREADS, Ordering::Relaxed);
+    println!("Changed number of threads to {}.", SMP_DEFAULT_THREADS);
+}
+
 pub fn execute_perft(depth: u8, position: &Position) {
     println!("Perft will run in the background and report results when done.");
 
@@ -214,6 +225,7 @@ pub fn execute_help() {
     println!("Camel is a UCI-compatible chess engine, primarily meant to be used inside a GUI.");
     println!("You can review the UCI standard in https://backscattering.de/chess/uci/.");
     println!("Camel also bundles support for custom commands, for debugging purposes:");
+    println!("   'smp': quickly enable multithreading with sensible defaults");
     println!("   'perft <depth>': run perft on the current position with the given depth");
     println!("   'move <move>': perform given move in uci notation on the current board");
     println!("   'list': list legal moves available on the current position");
