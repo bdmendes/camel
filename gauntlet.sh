@@ -33,7 +33,7 @@ function run_gauntlet {
     # Run the gauntlet and store output in temp file
     OUTPUT_FILE=$(mktemp)
     stdbuf -i0 -o0 -e0 ./${RUNNER} \
-        -engine cmd="${CURRENT_BRANCH_BIN_NAME}" name="${CURRENT_BRANCH_BIN_NAME}" option.Hash="${ENGINE_HASH}" option.Threads="${ENGINE_THREADS}" \
+        -engine cmd="${CURRENT_BRANCH_BIN_NAME}" name="${CURRENT_BRANCH_BIN_NAME}" option.Hash="${ENGINE_HASH}" option.Thread="${ENGINE_THREADS}" \
         -engine cmd="${UPSTREAM_BIN_NAME}" name="${UPSTREAM_BIN_NAME}" option.Hash="${ENGINE_HASH}" option.Threads="${ENGINE_THREADS}" \
         -each tc="${time_control}" -rounds "${rounds}" -repeat -concurrency "${CONCURRENCY_GAMES}" -openings \
         file=${BOOK_NAME} format=${BOOK_FORMAT} order=random -draw movecount=8 score=8 movenumber=30 | tee "$OUTPUT_FILE"
