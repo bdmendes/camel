@@ -196,7 +196,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
     // Razoring: if the static evaluation is low at an expected "cut-node",
     // that is, we are doing a null window search, and we are near the tip,
     // drop directly to quiescence search.
-    if depth <= 3
+    if depth <= 2
         && alpha == beta - 1
         && !is_check
         && static_evaluation.get_or_init(|| position.value() * position.side_to_move.sign())
@@ -253,7 +253,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
 
     for (i, (mov, _)) in picker.enumerate() {
         // Extended futility pruning: discard moves without potential
-        if depth <= 3 && !is_check {
+        if depth <= 2 && !is_check {
             let move_potential = MAX_POSITIONAL_GAIN * depth as ValueScore
                 + mov
                     .flag()
