@@ -13,6 +13,7 @@ use std::{cell::OnceCell, sync::Arc};
 
 const MATE_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH as ValueScore + 1;
 const NULL_MOVE_DEPTH_REDUCTION: Depth = 3;
+const RAZORING_MARGIN: ValueScore = 300;
 const WINDOW_SIZE: ValueScore = 100;
 
 fn quiesce(
@@ -189,6 +190,24 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
     // We cannot apply some heuristics in check, so we must test it.
     let is_check = position.is_check();
 
+    // The static evaluation is useful for pruning techniques.
+    let static_evaluation = OnceCell::new();
+
+    // Razoring: if the static evaluation is low at an expected "all-node",
+    // that is, we are doing a null window search, and we are near the tips,
+    // we dispense with making two moves and reduce the depth by one.
+    let razoring_reduction = if depth == 3
+        && alpha == beta - 1
+        && !is_check
+        && static_evaluation.get_or_init(|| position.value() * position.side_to_move.sign())
+            + RAZORING_MARGIN
+            < beta
+    {
+        1
+    } else {
+        0
+    };
+
     // Null move pruning: if we get a beta cutoff after "passing" the turn,
     // we can assume the position is very good for us.
     if !ROOT
@@ -226,15 +245,12 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
         return (score, count);
     }
 
-    // The static evaluation is useful for pruning techniques.
-    let static_evaluation = OnceCell::new();
-
     let original_alpha = alpha;
     let mut best_move = picker.peek().map(|(mov, _)| *mov).unwrap();
 
     for (i, (mov, _)) in picker.enumerate() {
         // Extended futility pruning: discard moves without potential
-        if depth <= 2 {
+        if depth <= 3 {
             let move_potential = MAX_POSITIONAL_GAIN * depth as ValueScore
                 + mov
                     .flag()
@@ -249,13 +265,15 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
             }
         }
 
-        // Apply reductions and extensions accordingly. As of now,
-        // we extend checks since they are forced
-        // and reduce late quiet moves.
-        let reduction = if i > 0 && !is_check && mov.flag().is_quiet() { 1 } else { 0 };
-        let extension = if is_check { 1 } else { 0 };
-        let new_depth = depth.saturating_sub(1 + reduction).saturating_add(extension);
+        // Apply reductions.
+        let late_move_reduction = if i > 0 && !is_check && mov.flag().is_quiet() { 1 } else { 0 };
+        let reduction = razoring_reduction + late_move_reduction;
 
+        // Apply extensions.
+        let check_extension = if is_check && mov.flag().is_quiet() { 1 } else { 0 };
+        let extension = check_extension;
+
+        let new_depth = depth.saturating_sub(1 + reduction).saturating_add(extension);
         let mut new_position = position.make_move(mov);
 
         history.visit_position(&new_position, mov.flag().is_reversible());
