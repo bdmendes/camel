@@ -193,20 +193,23 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
     // The static evaluation is useful for pruning techniques.
     let static_evaluation = OnceCell::new();
 
-    // Razoring: if the static evaluation is low at an expected "all-node",
-    // that is, we are doing a null window search, and we are near the tips,
-    // we dispense with making two moves and reduce the depth by one.
-    let razoring_reduction = if depth == 3
+    // Razoring: if the static evaluation is low at an expected "cut-node",
+    // that is, we are doing a null window search, and we are near the tip,
+    // drop directly to quiescence search.
+    if depth <= 3
         && alpha == beta - 1
         && !is_check
         && static_evaluation.get_or_init(|| position.value() * position.side_to_move.sign())
             + RAZORING_MARGIN
             < beta
     {
-        1
-    } else {
-        0
-    };
+        let (score, nodes) = quiesce(position, alpha, beta, constraint);
+        count += nodes;
+
+        if score < beta {
+            return (score, count);
+        }
+    }
 
     // Null move pruning: if we get a beta cutoff after "passing" the turn,
     // we can assume the position is very good for us.
@@ -267,7 +270,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
 
         // Apply reductions.
         let late_move_reduction = if i > 0 && !is_check && mov.flag().is_quiet() { 1 } else { 0 };
-        let reduction = razoring_reduction + late_move_reduction;
+        let reduction = late_move_reduction;
 
         // Apply extensions.
         let check_extension = if is_check && mov.flag().is_quiet() { 1 } else { 0 };
