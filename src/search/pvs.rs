@@ -250,7 +250,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
 
     for (i, (mov, _)) in picker.enumerate() {
         // Extended futility pruning: discard moves without potential
-        if depth <= 3 {
+        if depth <= 3 && !is_check {
             let move_potential = MAX_POSITIONAL_GAIN * depth as ValueScore
                 + mov
                     .flag()
