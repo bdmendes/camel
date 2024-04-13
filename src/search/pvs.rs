@@ -61,7 +61,7 @@ fn quiesce(
     let mut count = 1;
 
     for (mov, _) in picker {
-        // Delta prune move if it cannot improve the score
+        // Delta pruning: prune if this cannot improve the score
         if !is_check && mov.flag().is_capture() {
             let captured_piece =
                 position.board.piece_color_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
@@ -113,6 +113,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
         );
         count += nodes;
         let score = -score;
+
         if score <= alpha || score >= beta {
             // We did not exceed alpha, so our fast search is ok.
             return (score, count);
@@ -155,8 +156,8 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
             return (0, 1);
         }
 
-        // Get known score from transposition table
         if !twofold_repetition {
+            // Get known score from transposition table
             if let Some(tt_entry) = table.get_table_score(position, depth) {
                 match tt_entry {
                     TableScore::Exact(score) => return (score, 1),
@@ -164,11 +165,11 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
                     TableScore::UpperBound(score) => beta = beta.min(score),
                 }
             }
-        }
 
-        // Beta cutoff: position is too good
-        if alpha >= beta {
-            return (alpha, 1);
+            // Beta cutoff: position is too good
+            if alpha >= beta {
+                return (alpha, 1);
+            }
         }
 
         // Time limit reached
@@ -182,11 +183,14 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
         return quiesce(position, alpha, beta, constraint);
     }
 
+    // We count this node as one. We'll later add the count of all children.
     let mut count = 1;
 
+    // We cannot apply some heuristics in check, so we must test it.
     let is_check = position.is_check();
 
-    // Null move pruning
+    // Null move pruning: if we get a beta cutoff after "passing" the turn,
+    // we can assume the position is very good for us.
     if !ROOT
         && !is_check
         && !twofold_repetition
@@ -248,8 +252,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
         // Apply reductions and extensions accordingly. As of now,
         // we extend checks since they are forced
         // and reduce late quiet moves.
-        let reduction =
-            if depth > 2 && !is_check && mov.flag().is_quiet() && i > 0 { 1 } else { 0 };
+        let reduction = if i > 0 && !is_check && mov.flag().is_quiet() { 1 } else { 0 };
         let extension = if is_check { 1 } else { 0 };
         let new_depth = depth.saturating_sub(1 + reduction).saturating_add(extension);
 
