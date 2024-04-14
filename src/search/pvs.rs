@@ -249,7 +249,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
         // we extend checks since they are forced
         // and reduce late quiet moves.
         let reduction =
-            if depth > 2 && !is_check && mov.flag().is_quiet() && i > 0 { 1 } else { 0 };
+            if depth > 2 && !is_check && mov.flag().is_quiet() && i > 3 { depth/4 } else { 0 };
         let extension = if is_check { 1 } else { 0 };
         let new_depth = depth.saturating_sub(1 + reduction).saturating_add(extension);
 
