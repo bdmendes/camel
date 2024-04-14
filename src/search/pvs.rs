@@ -186,6 +186,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     // Position and node type considerations.
     let is_check = position.is_check();
     let is_pv_node = alpha != beta - 1;
+    let may_be_zug = may_be_zugzwang(position);
 
     // Null move pruning: if we "pass" our turn and still get a beta cutoff,
     // this position is far too good to be true.
@@ -197,7 +198,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
         && !is_check
         && !twofold_repetition
         && depth > NULL_MOVE_DEPTH_REDUCTION
-        && !may_be_zugzwang(position)
+        && !may_be_zug
     {
         position.side_to_move = position.side_to_move.opposite();
         let (score, nodes) = pvs::<false, MAIN_THREAD, false>(
@@ -245,7 +246,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
 
     for (i, (mov, _)) in picker.enumerate() {
         // Extended futility pruning: discard moves without potential
-        if depth <= 2 {
+        if depth <= 2 && i > 0 && !may_be_zug {
             let move_potential = MAX_POSITIONAL_GAIN * depth as ValueScore
                 + mov
                     .flag()
