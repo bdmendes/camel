@@ -162,11 +162,11 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
                 TableScore::LowerBound(score) => alpha = alpha.max(score),
                 TableScore::UpperBound(score) => beta = beta.min(score),
             }
-        }
 
-        // Beta cutoff: position is too good
-        if alpha >= beta {
-            return (alpha, 1);
+            // Beta cutoff: position is too good
+            if alpha >= beta {
+                return (alpha, 1);
+            }
         }
     }
 
@@ -185,7 +185,6 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
 
     // Position and node type considerations.
     let is_check = position.is_check();
-    let is_pv_node = alpha != beta - 1;
     let may_be_zug = may_be_zugzwang(position);
 
     // Null move pruning: if we "pass" our turn and still get a beta cutoff,
@@ -194,7 +193,6 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     // in the same position.
     if !ROOT
         && ALLOW_NMR
-        && !is_pv_node
         && !is_check
         && !twofold_repetition
         && depth > NULL_MOVE_DEPTH_REDUCTION
