@@ -102,7 +102,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
 
     if do_zero_window {
         // We expect this tree to not raise alpha, so we search with tight bounds.
-        let (score, nodes) = pvs::<false, MAIN_THREAD>(
+        let (score, nodes) = pvs::<false, MAIN_THREAD, true>(
             position,
             depth,
             -alpha - 1,
@@ -121,7 +121,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
 
     // We found a better move, so we must search with full window to confirm.
     let (score, nodes) =
-        pvs::<false, MAIN_THREAD>(position, depth, -beta, -alpha, table, constraint, history);
+        pvs::<false, MAIN_THREAD, true>(position, depth, -beta, -alpha, table, constraint, history);
     count += nodes;
     (-score, count)
 }
@@ -136,9 +136,9 @@ fn may_be_zugzwang(position: &Position) -> bool {
     white_pieces_bb.is_empty() || black_pieces_bb.is_empty()
 }
 
-fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
+fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     position: &mut Position,
-    depth: Depth,
+    mut depth: Depth,
     mut alpha: ValueScore,
     mut beta: ValueScore,
     table: Arc<SearchTable>,
@@ -149,20 +149,18 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
     let twofold_repetition = repeated_times >= 2;
     let threefold_repetition = repeated_times >= 3;
 
-    if !ROOT {
-        // Detect history-related draws
-        if position.halfmove_clock >= 100 || threefold_repetition {
-            return (0, 1);
-        }
+    // Detect history-related draws
+    if position.halfmove_clock >= 100 || threefold_repetition {
+        return (0, 1);
+    }
 
-        // Get known score from transposition table
-        if !twofold_repetition {
-            if let Some(tt_entry) = table.get_table_score(position, depth) {
-                match tt_entry {
-                    TableScore::Exact(score) => return (score, 1),
-                    TableScore::LowerBound(score) => alpha = alpha.max(score),
-                    TableScore::UpperBound(score) => beta = beta.min(score),
-                }
+    // Get known score from transposition table
+    if !twofold_repetition {
+        if let Some(tt_entry) = table.get_table_score(position, depth) {
+            match tt_entry {
+                TableScore::Exact(score) => return (score, 1),
+                TableScore::LowerBound(score) => alpha = alpha.max(score),
+                TableScore::UpperBound(score) => beta = beta.min(score),
             }
         }
 
@@ -170,11 +168,11 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
         if alpha >= beta {
             return (alpha, 1);
         }
+    }
 
-        // Time limit reached
-        if constraint.should_stop_search() {
-            return (alpha, 1);
-        }
+    // Time limit reached
+    if constraint.should_stop_search() {
+        return (alpha, 1);
     }
 
     // Max depth reached; search for quiet position
@@ -182,19 +180,27 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
         return quiesce(position, alpha, beta, constraint);
     }
 
+    // We count each move on the board as 1 node.
     let mut count = 1;
 
+    // Position and node type considerations.
     let is_check = position.is_check();
+    let is_pv_node = alpha != beta - 1;
 
-    // Null move pruning
+    // Null move pruning: if we "pass" our turn and still get a beta cutoff,
+    // this position is far too good to be true.
+    // We must not allow repeated null moves, otherwise we'll end up
+    // in the same position.
     if !ROOT
+        && ALLOW_NMR
+        && !is_pv_node
         && !is_check
         && !twofold_repetition
         && depth > NULL_MOVE_DEPTH_REDUCTION
         && !may_be_zugzwang(position)
     {
         position.side_to_move = position.side_to_move.opposite();
-        let (score, nodes) = pvs::<false, MAIN_THREAD>(
+        let (score, nodes) = pvs::<false, MAIN_THREAD, false>(
             position,
             depth - NULL_MOVE_DEPTH_REDUCTION,
             -beta,
@@ -213,6 +219,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
         }
     }
 
+    // Prepare move generation and sorting. This is lazy and works in stages.
     let mut picker =
         MovePicker::<false>::new(position, table.clone(), depth, ROOT && !MAIN_THREAD).peekable();
 
@@ -222,9 +229,17 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
         return (score, count);
     }
 
-    // The static evaluation is useful for pruning techniques.
+    // Check extension: we are interested in exploring the outcome of this properly.
+    if is_check {
+        depth = depth.saturating_add(1).min(MAX_DEPTH);
+    }
+
+    // The static evaluation is useful for pruning techniques,
+    // but might not be needed.
     let static_evaluation = OnceCell::new();
 
+    // We need to keep track of the original alpha and best moves, to store
+    // the correct node type and move in the hash table later.
     let original_alpha = alpha;
     let mut best_move = picker.peek().map(|(mov, _)| *mov).unwrap();
 
@@ -245,15 +260,13 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
             }
         }
 
-        // Apply reductions and extensions accordingly. As of now,
-        // we extend checks since they are forced
-        // and reduce late quiet moves.
-        let reduction =
+        // Late move reduction: we assume our move ordering is good, and are less interested in
+        // expected non-PV nodes.
+        let late_move_reduction =
             if depth > 2 && !is_check && mov.flag().is_quiet() && i > 0 { 1 } else { 0 };
-        let extension = if is_check { 1 } else { 0 };
-        let new_depth = depth.saturating_sub(1 + reduction).saturating_add(extension);
 
         let mut new_position = position.make_move(mov);
+        let new_depth = depth.saturating_sub(1 + late_move_reduction);
 
         history.visit_position(&new_position, mov.flag().is_reversible());
         let (score, nodes) = pvs_recurse::<MAIN_THREAD>(
@@ -271,13 +284,19 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
         count += nodes;
 
         if score > alpha {
+            // We found a new best move.
             best_move = mov;
             alpha = score;
 
             if score >= beta {
                 if MAIN_THREAD && mov.flag().is_quiet() {
+                    // Killer moves are prioritized in move ordering.
+                    // It assumes that similar "refutation" moves at siblings will be useful.
                     table.put_killer_move(depth, mov);
                 }
+
+                // This position is now far too good to be true.
+                // We can safely skip remaining moves.
                 break;
             }
         }
@@ -321,7 +340,7 @@ pub fn pvs_aspiration<const MAIN_THREAD: bool>(
     }
 
     for cof in 1.. {
-        let (score, count) = pvs::<true, MAIN_THREAD>(
+        let (score, count) = pvs::<true, MAIN_THREAD, true>(
             &mut position,
             depth,
             lower_bound,
