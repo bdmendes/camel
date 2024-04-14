@@ -195,21 +195,18 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
 
     // Razoring: if the static evaluation is low at an expected "cut-node",
     // that is, we are doing a null window search, and we are near the tip,
-    // drop directly to quiescence search.
-    if depth <= 3
+    // this position is likely to be bad for us.
+    let razoring_reduction = if depth <= 2
         && alpha == beta - 1
         && !is_check
         && static_evaluation.get_or_init(|| position.value() * position.side_to_move.sign())
             + RAZORING_MARGIN
             < beta
     {
-        let (score, nodes) = quiesce(position, alpha, beta, constraint);
-        count += nodes;
-
-        if score < beta {
-            return (score, count);
-        }
-    }
+        1
+    } else {
+        0
+    };
 
     // Null move pruning: if we get a beta cutoff after "passing" the turn,
     // we can assume the position is very good for us.
@@ -253,7 +250,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
 
     for (i, (mov, _)) in picker.enumerate() {
         // Extended futility pruning: discard moves without potential
-        if depth <= 3 && !is_check {
+        if depth <= 2 && !is_check {
             let move_potential = MAX_POSITIONAL_GAIN * depth as ValueScore
                 + mov
                     .flag()
@@ -270,7 +267,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool>(
 
         // Apply reductions.
         let late_move_reduction = if i > 0 && !is_check && mov.flag().is_quiet() { 1 } else { 0 };
-        let reduction = late_move_reduction;
+        let reduction = late_move_reduction + razoring_reduction;
 
         // Apply extensions.
         let check_extension = if is_check && mov.flag().is_quiet() { 1 } else { 0 };
