@@ -10,7 +10,7 @@ use std::sync::Arc;
 type ScoredVec<Move> = Vec<(Move, ValueScore)>;
 type PickResult = (Move, ValueScore);
 
-const RANDOM_FACTOR: ValueScore = 1000;
+const RANDOM_FACTOR: ValueScore = 300;
 
 pub struct MovePicker<const QUIESCE: bool> {
     index: usize,
@@ -59,7 +59,7 @@ impl MovePicker<false> {
             position
                 .moves(MoveStage::All)
                 .into_iter()
-                .map(|m| (m, thread_rng().gen_range(0..RANDOM_FACTOR)))
+                .map(|m| (m, evaluate_move(position, m) + thread_rng().gen_range(0..RANDOM_FACTOR)))
                 .collect::<Vec<_>>()
         };
 
