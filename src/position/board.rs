@@ -25,18 +25,26 @@ primitive_enum!(
     King
 );
 
-#[derive(Default, Hash, PartialEq, Copy, Clone, Debug)]
+#[derive(Hash, PartialEq, Copy, Clone, Debug)]
 pub struct Board {
     pieces: [Bitboard; 6],
     occupancy: [Bitboard; 2],
+    mailbox: [Option<Piece>; 64],
     hash: ZobristHash,
 }
 
-impl Board {
-    pub fn new() -> Self {
-        Board { pieces: Default::default(), occupancy: Default::default(), hash: 0 }
+impl Default for Board {
+    fn default() -> Self {
+        Board {
+            pieces: Default::default(),
+            occupancy: Default::default(),
+            hash: 0,
+            mailbox: [None; 64],
+        }
     }
+}
 
+impl Board {
     pub fn zobrist_hash(&self) -> ZobristHash {
         self.hash
     }
@@ -52,6 +60,7 @@ impl Board {
         }
         self.pieces[piece as usize].set(square);
         self.occupancy[color as usize].set(square);
+        self.mailbox[square as usize] = Some(piece);
         self.xor_hash(square, piece, color);
     }
 
@@ -59,23 +68,27 @@ impl Board {
         if let Some((piece, color)) = self.piece_color_at(square) {
             self.pieces[piece as usize].clear(square);
             self.occupancy[color as usize].clear(square);
+            self.mailbox[square as usize] = None;
             self.xor_hash(square, piece, color);
         }
     }
 
     pub fn piece_color_at(&self, square: Square) -> Option<(Piece, Color)> {
-        self.color_at(square).map(|color| (self.piece_at(square).unwrap(), color))
+        self.piece_at(square).map(|piece| (piece, self.color_at(square).unwrap()))
     }
 
     pub fn piece_at(&self, square: Square) -> Option<Piece> {
-        self.pieces.iter().position(|bb| bb.is_set(square)).map(|i| Piece::from(i as u8).unwrap())
+        self.mailbox[square as usize]
     }
 
     pub fn color_at(&self, square: Square) -> Option<Color> {
-        self.occupancy
-            .iter()
-            .position(|bb| bb.is_set(square))
-            .map(|i| Color::from(i as u8).unwrap())
+        if self.occupancy[Color::White as usize].is_set(square) {
+            Some(Color::White)
+        } else if self.occupancy[Color::Black as usize].is_set(square) {
+            Some(Color::Black)
+        } else {
+            None
+        }
     }
 
     pub fn occupancy_bb_all(&self) -> Bitboard {
@@ -152,6 +165,7 @@ mod tests {
 
         *board.pieces[Piece::King as usize] = 1 << Square::E1 as u8;
         *board.occupancy[Color::White as usize] = 1 << Square::E1 as u8;
+        board.mailbox[Square::E1 as usize] = Some(Piece::King);
 
         assert_eq!(board.piece_color_at(Square::E1), Some((Piece::King, Color::White)));
         assert_eq!(board.piece_color_at(Square::E2), None);
