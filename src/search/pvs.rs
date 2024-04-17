@@ -272,7 +272,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
         // Late move reduction: we assume our move ordering is good, and are less interested in
         // expected non-PV nodes.
         let late_move_reduction =
-            if depth > 2 && !is_check && mov.flag().is_quiet() && i > 0 { 1 } else { 0 };
+            if depth >= 3 && !is_check && mov.flag().is_quiet() && i > 0 { depth / 3 } else { 0 };
 
         let mut new_position = position.make_move(mov);
 
