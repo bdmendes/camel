@@ -28,7 +28,6 @@ pub fn get_duration(
     black_time: Duration,
     white_increment: Option<Duration>,
     black_increment: Option<Duration>,
-    ponder: bool,
 ) -> Duration {
     let our_duration = match position.side_to_move {
         Color::White => white_time,
@@ -39,22 +38,8 @@ pub fn get_duration(
         Color::Black => black_increment,
     };
 
-    let mut standard_move_time = get_duration_based_on_moves(position, our_duration);
+    let standard_move_time = get_duration_based_on_moves(position, our_duration)
+        + our_increment.unwrap_or_default().mul_f32(0.95);
 
-    if ponder {
-        standard_move_time += standard_move_time / 4;
-    }
-
-    if standard_move_time < Duration::from_secs(1) {
-        standard_move_time /= 2;
-    }
-
-    if let Some(our_increment) = our_increment {
-        let new_move_time = standard_move_time + our_increment.mul_f32(0.9);
-        if new_move_time < our_duration {
-            return new_move_time;
-        }
-    }
-
-    standard_move_time
+    standard_move_time.min(our_duration.mul_f32(0.95))
 }
