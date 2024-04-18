@@ -1,13 +1,15 @@
 use camel::position::{Color, Position};
 use std::{ops::Div, time::Duration};
 
-const TYPICAL_GAME_MOVES: u16 = 40;
+const TYPICAL_GAME_MOVES: u16 = 50;
 const AVERAGE_NUMBER_OF_PIECES: u16 = 24;
 
 fn get_duration_based_on_moves(position: &Position, time: Duration) -> Duration {
     // Assume the game will have a typical duration and divide the time by the expected remaining moves.
-    let expected_remaining_moves =
-        std::cmp::max(10, TYPICAL_GAME_MOVES.saturating_sub(position.fullmove_number));
+    let expected_remaining_moves = std::cmp::max(
+        TYPICAL_GAME_MOVES / 2,
+        TYPICAL_GAME_MOVES.saturating_sub(position.fullmove_number),
+    );
     let regular_time = time / expected_remaining_moves as u32;
 
     // Positions tend to get more tense around move 20, so we want to increase the time around that move.
