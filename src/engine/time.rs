@@ -11,7 +11,7 @@ fn get_duration_based_on_moves(position: &Position, time: Duration) -> Duration 
     let regular_time = time / expected_remaining_moves as u32;
 
     // Positions tend to get more tense around move 20, so we want to increase the time around that move.
-    let parabole_function = |x: f32| 0.01 * (200.0 - (x - 20.0) * (x - 20.0));
+    let parabole_function = |x: f32| 0.01 * (150.0 - (x - 20.0) * (x - 20.0));
     let move_number_factor = parabole_function(position.fullmove_number as f32).max(0.8);
 
     // Positions with less space tend to be more complex, so increase the time for those.
