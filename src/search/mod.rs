@@ -103,7 +103,7 @@ pub fn search_iterative_deepening_multithread(
             }
 
             // Start threads.
-            // The main thread will signal others to stop.
+            // The first thread to finish will signal others to stop.
             let handles = (0..number_threads)
                 .map(|i| {
                     let table = table.clone();
@@ -120,7 +120,7 @@ pub fn search_iterative_deepening_multithread(
 
             // Wait for the threads to stop and return the result of the main thread.
             let results = handles.into_iter().map(|h| h.join().unwrap()).collect::<Vec<_>>();
-            results[0]
+            results.iter().flatten().next().copied()
         });
 
         if search_result.is_none() {

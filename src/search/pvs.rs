@@ -324,7 +324,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             },
             best_move,
             depth,
-            ROOT && MAIN_THREAD,
+            ROOT,
         );
     }
 
@@ -378,9 +378,7 @@ pub fn pvs_aspiration<const MAIN_THREAD: bool>(
             }
 
             // Our score is valid, so other threads can stop gracefully.
-            if MAIN_THREAD {
-                constraint.signal_root_finished();
-            }
+            constraint.signal_root_finished();
 
             return Some(if score.abs() >= MATE_SCORE.abs() {
                 let pv = table.get_pv(&position, depth);
