@@ -90,13 +90,15 @@ fn quiesce(
 #[inline(always)]
 fn pvs_recurse<const MAIN_THREAD: bool>(
     position: &mut Position,
-    depth: Depth,
+    current_depth: Depth,
     alpha: ValueScore,
     beta: ValueScore,
     table: Arc<SearchTable>,
     constraint: &SearchConstraint,
     history: &mut BranchHistory,
     do_zero_window: bool,
+    reduction: Depth,
+    extension: Depth,
 ) -> (ValueScore, usize) {
     let mut count = 0;
 
@@ -104,7 +106,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
         // We expect this tree to not raise alpha, so we search with tight bounds.
         let (score, nodes) = pvs::<false, MAIN_THREAD, true>(
             position,
-            depth,
+            current_depth.saturating_add(extension).saturating_sub(reduction + 1),
             -alpha - 1,
             -alpha,
             table.clone(),
@@ -120,8 +122,16 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
     }
 
     // We found a better move, so we must search with full window to confirm.
-    let (score, nodes) =
-        pvs::<false, MAIN_THREAD, true>(position, depth, -beta, -alpha, table, constraint, history);
+    // We also eliminate the reduction to avoid missing deep lines.
+    let (score, nodes) = pvs::<false, MAIN_THREAD, true>(
+        position,
+        current_depth.saturating_add(extension).saturating_sub(1),
+        -beta,
+        -alpha,
+        table,
+        constraint,
+        history,
+    );
     count += nodes;
     (-score, count)
 }
@@ -265,18 +275,19 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             if depth > 2 && !is_check && mov.flag().is_quiet() && i > 0 { 1 } else { 0 };
 
         let mut new_position = position.make_move(mov);
-        let new_depth = depth.saturating_sub(1 + late_move_reduction);
 
         history.visit_position(&new_position, mov.flag().is_reversible());
         let (score, nodes) = pvs_recurse::<MAIN_THREAD>(
             &mut new_position,
-            new_depth,
+            depth,
             alpha,
             beta,
             table.clone(),
             constraint,
             history,
             i > 0,
+            late_move_reduction,
+            0,
         );
         history.leave_position();
 
