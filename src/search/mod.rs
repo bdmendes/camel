@@ -137,6 +137,10 @@ pub fn search_iterative_deepening_multithread(
         let elapsed = time.elapsed();
         print_iter_info(position, current_depth, score, count, time.elapsed(), &table);
 
+        // If we are pondering, we should continue as per the UCI protocol specification.
+        // Otherwise, we break if we have only one legal move or if we have a mate score.
+        // We also break if the remaining time is less than the time spent on the current depth.
+        // It's not guaranteed that the next depth will take longer, but it's a good guess.
         if !constraint.pondering()
             && (one_legal_move
                 || matches!(score, Score::Mate(_, _))

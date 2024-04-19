@@ -70,7 +70,6 @@ pub fn execute_go(
             black_time.unwrap(),
             white_increment,
             black_increment,
-            ponder,
         )),
         None => None,
     };
