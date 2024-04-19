@@ -11,7 +11,7 @@ use std::{
 };
 
 pub const MAX_TABLE_SIZE_MB: usize = 2048;
-pub const MIN_TABLE_SIZE_MB: usize = 1;
+pub const MIN_TABLE_SIZE_MB: usize = 2;
 pub const DEFAULT_TABLE_SIZE_MB: usize = 64;
 
 const NULL_KILLER: u16 = u16::MAX;
@@ -24,29 +24,23 @@ pub enum TableScore {
     UpperBound(ValueScore), // when search fails low (no improvement to alpha)
 }
 
+enum TableReplacementScheme {
+    AlwaysReplace,
+    ReplaceIfDepthGreaterOrEqual,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct TableEntry {
-    data: u8,
+    depth: u8,
     score: TableScore,
     best_move: Move,
     hash: u64,
+    root: bool,
 }
 
 impl TableEntry {
-    pub fn new(
-        score: TableScore,
-        best_move: Move,
-        depth: Depth,
-        root: bool,
-        search_id: u8,
-        hash: u64,
-    ) -> Self {
-        TableEntry {
-            score,
-            best_move,
-            hash,
-            data: (depth & 0x3F) | ((root as u8 & 1) << 7) | ((search_id & 1) << 6),
-        }
+    pub fn new(score: TableScore, best_move: Move, depth: Depth, hash: u64, root: bool) -> Self {
+        TableEntry { score, best_move, hash, depth, root }
     }
 
     pub fn from_raw(bytes: u128) -> Self {
@@ -57,33 +51,19 @@ impl TableEntry {
         debug_assert!(size_of::<TableEntry>() == 16);
         unsafe { transmute::<TableEntry, u128>(*self) }
     }
-
-    fn same_search_parity(&self, id: u8) -> bool {
-        ((self.data & 0x40) >> 6) == (id & 1)
-    }
-
-    fn is_root(&self) -> bool {
-        ((self.data & 0x80) >> 7) == 1
-    }
-
-    fn depth(&self) -> Depth {
-        self.data & 0x3F
-    }
 }
 
 struct TranspositionTable {
     data: Vec<AtomicU128>,
-    current_id: u8,
-    last_position: Option<Position>,
+    replacement_scheme: TableReplacementScheme,
 }
 
 impl TranspositionTable {
-    pub fn new(size_mb: usize) -> Self {
+    pub fn new(size_mb: usize, replacement_scheme: TableReplacementScheme) -> Self {
         let data_len = Self::calculate_data_len(size_mb);
         Self {
             data: (0..data_len).map(|_| AtomicU128::new(NULL_TT_ENTRY)).collect(),
-            current_id: 0,
-            last_position: None,
+            replacement_scheme,
         }
     }
 
@@ -114,21 +94,25 @@ impl TranspositionTable {
         entry.filter(|entry| entry.hash == hash)
     }
 
-    pub fn insert(&self, position: &Position, entry: TableEntry, current_id: u8) {
+    pub fn insert(&self, position: &Position, entry: TableEntry) -> bool {
         let hash = position.zobrist_hash();
         let index = hash as usize % self.data.len();
 
-        if !entry.is_root() {
+        if !entry.root
+            && matches!(
+                self.replacement_scheme,
+                TableReplacementScheme::ReplaceIfDepthGreaterOrEqual
+            )
+        {
             if let Some(old_entry) = self.load_tt_entry(index) {
-                let replace = (old_entry.depth() <= entry.depth() && !old_entry.is_root())
-                    || (old_entry.is_root() && !old_entry.same_search_parity(current_id));
-                if !replace {
-                    return;
+                if old_entry.depth > entry.depth || old_entry.root {
+                    return false;
                 }
             }
         }
 
         self.store_tt_entry(index, entry);
+        true
     }
 
     fn load_tt_entry(&self, index: usize) -> Option<TableEntry> {
@@ -146,44 +130,49 @@ impl TranspositionTable {
 }
 
 pub struct SearchTable {
-    transposition: RwLock<TranspositionTable>,
+    transposition_always: RwLock<TranspositionTable>,
+    transposition_depth: RwLock<TranspositionTable>,
     killer_moves: [AtomicU16; 2 * (MAX_DEPTH + 1) as usize],
 }
 
 impl SearchTable {
     pub fn new(size_mb: usize) -> Self {
         Self {
-            transposition: RwLock::new(TranspositionTable::new(size_mb)),
+            transposition_always: RwLock::new(TranspositionTable::new(
+                size_mb / 2,
+                TableReplacementScheme::AlwaysReplace,
+            )),
+            transposition_depth: RwLock::new(TranspositionTable::new(
+                size_mb / 2,
+                TableReplacementScheme::ReplaceIfDepthGreaterOrEqual,
+            )),
             killer_moves: array::from_fn(|_| AtomicU16::new(NULL_KILLER)),
         }
     }
 
-    pub fn prepare_for_new_search(&self, position: &Position) {
-        let mut table = self.transposition.write().unwrap();
-        if let Some(last_position) = table.last_position {
-            if position.zobrist_hash() != last_position.zobrist_hash() {
-                table.current_id = table.current_id.wrapping_add(1);
-                table.last_position = Some(*position);
-            }
-        }
-    }
-
     pub fn set_size(&self, size_mb: usize) {
-        self.transposition.write().unwrap().set_size(size_mb)
+        self.transposition_always.write().unwrap().set_size(size_mb / 2);
+        self.transposition_depth.write().unwrap().set_size(size_mb / 2);
     }
 
     pub fn get_hash_move(&self, position: &Position) -> Option<Move> {
-        self.transposition.read().unwrap().get(position).map(|entry| entry.best_move)
+        let entry = self
+            .transposition_depth
+            .read()
+            .unwrap()
+            .get(position)
+            .or_else(|| self.transposition_always.read().unwrap().get(position));
+        entry.map(|entry| entry.best_move)
     }
 
     pub fn get_table_score(&self, position: &Position, depth: Depth) -> Option<TableScore> {
-        self.transposition.read().unwrap().get(position).and_then(|entry| {
-            if entry.depth() >= depth {
-                Some(entry.score)
-            } else {
-                None
-            }
-        })
+        let score = self
+            .transposition_depth
+            .read()
+            .unwrap()
+            .get(position)
+            .or_else(|| self.transposition_always.read().unwrap().get(position));
+        score.and_then(|entry| if entry.depth >= depth { Some(entry.score) } else { None })
     }
 
     pub fn insert_entry(
@@ -194,10 +183,10 @@ impl SearchTable {
         depth: Depth,
         root: bool,
     ) {
-        let tt = self.transposition.read().unwrap();
-        let entry =
-            TableEntry::new(score, best_move, depth, root, tt.current_id, position.zobrist_hash());
-        tt.insert(position, entry, tt.current_id);
+        let entry = TableEntry::new(score, best_move, depth, position.zobrist_hash(), root);
+        if !self.transposition_depth.read().unwrap().insert(position, entry) {
+            self.transposition_always.read().unwrap().insert(position, entry);
+        }
     }
 
     pub fn put_killer_move(&self, depth: Depth, mov: Move) {
@@ -221,7 +210,7 @@ impl SearchTable {
     }
 
     pub fn get_pv(&self, position: &Position, mut depth: Depth) -> Vec<Move> {
-        let mut pv = Vec::new();
+        let mut pv = Vec::with_capacity(depth as usize);
         let mut position = *position;
 
         while let Some(entry) = self.get_hash_move(&position) {
@@ -237,11 +226,18 @@ impl SearchTable {
     }
 
     pub fn hashfull_millis(&self) -> usize {
-        self.transposition.read().unwrap().hashfull_millis()
+        self.transposition_always.read().unwrap().hashfull_millis() / 2
+            + self.transposition_depth.read().unwrap().hashfull_millis() / 2
     }
 
     pub fn clear(&self) {
-        self.transposition
+        self.transposition_always
+            .write()
+            .unwrap()
+            .data
+            .iter_mut()
+            .for_each(|entry| *entry = AtomicU128::new(NULL_TT_ENTRY));
+        self.transposition_depth
             .write()
             .unwrap()
             .data
@@ -275,42 +271,15 @@ mod tests {
             Position,
         },
         search::{
-            table::{NULL_KILLER, NULL_TT_ENTRY},
+            table::{TableReplacementScheme, NULL_KILLER, NULL_TT_ENTRY},
             MAX_DEPTH,
         },
     };
 
     #[test]
-    fn entry_packing() {
-        let entry1 =
-            TableEntry::new(TableScore::Exact(100), Move::new_raw(0), MAX_DEPTH, true, 1, 0);
-        let entry2 = TableEntry::new(TableScore::Exact(100), Move::new_raw(0), 0, true, 1, 0);
-        let entry3 = TableEntry::new(TableScore::Exact(100), Move::new_raw(0), 1, false, 2, 0);
-        let entry4 = TableEntry::new(TableScore::Exact(100), Move::new_raw(0), 2, false, 3, 0);
-
-        assert_eq!(entry1.depth(), MAX_DEPTH);
-        assert_eq!(entry2.depth(), 0);
-        assert_eq!(entry3.depth(), 1);
-        assert_eq!(entry4.depth(), 2);
-
-        assert!(entry1.is_root());
-        assert!(entry2.is_root());
-        assert!(!entry3.is_root());
-        assert!(!entry4.is_root());
-
-        assert!(entry1.same_search_parity(1));
-        assert!(!entry1.same_search_parity(2));
-        assert!(entry1.same_search_parity(3));
-        assert!(entry3.same_search_parity(2));
-        assert!(!entry3.same_search_parity(3));
-    }
-
-    #[test]
     fn entry_transmutation() {
-        let entry1 =
-            TableEntry::new(TableScore::Exact(100), Move::new_raw(0), MAX_DEPTH, true, 1, 0);
-        let entry2 = TableEntry::new(TableScore::Exact(100), Move::new_raw(0), 0, true, 1, 0);
-
+        let entry1 = TableEntry::new(TableScore::Exact(100), Move::new_raw(0), MAX_DEPTH, 0, false);
+        let entry2 = TableEntry::new(TableScore::Exact(100), Move::new_raw(0), 0, 0, false);
         assert!(entry1.raw() != entry2.raw());
 
         assert_eq!(TableEntry::from_raw(entry1.raw()), entry1);
@@ -319,7 +288,7 @@ mod tests {
 
     #[test]
     fn tt_raw_contents() {
-        let table = TranspositionTable::new(1);
+        let table = TranspositionTable::new(1, TableReplacementScheme::AlwaysReplace);
         let position = Position::from_fen(START_FEN).unwrap();
 
         assert_eq!(table.data[0].load(portable_atomic::Ordering::Relaxed), NULL_TT_ENTRY);
@@ -327,9 +296,9 @@ mod tests {
 
         let first_move = Move::new(Square::E2, Square::E4, crate::moves::MoveFlag::DoublePawnPush);
         let first_move_entry =
-            TableEntry::new(TableScore::Exact(0), first_move, 2, true, 1, position.zobrist_hash());
+            TableEntry::new(TableScore::Exact(0), first_move, 2, position.zobrist_hash(), false);
 
-        table.insert(&position, first_move_entry, 1);
+        table.insert(&position, first_move_entry);
 
         assert_eq!(
             table.data[position.zobrist_hash() as usize % table.data.len()]
