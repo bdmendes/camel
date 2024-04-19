@@ -155,11 +155,15 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     constraint: &SearchConstraint,
     history: &mut BranchHistory,
 ) -> (ValueScore, usize) {
+    // Time limit reached
+    if constraint.should_stop_search() {
+        return (alpha, 1);
+    }
+
+    // Detect history-related draws
     let repeated_times = history.repeated(position);
     let twofold_repetition = repeated_times >= 2;
     let threefold_repetition = repeated_times >= 3;
-
-    // Detect history-related draws
     if position.halfmove_clock >= 100 || threefold_repetition {
         return (0, 1);
     }
@@ -178,11 +182,6 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
                 return (alpha, 1);
             }
         }
-    }
-
-    // Time limit reached
-    if constraint.should_stop_search() {
-        return (alpha, 1);
     }
 
     // Max depth reached; search for quiet position
