@@ -324,6 +324,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             },
             best_move,
             depth,
+            ROOT && MAIN_THREAD,
         );
     }
 

@@ -35,11 +35,12 @@ struct TableEntry {
     score: TableScore,
     best_move: Move,
     hash: u64,
+    root: bool,
 }
 
 impl TableEntry {
-    pub fn new(score: TableScore, best_move: Move, depth: Depth, hash: u64) -> Self {
-        TableEntry { score, best_move, hash, depth }
+    pub fn new(score: TableScore, best_move: Move, depth: Depth, hash: u64, root: bool) -> Self {
+        TableEntry { score, best_move, hash, depth, root }
     }
 
     pub fn from_raw(bytes: u128) -> Self {
@@ -99,7 +100,7 @@ impl TranspositionTable {
 
         if matches!(self.replacement_scheme, TableReplacementScheme::ReplaceIfDepthGreaterOrEqual) {
             if let Some(old_entry) = self.load_tt_entry(index) {
-                if old_entry.depth > entry.depth {
+                if old_entry.depth > entry.depth || (old_entry.root && !entry.root) {
                     return false;
                 }
             }
@@ -175,8 +176,9 @@ impl SearchTable {
         score: TableScore,
         best_move: Move,
         depth: Depth,
+        root: bool,
     ) {
-        let entry = TableEntry::new(score, best_move, depth, position.zobrist_hash());
+        let entry = TableEntry::new(score, best_move, depth, position.zobrist_hash(), root);
         if !self.transposition_depth.read().unwrap().insert(position, entry) {
             self.transposition_always.read().unwrap().insert(position, entry);
         }
@@ -271,9 +273,8 @@ mod tests {
 
     #[test]
     fn entry_transmutation() {
-        let entry1 = TableEntry::new(TableScore::Exact(100), Move::new_raw(0), MAX_DEPTH, 0);
-        let entry2 = TableEntry::new(TableScore::Exact(100), Move::new_raw(0), 0, 0);
-
+        let entry1 = TableEntry::new(TableScore::Exact(100), Move::new_raw(0), MAX_DEPTH, 0, false);
+        let entry2 = TableEntry::new(TableScore::Exact(100), Move::new_raw(0), 0, 0, false);
         assert!(entry1.raw() != entry2.raw());
 
         assert_eq!(TableEntry::from_raw(entry1.raw()), entry1);
@@ -290,7 +291,7 @@ mod tests {
 
         let first_move = Move::new(Square::E2, Square::E4, crate::moves::MoveFlag::DoublePawnPush);
         let first_move_entry =
-            TableEntry::new(TableScore::Exact(0), first_move, 2, position.zobrist_hash());
+            TableEntry::new(TableScore::Exact(0), first_move, 2, position.zobrist_hash(), false);
 
         table.insert(&position, first_move_entry);
 
