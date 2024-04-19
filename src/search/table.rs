@@ -98,9 +98,14 @@ impl TranspositionTable {
         let hash = position.zobrist_hash();
         let index = hash as usize % self.data.len();
 
-        if matches!(self.replacement_scheme, TableReplacementScheme::ReplaceIfDepthGreaterOrEqual) {
+        if !entry.root
+            && matches!(
+                self.replacement_scheme,
+                TableReplacementScheme::ReplaceIfDepthGreaterOrEqual
+            )
+        {
             if let Some(old_entry) = self.load_tt_entry(index) {
-                if old_entry.depth > entry.depth || (old_entry.root && !entry.root) {
+                if old_entry.depth > entry.depth || old_entry.root {
                     return false;
                 }
             }
@@ -152,21 +157,21 @@ impl SearchTable {
 
     pub fn get_hash_move(&self, position: &Position) -> Option<Move> {
         let entry = self
-            .transposition_always
+            .transposition_depth
             .read()
             .unwrap()
             .get(position)
-            .or_else(|| self.transposition_depth.read().unwrap().get(position));
+            .or_else(|| self.transposition_always.read().unwrap().get(position));
         entry.map(|entry| entry.best_move)
     }
 
     pub fn get_table_score(&self, position: &Position, depth: Depth) -> Option<TableScore> {
         let score = self
-            .transposition_always
+            .transposition_depth
             .read()
             .unwrap()
             .get(position)
-            .or_else(|| self.transposition_depth.read().unwrap().get(position));
+            .or_else(|| self.transposition_always.read().unwrap().get(position));
         score.and_then(|entry| if entry.depth >= depth { Some(entry.score) } else { None })
     }
 
