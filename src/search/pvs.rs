@@ -299,7 +299,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             alpha = score;
 
             if score >= beta {
-                if MAIN_THREAD && mov.flag().is_quiet() {
+                if mov.flag().is_quiet() {
                     // Killer moves are prioritized in move ordering.
                     // It assumes that similar "refutation" moves at siblings will be useful.
                     table.put_killer_move(depth, mov);
