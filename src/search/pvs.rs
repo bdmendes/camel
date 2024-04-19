@@ -324,7 +324,6 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             },
             best_move,
             depth,
-            ROOT && MAIN_THREAD,
         );
     }
 
@@ -343,11 +342,6 @@ pub fn pvs_aspiration<const MAIN_THREAD: bool>(
     let mut all_count = 0;
     let mut lower_bound = guess - WINDOW_SIZE;
     let mut upper_bound = guess + WINDOW_SIZE;
-
-    if MAIN_THREAD {
-        // We must update the search id so that new table entries may be pushed.
-        table.prepare_for_new_search(&position);
-    }
 
     for cof in 1.. {
         let (score, count) = pvs::<true, MAIN_THREAD, true>(
