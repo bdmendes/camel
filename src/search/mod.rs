@@ -168,11 +168,6 @@ pub fn search_iterative_deepening_multithread(
 
         Some(best_move)
     } else {
-        if current_depth > 1 {
-            // The hash move must be in the table, since root entries should be forced.
-            panic!("Hash move not found in the table.");
-        }
-
         // We are in time trouble. Return a "panic" perceived best move.
         moves.sort_by_cached_key(|m| -evaluate_move(position, *m));
         println!("bestmove {}", moves[0]);
