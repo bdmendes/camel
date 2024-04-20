@@ -168,7 +168,13 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     if !twofold_repetition {
         if let Some(tt_entry) = table.get_table_score(position, depth) {
             match tt_entry {
-                TableScore::Exact(score) => return (score, 1),
+                TableScore::Exact(score) => {
+                    // Exact scores from higher depths are always sufficient,
+                    // except for mate scores, since those are depth-dependent.
+                    if score.abs() < MATE_SCORE.abs() {
+                        return (score, 1);
+                    }
+                }
                 TableScore::LowerBound(score) => alpha = alpha.max(score),
                 TableScore::UpperBound(score) => beta = beta.min(score),
             }
