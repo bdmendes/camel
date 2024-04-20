@@ -14,12 +14,14 @@ use std::{cell::OnceCell, sync::Arc};
 const MATE_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH as ValueScore + 1;
 const NULL_MOVE_DEPTH_REDUCTION: Depth = 3;
 const WINDOW_SIZE: ValueScore = 100;
+const MAX_QUIESCE_DEPTH: Depth = 5;
 
 fn quiesce(
     position: &Position,
     mut alpha: ValueScore,
     beta: ValueScore,
     constraint: &SearchConstraint,
+    depth: Depth,
 ) -> (ValueScore, usize) {
     // Time limit reached
     if constraint.should_stop_search() {
@@ -27,8 +29,9 @@ fn quiesce(
     }
 
     // If we are in check, the position is certainly not quiet,
-    // so we must search all check evasions. Otherwise, search only captures
-    let is_check = position.is_check();
+    // so we must search all check evasions. Otherwise, search only captures.
+    // If we are past the quiesce depth, we ignore checks.
+    let is_check = depth > 0 && position.is_check();
     let static_evaluation = if is_check {
         alpha
     } else {
@@ -58,19 +61,25 @@ fn quiesce(
         return (score, 1);
     }
 
+    // As in the regular search, we count each move as 1 node.
     let mut count = 1;
+
+    // Our "max positional gain" is related to the non-material evaluation.
+    // We discard it if we are past the limit, to save time.
+    let max_gain = if depth == 0 { 0 } else { MAX_POSITIONAL_GAIN };
 
     for (mov, _) in picker {
         // Delta prune move if it cannot improve the score
         if !is_check && mov.flag().is_capture() {
             let captured_piece =
                 position.board.piece_color_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
-            if static_evaluation + captured_piece.value() + MAX_POSITIONAL_GAIN < alpha {
+            if static_evaluation + captured_piece.value() + max_gain < alpha {
                 continue;
             }
         }
 
-        let (score, nodes) = quiesce(&position.make_move(mov), -beta, -alpha, constraint);
+        let (score, nodes) =
+            quiesce(&position.make_move(mov), -beta, -alpha, constraint, depth.saturating_sub(1));
         let score = -score;
         count += nodes;
 
@@ -189,7 +198,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
 
     // Max depth reached; search for quiet position
     if depth == 0 {
-        return quiesce(position, alpha, beta, constraint);
+        return quiesce(position, alpha, beta, constraint, MAX_QUIESCE_DEPTH);
     }
 
     // We count each move on the board as 1 node.
