@@ -39,7 +39,7 @@ pub fn get_duration(
     };
 
     let standard_move_time = get_duration_based_on_moves(position, our_duration)
-        + our_increment.unwrap_or_default().mul_f32(0.95);
+        + our_increment.unwrap_or_default().mul_f32(0.90);
 
-    standard_move_time.min(our_duration.mul_f32(0.95))
+    standard_move_time.min(our_duration.mul_f32(0.50))
 }
