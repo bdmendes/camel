@@ -17,7 +17,7 @@ readonly UPSTREAM=${1:-"master"}
 readonly CONCURRENCY_GAMES=${2:-"4"}
 readonly ENGINE_THREADS=${3:-"1"}
 readonly ENGINE_HASH=${4:-"64"}
-readonly ROUNDS=${5:-"300"}
+readonly ROUNDS=${5:-"400"}
 readonly TIME_CONTROL=${6:-"5+0.2"}
 
 function run_gauntlet {
