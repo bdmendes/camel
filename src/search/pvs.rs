@@ -98,7 +98,6 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
     history: &mut BranchHistory,
     do_zero_window: bool,
     reduction: Depth,
-    extension: Depth,
 ) -> (ValueScore, usize) {
     let mut count = 0;
 
@@ -106,7 +105,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
         // We expect this tree to not raise alpha, so we search with tight bounds.
         let (score, nodes) = pvs::<false, MAIN_THREAD, true>(
             position,
-            current_depth.saturating_add(extension).saturating_sub(reduction + 1),
+            current_depth.saturating_sub(reduction + 1).min(MAX_DEPTH),
             -alpha - 1,
             -alpha,
             table.clone(),
@@ -125,7 +124,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
     // We also eliminate the reduction to avoid missing deep lines.
     let (score, nodes) = pvs::<false, MAIN_THREAD, true>(
         position,
-        current_depth.saturating_add(extension).saturating_sub(1),
+        current_depth.saturating_sub(1).min(MAX_DEPTH),
         -beta,
         -alpha,
         table,
@@ -155,11 +154,15 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     constraint: &SearchConstraint,
     history: &mut BranchHistory,
 ) -> (ValueScore, usize) {
+    // Time limit reached
+    if constraint.should_stop_search() {
+        return (alpha, 1);
+    }
+
+    // Detect history-related draws
     let repeated_times = history.repeated(position);
     let twofold_repetition = repeated_times >= 2;
     let threefold_repetition = repeated_times >= 3;
-
-    // Detect history-related draws
     if position.halfmove_clock >= 100 || threefold_repetition {
         return (0, 1);
     }
@@ -169,8 +172,6 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
         if let Some(tt_entry) = table.get_table_score(position, depth) {
             match tt_entry {
                 TableScore::Exact(score) => {
-                    // Exact scores from higher depths are always sufficient,
-                    // except for mate scores, since those are depth-dependent.
                     if score.abs() < MATE_SCORE.abs() {
                         return (score, 1);
                     }
@@ -186,11 +187,6 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
         }
     }
 
-    // Time limit reached
-    if constraint.should_stop_search() {
-        return (alpha, 1);
-    }
-
     // Max depth reached; search for quiet position
     if depth == 0 {
         return quiesce(position, alpha, beta, constraint);
@@ -199,8 +195,13 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     // We count each move on the board as 1 node.
     let mut count = 1;
 
-    // Position and node type considerations.
+    // Checks require special attention, since they are
+    // "forced" sequences.
     let is_check = position.is_check();
+
+    // In zugzwang, one side would be better not to move.
+    // This is the case in fortresses and mating positions.
+    // We disable some heuristics in that case.
     let may_be_zug = may_be_zugzwang(position);
 
     // Null move pruning: if we "pass" our turn and still get a beta cutoff,
@@ -244,11 +245,6 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
         return (score, count);
     }
 
-    // Check extension: we are interested in exploring the outcome of this properly.
-    if is_check {
-        depth = depth.saturating_add(1).min(MAX_DEPTH);
-    }
-
     // The static evaluation is useful for pruning techniques,
     // but might not be needed.
     let static_evaluation = OnceCell::new();
@@ -257,6 +253,11 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     // the correct node type and move in the hash table later.
     let original_alpha = alpha;
     let mut best_move = picker.peek().map(|(mov, _)| *mov).unwrap();
+
+    // Check extension: we are interested in exploring the outcome of this properly.
+    if is_check {
+        depth = depth.saturating_add(1).min(MAX_DEPTH);
+    }
 
     for (i, (mov, _)) in picker.enumerate() {
         // Extended futility pruning: discard moves without potential
@@ -278,7 +279,11 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
         // Late move reduction: we assume our move ordering is good, and are less interested in
         // expected non-PV nodes.
         let late_move_reduction =
-            if depth > 2 && !is_check && mov.flag().is_quiet() && i > 0 { 1 } else { 0 };
+            if depth > 2 && !may_be_zug && !is_check && mov.flag().is_quiet() && i > 0 {
+                1
+            } else {
+                0
+            };
 
         let mut new_position = position.make_move(mov);
 
@@ -293,7 +298,6 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             history,
             i > 0,
             late_move_reduction,
-            0,
         );
         history.leave_position();
 
@@ -362,48 +366,48 @@ pub fn pvs_aspiration<const MAIN_THREAD: bool>(
         );
         all_count += count;
 
-        if !constraint.should_stop_search() {
-            // Search failed low; increase lower bound and try again
-            if score <= lower_bound {
-                lower_bound = std::cmp::max(
-                    ValueScore::MIN + 1,
-                    lower_bound.saturating_sub(WINDOW_SIZE.saturating_mul(cof)),
-                );
-                continue;
-            }
-
-            // Search failed high; increase upper bound and try again
-            if score >= upper_bound {
-                upper_bound = upper_bound.saturating_add(WINDOW_SIZE.saturating_mul(cof));
-                continue;
-            }
-
-            // Our score is valid, so other threads can stop gracefully.
-            if MAIN_THREAD {
-                constraint.signal_root_finished();
-            }
-
-            return Some(if score.abs() >= MATE_SCORE.abs() {
-                let pv = table.get_pv(&position, depth);
-                let plys_to_mate = pv.len() as u8;
-                (
-                    Score::Mate(
-                        if score > 0 {
-                            position.side_to_move
-                        } else {
-                            position.side_to_move.opposite()
-                        },
-                        (plys_to_mate + 1) / 2,
-                    ),
-                    all_count,
-                )
-            } else {
-                (Score::Value(score), all_count)
-            });
+        if constraint.should_stop_search() {
+            // Search stopped as an outside order, so this is not a valid result.
+            return None;
         }
 
-        // Search stopped as an outside order, so this is not a valid result.
-        return None;
+        // Search failed low; increase lower bound and try again
+        if score <= lower_bound {
+            lower_bound = std::cmp::max(
+                ValueScore::MIN + 1,
+                lower_bound.saturating_sub(WINDOW_SIZE.saturating_mul(cof)),
+            );
+            continue;
+        }
+
+        // Search failed high; increase upper bound and try again
+        if score >= upper_bound {
+            upper_bound = upper_bound.saturating_add(WINDOW_SIZE.saturating_mul(cof));
+            continue;
+        }
+
+        // Our score is valid, so other threads can stop gracefully.
+        if MAIN_THREAD {
+            constraint.signal_root_finished();
+        }
+
+        return Some(if score.abs() >= MATE_SCORE.abs() {
+            let pv = table.get_pv(&position, depth);
+            let plys_to_mate = pv.len() as u8;
+            (
+                Score::Mate(
+                    if score > 0 {
+                        position.side_to_move
+                    } else {
+                        position.side_to_move.opposite()
+                    },
+                    (plys_to_mate + 1) / 2,
+                ),
+                all_count,
+            )
+        } else {
+            (Score::Value(score), all_count)
+        });
     }
 
     unreachable!()

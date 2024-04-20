@@ -6,7 +6,7 @@ use crate::{
 };
 use std::{
     sync::{atomic::Ordering, Arc},
-    thread::{self},
+    thread,
     time::Duration,
 };
 
@@ -18,7 +18,7 @@ pub mod table;
 
 pub type Depth = u8;
 
-pub const MAX_DEPTH: Depth = 50;
+pub const MAX_DEPTH: Depth = 60;
 
 fn print_iter_info(
     position: &Position,
@@ -135,7 +135,9 @@ pub fn search_iterative_deepening_multithread(
         }
 
         let elapsed = time.elapsed();
-        print_iter_info(position, current_depth, score, count, time.elapsed(), &table);
+        if current_depth < MAX_DEPTH {
+            print_iter_info(position, current_depth, score, count, time.elapsed(), &table);
+        }
 
         // If we are pondering, we should continue as per the UCI protocol specification.
         // Otherwise, we break if we have only one legal move or if we have a mate score.
@@ -149,7 +151,7 @@ pub fn search_iterative_deepening_multithread(
             break;
         }
 
-        current_depth = current_depth.saturating_add(1);
+        current_depth = current_depth.saturating_add(1).min(MAX_DEPTH);
     }
 
     if let Some(best_move) = table.get_hash_move(position) {
@@ -166,11 +168,6 @@ pub fn search_iterative_deepening_multithread(
 
         Some(best_move)
     } else {
-        if current_depth > 1 {
-            // The hash move must be in the table, since root entries should be forced.
-            panic!("Hash move not found in the table.");
-        }
-
         // We are in time trouble. Return a "panic" perceived best move.
         moves.sort_by_cached_key(|m| -evaluate_move(position, *m));
         println!("bestmove {}", moves[0]);
