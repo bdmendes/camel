@@ -7,6 +7,10 @@ fn expect_perft(fen: &str, depth: u8, nodes: u64) {
     assert_eq!(perft::<true, true>(&position, depth), nodes);
 }
 
+// Perft is a collection of tests to exhaustively probe the move generation of a chess engine.
+// The following positions are from https://www.chessprogramming.org/Perft_Results
+// and https://gist.github.com/peterellisjones/8c46c28141c162d1d8a0f0badbc9cff9.
+
 #[test]
 fn perft_gh_1() {
     expect_perft("r6r/1b2k1bq/8/8/7B/8/8/R3K2R b KQ - 3 2", 1, 8);

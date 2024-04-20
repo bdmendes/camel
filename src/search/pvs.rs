@@ -106,7 +106,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
         // We expect this tree to not raise alpha, so we search with tight bounds.
         let (score, nodes) = pvs::<false, MAIN_THREAD, true>(
             position,
-            current_depth.saturating_add(extension).saturating_sub(reduction + 1),
+            current_depth.saturating_add(extension).saturating_sub(reduction + 1).min(MAX_DEPTH),
             -alpha - 1,
             -alpha,
             table.clone(),
@@ -125,7 +125,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
     // We also eliminate the reduction to avoid missing deep lines.
     let (score, nodes) = pvs::<false, MAIN_THREAD, true>(
         position,
-        current_depth.saturating_add(extension).saturating_sub(1),
+        current_depth.saturating_add(extension).saturating_sub(1).min(MAX_DEPTH),
         -beta,
         -alpha,
         table,
@@ -244,11 +244,6 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
         return (score, count);
     }
 
-    // Check extension: we are interested in exploring the outcome of this properly.
-    if is_check {
-        depth = depth.saturating_add(1).min(MAX_DEPTH);
-    }
-
     // The static evaluation is useful for pruning techniques,
     // but might not be needed.
     let static_evaluation = OnceCell::new();
@@ -257,6 +252,11 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     // the correct node type and move in the hash table later.
     let original_alpha = alpha;
     let mut best_move = picker.peek().map(|(mov, _)| *mov).unwrap();
+
+    // Check extension: we are interested in exploring the outcome of this properly.
+    if is_check {
+        depth = depth.saturating_add(1);
+    }
 
     for (i, (mov, _)) in picker.enumerate() {
         // Extended futility pruning: discard moves without potential
