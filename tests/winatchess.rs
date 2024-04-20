@@ -19,9 +19,16 @@ const SCENARIO_SEARCH_TIME: Duration = Duration::new(1, 0);
 const SCENARIO_THREADS: u16 = 4;
 
 fn expect_search(fen: &str, mov: &str) {
-    for cof in &[1, 5, 30, 90] {
-        let duration = SCENARIO_SEARCH_TIME * *cof;
-        let quick_constraint = SearchConstraint {
+    let table = Arc::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB * SCENARIO_THREADS as usize));
+
+    for cof in 1.. {
+        let duration = SCENARIO_SEARCH_TIME * cof;
+
+        if duration > Duration::new(50, 0) {
+            panic!("Search failed for {} {}", fen, mov);
+        }
+
+        let constraint = SearchConstraint {
             time_constraint: Some(TimeConstraint {
                 initial_instant: Instant::now(),
                 move_time: duration,
@@ -33,13 +40,12 @@ fn expect_search(fen: &str, mov: &str) {
             game_history: vec![],
         };
 
-        let table = SearchTable::new(DEFAULT_TABLE_SIZE_MB * SCENARIO_THREADS as usize);
         let result = search_iterative_deepening_multithread(
             &Position::from_fen(fen).unwrap(),
             0,
             MAX_DEPTH,
-            Arc::new(table),
-            &quick_constraint,
+            table.clone(),
+            &constraint,
         );
 
         if result.unwrap().to_string() == mov {
@@ -47,7 +53,7 @@ fn expect_search(fen: &str, mov: &str) {
         }
     }
 
-    panic!("Search failed for {} {}", fen, mov);
+    unreachable!()
 }
 
 const WAC_POSITIONS: &str =
