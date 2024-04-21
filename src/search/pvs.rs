@@ -61,19 +61,19 @@ fn quiesce(
 
     let mut count = 1;
 
-    for (mov, _) in picker {
-        // Delta prune move if it cannot improve the score
+    for mov in picker {
         if !is_check && mov.flag().is_capture() {
+            // Delta pruning: if there is no way this capture can improve the score, prune immediately.
             let captured_piece =
                 position.board.piece_color_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
             if static_evaluation + captured_piece.value() + MAX_POSITIONAL_GAIN < alpha {
                 continue;
             }
-        }
 
-        // Static exchange evaluation: if we lose material, there is no point in searching further.
-        if see::see(mov, &position.board) < 0 {
-            continue;
+            // Static exchange evaluation: if we lose material, there is no point in searching further.
+            if see::see(mov, &position.board) < 0 {
+                continue;
+            }
         }
 
         let (score, nodes) = quiesce(&position.make_move(mov), -beta, -alpha, constraint);
@@ -258,14 +258,14 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     // We need to keep track of the original alpha and best moves, to store
     // the correct node type and move in the hash table later.
     let original_alpha = alpha;
-    let mut best_move = picker.peek().map(|(mov, _)| *mov).unwrap();
+    let mut best_move = picker.peek().copied().unwrap();
 
     // Check extension: we are interested in exploring the outcome of this properly.
     if is_check {
         depth = depth.saturating_add(1).min(MAX_DEPTH);
     }
 
-    for (i, (mov, _)) in picker.enumerate() {
+    for (i, mov) in picker.enumerate() {
         // Extended futility pruning: discard moves without potential
         if depth <= 2 && i > 0 && !may_be_zug {
             let move_potential = MAX_POSITIONAL_GAIN * depth as ValueScore
