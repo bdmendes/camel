@@ -1,7 +1,46 @@
 use crate::{
-    evaluation::ValueScore,
-    position::{bitboard::Bitboard, board::Piece, square::Square, Color, Position},
+    evaluation::{Evaluable, ValueScore},
+    moves::gen::square_attackers,
+    position::{
+        bitboard::Bitboard,
+        board::{Board, Piece},
+        square::Square,
+        Color, Position,
+    },
 };
+
+static ATTACKS_WEIGHT: [i32; 9] = [0, 5, 20, 32, 45, 60, 68, 72, 76];
+
+fn king_attackers_bonus(board: &Board, square: Square, by_color: Color) -> (ValueScore, Bitboard) {
+    let mut bonus = 0;
+    let square_attackers = square_attackers::<false>(board, square, by_color);
+
+    for square in square_attackers {
+        let piece = board.piece_at(square).unwrap();
+        if piece == Piece::Pawn {
+            continue;
+        }
+
+        bonus += piece.value() as ValueScore / 10;
+    }
+
+    (bonus, square_attackers & !board.pieces_bb(Piece::Pawn))
+}
+
+fn attacking_king_zone_bonus(board: &Board, color: Color, king_square: Square) -> ValueScore {
+    let squares_around_king = king_square.squares_around();
+    let mut attacking_bb = Bitboard::new(0);
+    let mut bonus = 0;
+
+    for square in squares_around_king {
+        let (square_bonus, square_attackers_bb) =
+            king_attackers_bonus(board, square, color.opposite());
+        bonus += square_bonus;
+        attacking_bb |= square_attackers_bb;
+    }
+
+    (bonus as i32 * ATTACKS_WEIGHT[attacking_bb.count_ones() as usize] / 100) as ValueScore
+}
 
 fn king_pawn_shelter(position: &Position, king_color: Color, king_square: Square) -> ValueScore {
     let mut shelter = 0;
@@ -63,41 +102,33 @@ fn king_tropism(position: &Position, king_color: Color, king_square: Square) -> 
 
 pub fn evaluate_king_safety(position: &Position, midgame_ratio: u8) -> ValueScore {
     let white_king_square =
-        position.board.pieces_bb_color(Piece::King, Color::White).into_iter().next();
+        position.board.pieces_bb_color(Piece::King, Color::White).into_iter().next().unwrap();
     let black_king_square =
-        position.board.pieces_bb_color(Piece::King, Color::Black).into_iter().next();
-
-    if white_king_square.is_none() || black_king_square.is_none() {
-        return 0;
-    }
+        position.board.pieces_bb_color(Piece::King, Color::Black).into_iter().next().unwrap();
 
     let mut score = 0;
 
-    score += king_tropism(position, Color::White, white_king_square.unwrap())
-        * midgame_ratio as ValueScore
-        / 255;
-    score -= king_tropism(position, Color::Black, black_king_square.unwrap())
-        * midgame_ratio as ValueScore
-        / 255;
+    score += king_tropism(position, Color::White, white_king_square);
+    score -= king_tropism(position, Color::Black, black_king_square);
 
-    score += king_pawn_shelter(position, Color::White, white_king_square.unwrap())
-        * midgame_ratio as ValueScore
-        / 255;
-    score -= king_pawn_shelter(position, Color::Black, black_king_square.unwrap())
-        * midgame_ratio as ValueScore
-        / 255;
+    score += king_pawn_shelter(position, Color::White, white_king_square);
+    score -= king_pawn_shelter(position, Color::Black, black_king_square);
 
-    score
+    score += attacking_king_zone_bonus(&position.board, Color::Black, black_king_square);
+    score -= attacking_king_zone_bonus(&position.board, Color::White, white_king_square);
+
+    (score as i32 * midgame_ratio as i32 / 255) as ValueScore
 }
 
 #[cfg(test)]
 mod tests {
     use super::king_tropism;
     use crate::{
-        evaluation::ValueScore,
+        evaluation::{position::king::ATTACKS_WEIGHT, Evaluable, ValueScore},
         position::{
             board::Piece,
             fen::{FromFen, START_FEN},
+            square::Square,
             Color, Position,
         },
     };
@@ -167,5 +198,56 @@ mod tests {
                 .unwrap();
 
         assert!((-10..=-2).contains(&position_shelter(&position)));
+    }
+
+    #[test]
+    fn attacking_zone_square() {
+        let position = Position::from_fen(
+            "r1bqkb1r/pppn1ppp/2np4/4p1NQ/2B1P3/8/PPPP1PPP/RNB1K2R w KQkq - 2 6",
+        )
+        .unwrap();
+
+        let expected_bonus =
+            (Piece::Queen.value() + Piece::Knight.value() + Piece::Bishop.value()) / 10;
+        assert_eq!(
+            super::king_attackers_bonus(&position.board, Square::F7, Color::White).0,
+            expected_bonus
+        );
+    }
+
+    #[test]
+    fn attacking_zone_bonus() {
+        let position = Position::from_fen(
+            "r1bqkb1r/1pp2ppp/pnnp4/4p1BQ/2B1P3/3P1N2/PPP2PPP/RN2K2R b KQkq - 2 8",
+        )
+        .unwrap();
+
+        let expected_bonus_around_f7 = (Piece::Queen.value() + Piece::Bishop.value()) / 10;
+        let expected_bonus_around_e7 = Piece::Bishop.value() / 10;
+        let expected_bonus_around_d8 = Piece::Bishop.value() / 10;
+
+        assert_eq!(
+            super::attacking_king_zone_bonus(
+                &position.board,
+                Color::Black,
+                position.board.pieces_bb_color(Piece::King, Color::Black).next().unwrap()
+            ) as i32,
+            (expected_bonus_around_f7 + expected_bonus_around_e7 + expected_bonus_around_d8) as i32
+                * ATTACKS_WEIGHT[3]
+                / 100
+        );
+    }
+
+    #[test]
+    fn attacked_king_smoke() {
+        let position = Position::from_fen(
+            "r1bqkb1r/1pp2ppp/pnnp4/4p1BQ/2B1P3/3P1N2/PPP2PPP/RN2K2R b KQkq - 2 8",
+        )
+        .unwrap();
+
+        assert!(
+            super::evaluate_king_safety(&position, 255) > 0
+                && super::evaluate_king_safety(&position, 255) < 100
+        );
     }
 }
