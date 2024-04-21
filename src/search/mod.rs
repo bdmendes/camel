@@ -14,6 +14,7 @@ pub mod constraint;
 pub mod history;
 pub mod movepick;
 pub mod pvs;
+pub mod see;
 pub mod table;
 
 pub type Depth = u8;
