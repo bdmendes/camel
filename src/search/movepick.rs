@@ -8,7 +8,6 @@ use rand::{thread_rng, Rng};
 use std::sync::Arc;
 
 type ScoredVec<Move> = Vec<(Move, ValueScore)>;
-type PickResult = (Move, ValueScore);
 
 const RANDOM_FACTOR: ValueScore = 1000;
 
@@ -23,24 +22,25 @@ pub struct MovePicker<const QUIESCE: bool> {
 
 impl MovePicker<true> {
     pub fn new(position: &Position, is_check: bool) -> Self {
-        let moves = position.moves(if is_check {
-            MoveStage::All
-        } else {
-            MoveStage::CapturesAndPromotions
-        });
+        let stage = if is_check { MoveStage::All } else { MoveStage::CapturesAndPromotions };
+        let moves = position.moves(stage);
         Self {
             index: 0,
             moves: decorate_moves_with_score(&moves, |mov| evaluate_move(position, mov)),
-            stage: MoveStage::CapturesAndPromotions,
+            stage,
             position: *position,
             table: None,
             depth: None,
         }
     }
+
+    pub fn empty(&self) -> bool {
+        self.moves.is_empty()
+    }
 }
 
 impl std::iter::Iterator for MovePicker<true> {
-    type Item = PickResult;
+    type Item = Move;
 
     fn next(&mut self) -> Option<Self::Item> {
         find_next_max_and_swap(&mut self.moves, &mut self.index)
@@ -72,16 +72,20 @@ impl MovePicker<false> {
             depth: Some(depth),
         }
     }
-}
 
-impl std::iter::Iterator for MovePicker<false> {
-    type Item = PickResult;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some((mov, score)) = find_next_max_and_swap(&mut self.moves, &mut self.index) {
-            return Some((mov, score));
+    pub fn empty(&mut self) -> bool {
+        loop {
+            if !self.moves.is_empty() {
+                return false;
+            }
+            self.advance_stage();
+            if self.stage == MoveStage::All {
+                return true;
+            }
         }
+    }
 
+    fn advance_stage(&mut self) {
         match self.stage {
             MoveStage::HashMove => {
                 self.stage = MoveStage::CapturesAndPromotions;
@@ -89,9 +93,6 @@ impl std::iter::Iterator for MovePicker<false> {
                     &self.position.moves(MoveStage::CapturesAndPromotions),
                     |mov| evaluate_move(&self.position, mov),
                 );
-
-                self.index = 0;
-                self.next()
             }
             MoveStage::CapturesAndPromotions => {
                 self.stage = MoveStage::NonCaptures;
@@ -105,12 +106,30 @@ impl std::iter::Iterator for MovePicker<false> {
                         evaluate_move(&self.position, mov)
                     }
                 });
-
-                self.index = 0;
-                self.next()
             }
-            _ => None,
+            _ => {
+                self.stage = MoveStage::All;
+            }
         }
+
+        self.index = 0;
+    }
+}
+
+impl std::iter::Iterator for MovePicker<false> {
+    type Item = Move;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(mov) = find_next_max_and_swap(&mut self.moves, &mut self.index) {
+            return Some(mov);
+        }
+
+        if self.stage == MoveStage::All {
+            return None;
+        }
+
+        self.advance_stage();
+        self.next()
     }
 }
 
@@ -121,7 +140,7 @@ where
     moves.iter().map(|mov| (*mov, f(*mov))).collect()
 }
 
-fn find_next_max_and_swap(moves: &mut ScoredVec<Move>, index: &mut usize) -> Option<PickResult> {
+fn find_next_max_and_swap(moves: &mut ScoredVec<Move>, index: &mut usize) -> Option<Move> {
     if *index >= moves.len() {
         return None;
     }
@@ -136,5 +155,5 @@ fn find_next_max_and_swap(moves: &mut ScoredVec<Move>, index: &mut usize) -> Opt
     }
 
     *index += 1;
-    Some((moves[*index - 1].0, moves[*index - 1].1))
+    Some(moves[*index - 1].0)
 }

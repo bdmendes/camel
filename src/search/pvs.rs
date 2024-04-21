@@ -51,22 +51,27 @@ fn quiesce(
         static_evaluation
     };
 
-    let mut picker = MovePicker::<true>::new(position, is_check).peekable();
+    let picker = MovePicker::<true>::new(position, is_check);
 
     // Stable position reached
-    if picker.peek().is_none() {
+    if picker.empty() {
         let score = if is_check { MATE_SCORE } else { static_evaluation };
         return (score, 1);
     }
 
     let mut count = 1;
 
-    for (mov, _) in picker {
-        // Delta prune move if it cannot improve the score
+    for mov in picker {
         if !is_check && mov.flag().is_capture() {
+            // Delta pruning: if there is no way this capture can improve the score, prune immediately.
             let captured_piece =
                 position.board.piece_color_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
             if static_evaluation + captured_piece.value() + MAX_POSITIONAL_GAIN < alpha {
+                continue;
+            }
+
+            // Static exchange evaluation: if we lose material, there is no point in searching further.
+            if see::see(mov, &position.board) < 0 {
                 continue;
             }
         }
@@ -242,11 +247,10 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     }
 
     // Prepare move generation and sorting. This is lazy and works in stages.
-    let mut picker =
-        MovePicker::<false>::new(position, table.clone(), depth, ROOT && !MAIN_THREAD).peekable();
+    let mut picker = MovePicker::<false>::new(position, table.clone(), depth, ROOT && !MAIN_THREAD);
 
     // Detect checkmate and stalemate
-    if picker.peek().is_none() {
+    if picker.empty() {
         let score = if is_check { MATE_SCORE - depth as ValueScore } else { 0 };
         return (score, count);
     }
@@ -258,14 +262,19 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     // We need to keep track of the original alpha and best moves, to store
     // the correct node type and move in the hash table later.
     let original_alpha = alpha;
-    let mut best_move = picker.peek().map(|(mov, _)| *mov).unwrap();
+    let mut best_move = None;
 
     // Check extension: we are interested in exploring the outcome of this properly.
     if is_check {
         depth = depth.saturating_add(1).min(MAX_DEPTH);
     }
 
-    for (i, (mov, _)) in picker.enumerate() {
+    for (i, mov) in picker.enumerate() {
+        // PV-line: this is our best move for now.
+        if i == 0 {
+            best_move = Some(mov);
+        }
+
         // Extended futility pruning: discard moves without potential
         if depth <= 2 && i > 0 && !may_be_zug {
             let move_potential = MAX_POSITIONAL_GAIN * depth as ValueScore
@@ -320,7 +329,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
 
         if score > alpha {
             // We found a new best move.
-            best_move = mov;
+            best_move = Some(mov);
             alpha = score;
 
             if score >= beta {
@@ -337,20 +346,22 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
         }
     }
 
-    if !constraint.should_stop_search() {
-        table.insert_entry(
-            position,
-            if alpha <= original_alpha {
-                TableScore::UpperBound(alpha)
-            } else if alpha >= beta {
-                TableScore::LowerBound(alpha)
-            } else {
-                TableScore::Exact(alpha)
-            },
-            best_move,
-            depth,
-            ROOT && MAIN_THREAD,
-        );
+    if let Some(best_move) = best_move {
+        if !constraint.should_stop_search() {
+            table.insert_entry(
+                position,
+                if alpha <= original_alpha {
+                    TableScore::UpperBound(alpha)
+                } else if alpha >= beta {
+                    TableScore::LowerBound(alpha)
+                } else {
+                    TableScore::Exact(alpha)
+                },
+                best_move,
+                depth,
+                ROOT && MAIN_THREAD,
+            );
+        }
     }
 
     (alpha, count)
