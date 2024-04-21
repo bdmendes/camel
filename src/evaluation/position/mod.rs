@@ -16,6 +16,12 @@ mod rooks;
 pub const MAX_POSITIONAL_GAIN: ValueScore = 200;
 
 fn midgame_ratio(position: &Position) -> u8 {
+    if position.board.occupancy_bb_all().count_ones() <= 4 {
+        // We are in a "mating" position.
+        // The only goal is to corner the king.
+        return 0;
+    }
+
     Piece::list().iter().fold(0, |acc, piece| {
         acc.saturating_add(
             position.board.pieces_bb(*piece).count_ones() as u8
@@ -68,7 +74,7 @@ impl Evaluable for Position {
         }
 
         let midgame_ratio = midgame_ratio(self);
-        let endgame_ratio = 255 - midgame_ratio;
+        let endgame_ratio = u8::MAX - midgame_ratio;
         let occupancy = self.board.occupancy_bb_all();
 
         let base_score = Piece::list().iter().fold(0, |acc, piece| {
