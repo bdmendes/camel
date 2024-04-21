@@ -15,6 +15,8 @@ fn least_valuable(bb: Bitboard, board: &Board) -> Option<(Piece, Square)> {
 }
 
 pub fn see(mov: Move, board: &Board) -> ValueScore {
+    debug_assert!(mov.flag().is_capture());
+
     let mut board = *board;
 
     // Store the "best score" when it is our turn to move.
