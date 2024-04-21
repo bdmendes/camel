@@ -108,6 +108,11 @@ const ENDGAME_PAWN_PSQT: PieceSquareTable = [
 ];
 
 pub fn psqt_value(piece: Piece, square: Square, color: Color, endgame_ratio: u8) -> ValueScore {
+    if endgame_ratio == u8::MAX && matches!(piece, Piece::Queen | Piece::Rook) {
+        // We are in a mating position, so there is no point in evaluating the PSQT.
+        return 0;
+    }
+
     let midgame_psqt = match piece {
         Piece::Pawn => &MIDGAME_PAWN_PSQT,
         Piece::Knight => &MIDGAME_KNIGHT_PSQT,
