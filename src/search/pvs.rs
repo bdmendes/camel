@@ -2,6 +2,7 @@ use super::{
     constraint::SearchConstraint,
     history::BranchHistory,
     movepick::MovePicker,
+    see,
     table::{SearchTable, TableScore},
     Depth, MAX_DEPTH,
 };
@@ -68,6 +69,11 @@ fn quiesce(
             if static_evaluation + captured_piece.value() + MAX_POSITIONAL_GAIN < alpha {
                 continue;
             }
+        }
+
+        // Static exchange evaluation: if we lose material, there is no point in searching further.
+        if see::see(mov, &position.board) < 0 {
+            continue;
         }
 
         let (score, nodes) = quiesce(&position.make_move(mov), -beta, -alpha, constraint);
