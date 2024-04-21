@@ -8,7 +8,6 @@ use rand::{thread_rng, Rng};
 use std::sync::Arc;
 
 type ScoredVec<Move> = Vec<(Move, ValueScore)>;
-type PickResult = (Move, ValueScore);
 
 const RANDOM_FACTOR: ValueScore = 1000;
 
@@ -40,7 +39,7 @@ impl MovePicker<true> {
 }
 
 impl std::iter::Iterator for MovePicker<true> {
-    type Item = PickResult;
+    type Item = Move;
 
     fn next(&mut self) -> Option<Self::Item> {
         find_next_max_and_swap(&mut self.moves, &mut self.index)
@@ -75,11 +74,11 @@ impl MovePicker<false> {
 }
 
 impl std::iter::Iterator for MovePicker<false> {
-    type Item = PickResult;
+    type Item = Move;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some((mov, score)) = find_next_max_and_swap(&mut self.moves, &mut self.index) {
-            return Some((mov, score));
+        if let Some(mov) = find_next_max_and_swap(&mut self.moves, &mut self.index) {
+            return Some(mov);
         }
 
         match self.stage {
@@ -121,7 +120,7 @@ where
     moves.iter().map(|mov| (*mov, f(*mov))).collect()
 }
 
-fn find_next_max_and_swap(moves: &mut ScoredVec<Move>, index: &mut usize) -> Option<PickResult> {
+fn find_next_max_and_swap(moves: &mut ScoredVec<Move>, index: &mut usize) -> Option<Move> {
     if *index >= moves.len() {
         return None;
     }
@@ -136,5 +135,5 @@ fn find_next_max_and_swap(moves: &mut ScoredVec<Move>, index: &mut usize) -> Opt
     }
 
     *index += 1;
-    Some((moves[*index - 1].0, moves[*index - 1].1))
+    Some(moves[*index - 1].0)
 }
