@@ -29,12 +29,12 @@ impl SearchConstraint {
             return true;
         }
 
-        if self.ponder_mode.load(std::sync::atomic::Ordering::Relaxed) {
-            return false;
-        }
-
         if self.global_stop.load(std::sync::atomic::Ordering::Relaxed) {
             return true;
+        }
+
+        if self.ponder_mode.load(std::sync::atomic::Ordering::Relaxed) {
+            return false;
         }
 
         if let Some(time_constraint) = &self.time_constraint {
