@@ -2,7 +2,6 @@ use super::{
     constraint::SearchConstraint,
     history::BranchHistory,
     movepick::MovePicker,
-    see,
     table::{SearchTable, TableScore},
     Depth, MAX_DEPTH,
 };
@@ -68,11 +67,6 @@ fn quiesce(
             let captured_piece =
                 position.board.piece_color_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
             if static_evaluation + captured_piece.value() + MAX_POSITIONAL_GAIN < alpha {
-                continue;
-            }
-
-            // Static exchange evaluation: if we lose material, there is no point in searching further.
-            if see::see(mov, &position.board) < 0 {
                 continue;
             }
         }
@@ -298,18 +292,6 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
                 0
             };
 
-        // SEE reduction: bad captures are probably not interesting.
-        let see_reduction = if depth >= 3
-            && mov.flag().is_capture()
-            && !is_check
-            && !may_be_zug
-            && see::see(mov, &position.board) < 0
-        {
-            depth / 3
-        } else {
-            0
-        };
-
         let (score, nodes) = pvs_recurse::<MAIN_THREAD>(
             position,
             mov,
@@ -320,7 +302,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             constraint,
             history,
             i > 0,
-            late_move_reduction + see_reduction,
+            late_move_reduction,
         );
 
         count += nodes;
