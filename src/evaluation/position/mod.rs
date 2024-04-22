@@ -15,6 +15,28 @@ mod rooks;
 
 pub const MAX_POSITIONAL_GAIN: ValueScore = 200;
 
+pub fn evaluate_piece_midgame(piece: Piece) -> ValueScore {
+    match piece {
+        Piece::Pawn => 82,
+        Piece::Knight => 337,
+        Piece::Bishop => 365,
+        Piece::Rook => 477,
+        Piece::Queen => 1025,
+        Piece::King => 0,
+    }
+}
+
+pub fn evaluate_piece_endgame(piece: Piece) -> ValueScore {
+    match piece {
+        Piece::Pawn => 94,
+        Piece::Knight => 281,
+        Piece::Bishop => 297,
+        Piece::Rook => 512,
+        Piece::Queen => 936,
+        Piece::King => 0,
+    }
+}
+
 fn midgame_ratio(position: &Position) -> u8 {
     Piece::list().iter().fold(0, |acc, piece| {
         acc.saturating_add(
@@ -72,7 +94,9 @@ impl Evaluable for Position {
         let occupancy = self.board.occupancy_bb_all();
 
         let base_score = Piece::list().iter().fold(0, |acc, piece| {
-            let piece_value = piece.value();
+            let piece_value = ((evaluate_piece_midgame(*piece) as i32 * midgame_ratio as i32
+                + evaluate_piece_endgame(*piece) as i32 * endgame_ratio as i32)
+                / 255) as ValueScore;
             let piece_mobility_bonus = mobility_bonus(*piece);
             let pieces_bb = self.board.pieces_bb(*piece);
 
