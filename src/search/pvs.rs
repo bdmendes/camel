@@ -7,6 +7,7 @@ use super::{
 };
 use crate::{
     evaluation::{position::MAX_POSITIONAL_GAIN, Evaluable, Score, ValueScore},
+    moves::Move,
     position::{board::Piece, Color, Position},
 };
 use std::{cell::OnceCell, sync::Arc};
@@ -90,6 +91,7 @@ fn quiesce(
 #[inline(always)]
 fn pvs_recurse<const MAIN_THREAD: bool>(
     position: &mut Position,
+    mov: Move,
     current_depth: Depth,
     alpha: ValueScore,
     beta: ValueScore,
@@ -100,11 +102,14 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
     reduction: Depth,
 ) -> (ValueScore, usize) {
     let mut count = 0;
+    let mut new_position = position.make_move(mov);
+
+    history.visit_position(&new_position, mov.flag().is_reversible());
 
     if do_zero_window {
         // We expect this tree to not raise alpha, so we search with tight bounds.
         let (score, nodes) = pvs::<false, MAIN_THREAD, true>(
-            position,
+            &mut new_position,
             current_depth.saturating_sub(reduction + 1).min(MAX_DEPTH),
             -alpha - 1,
             -alpha,
@@ -116,6 +121,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
         let score = -score;
         if score <= alpha || score >= beta {
             // We did not exceed alpha, so our fast search is ok.
+            history.leave_position();
             return (score, count);
         }
     }
@@ -123,7 +129,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
     // We found a better move, so we must search with full window to confirm.
     // We also eliminate the reduction to avoid missing deep lines.
     let (score, nodes) = pvs::<false, MAIN_THREAD, true>(
-        position,
+        &mut new_position,
         current_depth.saturating_sub(1).min(MAX_DEPTH),
         -beta,
         -alpha,
@@ -131,6 +137,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
         constraint,
         history,
     );
+    history.leave_position();
     count += nodes;
     (-score, count)
 }
@@ -285,11 +292,9 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
                 0
             };
 
-        let mut new_position = position.make_move(mov);
-
-        history.visit_position(&new_position, mov.flag().is_reversible());
         let (score, nodes) = pvs_recurse::<MAIN_THREAD>(
-            &mut new_position,
+            position,
+            mov,
             depth,
             alpha,
             beta,
@@ -299,7 +304,6 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             i > 0,
             late_move_reduction,
         );
-        history.leave_position();
 
         count += nodes;
 
