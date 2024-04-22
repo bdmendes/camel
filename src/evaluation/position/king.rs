@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-static ATTACKS_WEIGHT: [i32; 9] = [0, 0, 32, 45, 60, 68, 76, 82, 90];
+static ATTACKS_WEIGHT: [i32; 9] = [0, 3, 12, 25, 40, 60, 82, 90, 90];
 
 fn king_attackers_bonus(board: &Board, square: Square, by_color: Color) -> (ValueScore, Bitboard) {
     let mut bonus = 0;
