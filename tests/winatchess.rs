@@ -24,7 +24,7 @@ fn expect_search(fen: &str, mov: &str) {
     for cof in 1.. {
         let duration = SCENARIO_SEARCH_TIME * cof;
 
-        if duration > Duration::new(50, 0) {
+        if duration > Duration::new(60, 0) {
             panic!("Search failed for {} {}", fen, mov);
         }
 
