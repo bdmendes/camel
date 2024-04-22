@@ -75,11 +75,29 @@ fn king_pawn_shelter(position: &Position, king_color: Color, king_square: Square
             };
             shelter += shelter_penalty;
         } else {
-            shelter += SHELTER_PENALTY * 2;
+            shelter += SHELTER_PENALTY;
         }
     }
 
     shelter
+}
+
+fn king_tropism(position: &Position, king_color: Color, king_square: Square) -> ValueScore {
+    let them_occupancy = position.board.occupancy_bb(king_color.opposite())
+        & !position.board.pieces_bb(Piece::Pawn)
+        & !position.board.pieces_bb(Piece::King);
+
+    let tropism = them_occupancy.fold(0, |acc, sq| {
+        let distance = sq.manhattan_distance(king_square);
+        let piece_cof = match position.board.piece_at(sq) {
+            Some(Piece::Queen) | Some(Piece::Rook) => 2,
+            Some(Piece::Bishop) | Some(Piece::Knight) => 1,
+            _ => unreachable!(),
+        };
+        acc + ((14 - distance) * piece_cof) as ValueScore
+    });
+
+    -tropism
 }
 
 pub fn evaluate_king_safety(position: &Position, midgame_ratio: u8) -> ValueScore {
@@ -89,6 +107,9 @@ pub fn evaluate_king_safety(position: &Position, midgame_ratio: u8) -> ValueScor
         position.board.pieces_bb_color(Piece::King, Color::Black).into_iter().next().unwrap();
 
     let mut score = 0;
+
+    score += king_tropism(position, Color::White, white_king_square);
+    score -= king_tropism(position, Color::Black, black_king_square);
 
     score += king_pawn_shelter(position, Color::White, white_king_square);
     score -= king_pawn_shelter(position, Color::Black, black_king_square);
@@ -101,6 +122,7 @@ pub fn evaluate_king_safety(position: &Position, midgame_ratio: u8) -> ValueScor
 
 #[cfg(test)]
 mod tests {
+    use super::king_tropism;
     use crate::{
         evaluation::{position::king::ATTACKS_WEIGHT, Evaluable, ValueScore},
         position::{
@@ -111,6 +133,16 @@ mod tests {
         },
     };
 
+    fn position_tropism(position: &Position) -> ValueScore {
+        let white_king_square =
+            position.board.pieces_bb_color(Piece::King, Color::White).into_iter().next().unwrap();
+        let black_king_square =
+            position.board.pieces_bb_color(Piece::King, Color::Black).into_iter().next().unwrap();
+
+        king_tropism(position, Color::White, white_king_square)
+            - king_tropism(position, Color::Black, black_king_square)
+    }
+
     fn position_shelter(position: &Position) -> ValueScore {
         let white_king_square =
             position.board.pieces_bb_color(Piece::King, Color::White).into_iter().next().unwrap();
@@ -119,6 +151,20 @@ mod tests {
 
         super::king_pawn_shelter(position, Color::White, white_king_square)
             - super::king_pawn_shelter(position, Color::Black, black_king_square)
+    }
+
+    #[test]
+    fn tropism_smoke() {
+        let start_position = Position::from_fen(START_FEN).unwrap();
+        assert_eq!(position_tropism(&start_position), 0);
+    }
+
+    #[test]
+    fn tropism_strong() {
+        let position =
+            Position::from_fen("r5k1/2qb1p1p/5QpB/ppbpr3/2pN4/2P3P1/PP3P1P/3RR1K1 b - - 1 21")
+                .unwrap();
+        assert!(position_tropism(&position) > 20);
     }
 
     #[test]
