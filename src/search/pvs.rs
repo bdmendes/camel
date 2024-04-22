@@ -2,6 +2,7 @@ use super::{
     constraint::SearchConstraint,
     history::BranchHistory,
     movepick::MovePicker,
+    see,
     table::{SearchTable, TableScore},
     Depth, MAX_DEPTH,
 };
@@ -61,11 +62,16 @@ fn quiesce(
     let mut count = 1;
 
     for (mov, _) in picker {
-        // Delta prune move if it cannot improve the score
         if !is_check && mov.flag().is_capture() {
+            // Delta pruning: this capture cannot improve the score in any way.
             let captured_piece =
                 position.board.piece_color_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
             if static_evaluation + captured_piece.value() + MAX_POSITIONAL_GAIN < alpha {
+                continue;
+            }
+
+            // Static exchange evaluation: if we lose material, there is no point in searching further.
+            if see::see(mov, &position.board) < 0 {
                 continue;
             }
         }
