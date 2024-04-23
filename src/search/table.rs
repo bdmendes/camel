@@ -48,10 +48,11 @@ impl TableScore {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct TableEntry {
-    data: u8,
     score: TableScore,
     best_move: Move,
     hash: u64,
+    depth: Depth,
+    data: u8,
 }
 
 impl TableEntry {
@@ -67,7 +68,8 @@ impl TableEntry {
             score,
             best_move,
             hash,
-            data: (depth & 0x3F) | ((root as u8 & 1) << 7) | ((search_id & 1) << 6),
+            depth,
+            data: ((root as u8 & 1) << 7) | ((search_id & 1) << 6),
         }
     }
 
@@ -90,10 +92,6 @@ impl TableEntry {
 
     fn is_root(&self) -> bool {
         ((self.data & 0x80) >> 7) == 1
-    }
-
-    fn depth(&self) -> Depth {
-        self.data & 0x3F
     }
 }
 
@@ -146,7 +144,7 @@ impl TranspositionTable {
 
         if !entry.is_root() {
             if let Some(old_entry) = self.load_tt_entry(index) {
-                let replace = (old_entry.depth() <= entry.depth() && !old_entry.is_root())
+                let replace = (old_entry.depth <= entry.depth && !old_entry.is_root())
                     || !old_entry.same_search_parity(current_id);
                 if !replace {
                     return;
@@ -212,7 +210,7 @@ impl SearchTable {
             .read()
             .unwrap()
             .get(position)
-            .and_then(|entry| if entry.depth() >= depth { Some(entry.score) } else { None })
+            .and_then(|entry| if entry.depth >= depth { Some(entry.score) } else { None })
             .map(|score| {
                 // Adjust the score to the current distance from the root.
                 if Score::is_mate(score.value()) {
@@ -349,10 +347,10 @@ mod tests {
         let entry3 = TableEntry::new(TableScore::Exact(100), Move::new_raw(0), 1, false, 2, 0);
         let entry4 = TableEntry::new(TableScore::Exact(100), Move::new_raw(0), 2, false, 3, 0);
 
-        assert_eq!(entry1.depth(), MAX_DEPTH);
-        assert_eq!(entry2.depth(), 0);
-        assert_eq!(entry3.depth(), 1);
-        assert_eq!(entry4.depth(), 2);
+        assert_eq!(entry1.depth, MAX_DEPTH);
+        assert_eq!(entry2.depth, 0);
+        assert_eq!(entry3.depth, 1);
+        assert_eq!(entry4.depth, 2);
 
         assert!(entry1.is_root());
         assert!(entry2.is_root());
