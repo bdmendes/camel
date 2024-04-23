@@ -3,7 +3,7 @@ use crate::{evaluation::ValueScore, moves::Move, position::Position};
 use portable_atomic::AtomicU128;
 use std::{
     array,
-    mem::{size_of, transmute},
+    mem::transmute,
     sync::{
         atomic::{AtomicU16, Ordering},
         RwLock,
@@ -54,7 +54,6 @@ impl TableEntry {
     }
 
     pub fn raw(&self) -> u128 {
-        debug_assert!(size_of::<TableEntry>() == 16);
         unsafe { transmute::<TableEntry, u128>(*self) }
     }
 

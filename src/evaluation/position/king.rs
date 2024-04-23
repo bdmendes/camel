@@ -1,23 +1,57 @@
 use crate::{
     evaluation::ValueScore,
-    position::{bitboard::Bitboard, board::Piece, square::Square, Color, Position},
+    position::{bitboard::Bitboard, board::Piece, square::Square, CastlingRights, Color, Position},
 };
+
+const STORM_PENALTY: ValueScore = -15;
+const SHELTER_PENALTY: ValueScore = -20;
+
+fn king_pawn_storm(position: &Position, king_color: Color, king_square: Square) -> ValueScore {
+    if king_color == Color::White
+        && (position.castling_rights.contains(CastlingRights::WHITE_KINGSIDE)
+            || position.castling_rights.contains(CastlingRights::WHITE_QUEENSIDE))
+    {
+        return 0;
+    }
+
+    if king_color == Color::Black
+        && (position.castling_rights.contains(CastlingRights::BLACK_KINGSIDE)
+            || position.castling_rights.contains(CastlingRights::BLACK_QUEENSIDE))
+    {
+        return 0;
+    }
+
+    let file_min = king_square.file().max(1) - 1;
+    let rank_min = match king_color {
+        Color::White => king_square.rank().max(1) - 1,
+        Color::Black => king_square.rank().min(6) + 1,
+    };
+    let rank_max = match king_color {
+        Color::White => rank_min.min(4) + 3,
+        Color::Black => rank_min.max(3) - 3,
+    };
+
+    let file_mask = Bitboard::file_mask(file_min) | Bitboard::files_mask_right(file_min);
+    let rank_mask = if king_color == Color::White {
+        Bitboard::rank_mask(rank_max) | Bitboard::ranks_mask_down(rank_max)
+    } else {
+        Bitboard::rank_mask(rank_max) | Bitboard::ranks_mask_up(rank_max)
+    };
+
+    let zone_bb = file_mask & rank_mask;
+
+    let their_pawns = position.board.pieces_bb_color(Piece::Pawn, king_color.opposite());
+    let their_pawn_storm = their_pawns & zone_bb;
+
+    their_pawn_storm.count_ones() as ValueScore * STORM_PENALTY
+}
 
 fn king_pawn_shelter(position: &Position, king_color: Color, king_square: Square) -> ValueScore {
     let mut shelter = 0;
 
     let our_pawns = position.board.pieces_bb_color(Piece::Pawn, king_color);
-
-    let file_min = match king_square.file() {
-        0 => 0,
-        _ => king_square.file() - 1,
-    };
-    let file_max = match king_square.file() {
-        7 => 7,
-        _ => king_square.file() + 1,
-    };
-
-    const SHELTER_PENALTY: ValueScore = -20;
+    let file_min = king_square.file().max(1) - 1;
+    let file_max = king_square.file().min(6) + 1;
 
     for file in file_min..=file_max {
         let our_pawns_on_file = our_pawns & Bitboard::file_mask(file);
@@ -73,31 +107,27 @@ pub fn evaluate_king_safety(position: &Position, midgame_ratio: u8) -> ValueScor
 
     let mut score = 0;
 
-    score += king_tropism(position, Color::White, white_king_square.unwrap())
-        * midgame_ratio as ValueScore
-        / 255;
-    score -= king_tropism(position, Color::Black, black_king_square.unwrap())
-        * midgame_ratio as ValueScore
-        / 255;
+    score += king_tropism(position, Color::White, white_king_square.unwrap());
+    score -= king_tropism(position, Color::Black, black_king_square.unwrap());
 
-    score += king_pawn_shelter(position, Color::White, white_king_square.unwrap())
-        * midgame_ratio as ValueScore
-        / 255;
-    score -= king_pawn_shelter(position, Color::Black, black_king_square.unwrap())
-        * midgame_ratio as ValueScore
-        / 255;
+    score += king_pawn_shelter(position, Color::White, white_king_square.unwrap());
+    score -= king_pawn_shelter(position, Color::Black, black_king_square.unwrap());
 
-    score
+    score += king_pawn_storm(position, Color::White, white_king_square.unwrap());
+    score -= king_pawn_storm(position, Color::Black, black_king_square.unwrap());
+
+    (score as i32 * midgame_ratio as i32 / 255) as ValueScore
 }
 
 #[cfg(test)]
 mod tests {
     use super::king_tropism;
     use crate::{
-        evaluation::ValueScore,
+        evaluation::{position::king::STORM_PENALTY, ValueScore},
         position::{
             board::Piece,
             fen::{FromFen, START_FEN},
+            square::Square,
             Color, Position,
         },
     };
@@ -167,5 +197,23 @@ mod tests {
                 .unwrap();
 
         assert!((-10..=-2).contains(&position_shelter(&position)));
+    }
+
+    #[test]
+    fn pawn_storm_1() {
+        let position =
+            Position::from_fen("1r2r1k1/3q1ppp/p2p4/1p2b1P1/4P2P/1B2Q3/P1P2P2/1R3RK1 b - - 0 23")
+                .unwrap();
+        assert_eq!(super::king_pawn_storm(&position, Color::Black, Square::G8), STORM_PENALTY);
+        assert_eq!(super::king_pawn_storm(&position, Color::White, Square::G1), 0);
+    }
+
+    #[test]
+    fn pawn_storm_2() {
+        let position =
+            Position::from_fen("1r2r1k1/3q2pp/3p3P/4b1P1/p3Pp2/4Q3/P1P2P2/1R2R1K1 w - - 0 28")
+                .unwrap();
+        assert_eq!(super::king_pawn_storm(&position, Color::White, Square::G1), STORM_PENALTY);
+        assert_eq!(super::king_pawn_storm(&position, Color::Black, Square::G8), 2 * STORM_PENALTY);
     }
 }
