@@ -48,20 +48,14 @@ fn print_iter_info(
         }
     }
 
-    print!(
-        "time {} nodes {} nps {} hashfull {} pv",
+    println!(
+        "time {} nodes {} nps {} hashfull {} pv {}",
         (elapsed_micros / 1000).max(1),
         count,
         nps,
-        table.hashfull_millis()
+        table.hashfull_millis(),
+        table.get_pv(position, depth).iter().map(|m| m.to_string()).collect::<Vec<_>>().join(" ")
     );
-
-    let pv = table.get_pv(position, depth);
-    for mov in pv {
-        print!(" {}", mov);
-    }
-
-    println!();
 }
 
 pub fn search_iterative_deepening_multithread(
@@ -136,7 +130,9 @@ pub fn search_iterative_deepening_multithread(
         }
 
         let elapsed = time.elapsed();
-        print_iter_info(position, current_depth, score, count, time.elapsed(), &table);
+        if current_depth < MAX_DEPTH {
+            print_iter_info(position, current_depth, score, count, time.elapsed(), &table);
+        }
 
         if !constraint.pondering()
             && (one_legal_move
@@ -146,7 +142,7 @@ pub fn search_iterative_deepening_multithread(
             break;
         }
 
-        current_depth = current_depth.saturating_add(1);
+        current_depth = (current_depth + 1).min(MAX_DEPTH);
     }
 
     if let Some(best_move) = table.get_hash_move(position) {
@@ -163,11 +159,6 @@ pub fn search_iterative_deepening_multithread(
 
         Some(best_move)
     } else {
-        if current_depth > 1 {
-            // The hash move must be in the table, since root entries should be forced.
-            panic!("Hash move not found in the table.");
-        }
-
         // We are in time trouble. Return a "panic" perceived best move.
         moves.sort_by_cached_key(|m| -evaluate_move(position, *m));
         println!("bestmove {}", moves[0]);
