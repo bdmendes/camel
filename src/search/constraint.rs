@@ -1,7 +1,7 @@
 use super::history::HistoryEntry;
 use std::{
     sync::{
-        atomic::{AtomicBool, AtomicU16},
+        atomic::{AtomicBool, AtomicU16, Ordering},
         Arc,
     },
     time::{Duration, Instant},
@@ -56,7 +56,7 @@ impl SearchConstraint {
     }
 
     pub fn signal_root_finished(&self) {
-        self.threads_stop.store(true, portable_atomic::Ordering::Relaxed);
+        self.threads_stop.store(true, Ordering::Relaxed);
     }
 }
 
