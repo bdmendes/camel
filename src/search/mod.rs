@@ -54,7 +54,7 @@ fn print_iter_info(
         count,
         nps,
         table.hashfull_millis(),
-        table.get_pv(position).iter().map(|m| m.to_string()).collect::<Vec<_>>().join(" ")
+        table.get_pv(position, depth).iter().map(|m| m.to_string()).collect::<Vec<_>>().join(" ")
     );
 }
 

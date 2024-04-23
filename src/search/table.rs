@@ -281,12 +281,16 @@ impl SearchTable {
         [self.load_killer(index), self.load_killer(index + 1)]
     }
 
-    pub fn get_pv(&self, position: &Position) -> Vec<Move> {
+    pub fn get_pv(&self, position: &Position, mut depth: Depth) -> Vec<Move> {
         let mut pv = Vec::new();
         let mut position = *position;
 
         while let Some(entry) = self.get_hash_move(&position) {
             pv.push(entry);
+            depth -= 1;
+            if depth == 0 {
+                break;
+            }
             position = position.make_move(entry);
         }
 

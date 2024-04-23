@@ -445,7 +445,7 @@ mod tests {
 
         let score =
             pvs_aspiration::<true>(&position, 0, depth, table.clone(), &constraint).unwrap().0;
-        let pv = table.get_pv(&position);
+        let pv = table.get_pv(&position, depth);
 
         assert!(pv.len() >= expected_moves.len());
 
