@@ -8,10 +8,7 @@ use camel::{
     },
 };
 use std::{
-    sync::{
-        atomic::{AtomicBool, AtomicU16},
-        Arc,
-    },
+    sync::{atomic::AtomicU16, Arc, RwLock},
     time::{Duration, Instant},
 };
 
@@ -33,9 +30,9 @@ fn expect_search(fen: &str, mov: &str) {
                 initial_instant: Instant::now(),
                 move_time: duration,
             }),
-            global_stop: Arc::new(AtomicBool::new(false)),
-            threads_stop: Arc::new(AtomicBool::new(false)),
-            ponder_mode: Arc::new(AtomicBool::new(false)),
+            global_stop: Arc::new(RwLock::new(false)),
+            threads_stop: Arc::new(RwLock::new(false)),
+            ponder_mode: Arc::new(RwLock::new(false)),
             number_threads: Arc::new(AtomicU16::new(SCENARIO_THREADS)),
             game_history: vec![],
         };

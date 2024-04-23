@@ -15,10 +15,7 @@ use camel::{
     },
 };
 use std::{
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
+    sync::{atomic::Ordering, Arc, RwLock},
     thread,
     time::Duration,
 };
@@ -42,11 +39,11 @@ pub fn execute_go(
     players_increment: (Option<Duration>, Option<Duration>),
     ponder: bool,
 ) {
-    if !engine.stop.load(Ordering::Relaxed) {
+    if !*engine.stop.read().unwrap() {
         return;
     }
 
-    engine.pondering.store(ponder, Ordering::Relaxed);
+    *engine.pondering.write().unwrap() = ponder;
 
     let position = engine.position;
 
@@ -83,13 +80,13 @@ pub fn execute_go(
         time_constraint: calc_move_time
             .map(|t| TimeConstraint { initial_instant: std::time::Instant::now(), move_time: t }),
         global_stop: stop_now.clone(),
-        threads_stop: Arc::new(AtomicBool::new(false)),
+        threads_stop: Arc::new(RwLock::new(false)),
         ponder_mode: engine.pondering.clone(),
         number_threads: engine.number_threads.clone(),
     };
 
     thread::spawn(move || {
-        stop_now.store(false, Ordering::Relaxed);
+        *stop_now.write().unwrap() = false;
         let current_guess = position.value() * position.side_to_move.sign();
         search_iterative_deepening_multithread(
             &position,
@@ -98,23 +95,23 @@ pub fn execute_go(
             table.clone(),
             &constraint,
         );
-        stop_now.store(true, Ordering::Relaxed);
+        *stop_now.write().unwrap() = true;
     });
 }
 
 pub fn execute_stop(engine: &mut Engine) {
-    if engine.stop.load(Ordering::Relaxed) {
+    if *engine.stop.read().unwrap() {
         return;
     }
-    engine.pondering.store(false, Ordering::Relaxed);
-    engine.stop.store(true, Ordering::Relaxed);
+    *engine.pondering.write().unwrap() = false;
+    *engine.stop.write().unwrap() = true;
 }
 
 pub fn execute_ponderhit(engine: &mut Engine) {
-    if !engine.pondering.load(Ordering::Relaxed) {
+    if !*engine.pondering.read().unwrap() {
         return;
     }
-    engine.pondering.store(false, Ordering::Relaxed);
+    *engine.pondering.write().unwrap() = false;
 }
 
 pub fn execute_uci() {

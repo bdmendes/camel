@@ -5,7 +5,7 @@ use crate::{
     position::Position,
 };
 use std::{
-    sync::{atomic::Ordering, Arc},
+    sync::Arc,
     thread::{self},
     time::Duration,
 };
@@ -87,7 +87,7 @@ pub fn search_iterative_deepening_multithread(
 
         let search_result = thread::scope(|s| {
             // We must tell threads that it is ok to run.
-            constraint.threads_stop.store(false, Ordering::Relaxed);
+            *constraint.threads_stop.write().unwrap() = false;
 
             // It is important to at least get a move with depth == 1, so do the simplest thing possible.
             let multi_thread = number_threads > 1 && current_depth > 1;

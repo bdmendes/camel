@@ -1,9 +1,6 @@
 use super::history::HistoryEntry;
 use std::{
-    sync::{
-        atomic::{AtomicBool, AtomicU16},
-        Arc,
-    },
+    sync::{atomic::AtomicU16, Arc, RwLock},
     time::{Duration, Instant},
 };
 
@@ -16,24 +13,24 @@ pub struct TimeConstraint {
 #[derive(Default)]
 pub struct SearchConstraint {
     pub time_constraint: Option<TimeConstraint>,
-    pub global_stop: Arc<AtomicBool>,
-    pub threads_stop: Arc<AtomicBool>,
-    pub ponder_mode: Arc<AtomicBool>,
+    pub global_stop: Arc<RwLock<bool>>,
+    pub threads_stop: Arc<RwLock<bool>>,
+    pub ponder_mode: Arc<RwLock<bool>>,
     pub number_threads: Arc<AtomicU16>,
     pub game_history: Vec<HistoryEntry>,
 }
 
 impl SearchConstraint {
     pub fn should_stop_search(&self) -> bool {
-        if self.threads_stop.load(std::sync::atomic::Ordering::Relaxed) {
+        if *self.threads_stop.read().unwrap() {
             return true;
         }
 
-        if self.ponder_mode.load(std::sync::atomic::Ordering::Relaxed) {
+        if *self.ponder_mode.read().unwrap() {
             return false;
         }
 
-        if self.global_stop.load(std::sync::atomic::Ordering::Relaxed) {
+        if *self.global_stop.read().unwrap() {
             return true;
         }
 
@@ -46,7 +43,7 @@ impl SearchConstraint {
     }
 
     pub fn pondering(&self) -> bool {
-        self.ponder_mode.load(std::sync::atomic::Ordering::Relaxed)
+        *self.ponder_mode.read().unwrap()
     }
 
     pub fn remaining_time(&self) -> Option<Duration> {
@@ -56,7 +53,7 @@ impl SearchConstraint {
     }
 
     pub fn signal_root_finished(&self) {
-        self.threads_stop.store(true, portable_atomic::Ordering::Relaxed);
+        *self.threads_stop.write().unwrap() = true;
     }
 }
 
@@ -65,10 +62,7 @@ mod tests {
     use super::SearchConstraint;
     use crate::search::constraint::TimeConstraint;
     use std::{
-        sync::{
-            atomic::{AtomicBool, AtomicU16},
-            Arc,
-        },
+        sync::{atomic::AtomicU16, Arc, RwLock},
         thread,
         time::{Duration, Instant},
     };
@@ -80,9 +74,9 @@ mod tests {
                 initial_instant: Instant::now(),
                 move_time: Duration::from_millis(100),
             }),
-            global_stop: Arc::new(AtomicBool::new(false)),
-            threads_stop: Arc::new(AtomicBool::new(false)),
-            ponder_mode: Arc::new(AtomicBool::new(false)),
+            global_stop: Arc::new(RwLock::new(false)),
+            threads_stop: Arc::new(RwLock::new(false)),
+            ponder_mode: Arc::new(RwLock::new(false)),
             number_threads: Arc::new(AtomicU16::new(1)),
             game_history: vec![],
         };
@@ -100,22 +94,22 @@ mod tests {
 
     #[test]
     fn stop_search_external_order() {
-        let stop_now = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let stop_now = Arc::new(RwLock::new(false));
         let constraint = SearchConstraint {
             time_constraint: Some(TimeConstraint {
                 initial_instant: Instant::now(),
                 move_time: Duration::from_millis(100),
             }),
             global_stop: stop_now.clone(),
-            threads_stop: Arc::new(AtomicBool::new(false)),
-            ponder_mode: Arc::new(AtomicBool::new(false)),
+            threads_stop: Arc::new(RwLock::new(false)),
+            ponder_mode: Arc::new(RwLock::new(false)),
             number_threads: Arc::new(AtomicU16::new(1)),
             game_history: vec![],
         };
 
         assert!(!constraint.should_stop_search());
 
-        stop_now.store(true, std::sync::atomic::Ordering::Relaxed);
+        *stop_now.write().unwrap() = true;
 
         assert!(constraint.should_stop_search());
         assert!(constraint.remaining_time().unwrap() > Duration::from_millis(90));
