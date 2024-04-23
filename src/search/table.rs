@@ -33,7 +33,7 @@ struct TableEntry {
     best_move: Move,
     hash: u16,
     depth: Depth,
-    data: u8, // bit 0: root, bit 1: search_id, bits 2-3: score type
+    data: u8, // bit 0: root, bit 1: search_id, bits 2-3: score type, bits 4-7: unused
 }
 
 impl TableEntry {
@@ -192,7 +192,7 @@ impl SearchTable {
             .unwrap()
             .get(position)
             .map(|entry| entry.best_move)
-            .filter(|m| position.board.piece_at(m.from()).is_some())
+            .filter(|mov| mov.is_pseudo_legal(position))
     }
 
     pub fn get_table_score(
