@@ -59,16 +59,10 @@ pub struct Position {
 
 impl Position {
     pub fn zobrist_hash(&self) -> ZobristHash {
-        let board_hash = self.board.zobrist_hash();
-
-        // Meta data is stored in the upper bits of the hash, since the lower bits will determine
-        // the index of this position in the transposition table
-        let position_hash = board_hash & 0x001F_FFFF_FFFF_FFFF;
-
-        position_hash
-            | (self.side_to_move as u64) << 63 // 1 bit
-            | (self.castling_rights.bits() as u64) << 59 // 4 bits
-            | self.en_passant_square.map(|sq| sq as u64).unwrap_or(0) << 53 // 6 bits
+        self.board.zobrist_hash()
+            ^ Board::hash_color(self.side_to_move)
+            ^ Board::hash_castling_rights(self.castling_rights)
+            ^ Board::hash_enpassant(self.en_passant_square)
     }
 
     pub fn make_move(&self, mov: Move) -> Self {

@@ -1,11 +1,12 @@
-use super::{bitboard::Bitboard, Color, Square};
+use super::{bitboard::Bitboard, CastlingRights, Color, Square};
 use ctor::ctor;
 use primitive_enum::primitive_enum;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 pub type ZobristHash = u64;
 
-const ZOBRIST_NUMBERS_SIZE: usize = 2 * 6 * 64; // 2 colors, 6 pieces, 64 squares
+// 2 colors, 6 pieces, 64 squares + 2 colors + 4 castling rights + 64 squares
+const ZOBRIST_NUMBERS_SIZE: usize = 2 * 6 * 64 + 2 + 4 + 64;
 
 #[ctor]
 static ZOBRIST_NUMBERS: [ZobristHash; ZOBRIST_NUMBERS_SIZE] = {
@@ -45,6 +46,18 @@ impl Default for Board {
 }
 
 impl Board {
+    pub fn hash_color(color: Color) -> ZobristHash {
+        ZOBRIST_NUMBERS[color as usize + 2 * 6 * 64]
+    }
+
+    pub fn hash_castling_rights(castling_rights: CastlingRights) -> ZobristHash {
+        ZOBRIST_NUMBERS[2 * 6 * 64 + 2 + castling_rights.bits() as usize]
+    }
+
+    pub fn hash_enpassant(enpassant: Option<Square>) -> ZobristHash {
+        ZOBRIST_NUMBERS[2 * 6 * 64 + 2 + 16 + enpassant.map(|s| s as usize).unwrap_or(0)]
+    }
+
     pub fn zobrist_hash(&self) -> ZobristHash {
         self.hash
     }
