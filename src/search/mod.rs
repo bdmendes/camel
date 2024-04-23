@@ -130,7 +130,9 @@ pub fn search_iterative_deepening_multithread(
         }
 
         let elapsed = time.elapsed();
-        print_iter_info(position, current_depth, score, count, time.elapsed(), &table);
+        if current_depth < MAX_DEPTH {
+            print_iter_info(position, current_depth, score, count, time.elapsed(), &table);
+        }
 
         if !constraint.pondering()
             && (one_legal_move
