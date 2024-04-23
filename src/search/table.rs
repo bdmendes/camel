@@ -1,5 +1,9 @@
 use super::{Depth, MAX_DEPTH};
-use crate::{evaluation::ValueScore, moves::Move, position::Position};
+use crate::{
+    evaluation::{Score, ValueScore},
+    moves::Move,
+    position::Position,
+};
 use portable_atomic::AtomicU128;
 use std::{
     array,
@@ -22,6 +26,24 @@ pub enum TableScore {
     Exact(ValueScore),
     LowerBound(ValueScore), // when search fails high (beta cutoff)
     UpperBound(ValueScore), // when search fails low (no improvement to alpha)
+}
+
+impl TableScore {
+    pub fn value(&self) -> ValueScore {
+        match self {
+            TableScore::Exact(score) => *score,
+            TableScore::LowerBound(score) => *score,
+            TableScore::UpperBound(score) => *score,
+        }
+    }
+
+    pub fn shift(&self, shift: ValueScore) -> Self {
+        match self {
+            TableScore::Exact(score) => TableScore::Exact(score + shift),
+            TableScore::LowerBound(score) => TableScore::LowerBound(score + shift),
+            TableScore::UpperBound(score) => TableScore::UpperBound(score + shift),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -56,6 +78,10 @@ impl TableEntry {
     pub fn raw(&self) -> u128 {
         debug_assert!(size_of::<TableEntry>() == 16);
         unsafe { transmute::<TableEntry, u128>(*self) }
+    }
+
+    pub fn shift_score(&self, shift: ValueScore) -> Self {
+        TableEntry { score: self.score.shift(shift), ..*self }
     }
 
     fn same_search_parity(&self, id: u8) -> bool {
@@ -176,14 +202,30 @@ impl SearchTable {
         self.transposition.read().unwrap().get(position).map(|entry| entry.best_move)
     }
 
-    pub fn get_table_score(&self, position: &Position, depth: Depth) -> Option<TableScore> {
-        self.transposition.read().unwrap().get(position).and_then(|entry| {
-            if entry.depth() >= depth {
-                Some(entry.score)
-            } else {
-                None
-            }
-        })
+    pub fn get_table_score(
+        &self,
+        position: &Position,
+        depth: Depth,
+        root_distance: Depth,
+    ) -> Option<TableScore> {
+        self.transposition
+            .read()
+            .unwrap()
+            .get(position)
+            .and_then(|entry| if entry.depth() >= depth { Some(entry.score) } else { None })
+            .map(|score| {
+                // Adjust the score to the current distance from the root.
+                if Score::is_mate(score.value()) {
+                    let shift = if score.value() < 0 {
+                        root_distance as ValueScore
+                    } else {
+                        -(root_distance as ValueScore)
+                    };
+                    score.shift(shift)
+                } else {
+                    score
+                }
+            })
     }
 
     pub fn insert_entry(
@@ -192,12 +234,31 @@ impl SearchTable {
         score: TableScore,
         best_move: Move,
         depth: Depth,
-        root: bool,
+        root_distance: Depth,
     ) {
         let tt = self.transposition.read().unwrap();
-        let entry =
-            TableEntry::new(score, best_move, depth, root, tt.current_id, position.zobrist_hash());
-        tt.insert(position, entry, tt.current_id);
+        let entry = TableEntry::new(
+            score,
+            best_move,
+            depth,
+            root_distance == 0,
+            tt.current_id,
+            position.zobrist_hash(),
+        );
+
+        // The score stored should be independent of the path from root to this node,
+        // and only depend on the number of moves to mate.
+        if Score::is_mate(entry.score.value()) {
+            let shift = if entry.score.value() > 0 {
+                root_distance as ValueScore
+            } else {
+                -(root_distance as ValueScore)
+            };
+            let entry = entry.shift_score(shift);
+            tt.insert(position, entry, tt.current_id);
+        } else {
+            tt.insert(position, entry, tt.current_id);
+        }
     }
 
     pub fn put_killer_move(&self, depth: Depth, mov: Move) {
@@ -220,16 +281,12 @@ impl SearchTable {
         [self.load_killer(index), self.load_killer(index + 1)]
     }
 
-    pub fn get_pv(&self, position: &Position, mut depth: Depth) -> Vec<Move> {
+    pub fn get_pv(&self, position: &Position) -> Vec<Move> {
         let mut pv = Vec::new();
         let mut position = *position;
 
         while let Some(entry) = self.get_hash_move(&position) {
             pv.push(entry);
-            depth -= 1;
-            if depth == 0 {
-                break;
-            }
             position = position.make_move(entry);
         }
 

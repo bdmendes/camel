@@ -268,10 +268,10 @@ pub fn make_move(position: &Position, mov: Move) -> Position {
         halfmove_clock: if piece == Piece::Pawn || mov_flag.is_capture() {
             0
         } else {
-            position.halfmove_clock + 1
+            position.halfmove_clock.saturating_add(1)
         },
         fullmove_number: if position.side_to_move == Color::Black {
-            position.fullmove_number + 1
+            position.fullmove_number.saturating_add(1)
         } else {
             position.fullmove_number
         },

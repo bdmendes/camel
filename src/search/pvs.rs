@@ -7,20 +7,30 @@ use super::{
     Depth, MAX_DEPTH,
 };
 use crate::{
-    evaluation::{position::MAX_POSITIONAL_GAIN, Evaluable, Score, ValueScore},
+    evaluation::{position::MAX_POSITIONAL_GAIN, Evaluable, Score, ValueScore, MATE_SCORE},
     position::{board::Piece, Color, Position},
 };
 use std::{cell::OnceCell, sync::Arc};
 
-const MATE_SCORE: ValueScore = ValueScore::MIN + MAX_DEPTH as ValueScore + 1;
 const NULL_MOVE_DEPTH_REDUCTION: Depth = 3;
 const WINDOW_SIZE: ValueScore = 100;
+
+fn may_be_zugzwang(position: &Position) -> bool {
+    let pawns_bb = position.board.pieces_bb(Piece::Pawn);
+    let kings_bb = position.board.pieces_bb(Piece::King);
+
+    let white_pieces_bb = position.board.occupancy_bb(Color::White) & !pawns_bb & !kings_bb;
+    let black_pieces_bb = position.board.occupancy_bb(Color::Black) & !pawns_bb & !kings_bb;
+
+    white_pieces_bb.is_empty() || black_pieces_bb.is_empty()
+}
 
 fn quiesce(
     position: &Position,
     mut alpha: ValueScore,
     beta: ValueScore,
     constraint: &SearchConstraint,
+    root_distance: Depth,
 ) -> (ValueScore, usize) {
     // Time limit reached
     if constraint.should_stop_search() {
@@ -55,7 +65,8 @@ fn quiesce(
 
     // Stable position reached
     if picker.peek().is_none() {
-        let score = if is_check { MATE_SCORE } else { static_evaluation };
+        let score =
+            if is_check { MATE_SCORE + root_distance as ValueScore } else { static_evaluation };
         return (score, 1);
     }
 
@@ -76,7 +87,13 @@ fn quiesce(
             }
         }
 
-        let (score, nodes) = quiesce(&position.make_move(mov), -beta, -alpha, constraint);
+        let (score, nodes) = quiesce(
+            &position.make_move(mov),
+            -beta,
+            -alpha,
+            constraint,
+            root_distance.saturating_add(1),
+        );
         let score = -score;
         count += nodes;
 
@@ -102,6 +119,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
     table: Arc<SearchTable>,
     constraint: &SearchConstraint,
     history: &mut BranchHistory,
+    current_root_distance: Depth,
     do_zero_window: bool,
     reduction: Depth,
     extension: Depth,
@@ -118,6 +136,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
             table.clone(),
             constraint,
             history,
+            current_root_distance.saturating_add(1),
         );
         count += nodes;
         let score = -score;
@@ -137,21 +156,13 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
         table,
         constraint,
         history,
+        current_root_distance.saturating_add(1),
     );
     count += nodes;
     (-score, count)
 }
 
-fn may_be_zugzwang(position: &Position) -> bool {
-    let pawns_bb = position.board.pieces_bb(Piece::Pawn);
-    let kings_bb = position.board.pieces_bb(Piece::King);
-
-    let white_pieces_bb = position.board.occupancy_bb(Color::White) & !pawns_bb & !kings_bb;
-    let black_pieces_bb = position.board.occupancy_bb(Color::Black) & !pawns_bb & !kings_bb;
-
-    white_pieces_bb.is_empty() || black_pieces_bb.is_empty()
-}
-
+#[allow(clippy::too_many_arguments)]
 fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     position: &mut Position,
     mut depth: Depth,
@@ -160,6 +171,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     table: Arc<SearchTable>,
     constraint: &SearchConstraint,
     history: &mut BranchHistory,
+    root_distance: Depth,
 ) -> (ValueScore, usize) {
     let repeated_times = history.repeated(position);
     let twofold_repetition = repeated_times >= 2;
@@ -172,7 +184,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
 
     // Get known score from transposition table
     if !twofold_repetition {
-        if let Some(tt_entry) = table.get_table_score(position, depth) {
+        if let Some(tt_entry) = table.get_table_score(position, depth, root_distance) {
             match tt_entry {
                 TableScore::Exact(score) => return (score, 1),
                 TableScore::LowerBound(score) => alpha = alpha.max(score),
@@ -193,7 +205,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
 
     // Max depth reached; search for quiet position
     if depth == 0 {
-        return quiesce(position, alpha, beta, constraint);
+        return quiesce(position, alpha, beta, constraint, root_distance);
     }
 
     // We count each move on the board as 1 node.
@@ -223,6 +235,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             table.clone(),
             constraint,
             history,
+            root_distance,
         );
         position.side_to_move = position.side_to_move.opposite();
 
@@ -240,7 +253,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
 
     // Detect checkmate and stalemate
     if picker.peek().is_none() {
-        let score = if is_check { MATE_SCORE - depth as ValueScore } else { 0 };
+        let score = if is_check { MATE_SCORE + root_distance as ValueScore } else { 0 };
         return (score, count);
     }
 
@@ -291,6 +304,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             table.clone(),
             constraint,
             history,
+            root_distance,
             i > 0,
             late_move_reduction,
             0,
@@ -330,7 +344,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             },
             best_move,
             depth,
-            ROOT && MAIN_THREAD,
+            root_distance,
         );
     }
 
@@ -364,6 +378,7 @@ pub fn pvs_aspiration<const MAIN_THREAD: bool>(
             table.clone(),
             constraint,
             &mut BranchHistory(constraint.game_history.clone()),
+            0,
         );
         all_count += count;
 
@@ -388,9 +403,8 @@ pub fn pvs_aspiration<const MAIN_THREAD: bool>(
                 constraint.signal_root_finished();
             }
 
-            return Some(if score.abs() >= MATE_SCORE.abs() {
-                let pv = table.get_pv(&position, depth);
-                let plys_to_mate = pv.len() as u8;
+            return Some(if Score::is_mate(score) {
+                let plys_to_mate = (MATE_SCORE.abs() - score.abs()) as u8;
                 (
                     Score::Mate(
                         if score > 0 {
@@ -431,7 +445,7 @@ mod tests {
 
         let score =
             pvs_aspiration::<true>(&position, 0, depth, table.clone(), &constraint).unwrap().0;
-        let pv = table.get_pv(&position, depth);
+        let pv = table.get_pv(&position);
 
         assert!(pv.len() >= expected_moves.len());
 
