@@ -31,9 +31,7 @@ pub enum ScoreType {
 struct TableEntry {
     score: ValueScore,
     best_move: Move,
-    hash: u16,
-    depth: Depth,
-    data: u8, // bit 0: root, bit 1: search_id, bits 2-3: score type, bits 4-7: unused
+    data: u32, // bit 0: root, bit 1: search_id, bits 2-3: score type, bits 4-9: depth: bits 10-31: hash
 }
 
 impl TableEntry {
@@ -49,9 +47,11 @@ impl TableEntry {
         TableEntry {
             score,
             best_move,
-            hash: hash as u16,
-            depth,
-            data: ((root as u8) & 1) | ((search_id & 1) << 1) | ((score_type as u8) << 2),
+            data: ((root as u32) & 1)
+                | ((search_id as u32 & 1) << 1)
+                | ((score_type as u32) << 2)
+                | ((depth as u32 & 0x3F) << 4)
+                | ((hash as u32) << 10),
         }
     }
 
@@ -68,7 +68,7 @@ impl TableEntry {
     }
 
     fn same_search_parity(&self, id: u8) -> bool {
-        ((self.data >> 1) & 1) == (id & 1)
+        ((self.data >> 1) & 1) == ((id as u32) & 1)
     }
 
     fn is_root(&self) -> bool {
@@ -82,6 +82,15 @@ impl TableEntry {
             2 => ScoreType::UpperBound,
             _ => panic!("Invalid score type"),
         }
+    }
+
+    fn depth(&self) -> Depth {
+        ((self.data >> 4) & 0x3F) as Depth
+    }
+
+    fn same_hash(&self, hash: u64) -> bool {
+        // We store 22 bits of the hash, so we need to compare the first 22 bits.
+        (self.data >> 10) == (hash as u32 & 0x3F_FFFF)
     }
 }
 
@@ -125,7 +134,7 @@ impl TranspositionTable {
     pub fn get(&self, position: &Position) -> Option<TableEntry> {
         let hash = position.zobrist_hash();
         let entry = self.load_tt_entry(hash as usize % self.data.len());
-        entry.filter(|entry| entry.hash == hash as u16)
+        entry.filter(|entry| entry.same_hash(hash))
     }
 
     pub fn insert(&self, position: &Position, entry: TableEntry, current_id: u8) {
@@ -134,7 +143,7 @@ impl TranspositionTable {
 
         if !entry.is_root() {
             if let Some(old_entry) = self.load_tt_entry(index) {
-                let replace = (old_entry.depth <= entry.depth && !old_entry.is_root())
+                let replace = (old_entry.depth() <= entry.depth() && !old_entry.is_root())
                     || !old_entry.same_search_parity(current_id);
                 if !replace {
                     return;
@@ -206,7 +215,7 @@ impl SearchTable {
             .unwrap()
             .get(position)
             .and_then(|entry| {
-                if entry.depth >= depth {
+                if entry.depth() >= depth {
                     Some((entry.score, entry.score_type()))
                 } else {
                     None
@@ -352,10 +361,10 @@ mod tests {
         let entry3 = TableEntry::new(100, ScoreType::Exact, Move::new_raw(0), 1, false, 2, 0);
         let entry4 = TableEntry::new(100, ScoreType::Exact, Move::new_raw(0), 2, false, 3, 0);
 
-        assert_eq!(entry1.depth, MAX_DEPTH);
-        assert_eq!(entry2.depth, 0);
-        assert_eq!(entry3.depth, 1);
-        assert_eq!(entry4.depth, 2);
+        assert_eq!(entry1.depth(), MAX_DEPTH);
+        assert_eq!(entry2.depth(), 0);
+        assert_eq!(entry3.depth(), 1);
+        assert_eq!(entry4.depth(), 2);
 
         assert_eq!(entry1.score, 100);
         assert_eq!(entry1.score_type(), ScoreType::Exact);
