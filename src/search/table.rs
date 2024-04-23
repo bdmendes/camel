@@ -121,7 +121,7 @@ impl TranspositionTable {
         if !entry.is_root() {
             if let Some(old_entry) = self.load_tt_entry(index) {
                 let replace = (old_entry.depth() <= entry.depth() && !old_entry.is_root())
-                    || (old_entry.is_root() && !old_entry.same_search_parity(current_id));
+                    || !old_entry.same_search_parity(current_id);
                 if !replace {
                     return;
                 }
