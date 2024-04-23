@@ -71,7 +71,7 @@ fn quiesce(
             }
 
             // Static exchange evaluation: if we lose material, there is no point in searching further.
-            if see::see(mov, &position.board) < 0 {
+            if see::see::<true>(mov, &position.board) < 0 {
                 continue;
             }
         }

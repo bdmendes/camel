@@ -14,7 +14,7 @@ fn least_valuable(bb: Bitboard, board: &Board) -> Option<(Piece, Square)> {
         .min_by_key(|(piece, _)| piece.value())
 }
 
-pub fn see(mov: Move, board: &Board) -> ValueScore {
+pub fn see<const RETURN_EARLY: bool>(mov: Move, board: &Board) -> ValueScore {
     let mut board = *board;
 
     // Store the "best score" when it is our turn to move.
@@ -25,14 +25,18 @@ pub fn see(mov: Move, board: &Board) -> ValueScore {
     let (piece, color) = board.piece_color_at(mov.from()).unwrap();
     let mut score = board.piece_at(mov.to()).unwrap_or(Piece::Pawn).value();
     board.clear_square(mov.from());
-    board.set_square::<true>(mov.to(), piece, color);
 
     let mut current_color = color.opposite();
     let mut on_square = piece;
 
     loop {
         if current_color == color {
+            if RETURN_EARLY && score >= 0 {
+                return score;
+            }
             score_turn = score_turn.max(score);
+        } else if RETURN_EARLY && score < 0 {
+            return score;
         }
 
         // We choose our least valuable piece to attack.
@@ -46,7 +50,6 @@ pub fn see(mov: Move, board: &Board) -> ValueScore {
 
             // We put ourselves on the challenged square.
             on_square = least_valuable_piece;
-            board.set_square::<true>(mov.to(), least_valuable_piece, current_color);
 
             current_color = current_color.opposite();
         } else {
@@ -74,10 +77,12 @@ mod tests {
         let moves = position.moves(MoveStage::All);
 
         let mov = moves.iter().find(|mov| mov.to_string() == "c6d5").unwrap();
-        assert_eq!(super::see(*mov, &position.board), Piece::Queen.value());
+        assert_eq!(super::see::<false>(*mov, &position.board), Piece::Queen.value());
+        assert!(super::see::<true>(*mov, &position.board) >= 0);
 
         let mov = moves.iter().find(|mov| mov.to_string() == "e8e6").unwrap();
-        assert_eq!(super::see(*mov, &position.board), 0);
+        assert_eq!(super::see::<false>(*mov, &position.board), 0);
+        assert!(super::see::<true>(*mov, &position.board) >= 0);
     }
 
     #[test]
@@ -88,7 +93,8 @@ mod tests {
         let moves = position.moves(MoveStage::All);
 
         let mov = moves.iter().find(|mov| mov.to_string() == "c4d5").unwrap();
-        assert_eq!(super::see(*mov, &position.board), 0);
+        assert_eq!(super::see::<false>(*mov, &position.board), 0);
+        assert!(super::see::<true>(*mov, &position.board) >= 0);
     }
 
     #[test]
@@ -99,7 +105,11 @@ mod tests {
         let moves = position.moves(MoveStage::All);
 
         let mov = moves.iter().find(|mov| mov.to_string() == "d4e6").unwrap();
-        assert_eq!(super::see(*mov, &position.board), Piece::Pawn.value() - Piece::Knight.value());
+        assert_eq!(
+            super::see::<false>(*mov, &position.board),
+            Piece::Pawn.value() - Piece::Knight.value()
+        );
+        assert!(super::see::<true>(*mov, &position.board) < 0);
     }
 
     #[test]
@@ -110,6 +120,7 @@ mod tests {
         let moves = position.moves(MoveStage::All);
 
         let mov = moves.iter().find(|mov| mov.to_string() == "c3e4").unwrap();
-        assert_eq!(super::see(*mov, &position.board), Piece::Knight.value());
+        assert_eq!(super::see::<false>(*mov, &position.board), Piece::Knight.value());
+        assert!(super::see::<true>(*mov, &position.board) >= 0);
     }
 }
