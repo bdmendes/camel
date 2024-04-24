@@ -208,7 +208,7 @@ impl SearchTable {
         &self,
         position: &Position,
         depth: Depth,
-        root_distance: Depth,
+        ply: Depth,
     ) -> Option<(ValueScore, ScoreType)> {
         self.transposition
             .read()
@@ -224,11 +224,7 @@ impl SearchTable {
             .map(|(score, score_type)| {
                 // Adjust the score to the current distance from the root.
                 if Score::is_mate(score) {
-                    let shift = if score < 0 {
-                        root_distance as ValueScore
-                    } else {
-                        -(root_distance as ValueScore)
-                    };
+                    let shift = if score < 0 { ply as ValueScore } else { -(ply as ValueScore) };
                     (score + shift, score_type)
                 } else {
                     (score, score_type)
@@ -243,7 +239,8 @@ impl SearchTable {
         score_type: ScoreType,
         best_move: Move,
         depth: Depth,
-        root_distance: Depth,
+        ply: Depth,
+        is_root: bool,
     ) {
         let tt = self.transposition.read().unwrap();
         let entry = TableEntry::new(
@@ -251,7 +248,7 @@ impl SearchTable {
             score_type,
             best_move,
             depth,
-            root_distance == 0,
+            is_root,
             tt.current_id,
             position.zobrist_hash(),
         );
@@ -259,11 +256,7 @@ impl SearchTable {
         // The score stored should be independent of the path from root to this node,
         // and only depend on the number of moves to mate.
         if Score::is_mate(entry.score) {
-            let shift = if entry.score > 0 {
-                root_distance as ValueScore
-            } else {
-                -(root_distance as ValueScore)
-            };
+            let shift = if entry.score > 0 { ply as ValueScore } else { -(ply as ValueScore) };
             let entry = entry.shift_score(shift);
             tt.insert(position, entry, tt.current_id);
         } else {
