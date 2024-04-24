@@ -1,5 +1,2 @@
 [build]
 rustflags = ["-C", "target-cpu=native"]
-
-[env]
-RUST_TEST_NOCAPTURE = "1"

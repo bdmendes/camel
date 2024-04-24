@@ -15,26 +15,33 @@ fn least_valuable(bb: Bitboard, board: &Board) -> Option<(Piece, Square)> {
 }
 
 pub fn see<const RETURN_EARLY: bool>(mov: Move, board: &Board) -> ValueScore {
-    let mut board = *board;
-
-    // Store the "best score" when it is our turn to move.
-    // We can simply stop the sequence there if it is good for us.
-    let mut score_turn = ValueScore::MIN;
-
-    // Capture the piece on the challenged square.
     let (piece, color) = board.piece_color_at(mov.from()).unwrap();
-    let mut score = board.piece_at(mov.to()).unwrap_or(Piece::Pawn).value();
-    board.clear_square(mov.from());
+    let their_piece = board.piece_at(mov.to()).unwrap_or(Piece::Pawn);
 
-    let mut current_color = color.opposite();
+    // If we are only querying a positive SEE, we can return immediately
+    // if we are capturing a more valuable piece.
+    if RETURN_EARLY && (piece == Piece::Pawn || piece.value() <= their_piece.value()) {
+        return 0;
+    }
+
+    // We need an auxiliary board to perform the search.
+    // We also store the max score when it is our turn.
+    let mut board = *board;
+    let mut max_score = ValueScore::MIN;
+
+    // Make our move.
     let mut on_square = piece;
+    let mut score = their_piece.value();
+    let mut current_color = color.opposite();
+    let mut current_sign = -1;
+    board.clear_square(mov.from());
 
     loop {
         if current_color == color {
             if RETURN_EARLY && score >= 0 {
                 return score;
             }
-            score_turn = score_turn.max(score);
+            max_score = max_score.max(score);
         } else if RETURN_EARLY && score < 0 {
             return score;
         }
@@ -44,21 +51,22 @@ pub fn see<const RETURN_EARLY: bool>(mov: Move, board: &Board) -> ValueScore {
 
         if let Some((least_valuable_piece, attacker_square)) = least_valuable(attackers, &board) {
             // We capture the piece on the challenged square.
-            let sign = if current_color == color { 1 } else { -1 };
-            score += sign * on_square.value();
+            score += current_sign * on_square.value();
             board.clear_square(attacker_square);
 
             // We put ourselves on the challenged square.
             on_square = least_valuable_piece;
 
+            // Switch turns.
             current_color = current_color.opposite();
+            current_sign = -current_sign;
         } else {
             // No more attackers.
             break;
         }
     }
 
-    score_turn.max(score)
+    max_score.max(score)
 }
 
 #[cfg(test)]
