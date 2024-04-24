@@ -278,7 +278,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
                 + mov
                     .flag()
                     .is_capture()
-                    .then(|| position.board.piece_at(mov.to()).unwrap_or(Piece::Pawn).value())
+                    .then(|| see::see::<false>(mov, &position.board))
                     .unwrap_or(0);
             if static_evaluation.get_or_init(|| position.value() * position.side_to_move.sign())
                 + move_potential
