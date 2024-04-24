@@ -1,4 +1,7 @@
-use self::{attacks::specials::pawn_attacks, gen::MoveDirection};
+use self::{
+    attacks::specials::pawn_attacks,
+    gen::{piece_attacks, MoveDirection},
+};
 use crate::position::{
     bitboard::Bitboard, board::Piece, square::Square, CastlingRights, Color, Position,
 };
@@ -107,6 +110,74 @@ impl Move {
 
     pub fn raw(&self) -> u16 {
         self.0
+    }
+
+    pub fn is_pseudo_legal(&self, position: &Position) -> bool {
+        let from_piece_color = position.board.piece_color_at(self.from());
+        let to_color = position.board.color_at(self.to());
+        let to_piece = position.board.piece_at(self.to());
+
+        if let Some((piece, color)) = from_piece_color {
+            // Basic legality assumptions. This is a good and fast start,
+            // but not sufficient.
+            if color != position.side_to_move
+                || to_color == Some(position.side_to_move)
+                || to_piece == Some(Piece::King)
+                || (self.flag().is_capture()
+                    && self.flag() != MoveFlag::EnPassantCapture
+                    && to_piece.is_none())
+            {
+                return false;
+            }
+
+            match self.flag() {
+                MoveFlag::Quiet if piece == Piece::Pawn => {
+                    to_color.is_none() && self.to().file() == self.from().file()
+                }
+                MoveFlag::Quiet | MoveFlag::Capture => {
+                    let attacks = piece_attacks(
+                        piece,
+                        self.from(),
+                        position.board.occupancy_bb_all(),
+                        position.side_to_move,
+                    );
+                    attacks.is_set(self.to())
+                }
+                MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => {
+                    piece == Piece::King
+                        && to_color.is_none()
+                        && !position.castling_rights.is_empty()
+                }
+                MoveFlag::BishopPromotion
+                | MoveFlag::KnightPromotion
+                | MoveFlag::RookPromotion
+                | MoveFlag::QueenPromotion => piece == Piece::Pawn && to_color.is_none(),
+                MoveFlag::BishopPromotionCapture
+                | MoveFlag::KnightPromotionCapture
+                | MoveFlag::RookPromotionCapture
+                | MoveFlag::QueenPromotionCapture => {
+                    piece == Piece::Pawn && to_color == Some(position.side_to_move.opposite())
+                }
+                MoveFlag::EnPassantCapture => {
+                    piece == Piece::Pawn
+                        && to_color.is_none()
+                        && position.en_passant_square == Some(self.to())
+                }
+                MoveFlag::DoublePawnPush => {
+                    piece == Piece::Pawn
+                        && to_color.is_none()
+                        && self
+                            .to()
+                            .shift(match position.side_to_move {
+                                Color::White => MoveDirection::SOUTH,
+                                Color::Black => MoveDirection::NORTH,
+                            })
+                            .map_or(false, |sq| position.board.color_at(sq).is_none())
+                }
+            }
+        } else {
+            false
+        }
     }
 }
 
@@ -283,7 +354,7 @@ pub fn make_move(position: &Position, mov: Move) -> Position {
 mod tests {
     use super::*;
     use crate::position::{
-        fen::{FromFen, ToFen, KIWIPETE_BLACK_FEN, KIWIPETE_WHITE_FEN},
+        fen::{FromFen, ToFen, KIWIPETE_BLACK_FEN, KIWIPETE_WHITE_FEN, START_FEN},
         square::Square,
     };
 
@@ -381,5 +452,28 @@ mod tests {
             position.to_fen(),
             "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q2/PPPBBP1P/2KR3q w kq - 0 3"
         );
+    }
+
+    #[test]
+    fn pseudo_legal() {
+        let start_position = Position::from_fen(START_FEN).unwrap();
+        let start_moves = start_position.moves(gen::MoveStage::All);
+
+        let kiwipete_position = Position::from_fen(KIWIPETE_WHITE_FEN).unwrap();
+        let kiwipete_moves = kiwipete_position.moves(gen::MoveStage::All);
+
+        for mov in &start_moves {
+            assert!(mov.is_pseudo_legal(&start_position));
+            if !kiwipete_moves.contains(mov) {
+                assert!(!mov.is_pseudo_legal(&kiwipete_position));
+            }
+        }
+
+        for mov in &kiwipete_moves {
+            assert!(mov.is_pseudo_legal(&kiwipete_position));
+            if !start_moves.contains(mov) {
+                assert!(!mov.is_pseudo_legal(&start_position));
+            }
+        }
     }
 }

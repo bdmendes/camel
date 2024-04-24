@@ -3,7 +3,7 @@ use super::{
     history::BranchHistory,
     movepick::MovePicker,
     see,
-    table::{SearchTable, TableScore},
+    table::{ScoreType, SearchTable},
     Depth, MAX_DEPTH,
 };
 use crate::{
@@ -184,11 +184,11 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
 
     // Get known score from transposition table
     if !twofold_repetition {
-        if let Some(tt_entry) = table.get_table_score(position, depth, root_distance) {
-            match tt_entry {
-                TableScore::Exact(score) => return (score, 1),
-                TableScore::LowerBound(score) => alpha = alpha.max(score),
-                TableScore::UpperBound(score) => beta = beta.min(score),
+        if let Some((score, score_type)) = table.get_table_score(position, depth, root_distance) {
+            match score_type {
+                ScoreType::Exact => return (score, 1),
+                ScoreType::LowerBound => alpha = alpha.max(score),
+                ScoreType::UpperBound => beta = beta.min(score),
             }
 
             // Beta cutoff: position is too good
@@ -335,12 +335,13 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     if !constraint.should_stop_search() {
         table.insert_entry(
             position,
+            alpha,
             if alpha <= original_alpha {
-                TableScore::UpperBound(alpha)
+                ScoreType::UpperBound
             } else if alpha >= beta {
-                TableScore::LowerBound(alpha)
+                ScoreType::LowerBound
             } else {
-                TableScore::Exact(alpha)
+                ScoreType::Exact
             },
             best_move,
             depth,
