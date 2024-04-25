@@ -99,6 +99,19 @@ pub fn square_attackers<const EARLY_RETURN: bool>(
     bb
 }
 
+pub fn square_attackers_xray(board: &Board, square: Square, color: Color) -> Bitboard {
+    let mut attackers = Bitboard::new(0);
+    let mut board = *board;
+    loop {
+        let new_attackers = square_attackers::<false>(&board, square, color);
+        if new_attackers.is_empty() {
+            return attackers;
+        }
+        attackers |= new_attackers;
+        new_attackers.for_each(|sq| board.clear_square(sq));
+    }
+}
+
 pub fn piece_attacks(piece: Piece, square: Square, occupancy: Bitboard, color: Color) -> Bitboard {
     match piece {
         Piece::Knight => KNIGHT_ATTACKS[square as usize],
@@ -327,6 +340,36 @@ mod tests {
         assert_eq!(
             super::square_attackers::<false>(&position.board, super::Square::C8, Color::White),
             Bitboard::new(1 << Square::B7 as usize)
+        );
+    }
+
+    #[test]
+    fn square_attackers_xray_1() {
+        let position = Position::from_fen(
+            "r2qr1k1/1pp2pp1/p1nbbn1p/3p4/3P2P1/P1NBPN1P/1PQB1P2/2R2RK1 b - - 1 16",
+        )
+        .unwrap();
+        assert_eq!(
+            super::square_attackers::<false>(&position.board, super::Square::H7, Color::White),
+            Bitboard::new(1 << Square::D3 as usize)
+        );
+        assert_eq!(
+            super::square_attackers_xray(&position.board, super::Square::H7, Color::White),
+            Bitboard::new(1 << Square::C2 as usize | 1 << Square::D3 as usize)
+        );
+    }
+
+    #[test]
+    fn square_attackers_xray_2() {
+        let position = Position::from_fen(
+            "2rqr2k/1pp2pp1/p1nbbn1p/3p4/3P2P1/P1QBPN1P/1PRBNP2/2R3K1 b - - 9 20",
+        )
+        .unwrap();
+        assert_eq!(
+            super::square_attackers_xray(&position.board, super::Square::C6, Color::White),
+            Bitboard::new(
+                1 << Square::C3 as usize | 1 << Square::C2 as usize | 1 << Square::C1 as usize
+            )
         );
     }
 
