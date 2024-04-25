@@ -71,8 +71,6 @@ pub fn pvs_aspiration_iterative(
         return None;
     }
 
-    table.prepare_for_new_search();
-
     let number_threads = constraint.number_threads.load(std::sync::atomic::Ordering::Relaxed);
     let mut current_depth = 1;
     let mut current_best_move = None;
