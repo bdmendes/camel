@@ -30,7 +30,7 @@ fn quiesce(
     mut alpha: ValueScore,
     beta: ValueScore,
     constraint: &SearchConstraint,
-    root_distance: Depth,
+    ply: Depth,
 ) -> (ValueScore, usize) {
     // Time limit reached
     if constraint.should_stop_search() {
@@ -65,8 +65,7 @@ fn quiesce(
 
     // Stable position reached
     if picker.peek().is_none() {
-        let score =
-            if is_check { MATE_SCORE + root_distance as ValueScore } else { static_evaluation };
+        let score = if is_check { MATE_SCORE + ply as ValueScore } else { static_evaluation };
         return (score, 1);
     }
 
@@ -87,13 +86,8 @@ fn quiesce(
             }
         }
 
-        let (score, nodes) = quiesce(
-            &position.make_move(mov),
-            -beta,
-            -alpha,
-            constraint,
-            root_distance.saturating_add(1),
-        );
+        let (score, nodes) =
+            quiesce(&position.make_move(mov), -beta, -alpha, constraint, ply.saturating_add(1));
         let score = -score;
         count += nodes;
 
@@ -109,7 +103,6 @@ fn quiesce(
     (alpha, count)
 }
 
-#[allow(clippy::too_many_arguments)]
 #[inline(always)]
 fn pvs_recurse<const MAIN_THREAD: bool>(
     position: &mut Position,
@@ -119,7 +112,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
     table: Arc<SearchTable>,
     constraint: &SearchConstraint,
     history: &mut BranchHistory,
-    current_root_distance: Depth,
+    current_ply: Depth,
     do_zero_window: bool,
     reduction: Depth,
     extension: Depth,
@@ -136,7 +129,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
             table.clone(),
             constraint,
             history,
-            current_root_distance.saturating_add(1),
+            current_ply.saturating_add(1),
         );
         count += nodes;
         let score = -score;
@@ -156,13 +149,12 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
         table,
         constraint,
         history,
-        current_root_distance.saturating_add(1),
+        current_ply.saturating_add(1),
     );
     count += nodes;
     (-score, count)
 }
 
-#[allow(clippy::too_many_arguments)]
 fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     position: &mut Position,
     mut depth: Depth,
@@ -171,7 +163,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     table: Arc<SearchTable>,
     constraint: &SearchConstraint,
     history: &mut BranchHistory,
-    root_distance: Depth,
+    ply: Depth,
 ) -> (ValueScore, usize) {
     let repeated_times = history.repeated(position);
     let twofold_repetition = repeated_times >= 2;
@@ -184,7 +176,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
 
     // Get known score from transposition table
     if !twofold_repetition {
-        if let Some((score, score_type)) = table.get_table_score(position, depth, root_distance) {
+        if let Some((score, score_type)) = table.get_table_score(position, depth, ply) {
             match score_type {
                 ScoreType::Exact => return (score, 1),
                 ScoreType::LowerBound => alpha = alpha.max(score),
@@ -205,7 +197,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
 
     // Max depth reached; search for quiet position
     if depth == 0 {
-        return quiesce(position, alpha, beta, constraint, root_distance);
+        return quiesce(position, alpha, beta, constraint, ply);
     }
 
     // We count each move on the board as 1 node.
@@ -235,7 +227,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             table.clone(),
             constraint,
             history,
-            root_distance,
+            ply,
         );
         position.side_to_move = position.side_to_move.opposite();
 
@@ -253,7 +245,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
 
     // Detect checkmate and stalemate
     if picker.peek().is_none() {
-        let score = if is_check { MATE_SCORE + root_distance as ValueScore } else { 0 };
+        let score = if is_check { MATE_SCORE + ply as ValueScore } else { 0 };
         return (score, count);
     }
 
@@ -304,7 +296,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             table.clone(),
             constraint,
             history,
-            root_distance,
+            ply,
             i > 0,
             late_move_reduction,
             0,
@@ -345,7 +337,8 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             },
             best_move,
             depth,
-            root_distance,
+            ply,
+            ROOT && MAIN_THREAD,
         );
     }
 
@@ -364,11 +357,6 @@ pub fn pvs_aspiration<const MAIN_THREAD: bool>(
     let mut all_count = 0;
     let mut lower_bound = guess - WINDOW_SIZE;
     let mut upper_bound = guess + WINDOW_SIZE;
-
-    if MAIN_THREAD {
-        // We must update the search id so that new table entries may be pushed.
-        table.prepare_for_new_search(&position);
-    }
 
     for cof in 1.. {
         let (score, count) = pvs::<true, MAIN_THREAD, true>(

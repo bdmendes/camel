@@ -10,7 +10,7 @@ readonly BOOK_NAME=popularpos_lichess_v3.epd
 readonly BOOK_FORMAT=epd
 readonly BUILD_PATH=./target/release/$ENGINE_NAME
 readonly MESSAGE_FILE=message.txt
-readonly ELO_THRESHOLD=30
+readonly ELO_THRESHOLD=40
 
 # Arguments
 readonly UPSTREAM=${1:-"master"}

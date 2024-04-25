@@ -58,7 +58,7 @@ fn print_iter_info(
     );
 }
 
-pub fn search_iterative_deepening_multithread(
+pub fn pvs_aspiration_iterative(
     position: &Position,
     mut current_guess: ValueScore,
     depth: Depth,
@@ -71,10 +71,11 @@ pub fn search_iterative_deepening_multithread(
         return None;
     }
 
-    let one_legal_move = moves.len() == 1;
-    let number_threads = constraint.number_threads.load(std::sync::atomic::Ordering::Relaxed);
+    table.prepare_for_new_search();
 
+    let number_threads = constraint.number_threads.load(std::sync::atomic::Ordering::Relaxed);
     let mut current_depth = 1;
+    let mut current_best_move = None;
 
     while constraint.pondering() || current_depth <= depth {
         let time = std::time::Instant::now();
@@ -83,11 +84,8 @@ pub fn search_iterative_deepening_multithread(
             // We must tell threads that it is ok to run.
             constraint.threads_stop.store(false, Ordering::Relaxed);
 
-            // It is important to at least get a move with depth == 1, so do the simplest thing possible.
-            let multi_thread = number_threads > 1 && current_depth > 1;
-
-            if !multi_thread {
-                // Simply return a single threaded result.
+            if number_threads == 1 || current_depth == 1 {
+                // It is important to at least get a move with depth == 1, so do the simplest thing possible.
                 return pvs::pvs_aspiration::<true>(
                     position,
                     current_guess,
@@ -134,18 +132,22 @@ pub fn search_iterative_deepening_multithread(
             print_iter_info(position, current_depth, score, count, time.elapsed(), &table);
         }
 
+        current_depth = (current_depth + 1).min(MAX_DEPTH);
+        current_best_move = table.get_hash_move(position);
+
         if !constraint.pondering()
-            && (one_legal_move
+            && (moves.len() == 1
                 || matches!(score, Score::Mate(_, _))
                 || elapsed > constraint.remaining_time().unwrap_or(elapsed))
         {
+            // There is no need to keep going if we have only one move or found a mate.
+            // If our remaining time is less that the time it took to finish the last iteration,
+            // we should stop: it is very likely that the next iteration will take more time.
             break;
         }
-
-        current_depth = (current_depth + 1).min(MAX_DEPTH);
     }
 
-    if let Some(best_move) = table.get_hash_move(position) {
+    if let Some(best_move) = current_best_move.or(table.get_hash_move(position)) {
         // Best move found, as expected.
         print!("bestmove {}", best_move);
 

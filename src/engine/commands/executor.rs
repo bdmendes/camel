@@ -9,7 +9,7 @@ use camel::{
     search::{
         constraint::{SearchConstraint, TimeConstraint},
         history::HistoryEntry,
-        search_iterative_deepening_multithread,
+        pvs_aspiration_iterative,
         table::{DEFAULT_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB, MIN_TABLE_SIZE_MB},
         Depth, MAX_DEPTH,
     },
@@ -91,7 +91,7 @@ pub fn execute_go(
     thread::spawn(move || {
         stop_now.store(false, Ordering::Relaxed);
         let current_guess = position.value() * position.side_to_move.sign();
-        search_iterative_deepening_multithread(
+        pvs_aspiration_iterative(
             &position,
             current_guess,
             depth.map_or_else(|| MAX_DEPTH, |d| d as Depth),
