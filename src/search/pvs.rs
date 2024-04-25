@@ -25,7 +25,7 @@ fn may_be_zugzwang(position: &Position) -> bool {
     white_pieces_bb.is_empty() || black_pieces_bb.is_empty()
 }
 
-fn quiesce(
+pub fn quiesce(
     position: &Position,
     mut alpha: ValueScore,
     beta: ValueScore,

@@ -84,8 +84,8 @@ pub fn pvs_aspiration_iterative(
             // We must tell threads that it is ok to run.
             constraint.threads_stop.store(false, Ordering::Relaxed);
 
-            if number_threads == 1 || current_depth == 1 {
-                // It is important to at least get a move with depth == 1, so do the simplest thing possible.
+            if number_threads <= 1 || current_depth <= 5 {
+                // Do the quickest thing at low depths.
                 return pvs::pvs_aspiration::<true>(
                     position,
                     current_guess,
