@@ -1,6 +1,6 @@
 use crate::{
     evaluation::{Evaluable, ValueScore},
-    moves::gen::square_attackers,
+    moves::gen::square_attackers_xray,
     position::{
         bitboard::Bitboard,
         board::{Board, Piece},
@@ -13,7 +13,7 @@ static ATTACKS_WEIGHT: [i32; 9] = [0, 3, 12, 25, 40, 60, 82, 90, 90];
 
 fn king_attackers_bonus(board: &Board, square: Square, by_color: Color) -> (ValueScore, Bitboard) {
     let mut bonus = 0;
-    let square_attackers = square_attackers::<false>(board, square, by_color);
+    let square_attackers = square_attackers_xray(board, square, by_color);
 
     for square in square_attackers {
         let piece = board.piece_at(square).unwrap();
