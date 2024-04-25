@@ -33,12 +33,14 @@ pub fn get_duration(
 
     let mut standard_move_time = get_duration_based_on_moves(position, our_duration);
 
-    if ponder {
-        standard_move_time += standard_move_time / 4;
+    if standard_move_time < Duration::from_secs(1) {
+        // We are in time trouble. Move faster.
+        standard_move_time /= 4;
     }
 
-    if standard_move_time < Duration::from_secs(1) {
-        standard_move_time /= 2;
+    if ponder {
+        // If we get a ponderhit, we have a natural time advantage.
+        standard_move_time += standard_move_time / 4;
     }
 
     if let Some(our_increment) = our_increment {

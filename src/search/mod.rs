@@ -1,8 +1,8 @@
 use self::{constraint::SearchConstraint, table::SearchTable};
 use crate::{
-    evaluation::{moves::evaluate_move, Score, ValueScore},
+    evaluation::{moves::evaluate_move, Evaluable, Score, ValueScore},
     moves::{gen::MoveStage, Move},
-    position::Position,
+    position::{board::Piece, Position},
 };
 use std::{
     sync::{atomic::Ordering, Arc},
@@ -123,10 +123,6 @@ pub fn pvs_aspiration_iterative(
 
         let (score, count) = search_result.unwrap();
 
-        if let Score::Value(score) = score {
-            current_guess = score;
-        }
-
         let elapsed = time.elapsed();
         if current_depth < MAX_DEPTH {
             print_iter_info(position, current_depth, score, count, time.elapsed(), &table);
@@ -138,12 +134,18 @@ pub fn pvs_aspiration_iterative(
         if !constraint.pondering()
             && (moves.len() == 1
                 || matches!(score, Score::Mate(_, _))
-                || elapsed > constraint.remaining_time().unwrap_or(elapsed))
+                || (elapsed > constraint.remaining_time().unwrap_or(elapsed)
+                    && (score.value().unwrap() - current_guess).abs() < Piece::Pawn.value()))
         {
             // There is no need to keep going if we have only one move or found a mate.
             // If our remaining time is less that the time it took to finish the last iteration,
             // we should stop: it is very likely that the next iteration will take more time.
+            // This is not the case if the score fluctuated: we found something new.
             break;
+        }
+
+        if let Score::Value(score) = score {
+            current_guess = score;
         }
     }
 

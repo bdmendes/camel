@@ -19,6 +19,15 @@ pub enum Score {
 }
 
 impl Score {
+    pub fn value(&self) -> Option<ValueScore> {
+        match self {
+            Score::Mate(_, _) => None,
+            Score::Value(value) => Some(*value),
+        }
+    }
+}
+
+impl Score {
     pub fn is_mate(score: ValueScore) -> bool {
         !((MATE_SCORE + MATE_SCORE_THRESHOLD)..=(MATE_SCORE.abs() - MATE_SCORE_THRESHOLD))
             .contains(&score)
