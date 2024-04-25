@@ -1,6 +1,6 @@
 use crate::{
     evaluation::{Evaluable, ValueScore},
-    moves::{gen::square_attackers, Move},
+    moves::{gen::square_attackers_xray, Move},
     position::{
         bitboard::Bitboard,
         board::{Board, Piece},
@@ -24,17 +24,19 @@ pub fn see<const RETURN_EARLY: bool>(mov: Move, board: &Board) -> ValueScore {
         return 0;
     }
 
-    // We need an auxiliary board to perform the search.
-    // We also store the max score when it is our turn.
-    let mut board = *board;
-    let mut max_score = ValueScore::MIN;
+    // Get the attackers.
+    let mut attackers_us = square_attackers_xray(board, mov.to(), color);
+    let mut attackers_them = square_attackers_xray(board, mov.to(), color.opposite());
 
     // Make our move.
-    let mut on_square = piece;
+    attackers_us.clear(mov.from());
+
+    // Put ourselves on the challenged square and store the maximum score.
+    let mut max_score = ValueScore::MIN;
     let mut score = their_piece.value();
     let mut current_color = color.opposite();
     let mut current_sign = -1;
-    board.clear_square(mov.from());
+    let mut on_square = piece;
 
     loop {
         if current_color == color {
@@ -47,12 +49,13 @@ pub fn see<const RETURN_EARLY: bool>(mov: Move, board: &Board) -> ValueScore {
         }
 
         // We choose our least valuable piece to attack.
-        let attackers = square_attackers::<false>(&board, mov.to(), current_color);
+        let attackers =
+            if current_color == color { &mut attackers_us } else { &mut attackers_them };
 
-        if let Some((least_valuable_piece, attacker_square)) = least_valuable(attackers, &board) {
+        if let Some((least_valuable_piece, attacker_square)) = least_valuable(*attackers, board) {
             // We capture the piece on the challenged square.
             score += current_sign * on_square.value();
-            board.clear_square(attacker_square);
+            attackers.clear(attacker_square);
 
             // We put ourselves on the challenged square.
             on_square = least_valuable_piece;
