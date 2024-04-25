@@ -358,11 +358,6 @@ pub fn pvs_aspiration<const MAIN_THREAD: bool>(
     let mut lower_bound = guess - WINDOW_SIZE;
     let mut upper_bound = guess + WINDOW_SIZE;
 
-    if MAIN_THREAD {
-        // We must update the search id so that new table entries may be pushed.
-        table.prepare_for_new_search(&position);
-    }
-
     for cof in 1.. {
         let (score, count) = pvs::<true, MAIN_THREAD, true>(
             &mut position,

@@ -31,7 +31,7 @@ pub enum ScoreType {
 struct TableEntry {
     score: ValueScore,
     best_move: Move,
-    data: u32, // bit 0: root, bit 1: search_id, bits 2-3: score type, bits 4-9: depth: bits 10-31: hash
+    data: u32, // bits 0-1: score type, bits 2-7: depth: bits 8-31: hash
 }
 
 impl TableEntry {
@@ -40,18 +40,12 @@ impl TableEntry {
         score_type: ScoreType,
         best_move: Move,
         depth: Depth,
-        root: bool,
-        search_id: u8,
         hash: u64,
     ) -> Self {
         TableEntry {
             score,
             best_move,
-            data: ((root as u32) & 1)
-                | ((search_id as u32 & 1) << 1)
-                | ((score_type as u32) << 2)
-                | ((depth as u32 & 0x3F) << 4)
-                | ((hash as u32) << 10),
+            data: (score_type as u32) | ((depth as u32 & 0x3F) << 2) | ((hash as u32) << 8),
         }
     }
 
@@ -67,16 +61,8 @@ impl TableEntry {
         TableEntry { score: self.score + shift, ..*self }
     }
 
-    fn same_search_parity(&self, id: u8) -> bool {
-        ((self.data >> 1) & 1) == ((id as u32) & 1)
-    }
-
-    fn is_root(&self) -> bool {
-        (self.data & 1) == 1
-    }
-
     fn score_type(&self) -> ScoreType {
-        match (self.data >> 2) & 3 {
+        match self.data & 3 {
             0 => ScoreType::Exact,
             1 => ScoreType::LowerBound,
             2 => ScoreType::UpperBound,
@@ -85,29 +71,23 @@ impl TableEntry {
     }
 
     fn depth(&self) -> Depth {
-        ((self.data >> 4) & 0x3F) as Depth
+        ((self.data >> 2) & 0x3F) as Depth
     }
 
     fn same_hash(&self, hash: u64) -> bool {
-        // We store 22 bits of the hash, so we need to compare the first 22 bits.
-        (self.data >> 10) == (hash as u32 & 0x3F_FFFF)
+        // We store 24 bits of the hash, so we need to compare the first 24 bits.
+        (self.data >> 8) == (hash as u32 & 0xFF_FFFF)
     }
 }
 
 struct TranspositionTable {
     data: Vec<AtomicU64>,
-    current_id: u8,
-    last_position: Option<Position>,
 }
 
 impl TranspositionTable {
     pub fn new(size_mb: usize) -> Self {
         let data_len = Self::calculate_data_len(size_mb);
-        Self {
-            data: (0..data_len).map(|_| AtomicU64::new(NULL_TT_ENTRY)).collect(),
-            current_id: 0,
-            last_position: None,
-        }
+        Self { data: (0..data_len).map(|_| AtomicU64::new(NULL_TT_ENTRY)).collect() }
     }
 
     fn calculate_data_len(size_mb: usize) -> usize {
@@ -137,15 +117,13 @@ impl TranspositionTable {
         entry.filter(|entry| entry.same_hash(hash))
     }
 
-    pub fn insert(&self, position: &Position, entry: TableEntry, current_id: u8) {
+    pub fn insert(&self, position: &Position, entry: TableEntry, force: bool) {
         let hash = position.zobrist_hash();
         let index = hash as usize % self.data.len();
 
-        if !entry.is_root() {
+        if !force {
             if let Some(old_entry) = self.load_tt_entry(index) {
-                let replace = (old_entry.depth() <= entry.depth() && !old_entry.is_root())
-                    || !old_entry.same_search_parity(current_id);
-                if !replace {
+                if old_entry.depth() > entry.depth() {
                     return;
                 }
             }
@@ -178,16 +156,6 @@ impl SearchTable {
         Self {
             transposition: RwLock::new(TranspositionTable::new(size_mb)),
             killer_moves: array::from_fn(|_| AtomicU16::new(NULL_KILLER)),
-        }
-    }
-
-    pub fn prepare_for_new_search(&self, position: &Position) {
-        let mut table = self.transposition.write().unwrap();
-        if let Some(last_position) = table.last_position {
-            if position.zobrist_hash() != last_position.zobrist_hash() {
-                table.current_id = table.current_id.wrapping_add(1);
-                table.last_position = Some(*position);
-            }
         }
     }
 
@@ -243,24 +211,16 @@ impl SearchTable {
         is_root: bool,
     ) {
         let tt = self.transposition.read().unwrap();
-        let entry = TableEntry::new(
-            score,
-            score_type,
-            best_move,
-            depth,
-            is_root,
-            tt.current_id,
-            position.zobrist_hash(),
-        );
+        let entry = TableEntry::new(score, score_type, best_move, depth, position.zobrist_hash());
 
         // The score stored should be independent of the path from root to this node,
         // and only depend on the number of moves to mate.
         if Score::is_mate(entry.score) {
             let shift = if entry.score > 0 { ply as ValueScore } else { -(ply as ValueScore) };
             let entry = entry.shift_score(shift);
-            tt.insert(position, entry, tt.current_id);
+            tt.insert(position, entry, is_root);
         } else {
-            tt.insert(position, entry, tt.current_id);
+            tt.insert(position, entry, is_root);
         }
     }
 
@@ -348,11 +308,10 @@ mod tests {
 
     #[test]
     fn entry_packing() {
-        let entry1 =
-            TableEntry::new(100, ScoreType::Exact, Move::new_raw(0), MAX_DEPTH, true, 1, 0);
-        let entry2 = TableEntry::new(100, ScoreType::Exact, Move::new_raw(0), 0, true, 1, 0);
-        let entry3 = TableEntry::new(100, ScoreType::Exact, Move::new_raw(0), 1, false, 2, 0);
-        let entry4 = TableEntry::new(100, ScoreType::Exact, Move::new_raw(0), 2, false, 3, 0);
+        let entry1 = TableEntry::new(100, ScoreType::Exact, Move::new_raw(0), MAX_DEPTH, 0);
+        let entry2 = TableEntry::new(100, ScoreType::Exact, Move::new_raw(0), 0, 1);
+        let entry3 = TableEntry::new(100, ScoreType::Exact, Move::new_raw(0), 1, 2);
+        let entry4 = TableEntry::new(100, ScoreType::Exact, Move::new_raw(0), 2, 3);
 
         assert_eq!(entry1.depth(), MAX_DEPTH);
         assert_eq!(entry2.depth(), 0);
@@ -361,24 +320,12 @@ mod tests {
 
         assert_eq!(entry1.score, 100);
         assert_eq!(entry1.score_type(), ScoreType::Exact);
-
-        assert!(entry1.is_root());
-        assert!(entry2.is_root());
-        assert!(!entry3.is_root());
-        assert!(!entry4.is_root());
-
-        assert!(entry1.same_search_parity(1));
-        assert!(!entry1.same_search_parity(2));
-        assert!(entry1.same_search_parity(3));
-        assert!(entry3.same_search_parity(2));
-        assert!(!entry3.same_search_parity(3));
     }
 
     #[test]
     fn entry_transmutation() {
-        let entry1 =
-            TableEntry::new(100, ScoreType::Exact, Move::new_raw(0), MAX_DEPTH, true, 1, 0);
-        let entry2 = TableEntry::new(100, ScoreType::Exact, Move::new_raw(0), 0, true, 1, 0);
+        let entry1 = TableEntry::new(100, ScoreType::Exact, Move::new_raw(0), MAX_DEPTH, 0);
+        let entry2 = TableEntry::new(100, ScoreType::Exact, Move::new_raw(0), 0, 1);
 
         assert!(entry1.raw() != entry2.raw());
 
@@ -396,9 +343,9 @@ mod tests {
 
         let first_move = Move::new(Square::E2, Square::E4, crate::moves::MoveFlag::DoublePawnPush);
         let first_move_entry =
-            TableEntry::new(100, ScoreType::Exact, first_move, 2, true, 1, position.zobrist_hash());
+            TableEntry::new(100, ScoreType::Exact, first_move, 2, position.zobrist_hash());
 
-        table.insert(&position, first_move_entry, 1);
+        table.insert(&position, first_move_entry, false);
 
         assert_eq!(
             table.data[position.zobrist_hash() as usize % table.data.len()].load(Ordering::Relaxed),
