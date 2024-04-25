@@ -42,11 +42,11 @@ pub fn execute_go(
     players_increment: (Option<Duration>, Option<Duration>),
     ponder: bool,
 ) {
-    if !engine.stop.load(Ordering::Relaxed) {
+    if !engine.stop.load(Ordering::Acquire) {
         return;
     }
 
-    engine.pondering.store(ponder, Ordering::Relaxed);
+    engine.pondering.store(ponder, Ordering::Release);
 
     let position = engine.position;
 
@@ -89,7 +89,7 @@ pub fn execute_go(
     };
 
     thread::spawn(move || {
-        stop_now.store(false, Ordering::Relaxed);
+        stop_now.store(false, Ordering::Release);
         let current_guess = position.value() * position.side_to_move.sign();
         pvs_aspiration_iterative(
             &position,
@@ -98,23 +98,17 @@ pub fn execute_go(
             table.clone(),
             &constraint,
         );
-        stop_now.store(true, Ordering::Relaxed);
+        stop_now.store(true, Ordering::Release);
     });
 }
 
 pub fn execute_stop(engine: &mut Engine) {
-    if engine.stop.load(Ordering::Relaxed) {
-        return;
-    }
-    engine.pondering.store(false, Ordering::Relaxed);
-    engine.stop.store(true, Ordering::Relaxed);
+    engine.pondering.store(false, Ordering::Release);
+    engine.stop.store(true, Ordering::Release);
 }
 
 pub fn execute_ponderhit(engine: &mut Engine) {
-    if !engine.pondering.load(Ordering::Relaxed) {
-        return;
-    }
-    engine.pondering.store(false, Ordering::Relaxed);
+    engine.pondering.store(false, Ordering::Release);
 }
 
 pub fn execute_uci() {
