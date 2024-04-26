@@ -28,13 +28,27 @@ fn may_be_zugzwang(position: &Position) -> bool {
 fn quiesce(
     position: &Position,
     mut alpha: ValueScore,
-    beta: ValueScore,
+    mut beta: ValueScore,
+    table: Arc<SearchTable>,
     constraint: &SearchConstraint,
     ply: Depth,
 ) -> (ValueScore, usize) {
     // Time limit reached
     if constraint.should_stop_search() {
         return (alpha, 1);
+    }
+
+    if let Some((score, score_type)) = table.get_table_score(position, 0, ply) {
+        match score_type {
+            ScoreType::Exact => return (score, 1),
+            ScoreType::LowerBound => alpha = alpha.max(score),
+            ScoreType::UpperBound => beta = beta.min(score),
+        }
+
+        // Beta cutoff: position is too good
+        if alpha >= beta {
+            return (alpha, 1);
+        }
     }
 
     // If we are in check, the position is certainly not quiet,
@@ -70,6 +84,8 @@ fn quiesce(
     }
 
     let mut count = 1;
+    let original_alpha = alpha;
+    let mut best_move = picker.peek().map(|(mov, _)| *mov).unwrap();
 
     for (mov, _) in picker {
         if !is_check && mov.flag().is_capture() {
@@ -86,12 +102,19 @@ fn quiesce(
             }
         }
 
-        let (score, nodes) =
-            quiesce(&position.make_move(mov), -beta, -alpha, constraint, ply.saturating_add(1));
+        let (score, nodes) = quiesce(
+            &position.make_move(mov),
+            -beta,
+            -alpha,
+            table.clone(),
+            constraint,
+            ply.saturating_add(1),
+        );
         let score = -score;
         count += nodes;
 
         if score > alpha {
+            best_move = mov;
             alpha = score;
 
             if score >= beta {
@@ -99,6 +122,22 @@ fn quiesce(
             }
         }
     }
+
+    table.insert_entry(
+        position,
+        alpha,
+        if alpha <= original_alpha {
+            ScoreType::UpperBound
+        } else if alpha >= beta {
+            ScoreType::LowerBound
+        } else {
+            ScoreType::Exact
+        },
+        best_move,
+        0,
+        ply,
+        false,
+    );
 
     (alpha, count)
 }
@@ -197,7 +236,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
 
     // Max depth reached; search for quiet position
     if depth == 0 {
-        return quiesce(position, alpha, beta, constraint, ply);
+        return quiesce(position, alpha, beta, table, constraint, ply);
     }
 
     // We count each move on the board as 1 node.
