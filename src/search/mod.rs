@@ -147,7 +147,7 @@ pub fn pvs_aspiration_iterative(
         }
     }
 
-    if let Some(best_move) = current_best_move.or(table.get_hash_move(position)) {
+    if let Some(best_move) = table.get_hash_move(position).or(current_best_move) {
         // Best move found, as expected.
         print!("bestmove {}", best_move);
 
