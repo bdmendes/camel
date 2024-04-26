@@ -20,6 +20,8 @@ pub const DEFAULT_TABLE_SIZE_MB: usize = 64;
 const NULL_KILLER: u16 = u16::MAX;
 const NULL_TT_ENTRY: u64 = u64::MAX;
 
+const AGE_INCREASE_FREQUENCY: usize = 5;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ScoreType {
     Exact = 0,
@@ -31,7 +33,7 @@ pub enum ScoreType {
 struct TableEntry {
     score: ValueScore,
     best_move: Move,
-    data: u32, // bits 0-1: score type, bits 2-7: depth, bit 8: age parity, bits 9-31: hash
+    data: u32, // bits 0-1: score type, bits 2-7: depth, bit 8: age, bits 9-31: hash
 }
 
 impl TableEntry {
@@ -41,14 +43,14 @@ impl TableEntry {
         best_move: Move,
         depth: Depth,
         hash: u64,
-        age_parity: bool,
+        age: bool,
     ) -> Self {
         TableEntry {
             score,
             best_move,
             data: (score_type as u32)
                 | ((depth as u32 & 0x3F) << 2)
-                | ((age_parity as u32) << 8)
+                | ((age as u32) << 8)
                 | ((hash as u32) << 9),
         }
     }
@@ -83,14 +85,15 @@ impl TableEntry {
         (self.data >> 9) == (hash as u32 & 0x7F_FFFF)
     }
 
-    fn age_parity(&self) -> bool {
+    fn age(&self) -> bool {
         ((self.data >> 8) & 1) != 0
     }
 }
 
 struct TranspositionTable {
     data: Vec<AtomicU64>,
-    age_parity: bool,
+    age: bool,
+    search_counter: usize,
 }
 
 impl TranspositionTable {
@@ -98,7 +101,8 @@ impl TranspositionTable {
         let data_len = Self::calculate_data_len(size_mb);
         Self {
             data: (0..data_len).map(|_| AtomicU64::new(NULL_TT_ENTRY)).collect(),
-            age_parity: false,
+            age: false,
+            search_counter: 0,
         }
     }
 
@@ -135,8 +139,7 @@ impl TranspositionTable {
 
         if !force {
             if let Some(old_entry) = self.load_tt_entry(index) {
-                if old_entry.depth() > entry.depth() && old_entry.age_parity() == entry.age_parity()
-                {
+                if old_entry.depth() > entry.depth() && old_entry.age() == entry.age() {
                     return;
                 }
             }
@@ -173,8 +176,11 @@ impl SearchTable {
     }
 
     pub fn prepare_for_new_search(&self) {
-        let old_age_parity = self.transposition.write().unwrap().age_parity;
-        self.transposition.write().unwrap().age_parity = !old_age_parity;
+        let mut tt = self.transposition.write().unwrap();
+        tt.search_counter += 1;
+        if tt.search_counter % AGE_INCREASE_FREQUENCY == 0 {
+            tt.age = !tt.age;
+        }
     }
 
     pub fn set_size(&self, size_mb: usize) {
@@ -235,7 +241,7 @@ impl SearchTable {
             best_move,
             depth,
             position.zobrist_hash(),
-            self.transposition.read().unwrap().age_parity,
+            self.transposition.read().unwrap().age,
         );
 
         // The score stored should be independent of the path from root to this node,
@@ -346,10 +352,10 @@ mod tests {
         assert_eq!(entry1.score, 100);
         assert_eq!(entry1.score_type(), ScoreType::Exact);
 
-        assert!(entry1.age_parity());
-        assert!(!entry2.age_parity());
-        assert!(entry3.age_parity());
-        assert!(!entry4.age_parity());
+        assert!(entry1.age());
+        assert!(!entry2.age());
+        assert!(entry3.age());
+        assert!(!entry4.age());
     }
 
     #[test]
