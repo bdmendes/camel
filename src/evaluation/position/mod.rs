@@ -37,7 +37,7 @@ fn mobility_bonus(piece: Piece) -> ValueScore {
         Piece::Bishop => 3,
         Piece::Knight | Piece::Rook => 2,
         Piece::Queen => 1,
-        Piece::King => 0,
+        Piece::King => -1,
     }
 }
 
@@ -83,8 +83,17 @@ impl Evaluable for Position {
                 let positional_score = bb.into_iter().fold(0, |acc, square| {
                     acc + psqt_value(*piece, square, *color, endgame_ratio)
                         + piece_mobility_bonus
-                            * piece_attacks(*piece, square, occupancy, *color).count_ones()
-                                as ValueScore
+                            * piece_attacks(
+                                if *piece == Piece::King && midgame_ratio > u8::MAX / 2 {
+                                    Piece::Queen
+                                } else {
+                                    *piece
+                                },
+                                square,
+                                occupancy,
+                                *color,
+                            )
+                            .count_ones() as ValueScore
                 });
 
                 acc + (positional_score + material_score) * color.sign()
