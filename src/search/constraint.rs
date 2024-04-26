@@ -25,16 +25,14 @@ pub struct SearchConstraint {
 
 impl SearchConstraint {
     pub fn should_stop_search(&self) -> bool {
-        if self.threads_stop.load(std::sync::atomic::Ordering::Relaxed) {
+        if self.threads_stop.load(std::sync::atomic::Ordering::Acquire)
+            || self.global_stop.load(std::sync::atomic::Ordering::Acquire)
+        {
             return true;
         }
 
-        if self.ponder_mode.load(std::sync::atomic::Ordering::Relaxed) {
+        if self.ponder_mode.load(std::sync::atomic::Ordering::Acquire) {
             return false;
-        }
-
-        if self.global_stop.load(std::sync::atomic::Ordering::Relaxed) {
-            return true;
         }
 
         if let Some(time_constraint) = &self.time_constraint {
@@ -46,7 +44,7 @@ impl SearchConstraint {
     }
 
     pub fn pondering(&self) -> bool {
-        self.ponder_mode.load(std::sync::atomic::Ordering::Relaxed)
+        self.ponder_mode.load(std::sync::atomic::Ordering::Acquire)
     }
 
     pub fn remaining_time(&self) -> Option<Duration> {
@@ -56,7 +54,7 @@ impl SearchConstraint {
     }
 
     pub fn signal_root_finished(&self) {
-        self.threads_stop.store(true, Ordering::Relaxed);
+        self.threads_stop.store(true, Ordering::Release);
     }
 }
 
@@ -115,7 +113,7 @@ mod tests {
 
         assert!(!constraint.should_stop_search());
 
-        stop_now.store(true, std::sync::atomic::Ordering::Relaxed);
+        stop_now.store(true, std::sync::atomic::Ordering::Release);
 
         assert!(constraint.should_stop_search());
         assert!(constraint.remaining_time().unwrap() > Duration::from_millis(90));

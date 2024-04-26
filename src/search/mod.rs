@@ -82,7 +82,7 @@ pub fn pvs_aspiration_iterative(
 
         let search_result = thread::scope(|s| {
             // We must tell threads that it is ok to run.
-            constraint.threads_stop.store(false, Ordering::Relaxed);
+            constraint.threads_stop.store(false, Ordering::Release);
 
             if number_threads == 1 || current_depth == 1 {
                 // It is important to at least get a move with depth == 1, so do the simplest thing possible.
