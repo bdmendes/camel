@@ -165,17 +165,28 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     history: &mut BranchHistory,
     ply: Depth,
 ) -> (ValueScore, usize) {
+    // Max depth reached; search for quiet position
+    if depth == 0 {
+        return quiesce(position, alpha, beta, constraint, ply);
+    }
+
+    // Time limit reached
+    if constraint.should_stop_search() {
+        return (alpha, 1);
+    }
+
+    // Detect history-related draws
     let repeated_times = history.repeated(position);
     let twofold_repetition = repeated_times >= 2;
     let threefold_repetition = repeated_times >= 3;
-
-    // Detect history-related draws
     if position.halfmove_clock >= 100 || threefold_repetition {
         return (0, 1);
     }
 
-    // Get known score from transposition table
-    if !twofold_repetition {
+    // Get known score from transposition table.
+    // We disable this in the root node, as we want to explore all moves nevertheless.
+    // Also, in case of a twofold repetition, this score may not hold due to possible threefold repetitions.
+    if !ROOT && !twofold_repetition {
         if let Some((score, score_type)) = table.get_table_score(position, depth, ply) {
             match score_type {
                 ScoreType::Exact => return (score, 1),
@@ -188,16 +199,6 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
                 return (alpha, 1);
             }
         }
-    }
-
-    // Time limit reached
-    if constraint.should_stop_search() {
-        return (alpha, 1);
-    }
-
-    // Max depth reached; search for quiet position
-    if depth == 0 {
-        return quiesce(position, alpha, beta, constraint, ply);
     }
 
     // We count each move on the board as 1 node.
@@ -371,47 +372,47 @@ pub fn pvs_aspiration<const MAIN_THREAD: bool>(
         );
         all_count += count;
 
-        if !constraint.should_stop_search() {
-            // Search failed low; increase lower bound and try again
-            if score <= lower_bound {
-                lower_bound = std::cmp::max(
-                    ValueScore::MIN + 1,
-                    lower_bound.saturating_sub(WINDOW_SIZE.saturating_mul(cof)),
-                );
-                continue;
-            }
-
-            // Search failed high; increase upper bound and try again
-            if score >= upper_bound {
-                upper_bound = upper_bound.saturating_add(WINDOW_SIZE.saturating_mul(cof));
-                continue;
-            }
-
-            // Our score is valid, so other threads can stop gracefully.
-            if MAIN_THREAD {
-                constraint.signal_root_finished();
-            }
-
-            return Some(if Score::is_mate(score) {
-                let plys_to_mate = (MATE_SCORE.abs() - score.abs()) as u8;
-                (
-                    Score::Mate(
-                        if score > 0 {
-                            position.side_to_move
-                        } else {
-                            position.side_to_move.opposite()
-                        },
-                        (plys_to_mate + 1) / 2,
-                    ),
-                    all_count,
-                )
-            } else {
-                (Score::Value(score), all_count)
-            });
+        // Searched failed as result of outside order: this is not valid.
+        if constraint.should_stop_search() {
+            return None;
         }
 
-        // Search stopped as an outside order, so this is not a valid result.
-        return None;
+        // Search failed low; increase lower bound and try again
+        if score <= lower_bound {
+            lower_bound = std::cmp::max(
+                ValueScore::MIN + 1,
+                lower_bound.saturating_sub(WINDOW_SIZE.saturating_mul(cof)),
+            );
+            continue;
+        }
+
+        // Search failed high; increase upper bound and try again
+        if score >= upper_bound {
+            upper_bound = upper_bound.saturating_add(WINDOW_SIZE.saturating_mul(cof));
+            continue;
+        }
+
+        // Our score is valid, so other threads can stop gracefully.
+        if MAIN_THREAD {
+            constraint.signal_root_finished();
+        }
+
+        return Some(if Score::is_mate(score) {
+            let plys_to_mate = (MATE_SCORE.abs() - score.abs()) as u8;
+            (
+                Score::Mate(
+                    if score > 0 {
+                        position.side_to_move
+                    } else {
+                        position.side_to_move.opposite()
+                    },
+                    (plys_to_mate + 1) / 2,
+                ),
+                all_count,
+            )
+        } else {
+            (Score::Value(score), all_count)
+        });
     }
 
     unreachable!()

@@ -20,8 +20,6 @@ pub const DEFAULT_TABLE_SIZE_MB: usize = 64;
 const NULL_KILLER: u16 = u16::MAX;
 const NULL_TT_ENTRY: u64 = u64::MAX;
 
-const AGE_INCREASE_FREQUENCY: usize = 5;
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ScoreType {
     Exact = 0,
@@ -93,17 +91,12 @@ impl TableEntry {
 struct TranspositionTable {
     data: Vec<AtomicU64>,
     age: bool,
-    search_counter: usize,
 }
 
 impl TranspositionTable {
     pub fn new(size_mb: usize) -> Self {
         let data_len = Self::calculate_data_len(size_mb);
-        Self {
-            data: (0..data_len).map(|_| AtomicU64::new(NULL_TT_ENTRY)).collect(),
-            age: false,
-            search_counter: 0,
-        }
+        Self { data: (0..data_len).map(|_| AtomicU64::new(NULL_TT_ENTRY)).collect(), age: false }
     }
 
     fn calculate_data_len(size_mb: usize) -> usize {
@@ -177,10 +170,7 @@ impl SearchTable {
 
     pub fn prepare_for_new_search(&self) {
         let mut tt = self.transposition.write().unwrap();
-        tt.search_counter += 1;
-        if tt.search_counter % AGE_INCREASE_FREQUENCY == 0 {
-            tt.age = !tt.age;
-        }
+        tt.age = !tt.age;
     }
 
     pub fn set_size(&self, size_mb: usize) {
