@@ -169,8 +169,14 @@ impl SearchTable {
     }
 
     pub fn prepare_for_new_search(&self) {
+        // We flip the age bit to be able to replace all entries from previous searches.
+        // This is both faster and more effective than clearing the table completely,
+        // since we can profit from older entries that are still valid.
         let mut tt = self.transposition.write().unwrap();
         tt.age = !tt.age;
+
+        // Killer moves are no longer at the same ply, so we clear them.
+        self.killer_moves.iter().for_each(|entry| entry.store(NULL_KILLER, Ordering::Relaxed));
     }
 
     pub fn set_size(&self, size_mb: usize) {
