@@ -18,7 +18,7 @@ pub struct MovePicker<const QUIESCE: bool> {
     stage: MoveStage,
     position: Position,
     table: Option<Arc<SearchTable>>,
-    depth: Option<Depth>,
+    ply: Depth,
 }
 
 impl MovePicker<true> {
@@ -34,7 +34,7 @@ impl MovePicker<true> {
             stage: MoveStage::CapturesAndPromotions,
             position: *position,
             table: None,
-            depth: None,
+            ply: 0,
         }
     }
 }
@@ -48,7 +48,7 @@ impl std::iter::Iterator for MovePicker<true> {
 }
 
 impl MovePicker<false> {
-    pub fn new(position: &Position, table: Arc<SearchTable>, depth: Depth, shuffle: bool) -> Self {
+    pub fn new(position: &Position, table: Arc<SearchTable>, ply: Depth, shuffle: bool) -> Self {
         let moves = if !shuffle {
             if let Some(hash_move) = table.get_hash_move(position) {
                 vec![(hash_move, ValueScore::MAX)]
@@ -69,7 +69,7 @@ impl MovePicker<false> {
             stage: if !shuffle { MoveStage::HashMove } else { MoveStage::All },
             position: *position,
             table: Some(table),
-            depth: Some(depth),
+            ply,
         }
     }
 }
@@ -97,7 +97,7 @@ impl std::iter::Iterator for MovePicker<false> {
                 self.stage = MoveStage::NonCaptures;
                 let all_non_capture_moves = self.position.moves(MoveStage::NonCaptures);
 
-                let killers = self.table.as_ref().unwrap().get_killers(self.depth.unwrap());
+                let killers = self.table.as_ref().unwrap().get_killers(self.ply);
                 self.moves = decorate_moves_with_score(&all_non_capture_moves, |mov| {
                     if killers[1] == Some(mov) || killers[0] == Some(mov) {
                         Piece::Queen.value()
