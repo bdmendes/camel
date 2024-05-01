@@ -14,6 +14,7 @@ pub mod constraint;
 pub mod history;
 pub mod movepick;
 pub mod pvs;
+pub mod quiesce;
 pub mod see;
 pub mod table;
 

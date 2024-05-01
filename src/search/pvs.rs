@@ -2,7 +2,7 @@ use super::{
     constraint::SearchConstraint,
     history::BranchHistory,
     movepick::MovePicker,
-    see,
+    quiesce,
     table::{ScoreType, SearchTable},
     Depth, MAX_DEPTH,
 };
@@ -16,91 +16,13 @@ const NULL_MOVE_DEPTH_REDUCTION: Depth = 3;
 const WINDOW_SIZE: ValueScore = 100;
 
 fn may_be_zugzwang(position: &Position) -> bool {
-    let pawns_bb = position.board.pieces_bb(Piece::Pawn);
-    let kings_bb = position.board.pieces_bb(Piece::King);
+    let king_pawn_bb =
+        position.board.pieces_bb(Piece::King) & position.board.pieces_bb(Piece::Pawn);
 
-    let white_pieces_bb = position.board.occupancy_bb(Color::White) & !pawns_bb & !kings_bb;
-    let black_pieces_bb = position.board.occupancy_bb(Color::Black) & !pawns_bb & !kings_bb;
+    let white_pieces_bb = position.board.occupancy_bb(Color::White) & !king_pawn_bb;
+    let black_pieces_bb = position.board.occupancy_bb(Color::Black) & !king_pawn_bb;
 
     white_pieces_bb.is_empty() || black_pieces_bb.is_empty()
-}
-
-fn quiesce(
-    position: &Position,
-    mut alpha: ValueScore,
-    beta: ValueScore,
-    constraint: &SearchConstraint,
-    ply: Depth,
-) -> (ValueScore, usize) {
-    // Time limit reached
-    if constraint.should_stop_search() {
-        return (alpha, 1);
-    }
-
-    // If we are in check, the position is certainly not quiet,
-    // so we must search all check evasions. Otherwise, search only captures
-    let is_check = position.is_check();
-    let static_evaluation = if is_check {
-        alpha
-    } else {
-        let static_evaluation = position.value() * position.side_to_move.sign();
-
-        // Standing pat: captures are not forced
-        alpha = alpha.max(static_evaluation);
-
-        // Beta cutoff: position is too good
-        if static_evaluation >= beta {
-            return (beta, 1);
-        }
-
-        // Delta pruning: sequence cannot improve the score
-        if static_evaluation < alpha.saturating_sub(Piece::Queen.value()) {
-            return (alpha, 1);
-        }
-
-        static_evaluation
-    };
-
-    let mut picker = MovePicker::<true>::new(position, is_check).peekable();
-
-    // Stable position reached
-    if picker.peek().is_none() {
-        let score = if is_check { MATE_SCORE + ply as ValueScore } else { static_evaluation };
-        return (score, 1);
-    }
-
-    let mut count = 1;
-
-    for (mov, _) in picker {
-        if !is_check && mov.flag().is_capture() {
-            // Delta pruning: this capture cannot improve the score in any way.
-            let captured_piece =
-                position.board.piece_color_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
-            if static_evaluation + captured_piece.value() + MAX_POSITIONAL_GAIN < alpha {
-                continue;
-            }
-
-            // Static exchange evaluation: if we lose material, there is no point in searching further.
-            if see::see::<true>(mov, &position.board) < 0 {
-                continue;
-            }
-        }
-
-        let (score, nodes) =
-            quiesce(&position.make_move(mov), -beta, -alpha, constraint, ply.saturating_add(1));
-        let score = -score;
-        count += nodes;
-
-        if score > alpha {
-            alpha = score;
-
-            if score >= beta {
-                break;
-            }
-        }
-    }
-
-    (alpha, count)
 }
 
 #[inline(always)]
@@ -167,7 +89,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
 ) -> (ValueScore, usize) {
     // Max depth reached; search for quiet position
     if depth == 0 {
-        return quiesce(position, alpha, beta, constraint, ply);
+        return quiesce::quiesce(position, alpha, beta, constraint, ply);
     }
 
     // Time limit reached
@@ -197,6 +119,27 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             // Beta cutoff: position is too good
             if alpha >= beta {
                 return (alpha, 1);
+            }
+        }
+    }
+
+    // Mate distance pruning: don't keep searching if this will lead to longer mates.
+    if Score::is_mate(alpha) {
+        if alpha > 0 {
+            let mating_value = -MATE_SCORE - ply as ValueScore;
+            if mating_value < beta {
+                beta = mating_value;
+                if alpha >= mating_value {
+                    return (mating_value, 1);
+                }
+            }
+        } else {
+            let mating_value = MATE_SCORE + ply as ValueScore;
+            if mating_value > alpha {
+                alpha = mating_value;
+                if beta <= mating_value {
+                    return (mating_value, 1);
+                }
             }
         }
     }
