@@ -207,6 +207,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     // Position and node type considerations.
     let is_check = position.is_check();
     let may_be_zug = may_be_zugzwang(position);
+    let is_pv = alpha != beta - 1;
 
     // Null move pruning: if we "pass" our turn and still get a beta cutoff,
     // this position is far too good to be true.
@@ -238,6 +239,23 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
         if score >= beta {
             return (beta, count);
         }
+    }
+
+    // Internal iterative deepening: get a hash move from a reduced search.
+    // This is useless in most cases, but can be very useful in some
+    // where standard move ordering fails to be decent.
+    if is_pv && !is_check && !ROOT && depth >= 4 && table.get_hash_move(position).is_none() {
+        let (_, iid_count) = pvs::<true, MAIN_THREAD, false>(
+            position,
+            depth.saturating_sub(2),
+            alpha,
+            beta,
+            table.clone(),
+            constraint,
+            history,
+            ply,
+        );
+        count += iid_count;
     }
 
     // Prepare move generation and sorting. This is lazy and works in stages.
@@ -339,7 +357,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             best_move,
             depth,
             ply,
-            ROOT && MAIN_THREAD,
+            ROOT,
         );
     }
 
