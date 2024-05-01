@@ -192,6 +192,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
                 ScoreType::Exact => return (score, 1),
                 ScoreType::LowerBound => alpha = alpha.max(score),
                 ScoreType::UpperBound => beta = beta.min(score),
+                ScoreType::Invalid => {}
             }
 
             // Beta cutoff: position is too good

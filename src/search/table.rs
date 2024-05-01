@@ -2,7 +2,7 @@ use super::{Depth, MAX_DEPTH};
 use crate::{
     evaluation::{Score, ValueScore},
     moves::Move,
-    position::Position,
+    position::{board::ZobristHash, Position},
 };
 use std::{
     array,
@@ -25,6 +25,7 @@ pub enum ScoreType {
     Exact = 0,
     LowerBound = 1, // when search fails high (beta cutoff)
     UpperBound = 2, // when search fails low (no improvement to alpha)
+    Invalid = 3,    // when the entry is not valid (hash collision)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -70,7 +71,8 @@ impl TableEntry {
             0 => ScoreType::Exact,
             1 => ScoreType::LowerBound,
             2 => ScoreType::UpperBound,
-            _ => panic!("Invalid score type"),
+            3 => ScoreType::Invalid,
+            _ => unreachable!(),
         }
     }
 
@@ -122,7 +124,7 @@ impl TranspositionTable {
 
     pub fn get(&self, position: &Position) -> Option<TableEntry> {
         let hash = position.zobrist_hash();
-        let entry = self.load_tt_entry(hash as usize % self.data.len());
+        let entry = self.load_tt_entry(hash as usize % self.data.len(), hash);
         entry.filter(|entry| entry.same_hash(hash))
     }
 
@@ -131,27 +133,28 @@ impl TranspositionTable {
         let index = hash as usize % self.data.len();
 
         if !force {
-            if let Some(old_entry) = self.load_tt_entry(index) {
+            if let Some(old_entry) = self.load_tt_entry(index, hash) {
                 if old_entry.depth() > entry.depth() && old_entry.age() == entry.age() {
                     return;
                 }
             }
         }
 
-        self.store_tt_entry(index, entry);
+        self.store_tt_entry(index, entry, hash);
     }
 
-    fn load_tt_entry(&self, index: usize) -> Option<TableEntry> {
+    fn load_tt_entry(&self, index: usize, hash: ZobristHash) -> Option<TableEntry> {
         let entry = self.data[index].load(Ordering::Relaxed);
         if entry == NULL_TT_ENTRY {
             None
         } else {
-            Some(TableEntry::from_raw(entry))
+            Some(TableEntry::from_raw(entry ^ hash))
         }
     }
 
-    fn store_tt_entry(&self, index: usize, entry: TableEntry) {
-        self.data[index].store(entry.raw(), Ordering::Relaxed)
+    fn store_tt_entry(&self, index: usize, entry: TableEntry, hash: ZobristHash) {
+        // We store the raw entry XORed with the hash to further avoid collisions.
+        self.data[index].store(entry.raw() ^ hash, Ordering::Relaxed)
     }
 }
 
