@@ -85,15 +85,11 @@ pub fn parse_go(words: &mut VecDeque<&str>) -> Result<Command, String> {
             }
             "wtime" => {
                 let value = words.pop_front().ok_or("No value found")?;
-                white_time = Some(Duration::from_millis(
-                    value.parse::<u64>().map_err(|_| "Invalid wtime value")?,
-                ));
+                white_time = Some(Duration::from_millis(value.parse::<u64>().unwrap_or(0)));
             }
             "btime" => {
                 let value = words.pop_front().ok_or("No value found")?;
-                black_time = Some(Duration::from_millis(
-                    value.parse::<u64>().map_err(|_| "Invalid btime value")?,
-                ));
+                black_time = Some(Duration::from_millis(value.parse::<u64>().unwrap_or(0)));
             }
             "winc" => {
                 let value = words.pop_front().ok_or("No value found")?;
