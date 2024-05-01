@@ -157,7 +157,7 @@ impl TranspositionTable {
 
 pub struct SearchTable {
     transposition: RwLock<TranspositionTable>,
-    killer_moves: [AtomicU16; 2 * (MAX_DEPTH + 1) as usize],
+    killer_moves: [AtomicU16; 3 * (MAX_DEPTH + 1) as usize],
 }
 
 impl SearchTable {
@@ -169,8 +169,14 @@ impl SearchTable {
     }
 
     pub fn prepare_for_new_search(&self) {
+        // We flip the age bit to be able to replace all entries from previous searches.
+        // This is both faster and more effective than clearing the table completely,
+        // since we can profit from older entries that are still valid.
         let mut tt = self.transposition.write().unwrap();
         tt.age = !tt.age;
+
+        // Killer moves are no longer at the same ply, so we clear them.
+        self.killer_moves.iter().for_each(|entry| entry.store(NULL_KILLER, Ordering::Relaxed));
     }
 
     pub fn set_size(&self, size_mb: usize) {
@@ -245,8 +251,8 @@ impl SearchTable {
         }
     }
 
-    pub fn put_killer_move(&self, depth: Depth, mov: Move) {
-        let index = 2 * depth as usize;
+    pub fn put_killer_move(&self, ply: Depth, mov: Move) {
+        let index = 2 * ply as usize;
         if self.load_killer(index).is_none() {
             self.store_killer(index, mov);
         } else if self.load_killer(index + 1).is_none() {
@@ -260,8 +266,8 @@ impl SearchTable {
         }
     }
 
-    pub fn get_killers(&self, depth: Depth) -> [Option<Move>; 2] {
-        let index = 2 * depth as usize;
+    pub fn get_killers(&self, ply: Depth) -> [Option<Move>; 2] {
+        let index = 2 * ply as usize;
         [self.load_killer(index), self.load_killer(index + 1)]
     }
 

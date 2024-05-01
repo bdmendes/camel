@@ -232,7 +232,7 @@ pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
 
         let mut new_board = *board;
         new_board.clear_square(mov.from());
-        new_board.set_square::<true>(
+        new_board.set_square(
             mov.to(),
             if king_square == mov.from() { Piece::King } else { Piece::Pawn },
             side_to_move,

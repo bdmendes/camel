@@ -242,7 +242,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
 
     // Prepare move generation and sorting. This is lazy and works in stages.
     let mut picker =
-        MovePicker::<false>::new(position, table.clone(), depth, ROOT && !MAIN_THREAD).peekable();
+        MovePicker::<false>::new(position, table.clone(), ply, ROOT && !MAIN_THREAD).peekable();
 
     // Detect checkmate and stalemate
     if picker.peek().is_none() {
@@ -315,7 +315,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
                 if MAIN_THREAD && mov.flag().is_quiet() {
                     // Killer moves are prioritized in move ordering.
                     // It assumes that similar "refutation" moves at siblings will be useful.
-                    table.put_killer_move(depth, mov);
+                    table.put_killer_move(ply, mov);
                 }
 
                 // This position is now far too good to be true.

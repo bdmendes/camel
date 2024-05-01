@@ -83,7 +83,7 @@ mod tests {
         let mut board = Board::default();
         let us_color = Color::White;
 
-        board.set_square::<true>(Square::E4, Piece::Knight, us_color);
+        board.set_square(Square::E4, Piece::Knight, us_color);
 
         let mut moves = Vec::new();
         generate_knight_moves(MoveStage::All, &board, us_color, &mut moves);
@@ -111,7 +111,7 @@ mod tests {
         let mut board = Board::default();
         let us_color = Color::White;
 
-        board.set_square::<true>(Square::A8, Piece::Knight, us_color);
+        board.set_square(Square::A8, Piece::Knight, us_color);
 
         let mut moves = Vec::new();
         generate_knight_moves(MoveStage::All, &board, us_color, &mut moves);
