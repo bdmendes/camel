@@ -90,7 +90,7 @@ impl FromFen for Board {
                         return None;
                     }
                     let square = Square::from(rank * 8 + file).unwrap();
-                    board.set_square::<true>(square, piece, color);
+                    board.set_square(square, piece, color);
                     file += 1;
                 }
                 _ => {}

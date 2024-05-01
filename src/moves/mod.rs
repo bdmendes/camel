@@ -217,8 +217,8 @@ pub fn make_move(position: &Position, mov: Move) -> Position {
                     let right_hand_side_rook =
                         position.is_chess960.then(|| mov.to()).unwrap_or(Square::H1);
                     new_board.clear_square(right_hand_side_rook);
-                    new_board.set_square::<false>(Square::G1, Piece::King, Color::White);
-                    new_board.set_square::<false>(Square::F1, Piece::Rook, Color::White);
+                    new_board.set_square(Square::G1, Piece::King, Color::White);
+                    new_board.set_square(Square::F1, Piece::Rook, Color::White);
                     new_castling_rights.remove(CastlingRights::WHITE_KINGSIDE);
                     new_castling_rights.remove(CastlingRights::WHITE_QUEENSIDE);
                 }
@@ -226,8 +226,8 @@ pub fn make_move(position: &Position, mov: Move) -> Position {
                     let right_hand_side_rook =
                         position.is_chess960.then(|| mov.to()).unwrap_or(Square::H8);
                     new_board.clear_square(right_hand_side_rook);
-                    new_board.set_square::<false>(Square::G8, Piece::King, Color::Black);
-                    new_board.set_square::<false>(Square::F8, Piece::Rook, Color::Black);
+                    new_board.set_square(Square::G8, Piece::King, Color::Black);
+                    new_board.set_square(Square::F8, Piece::Rook, Color::Black);
                     new_castling_rights.remove(CastlingRights::BLACK_KINGSIDE);
                     new_castling_rights.remove(CastlingRights::BLACK_QUEENSIDE);
                 }
@@ -237,8 +237,8 @@ pub fn make_move(position: &Position, mov: Move) -> Position {
                     let left_hand_side_rook =
                         position.is_chess960.then(|| mov.to()).unwrap_or(Square::A1);
                     new_board.clear_square(left_hand_side_rook);
-                    new_board.set_square::<false>(Square::C1, Piece::King, Color::White);
-                    new_board.set_square::<false>(Square::D1, Piece::Rook, Color::White);
+                    new_board.set_square(Square::C1, Piece::King, Color::White);
+                    new_board.set_square(Square::D1, Piece::Rook, Color::White);
                     new_castling_rights.remove(CastlingRights::WHITE_KINGSIDE);
                     new_castling_rights.remove(CastlingRights::WHITE_QUEENSIDE);
                 }
@@ -246,8 +246,8 @@ pub fn make_move(position: &Position, mov: Move) -> Position {
                     let left_hand_side_rook =
                         position.is_chess960.then(|| mov.to()).unwrap_or(Square::A8);
                     new_board.clear_square(left_hand_side_rook);
-                    new_board.set_square::<false>(Square::C8, Piece::King, Color::Black);
-                    new_board.set_square::<false>(Square::D8, Piece::Rook, Color::Black);
+                    new_board.set_square(Square::C8, Piece::King, Color::Black);
+                    new_board.set_square(Square::D8, Piece::Rook, Color::Black);
                     new_castling_rights.remove(CastlingRights::BLACK_KINGSIDE);
                     new_castling_rights.remove(CastlingRights::BLACK_QUEENSIDE);
                 }
@@ -255,9 +255,9 @@ pub fn make_move(position: &Position, mov: Move) -> Position {
             _ => unreachable!(),
         }
     } else if let Some(promotion_piece) = mov_flag.promotion_piece() {
-        new_board.set_square::<true>(mov.to(), promotion_piece, position.side_to_move);
+        new_board.set_square(mov.to(), promotion_piece, position.side_to_move);
     } else if mov_flag == MoveFlag::DoublePawnPush {
-        new_board.set_square::<false>(mov.to(), piece, position.side_to_move);
+        new_board.set_square(mov.to(), piece, position.side_to_move);
 
         let candidate_en_passant = match position.side_to_move {
             Color::White => mov.to().shift(MoveDirection::SOUTH).unwrap(),
@@ -269,17 +269,13 @@ pub fn make_move(position: &Position, mov: Move) -> Position {
             new_en_passant_square = Some(candidate_en_passant);
         }
     } else if mov_flag == MoveFlag::EnPassantCapture {
-        new_board.set_square::<false>(mov.to(), Piece::Pawn, position.side_to_move);
+        new_board.set_square(mov.to(), Piece::Pawn, position.side_to_move);
         new_board.clear_square(match position.side_to_move {
             Color::White => mov.to().shift(MoveDirection::SOUTH).unwrap(),
             Color::Black => mov.to().shift(MoveDirection::NORTH).unwrap(),
         });
     } else {
-        if mov_flag.is_capture() {
-            new_board.set_square::<true>(mov.to(), piece, position.side_to_move);
-        } else {
-            new_board.set_square::<false>(mov.to(), piece, position.side_to_move);
-        }
+        new_board.set_square(mov.to(), piece, position.side_to_move);
 
         if !position.castling_rights.is_empty() && matches!(piece, Piece::Rook | Piece::King) {
             let king_square = match position.side_to_move {

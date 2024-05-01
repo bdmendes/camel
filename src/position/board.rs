@@ -67,10 +67,8 @@ impl Board {
         self.hash ^= ZOBRIST_NUMBERS[index];
     }
 
-    pub fn set_square<const CLEAR: bool>(&mut self, square: Square, piece: Piece, color: Color) {
-        if CLEAR {
-            self.clear_square(square);
-        }
+    pub fn set_square(&mut self, square: Square, piece: Piece, color: Color) {
+        self.clear_square(square);
         self.pieces[piece as usize].set(square);
         self.occupancy[color as usize].set(square);
         self.mailbox[square as usize] = Some(piece);
@@ -159,7 +157,7 @@ mod tests {
     fn set_clear() {
         let mut board = Board::default();
 
-        board.set_square::<true>(Square::E1, Piece::King, Color::White);
+        board.set_square(Square::E1, Piece::King, Color::White);
 
         assert_eq!(*board.pieces[Piece::King as usize], 1 << Square::E1 as u8);
         assert_eq!(*board.occupancy[Color::White as usize], 1 << Square::E1 as u8);
