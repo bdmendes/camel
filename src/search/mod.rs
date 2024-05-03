@@ -162,6 +162,12 @@ pub fn pvs_aspiration_iterative(
 
         Some(best_move)
     } else {
+        // This cannot have happened if we reached depth > 1,
+        // unless we have a bug in the transposition table.
+        if current_depth > 1 {
+            panic!("No best move found on depth > 1.");
+        }
+
         // We are in time trouble. Return a "panic" perceived best move.
         moves.sort_by_cached_key(|m| -evaluate_move(position, *m));
         println!("bestmove {}", moves[0]);

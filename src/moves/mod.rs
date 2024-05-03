@@ -121,7 +121,7 @@ impl Move {
             // Basic legality assumptions. This is a good and fast start,
             // but not sufficient.
             if color != position.side_to_move
-                || to_color == Some(position.side_to_move)
+                || (to_color == Some(position.side_to_move) && !self.flag().is_castle())
                 || to_piece == Some(Piece::King)
                 || (self.flag().is_capture()
                     && self.flag() != MoveFlag::EnPassantCapture
@@ -143,10 +143,23 @@ impl Move {
                     );
                     attacks.is_set(self.to())
                 }
-                MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => {
+                MoveFlag::KingsideCastle => {
+                    let castle_right = match position.side_to_move {
+                        Color::White => CastlingRights::WHITE_KINGSIDE,
+                        Color::Black => CastlingRights::BLACK_KINGSIDE,
+                    };
                     piece == Piece::King
-                        && to_color.is_none()
-                        && !position.castling_rights.is_empty()
+                        && position.castling_rights.contains(castle_right)
+                        && (!position.is_chess960).then(|| to_piece.is_none()).unwrap_or(true)
+                }
+                MoveFlag::QueensideCastle => {
+                    let castle_right = match position.side_to_move {
+                        Color::White => CastlingRights::WHITE_QUEENSIDE,
+                        Color::Black => CastlingRights::BLACK_QUEENSIDE,
+                    };
+                    piece == Piece::King
+                        && position.castling_rights.contains(castle_right)
+                        && (!position.is_chess960).then(|| to_piece.is_none()).unwrap_or(true)
                 }
                 MoveFlag::BishopPromotion
                 | MoveFlag::KnightPromotion
@@ -451,7 +464,7 @@ mod tests {
     }
 
     #[test]
-    fn pseudo_legal() {
+    fn pseudo_legal_chess() {
         let start_position = Position::from_fen(START_FEN).unwrap();
         let start_moves = start_position.moves(gen::MoveStage::All);
 
@@ -470,6 +483,19 @@ mod tests {
             if !start_moves.contains(mov) {
                 assert!(!mov.is_pseudo_legal(&start_position));
             }
+        }
+    }
+
+    #[test]
+    fn pseudo_legal_chess960() {
+        let position = Position::from_fen(
+            "q1krnrb1/ppp2pbp/2n1p1p1/3p4/3P1PP1/2NNP3/PPP4P/Q1RK1RBB w KQ - 0 7",
+        )
+        .unwrap();
+        let moves = position.moves(gen::MoveStage::All);
+
+        for mov in &moves {
+            assert!(mov.is_pseudo_legal(&position));
         }
     }
 }
