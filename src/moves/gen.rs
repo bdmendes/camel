@@ -243,7 +243,10 @@ pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
     moves
 }
 
-pub fn perft<const STAGED: bool, const ROOT: bool>(position: &Position, depth: u8) -> u64 {
+pub fn perft<const STAGED: bool, const ROOT: bool, const LEGALITY_TEST: bool>(
+    position: &Position,
+    depth: u8,
+) -> u64 {
     if depth == 0 {
         return 1;
     }
@@ -256,6 +259,12 @@ pub fn perft<const STAGED: bool, const ROOT: bool>(position: &Position, depth: u
         generate_moves(MoveStage::All, position)
     };
 
+    if LEGALITY_TEST {
+        for mov in &moves {
+            assert!(mov.is_pseudo_legal(position));
+        }
+    }
+
     if depth == 1 {
         return moves.len() as u64;
     }
@@ -264,7 +273,7 @@ pub fn perft<const STAGED: bool, const ROOT: bool>(position: &Position, depth: u
 
     for mov in moves {
         let new_position = make_move(position, mov);
-        let count = perft::<STAGED, false>(&new_position, depth - 1);
+        let count = perft::<STAGED, false, LEGALITY_TEST>(&new_position, depth - 1);
         nodes += count;
 
         if ROOT {

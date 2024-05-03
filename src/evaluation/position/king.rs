@@ -1,11 +1,25 @@
 use crate::{
     evaluation::ValueScore,
-    position::{bitboard::Bitboard, board::Piece, square::Square, Color, Position},
+    position::{bitboard::Bitboard, board::Piece, square::Square, CastlingRights, Color, Position},
 };
 
 const SHELTER_PENALTY: ValueScore = -25;
 
 fn king_pawn_shelter(position: &Position, king_color: Color, king_square: Square) -> ValueScore {
+    let may_castle = match king_color {
+        Color::White => {
+            position.castling_rights.contains(CastlingRights::WHITE_KINGSIDE)
+                || position.castling_rights.contains(CastlingRights::WHITE_QUEENSIDE)
+        }
+        Color::Black => {
+            position.castling_rights.contains(CastlingRights::BLACK_KINGSIDE)
+                || position.castling_rights.contains(CastlingRights::BLACK_QUEENSIDE)
+        }
+    };
+    if may_castle {
+        return SHELTER_PENALTY / 2;
+    }
+
     let file_min = king_square.file().saturating_sub(1);
     let file_max = king_square.file().min(6) + 1;
     let our_pawns = position.board.pieces_bb_color(Piece::Pawn, king_color);
