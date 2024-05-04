@@ -2,7 +2,7 @@ use crate::position::{board::ZobristHash, Position};
 
 #[derive(Debug, Copy, Clone)]
 pub struct HistoryEntry {
-    pub hash: ZobristHash,
+    pub board_hash: ZobristHash,
     pub reversible: bool,
 }
 
@@ -10,7 +10,7 @@ pub struct BranchHistory(pub Vec<HistoryEntry>);
 
 impl BranchHistory {
     pub fn visit_position(&mut self, position: &Position, reversible: bool) {
-        self.0.push(HistoryEntry { hash: position.zobrist_hash(), reversible });
+        self.0.push(HistoryEntry { board_hash: position.board.zobrist_hash(), reversible });
     }
 
     pub fn leave_position(&mut self) {
@@ -18,17 +18,15 @@ impl BranchHistory {
     }
 
     pub fn repeated(&self, position: &Position) -> u8 {
-        let mut count = 0;
-        let hash = position.zobrist_hash();
-        for entry in self.0.iter().rev() {
-            if entry.hash == hash {
-                count += 1;
-            }
-            if !entry.reversible {
-                break;
-            }
-        }
-        count
+        let board_hash = position.board.zobrist_hash();
+        self.0
+            .iter()
+            .rev()
+            .skip_while(|entry| entry.board_hash != board_hash) // Skip until we find the current position.
+            .step_by(2) // We can only repeat when it is our turn to move.
+            .take_while(|entry| entry.reversible || entry.board_hash == board_hash)
+            .filter(|entry| entry.board_hash == board_hash)
+            .count() as u8
     }
 }
 

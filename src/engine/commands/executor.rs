@@ -30,7 +30,10 @@ pub fn execute_position(new_position: &Position, game_history: &[Position], engi
     engine.position = *new_position;
     engine.game_history = game_history
         .iter()
-        .map(|position| HistoryEntry { hash: position.zobrist_hash(), reversible: true })
+        .map(|position| HistoryEntry {
+            board_hash: position.board.zobrist_hash(),
+            reversible: true,
+        })
         .collect();
 }
 
