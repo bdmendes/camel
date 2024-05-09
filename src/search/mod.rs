@@ -1,6 +1,6 @@
 use self::{constraint::SearchConstraint, table::SearchTable};
 use crate::{
-    evaluation::{moves::evaluate_move, Score, ValueScore},
+    evaluation::{moves::evaluate_move, Score},
     moves::{gen::MoveStage, Move},
     position::Position,
 };
@@ -59,9 +59,8 @@ fn print_iter_info(
     );
 }
 
-pub fn pvs_aspiration_iterative(
+pub fn search_pvs_iterative(
     position: &Position,
-    mut current_guess: ValueScore,
     depth: Depth,
     table: Arc<SearchTable>,
     constraint: &SearchConstraint,
@@ -87,13 +86,7 @@ pub fn pvs_aspiration_iterative(
 
             if number_threads == 1 || current_depth == 1 {
                 // It is important to at least get a move with depth == 1, so do the simplest thing possible.
-                return pvs::pvs_aspiration::<true>(
-                    position,
-                    current_guess,
-                    current_depth,
-                    table.clone(),
-                    constraint,
-                );
+                return pvs::search_pvs::<true>(position, current_depth, table.clone(), constraint);
             }
 
             // Start threads.
@@ -101,14 +94,9 @@ pub fn pvs_aspiration_iterative(
             let handles = (0..number_threads)
                 .map(|i| {
                     let table = table.clone();
-                    let pvs_function = if i == 0 {
-                        pvs::pvs_aspiration::<true>
-                    } else {
-                        pvs::pvs_aspiration::<false>
-                    };
-                    s.spawn(move || {
-                        pvs_function(position, current_guess, current_depth, table, constraint)
-                    })
+                    let pvs_function =
+                        if i == 0 { pvs::search_pvs::<true> } else { pvs::search_pvs::<false> };
+                    s.spawn(move || pvs_function(position, current_depth, table, constraint))
                 })
                 .collect::<Vec<_>>();
 
@@ -123,10 +111,6 @@ pub fn pvs_aspiration_iterative(
         }
 
         let (score, count) = search_result.unwrap();
-
-        if let Score::Value(score) = score {
-            current_guess = score;
-        }
 
         let elapsed = time.elapsed();
         if current_depth < MAX_DEPTH {

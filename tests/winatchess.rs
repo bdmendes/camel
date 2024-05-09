@@ -2,7 +2,7 @@ use camel::{
     position::{fen::FromFen, Position},
     search::{
         constraint::{SearchConstraint, TimeConstraint},
-        pvs_aspiration_iterative,
+        search_pvs_iterative,
         table::{SearchTable, DEFAULT_TABLE_SIZE_MB},
         MAX_DEPTH,
     },
@@ -40,9 +40,8 @@ fn expect_search(fen: &str, mov: &str) {
             game_history: vec![],
         };
 
-        let result = pvs_aspiration_iterative(
+        let result = search_pvs_iterative(
             &Position::from_fen(fen).unwrap(),
-            0,
             MAX_DEPTH,
             table.clone(),
             &constraint,

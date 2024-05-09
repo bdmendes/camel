@@ -13,7 +13,6 @@ use crate::{
 use std::{cell::OnceCell, sync::Arc};
 
 const NULL_MOVE_DEPTH_REDUCTION: Depth = 3;
-const WINDOW_SIZE: ValueScore = 100;
 
 fn may_be_zugzwang(position: &Position) -> bool {
     let king_pawn_bb =
@@ -289,76 +288,48 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     (alpha, count)
 }
 
-pub fn pvs_aspiration<const MAIN_THREAD: bool>(
+pub fn search_pvs<const MAIN_THREAD: bool>(
     position: &Position,
-    guess: ValueScore,
     depth: Depth,
     table: Arc<SearchTable>,
     constraint: &SearchConstraint,
 ) -> Option<(Score, usize)> {
     let depth = depth.min(MAX_DEPTH);
     let mut position = *position;
-    let mut all_count = 0;
-    let mut lower_bound = guess - WINDOW_SIZE;
-    let mut upper_bound = guess + WINDOW_SIZE;
 
-    for cof in 1.. {
-        let (score, count) = pvs::<true, MAIN_THREAD, true>(
-            &mut position,
-            depth,
-            lower_bound,
-            upper_bound,
-            table.clone(),
-            constraint,
-            &mut BranchHistory(constraint.game_history.clone()),
-            0,
-        );
-        all_count += count;
+    let (score, count) = pvs::<true, MAIN_THREAD, true>(
+        &mut position,
+        depth,
+        ValueScore::MIN + 1,
+        ValueScore::MAX,
+        table.clone(),
+        constraint,
+        &mut BranchHistory(constraint.game_history.clone()),
+        0,
+    );
 
-        // Searched failed as result of outside order: this is not valid.
-        if constraint.should_stop_search() {
-            return None;
-        }
-
-        // Search failed low; increase lower bound and try again
-        if score <= lower_bound {
-            lower_bound = std::cmp::max(
-                ValueScore::MIN + 1,
-                lower_bound.saturating_sub(WINDOW_SIZE.saturating_mul(cof)),
-            );
-            continue;
-        }
-
-        // Search failed high; increase upper bound and try again
-        if score >= upper_bound {
-            upper_bound = upper_bound.saturating_add(WINDOW_SIZE.saturating_mul(cof));
-            continue;
-        }
-
-        // Our score is valid, so other threads can stop gracefully.
-        if MAIN_THREAD {
-            constraint.signal_root_finished();
-        }
-
-        return Some(if Score::is_mate(score) {
-            let plys_to_mate = (MATE_SCORE.abs() - score.abs()) as u8;
-            (
-                Score::Mate(
-                    if score > 0 {
-                        position.side_to_move
-                    } else {
-                        position.side_to_move.opposite()
-                    },
-                    (plys_to_mate + 1) / 2,
-                ),
-                all_count,
-            )
-        } else {
-            (Score::Value(score), all_count)
-        });
+    // Searched failed as result of outside order: this is not valid.
+    if constraint.should_stop_search() {
+        return None;
     }
 
-    unreachable!()
+    // Our score is valid, so other threads can stop gracefully.
+    if MAIN_THREAD {
+        constraint.signal_root_finished();
+    }
+
+    Some(if Score::is_mate(score) {
+        let plys_to_mate = (MATE_SCORE.abs() - score.abs()) as u8;
+        (
+            Score::Mate(
+                if score > 0 { position.side_to_move } else { position.side_to_move.opposite() },
+                (plys_to_mate + 1) / 2,
+            ),
+            count,
+        )
+    } else {
+        (Score::Value(score), count)
+    })
 }
 
 #[cfg(test)]
@@ -366,7 +337,7 @@ mod tests {
     use super::*;
     use crate::{position::fen::FromFen, search::table::DEFAULT_TABLE_SIZE_MB};
 
-    fn expect_pvs_aspiration(
+    fn expect_pvs(
         fen: &str,
         depth: Depth,
         expected_moves: Vec<&str>,
@@ -376,8 +347,7 @@ mod tests {
         let table = Arc::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB));
         let constraint = SearchConstraint::default();
 
-        let score =
-            pvs_aspiration::<true>(&position, 0, depth, table.clone(), &constraint).unwrap().0;
+        let score = search_pvs::<true>(&position, depth, table.clone(), &constraint).unwrap().0;
         let pv = table.get_pv(&position, depth);
 
         assert!(pv.len() >= expected_moves.len());
@@ -396,7 +366,7 @@ mod tests {
 
     #[test]
     fn mate_us_1() {
-        expect_pvs_aspiration(
+        expect_pvs(
             "rnb1r2k/pR3Qpp/2p5/4N3/3P3P/2q5/P2p1PP1/5K1R w - - 1 20",
             2,
             vec!["f7e8"],
@@ -406,7 +376,7 @@ mod tests {
 
     #[test]
     fn mate_them_2() {
-        expect_pvs_aspiration(
+        expect_pvs(
             "rnb1r1k1/pR3ppp/2p5/4N3/3P1Q1P/3p4/P4PP1/q4K1R w - - 3 19",
             6,
             vec!["b7b1", "a1b1", "f4c1", "b1c1"],
@@ -416,7 +386,7 @@ mod tests {
 
     #[test]
     fn mate_us_3() {
-        expect_pvs_aspiration(
+        expect_pvs(
             "rnb1r1k1/pR3ppp/2p5/4N3/3P1Q1P/2qp4/P4PP1/5K1R b - - 2 18",
             7,
             vec!["c3a1", "b7b1", "a1b1", "f4c1", "b1c1"],
