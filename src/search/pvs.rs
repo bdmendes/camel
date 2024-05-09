@@ -259,6 +259,10 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
                     // Killer moves are prioritized in move ordering.
                     // It assumes that similar "refutation" moves at siblings will be useful.
                     table.put_killer_move(ply, mov);
+
+                    // History heuristic: we assume that moves that lead to cutoffs
+                    // are hot moves and should be prioritized.
+                    table.put_history(ply, mov);
                 }
 
                 // This position is now far too good to be true.

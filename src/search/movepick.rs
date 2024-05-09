@@ -103,6 +103,7 @@ impl std::iter::Iterator for MovePicker<false> {
                         Piece::Queen.value()
                     } else {
                         evaluate_move(&self.position, mov)
+                            + self.table.as_ref().unwrap().history_score(mov)
                     }
                 });
 

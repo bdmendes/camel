@@ -158,6 +158,7 @@ impl TranspositionTable {
 pub struct SearchTable {
     transposition: RwLock<TranspositionTable>,
     killer_moves: [AtomicU16; 3 * (MAX_DEPTH + 1) as usize],
+    history: [AtomicU16; 64 * 64],
 }
 
 impl SearchTable {
@@ -165,6 +166,7 @@ impl SearchTable {
         Self {
             transposition: RwLock::new(TranspositionTable::new(size_mb)),
             killer_moves: array::from_fn(|_| AtomicU16::new(NULL_KILLER)),
+            history: array::from_fn(|_| AtomicU16::new(0)),
         }
     }
 
@@ -175,8 +177,9 @@ impl SearchTable {
         let mut tt = self.transposition.write().unwrap();
         tt.age = !tt.age;
 
-        // Killer moves are no longer at the same ply, so we clear them.
+        // Killer and history moves are no longer at the same ply, so we clear them.
         self.killer_moves.iter().for_each(|entry| entry.store(NULL_KILLER, Ordering::Relaxed));
+        self.history.iter().for_each(|entry| entry.store(0, Ordering::Relaxed));
     }
 
     pub fn set_size(&self, size_mb: usize) {
@@ -251,6 +254,18 @@ impl SearchTable {
         }
     }
 
+    pub fn put_history(&self, ply: Depth, mov: Move) {
+        let from_index = mov.from() as usize;
+        let to_index = mov.to() as usize;
+        self.history[from_index + to_index].fetch_add(ply as u16 * ply as u16, Ordering::Relaxed);
+    }
+
+    pub fn history_score(&self, mov: Move) -> ValueScore {
+        let from_index = mov.from() as usize;
+        let to_index = mov.to() as usize;
+        self.history[from_index + to_index].load(Ordering::Relaxed) as ValueScore
+    }
+
     pub fn put_killer_move(&self, ply: Depth, mov: Move) {
         let index = 2 * ply as usize;
         if self.load_killer(index).is_none() {
@@ -299,6 +314,7 @@ impl SearchTable {
             .iter_mut()
             .for_each(|entry| *entry = AtomicU64::new(NULL_TT_ENTRY));
         self.killer_moves.iter().for_each(|entry| entry.store(NULL_KILLER, Ordering::Relaxed));
+        self.history.iter().for_each(|entry| entry.store(0, Ordering::Relaxed));
     }
 
     fn load_killer(&self, index: usize) -> Option<Move> {
