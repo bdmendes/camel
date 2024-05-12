@@ -2,6 +2,7 @@ use super::{psqt::psqt_value, Evaluable, ValueScore};
 use crate::{
     moves::Move,
     position::{board::Piece, Position},
+    search::see,
 };
 
 pub fn evaluate_move(position: &Position, mov: Move) -> ValueScore {
@@ -11,7 +12,12 @@ pub fn evaluate_move(position: &Position, mov: Move) -> ValueScore {
 
     if mov.flag().is_capture() {
         let captured_piece = position.board.piece_at(mov.to()).unwrap_or(Piece::Pawn);
-        score += captured_piece.value() - moving_piece.value() + Piece::Queen.value();
+        score += captured_piece.value() - moving_piece.value();
+
+        if see::see::<true>(mov, &position.board) >= 0 {
+            // One should value winning captures more than losing captures.
+            score += Piece::Queen.value() + moving_piece.value();
+        }
     }
 
     if let Some(promotion_piece) = mov.promotion_piece() {
