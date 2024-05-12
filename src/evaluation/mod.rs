@@ -37,7 +37,7 @@ impl Evaluable for Piece {
             Piece::Bishop => 330,
             Piece::Rook => 480,
             Piece::Queen => 900,
-            Piece::King => 0,
+            Piece::King => 6000,
         }
     }
 }
