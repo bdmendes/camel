@@ -2,7 +2,7 @@ use super::{
     constraint::SearchConstraint,
     history::BranchHistory,
     movepick::MovePicker,
-    quiesce,
+    quiesce, see,
     table::{ScoreType, SearchTable},
     Depth, MAX_DEPTH,
 };
@@ -229,6 +229,18 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
         let late_move_reduction =
             if depth > 2 && !is_check && mov.flag().is_quiet() && i > 0 { 1 } else { 0 };
 
+        // SEE reduction: we are less interested in captures that are likely to be bad.
+        let see_reduction = if depth > 2
+            && mov.flag().is_capture()
+            && !is_check
+            && !may_be_zug
+            && see::see::<true>(mov, &position.board) < 0
+        {
+            depth / 3
+        } else {
+            0
+        };
+
         let mut new_position = position.make_move(mov);
 
         history.visit_position(&new_position, mov.flag().is_reversible());
@@ -242,7 +254,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             history,
             ply,
             i > 0,
-            late_move_reduction,
+            late_move_reduction + see_reduction,
             0,
         );
         history.leave_position();
