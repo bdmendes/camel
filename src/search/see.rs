@@ -1,6 +1,9 @@
 use crate::{
     evaluation::{Evaluable, ValueScore},
-    moves::{gen::square_attackers, Move},
+    moves::{
+        gen::{king_square_attackers, square_attackers},
+        Move,
+    },
     position::{
         bitboard::Bitboard,
         board::{Board, Piece},
@@ -35,6 +38,7 @@ pub fn see<const RETURN_EARLY: bool>(mov: Move, board: &Board) -> ValueScore {
     let mut current_color = color.opposite();
     let mut current_sign = -1;
     board.clear_square(mov.from());
+    board.set_square(mov.to(), on_square, color);
 
     loop {
         if current_color == color {
@@ -50,12 +54,31 @@ pub fn see<const RETURN_EARLY: bool>(mov: Move, board: &Board) -> ValueScore {
         let attackers = square_attackers::<false>(&board, mov.to(), current_color);
 
         if let Some((least_valuable_piece, attacker_square)) = least_valuable(attackers, &board) {
-            // We capture the piece on the challenged square.
-            score += current_sign * on_square.value();
+            let piece_to_capture = on_square;
+
+            // Clear our attacker.
             board.clear_square(attacker_square);
 
             // We put ourselves on the challenged square.
             on_square = least_valuable_piece;
+            board.set_square(mov.to(), least_valuable_piece, current_color);
+
+            // If we are now in check, this move is illegal.
+            // We could retry other moves, but it would be too slow.
+            if king_square_attackers::<true>(&board, current_color.opposite()).is_not_empty() {
+                break;
+            }
+
+            // We capture the piece on the challenged square.
+            score += current_sign * piece_to_capture.value();
+
+            // If this a promotion, we add a queen to the board.
+            if least_valuable_piece == Piece::Pawn && (mov.to().rank() == 0 || mov.to().rank() == 7)
+            {
+                on_square = Piece::Queen;
+                board.set_square(mov.to(), on_square, current_color);
+                score += current_sign * Piece::Queen.value();
+            }
 
             // Switch turns.
             current_color = current_color.opposite();

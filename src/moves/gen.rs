@@ -37,9 +37,9 @@ impl MoveDirection {
     }
 }
 
-pub fn king_square_attackers<const EARLY_RETURN: bool>(board: &Board, color: Color) -> Bitboard {
-    let checked_king = board.pieces_bb_color(Piece::King, color.opposite());
-    square_attackers::<EARLY_RETURN>(board, checked_king.into_iter().next().unwrap(), color)
+pub fn king_square_attackers<const EARLY_RETURN: bool>(board: &Board, by_color: Color) -> Bitboard {
+    let checked_king = board.pieces_bb_color(Piece::King, by_color.opposite());
+    square_attackers::<EARLY_RETURN>(board, checked_king.into_iter().next().unwrap(), by_color)
 }
 
 pub fn square_attackers<const EARLY_RETURN: bool>(
