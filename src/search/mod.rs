@@ -1,8 +1,8 @@
 use self::{constraint::SearchConstraint, table::SearchTable};
 use crate::{
-    evaluation::{moves::evaluate_move, Score, ValueScore},
+    evaluation::{moves::evaluate_move, Evaluable, Score, ValueScore},
     moves::{gen::MoveStage, Move},
-    position::Position,
+    position::{board::Piece, Position},
 };
 use std::{
     sync::{atomic::Ordering, Arc},
@@ -79,6 +79,11 @@ pub fn pvs_aspiration_iterative(
     let mut current_best_move = None;
 
     while constraint.pondering() || current_depth <= depth {
+        // Save the previous best move and score.
+        // This is useful to know if we should stop the search early.
+        let previous_best_move = current_best_move;
+        let previous_score = current_guess;
+
         let time = std::time::Instant::now();
 
         let search_result = thread::scope(|s| {
@@ -139,11 +144,14 @@ pub fn pvs_aspiration_iterative(
         if !constraint.pondering()
             && (moves.len() == 1
                 || matches!(score, Score::Mate(_, _))
-                || elapsed > constraint.remaining_time().unwrap_or(elapsed))
+                || (elapsed > constraint.remaining_time().unwrap_or(elapsed)
+                    && current_best_move == previous_best_move
+                    && (current_guess - previous_score).abs() < Piece::Pawn.value() / 2))
         {
             // There is no need to keep going if we have only one move or found a mate.
             // If our remaining time is less that the time it took to finish the last iteration,
             // we should stop: it is very likely that the next iteration will take more time.
+            // That is not the case if we found a new best move: the next iteration will likely be faster.
             break;
         }
     }
