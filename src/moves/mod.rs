@@ -1,6 +1,6 @@
 use self::{
     attacks::specials::pawn_attacks,
-    gen::{piece_attacks, MoveDirection},
+    gen::{piece_attacks, square_attackers, MoveDirection},
 };
 use crate::position::{
     bitboard::Bitboard, board::Piece, square::Square, CastlingRights, Color, Position,
@@ -126,6 +126,18 @@ impl Move {
                 || (self.flag().is_capture()
                     && self.flag() != MoveFlag::EnPassantCapture
                     && to_piece.is_none())
+            {
+                return false;
+            }
+
+            // Basic check test for king moves.
+            if piece == Piece::King
+                && square_attackers::<true>(
+                    &position.board,
+                    self.to(),
+                    position.side_to_move.opposite(),
+                )
+                .is_not_empty()
             {
                 return false;
             }
