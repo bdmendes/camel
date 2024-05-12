@@ -45,7 +45,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
         // We expect this tree to not raise alpha, so we search with tight bounds.
         let (score, nodes) = pvs::<false, MAIN_THREAD, true>(
             position,
-            current_depth.saturating_add(extension).saturating_sub(reduction + 1),
+            current_depth.saturating_sub(reduction + 1),
             -alpha - 1,
             -alpha,
             table.clone(),
@@ -227,7 +227,16 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
         // Late move reduction: we assume our move ordering is good, and are less interested in
         // expected non-PV nodes.
         let late_move_reduction =
-            if depth > 2 && !is_check && mov.flag().is_quiet() && i > 0 { 1 } else { 0 };
+            if depth > 1 && !is_check && mov.flag().is_quiet() && i > 0 { 1 } else { 0 };
+
+        // Pawn push extension: a pawn push can be important, especially in the endgame.
+        let pawn_push_extension = if position.board.piece_at(mov.from()).unwrap() == Piece::Pawn
+            && (mov.to().rank() <= 1 || mov.to().rank() >= 6)
+        {
+            1
+        } else {
+            0
+        };
 
         let mut new_position = position.make_move(mov);
 
@@ -243,7 +252,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             ply,
             i > 0,
             late_move_reduction,
-            0,
+            pawn_push_extension,
         );
         history.leave_position();
 
