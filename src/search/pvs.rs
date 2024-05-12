@@ -37,7 +37,6 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
     current_ply: Depth,
     do_zero_window: bool,
     reduction: Depth,
-    extension: Depth,
 ) -> (ValueScore, usize) {
     let mut count = 0;
 
@@ -45,7 +44,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
         // We expect this tree to not raise alpha, so we search with tight bounds.
         let (score, nodes) = pvs::<false, MAIN_THREAD, true>(
             position,
-            current_depth.saturating_add(extension).saturating_sub(reduction + 1),
+            current_depth.saturating_sub(reduction + 1),
             -alpha - 1,
             -alpha,
             table.clone(),
@@ -65,7 +64,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
     // We also eliminate the reduction to avoid missing deep lines.
     let (score, nodes) = pvs::<false, MAIN_THREAD, true>(
         position,
-        current_depth.saturating_add(extension).saturating_sub(1),
+        current_depth.saturating_sub(1),
         -beta,
         -alpha,
         table,
@@ -205,9 +204,15 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     // We need to keep track of the original alpha and best moves, to store
     // the correct node type and move in the hash table later.
     let original_alpha = alpha;
+    let mut quiet_count = 0;
     let mut best_move = picker.peek().map(|(mov, _)| *mov).unwrap();
 
     for (i, (mov, _)) in picker.enumerate() {
+        // Count quiet moves. This is useful to limit reductions.
+        if mov.flag().is_quiet() {
+            quiet_count += 1;
+        }
+
         // Extended futility pruning: discard moves without potential
         if depth <= 2 && i > 0 && !may_be_zug {
             let move_potential = MAX_POSITIONAL_GAIN * depth as ValueScore
@@ -227,7 +232,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
         // Late move reduction: we assume our move ordering is good, and are less interested in
         // expected non-PV nodes.
         let late_move_reduction =
-            if depth > 2 && !is_check && mov.flag().is_quiet() && i > 0 { 1 } else { 0 };
+            if depth > 1 && !is_check && mov.flag().is_quiet() && quiet_count > 2 { 1 } else { 0 };
 
         let mut new_position = position.make_move(mov);
 
@@ -243,7 +248,6 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             ply,
             i > 0,
             late_move_reduction,
-            0,
         );
         history.leave_position();
 
