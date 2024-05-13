@@ -25,13 +25,11 @@ pub struct SearchConstraint {
 
 impl SearchConstraint {
     pub fn should_stop_search(&self) -> bool {
-        if self.threads_stop.load(std::sync::atomic::Ordering::Acquire)
-            || self.global_stop.load(std::sync::atomic::Ordering::Acquire)
-        {
+        if self.threads_stop.load(Ordering::Acquire) || self.global_stop.load(Ordering::Acquire) {
             return true;
         }
 
-        if self.ponder_mode.load(std::sync::atomic::Ordering::Acquire) {
+        if self.ponder_mode.load(Ordering::Acquire) {
             return false;
         }
 
@@ -44,7 +42,7 @@ impl SearchConstraint {
     }
 
     pub fn pondering(&self) -> bool {
-        self.ponder_mode.load(std::sync::atomic::Ordering::Acquire)
+        self.ponder_mode.load(Ordering::Acquire)
     }
 
     pub fn remaining_time(&self) -> Option<Duration> {
@@ -64,7 +62,7 @@ mod tests {
     use crate::search::constraint::TimeConstraint;
     use std::{
         sync::{
-            atomic::{AtomicBool, AtomicU16},
+            atomic::{AtomicBool, AtomicU16, Ordering},
             Arc,
         },
         thread,
@@ -98,7 +96,7 @@ mod tests {
 
     #[test]
     fn stop_search_external_order() {
-        let stop_now = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let stop_now = std::sync::Arc::new(AtomicBool::new(false));
         let constraint = SearchConstraint {
             time_constraint: Some(TimeConstraint {
                 initial_instant: Instant::now(),
@@ -113,7 +111,7 @@ mod tests {
 
         assert!(!constraint.should_stop_search());
 
-        stop_now.store(true, std::sync::atomic::Ordering::Release);
+        stop_now.store(true, Ordering::Release);
 
         assert!(constraint.should_stop_search());
         assert!(constraint.remaining_time().unwrap() > Duration::from_millis(90));

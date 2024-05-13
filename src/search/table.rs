@@ -49,7 +49,7 @@ impl TableEntry {
             data: (score_type as u32)
                 | ((depth as u32 & 0x3F) << 2)
                 | ((age as u32) << 8)
-                | ((hash as u32) << 9),
+                | (hash as u32 & 0xFFFF_FE00),
         }
     }
 
@@ -79,8 +79,7 @@ impl TableEntry {
     }
 
     fn same_hash(&self, hash: u64) -> bool {
-        // We store 23 bits of the hash, so we need to compare the first 23 bits.
-        (self.data >> 9) == (hash as u32 & 0x7F_FFFF)
+        self.data & 0xFFFF_FE00 == (hash as u32 & 0xFFFF_FE00)
     }
 
     fn age(&self) -> bool {
