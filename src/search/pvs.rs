@@ -358,7 +358,7 @@ pub fn pvs_aspiration<const MAIN_THREAD: bool>(
         });
     }
 
-    unreachable!()
+    panic!("Aspiration failed");
 }
 
 #[cfg(test)]

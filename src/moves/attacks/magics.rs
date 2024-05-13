@@ -92,7 +92,7 @@ fn find_magic(square: Square, piece: Piece) -> SquareMagic {
         }
     }
 
-    unreachable!()
+    panic!("Magic not found");
 }
 
 fn find_magics(piece: Piece) -> [SquareMagic; 64] {

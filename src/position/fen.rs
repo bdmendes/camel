@@ -84,7 +84,7 @@ impl FromFen for Board {
                         'r' => Piece::Rook,
                         'q' => Piece::Queen,
                         'k' => Piece::King,
-                        _ => unreachable!(),
+                        _ => panic!("Invalid piece"),
                     };
                     if rank > 7 || file > 7 {
                         return None;

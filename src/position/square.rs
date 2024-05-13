@@ -95,7 +95,7 @@ impl std::fmt::Display for Square {
             5 => 'f',
             6 => 'g',
             7 => 'h',
-            _ => unreachable!(),
+            _ => panic!("Invalid file"),
         };
 
         let rank = (*self as u8) / 8 + 1;

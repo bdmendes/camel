@@ -265,7 +265,7 @@ pub fn make_move(position: &Position, mov: Move) -> Position {
                     new_castling_rights.remove(CastlingRights::BLACK_QUEENSIDE);
                 }
             },
-            _ => unreachable!(),
+            _ => panic!("Unexpected castle flag"),
         }
     } else if let Some(promotion_piece) = mov_flag.promotion_piece() {
         new_board.set_square(mov.to(), promotion_piece, position.side_to_move);

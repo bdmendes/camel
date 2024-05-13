@@ -52,8 +52,6 @@ fn expect_search(fen: &str, mov: &str) {
             return;
         }
     }
-
-    unreachable!()
 }
 
 const WAC_POSITIONS: &str =

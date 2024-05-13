@@ -51,9 +51,8 @@ fn king_tropism(position: &Position, king_color: Color, king_square: Square) -> 
     let tropism = them_occupancy.fold(0, |acc, sq| {
         let distance = sq.manhattan_distance(king_square);
         let piece_cof = match position.board.piece_at(sq) {
-            Some(Piece::Queen) | Some(Piece::Rook) => 2,
-            Some(Piece::Bishop) | Some(Piece::Knight) => 1,
-            _ => unreachable!(),
+            Some(Piece::Queen) => 2,
+            _ => 1,
         };
         acc + ((14 - distance) * piece_cof) as ValueScore
     });
@@ -63,31 +62,19 @@ fn king_tropism(position: &Position, king_color: Color, king_square: Square) -> 
 
 pub fn evaluate_king_safety(position: &Position, midgame_ratio: u8) -> ValueScore {
     let white_king_square =
-        position.board.pieces_bb_color(Piece::King, Color::White).into_iter().next();
+        position.board.pieces_bb_color(Piece::King, Color::White).into_iter().next().unwrap();
     let black_king_square =
-        position.board.pieces_bb_color(Piece::King, Color::Black).into_iter().next();
-
-    if white_king_square.is_none() || black_king_square.is_none() {
-        return 0;
-    }
+        position.board.pieces_bb_color(Piece::King, Color::Black).into_iter().next().unwrap();
 
     let mut score = 0;
 
-    score += king_tropism(position, Color::White, white_king_square.unwrap())
-        * midgame_ratio as ValueScore
-        / 255;
-    score -= king_tropism(position, Color::Black, black_king_square.unwrap())
-        * midgame_ratio as ValueScore
-        / 255;
+    score += king_tropism(position, Color::White, white_king_square);
+    score -= king_tropism(position, Color::Black, black_king_square);
 
-    score += king_pawn_shelter(position, Color::White, white_king_square.unwrap())
-        * midgame_ratio as ValueScore
-        / 255;
-    score -= king_pawn_shelter(position, Color::Black, black_king_square.unwrap())
-        * midgame_ratio as ValueScore
-        / 255;
+    score += king_pawn_shelter(position, Color::White, white_king_square);
+    score -= king_pawn_shelter(position, Color::Black, black_king_square);
 
-    score
+    score * midgame_ratio as ValueScore / 255
 }
 
 #[cfg(test)]
