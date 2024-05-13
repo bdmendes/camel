@@ -25,9 +25,9 @@ pub fn see<const RETURN_EARLY: bool>(mov: Move, board: &Board) -> ValueScore {
     }
 
     // We need an auxiliary board to perform the search.
-    // We also store the max score when it is our turn.
+    // We also store a standing pat when it is our turn to move.
     let mut board = *board;
-    let mut max_score = ValueScore::MIN;
+    let mut stand_pat = ValueScore::MIN;
 
     // Make our move.
     let mut on_square = piece;
@@ -41,7 +41,7 @@ pub fn see<const RETURN_EARLY: bool>(mov: Move, board: &Board) -> ValueScore {
             if RETURN_EARLY && score >= 0 {
                 return score;
             }
-            max_score = max_score.max(score);
+            stand_pat = stand_pat.max(score);
         } else if RETURN_EARLY && score < 0 {
             return score;
         }
@@ -66,7 +66,7 @@ pub fn see<const RETURN_EARLY: bool>(mov: Move, board: &Board) -> ValueScore {
         }
     }
 
-    max_score.max(score)
+    stand_pat.max(score)
 }
 
 #[cfg(test)]
