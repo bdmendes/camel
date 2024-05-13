@@ -39,10 +39,10 @@ impl MoveDirection {
 
 pub fn king_square_attackers<const EARLY_RETURN: bool>(board: &Board, color: Color) -> Bitboard {
     let checked_king = board.pieces_bb_color(Piece::King, color.opposite());
-    square_attackers::<EARLY_RETURN>(board, checked_king.into_iter().next().unwrap(), color)
+    square_attackers::<EARLY_RETURN, false>(board, checked_king.into_iter().next().unwrap(), color)
 }
 
-pub fn square_attackers<const EARLY_RETURN: bool>(
+pub fn square_attackers<const EARLY_RETURN: bool, const ALLOW_BATTERIES: bool>(
     board: &Board,
     square: Square,
     color: Color,
@@ -95,6 +95,14 @@ pub fn square_attackers<const EARLY_RETURN: bool>(
     let attacker_kings = board.pieces_bb(Piece::King) & occupancy_attacker;
     let king_attacks = KING_ATTACKS[square as usize];
     bb |= king_attacks & attacker_kings;
+
+    // Do a recursive xray attack check.
+    if !EARLY_RETURN && ALLOW_BATTERIES && bb.is_not_empty() {
+        let mut new_board = *board;
+        bb.into_iter().for_each(|sq| new_board.clear_square(sq));
+        let xray_attackers = square_attackers::<false, true>(&new_board, square, color);
+        bb |= xray_attackers;
+    }
 
     bb
 }
@@ -292,29 +300,53 @@ mod tests {
         let position = Position::from_fen(KIWIPETE_WHITE_FEN).unwrap();
 
         assert_eq!(
-            super::square_attackers::<false>(&position.board, super::Square::E4, Color::Black),
+            super::square_attackers::<false, false>(
+                &position.board,
+                super::Square::E4,
+                Color::Black
+            ),
             Bitboard::new(1 << Square::F6 as usize)
         );
         assert_eq!(
-            super::square_attackers::<false>(&position.board, super::Square::G2, Color::Black),
+            super::square_attackers::<false, false>(
+                &position.board,
+                super::Square::G2,
+                Color::Black
+            ),
             Bitboard::new(1 << Square::H3 as usize)
         );
         assert_eq!(
-            super::square_attackers::<false>(&position.board, super::Square::A6, Color::White),
+            super::square_attackers::<false, false>(
+                &position.board,
+                super::Square::A6,
+                Color::White
+            ),
             Bitboard::new(1 << Square::E2 as usize)
         );
         assert_eq!(
-            super::square_attackers::<false>(&position.board, super::Square::D5, Color::Black),
+            super::square_attackers::<false, false>(
+                &position.board,
+                super::Square::D5,
+                Color::Black
+            ),
             Bitboard::new(
                 1 << Square::E6 as usize | 1 << Square::F6 as usize | 1 << Square::B6 as usize
             )
         );
         assert_eq!(
-            super::square_attackers::<false>(&position.board, super::Square::C7, Color::White),
+            super::square_attackers::<false, false>(
+                &position.board,
+                super::Square::C7,
+                Color::White
+            ),
             Bitboard::new(0)
         );
         assert_eq!(
-            super::square_attackers::<false>(&position.board, super::Square::B4, Color::White),
+            super::square_attackers::<false, false>(
+                &position.board,
+                super::Square::B4,
+                Color::White
+            ),
             Bitboard::new(0)
         );
     }
@@ -325,7 +357,11 @@ mod tests {
             Position::from_fen("r3kbnr/pP3ppp/n3p3/q2pN2b/8/2N5/PPP1PP1P/R1BQKB1R b KQkq - 0 1")
                 .unwrap();
         assert_eq!(
-            super::square_attackers::<false>(&position.board, super::Square::C8, Color::White),
+            super::square_attackers::<false, false>(
+                &position.board,
+                super::Square::C8,
+                Color::White
+            ),
             Bitboard::new(1 << Square::B7 as usize)
         );
     }
@@ -334,9 +370,50 @@ mod tests {
     fn square_attackers_3() {
         let position = Position::from_fen("K1k5/1p4p1/8/8/8/1q6/8/8 w - - 100 128").unwrap();
         assert_eq!(
-            super::square_attackers::<false>(&position.board, super::Square::A8, Color::Black),
+            super::square_attackers::<false, false>(
+                &position.board,
+                super::Square::A8,
+                Color::Black
+            ),
             Bitboard::new(0)
         );
+    }
+
+    #[test]
+    fn square_attackers_xray_1() {
+        let position = Position::from_fen(
+            "2rqk2r/2p2pp1/p1nb1n2/1p1pNp1p/3P1P2/4P1Q1/PPP3PP/RNB2RK1 b k - 0 12",
+        )
+        .unwrap();
+
+        let non_xray_attackers = super::square_attackers::<false, false>(
+            &position.board,
+            super::Square::E5,
+            Color::White,
+        );
+        assert_eq!(non_xray_attackers.count_ones(), 2);
+
+        let xray_attackers = super::square_attackers::<false, true>(
+            &position.board,
+            super::Square::E5,
+            Color::White,
+        );
+        assert_eq!(xray_attackers.count_ones(), 3);
+    }
+
+    #[test]
+    fn square_attackers_xray_2() {
+        let position = Position::from_fen(
+            "r3r1k1/1pp1qpp1/p1nb1n2/3pNp1p/3PPB2/6QP/PPP2PP1/RN2R1K1 b - - 4 15",
+        )
+        .unwrap();
+
+        let xray_attackers = super::square_attackers::<false, true>(
+            &position.board,
+            super::Square::E5,
+            Color::White,
+        );
+        assert_eq!(xray_attackers.count_ones(), 3);
     }
 
     #[test]

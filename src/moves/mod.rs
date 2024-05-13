@@ -132,7 +132,7 @@ impl Move {
 
             // Basic check test for king moves.
             if piece == Piece::King
-                && square_attackers::<true>(
+                && square_attackers::<true, false>(
                     &position.board,
                     self.to(),
                     position.side_to_move.opposite(),

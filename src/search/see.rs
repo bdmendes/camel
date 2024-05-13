@@ -8,7 +8,7 @@ use crate::{
     },
 };
 
-fn least_valuable(bb: Bitboard, board: &Board) -> Option<(Piece, Square)> {
+fn least_valuable(bb: &Bitboard, board: &Board) -> Option<(Piece, Square)> {
     bb.into_iter()
         .map(|square| (board.piece_at(square).unwrap(), square))
         .min_by_key(|(piece, _)| piece.value())
@@ -24,35 +24,44 @@ pub fn see<const RETURN_EARLY: bool>(mov: Move, board: &Board) -> ValueScore {
         return 0;
     }
 
-    // We need an auxiliary board to perform the search.
-    // We also store a standing pat when it is our turn to move.
-    let mut board = *board;
-    let mut stand_pat = ValueScore::MIN;
+    // If we are to move, we can always choose to do nothing.
+    // That is the "standing pat" score.
+    let mut our_stand_pat = ValueScore::MIN;
+    let mut their_stand_pat = ValueScore::MAX;
+
+    // Calculate the attackers, including own xrays.
+    // These will be cleared as the algorithm progresses.
+    let mut our_attackers = square_attackers::<false, true>(board, mov.to(), color);
+    let mut their_attackers = square_attackers::<false, true>(board, mov.to(), color.opposite());
 
     // Make our move.
     let mut on_square = piece;
     let mut score = their_piece.value();
     let mut current_color = color.opposite();
     let mut current_sign = -1;
-    board.clear_square(mov.from());
+    our_attackers.clear(mov.from());
 
     loop {
         if current_color == color {
             if RETURN_EARLY && score >= 0 {
                 return score;
             }
-            stand_pat = stand_pat.max(score);
-        } else if RETURN_EARLY && score < 0 {
-            return score;
+            our_stand_pat = our_stand_pat.max(score);
+        } else {
+            if RETURN_EARLY && score < 0 {
+                return score;
+            }
+            their_stand_pat = their_stand_pat.min(score);
         }
 
         // We choose our least valuable piece to attack.
-        let attackers = square_attackers::<false>(&board, mov.to(), current_color);
+        let attackers =
+            if current_color == color { &mut our_attackers } else { &mut their_attackers };
 
-        if let Some((least_valuable_piece, attacker_square)) = least_valuable(attackers, &board) {
+        if let Some((least_valuable_piece, attacker_square)) = least_valuable(attackers, board) {
             // We capture the piece on the challenged square.
             score += current_sign * on_square.value();
-            board.clear_square(attacker_square);
+            attackers.clear(attacker_square);
 
             // We put ourselves on the challenged square.
             on_square = least_valuable_piece;
@@ -66,7 +75,7 @@ pub fn see<const RETURN_EARLY: bool>(mov: Move, board: &Board) -> ValueScore {
         }
     }
 
-    stand_pat.max(score)
+    our_stand_pat.max(score).min(their_stand_pat)
 }
 
 #[cfg(test)]
@@ -85,7 +94,7 @@ mod tests {
         let moves = position.moves(MoveStage::All);
 
         let mov = moves.iter().find(|mov| mov.to_string() == "c6d5").unwrap();
-        assert_eq!(super::see::<false>(*mov, &position.board), Piece::Queen.value());
+        assert_eq!(super::see::<false>(*mov, &position.board), Piece::Pawn.value());
         assert!(super::see::<true>(*mov, &position.board) >= 0);
 
         let mov = moves.iter().find(|mov| mov.to_string() == "e8e6").unwrap();
@@ -129,6 +138,35 @@ mod tests {
 
         let mov = moves.iter().find(|mov| mov.to_string() == "c3e4").unwrap();
         assert_eq!(super::see::<false>(*mov, &position.board), Piece::Knight.value());
+        assert!(super::see::<true>(*mov, &position.board) >= 0);
+    }
+
+    #[test]
+    fn see_5() {
+        let position = Position::from_fen(
+            "r3r1k1/1pp1qpp1/p1nb1n2/3pNp1p/3PPB2/6QP/PPP2PP1/RN2R1K1 b - - 4 15",
+        )
+        .unwrap();
+        let moves = position.moves(MoveStage::All);
+
+        let mov = moves.iter().find(|mov| mov.to_string() == "d6e5").unwrap();
+        assert_eq!(
+            super::see::<false>(*mov, &position.board),
+            Piece::Pawn.value() - (Piece::Bishop.value() - Piece::Knight.value())
+        );
+        assert!(super::see::<true>(*mov, &position.board) >= 0);
+    }
+
+    #[test]
+    fn see_6() {
+        let position = Position::from_fen(
+            "rn2kbnr/ppp1pppp/1qb5/3p4/1P2P3/P4Q2/1BPP1PPP/RN2KBNR w KQkq - 3 6",
+        )
+        .unwrap();
+        let moves = position.moves(MoveStage::All);
+
+        let mov = moves.iter().find(|mov| mov.to_string() == "e4d5").unwrap();
+        assert_eq!(super::see::<false>(*mov, &position.board), Piece::Pawn.value());
         assert!(super::see::<true>(*mov, &position.board) >= 0);
     }
 }

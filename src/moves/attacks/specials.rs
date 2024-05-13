@@ -268,7 +268,8 @@ fn castle_range_ok(color: Color, board: Board, king_square: Square, rook_square:
 
     let mut attacked_range = Bitboard::rank_range(king_square, final_king_square);
 
-    attacked_range.all(|sq| square_attackers::<true>(&board, sq, color.opposite()).is_empty())
+    attacked_range
+        .all(|sq| square_attackers::<true, false>(&board, sq, color.opposite()).is_empty())
 }
 
 fn king_rook_range_occupied_ok(range: Bitboard, own_color: Color, board: Board) -> bool {
