@@ -17,12 +17,12 @@ const WINDOW_SIZE: ValueScore = 100;
 
 fn may_be_zugzwang(position: &Position) -> bool {
     let king_pawn_bb =
-        position.board.pieces_bb(Piece::King) & position.board.pieces_bb(Piece::Pawn);
+        position.board.pieces_bb(Piece::King) | position.board.pieces_bb(Piece::Pawn);
 
     let white_pieces_bb = position.board.occupancy_bb(Color::White) & !king_pawn_bb;
     let black_pieces_bb = position.board.occupancy_bb(Color::Black) & !king_pawn_bb;
 
-    white_pieces_bb.is_empty() || black_pieces_bb.is_empty()
+    white_pieces_bb.count_ones() < 2 || black_pieces_bb.count_ones() < 2
 }
 
 #[inline(always)]
