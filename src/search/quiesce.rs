@@ -50,11 +50,10 @@ pub fn quiesce(
 
     let mut count = 1;
 
-    for (mov, _) in picker {
+    for mov in picker {
         if !is_check && mov.flag().is_capture() {
             // Delta pruning: this capture cannot improve the score in any way.
-            let captured_piece =
-                position.board.piece_color_at(mov.to()).map_or_else(|| Piece::Pawn, |p| p.0);
+            let captured_piece = position.board.piece_at(mov.to()).unwrap_or(Piece::Pawn);
             if static_evaluation + captured_piece.value() + MAX_POSITIONAL_GAIN < alpha {
                 continue;
             }
