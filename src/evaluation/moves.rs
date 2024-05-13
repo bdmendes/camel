@@ -11,13 +11,7 @@ pub fn evaluate_move(position: &Position, mov: Move) -> ValueScore {
     let moving_piece = position.board.piece_at(mov.from()).unwrap();
 
     if mov.flag().is_capture() {
-        let captured_piece = position.board.piece_at(mov.to()).unwrap_or(Piece::Pawn);
-        score += captured_piece.value() - moving_piece.value();
-
-        if see::see::<true>(mov, &position.board) >= 0 {
-            // One should value winning captures more than losing captures.
-            score += Piece::Queen.value() + moving_piece.value();
-        }
+        score += see::see::<false>(mov, &position.board) + Piece::Pawn.value();
     }
 
     if let Some(promotion_piece) = mov.promotion_piece() {
