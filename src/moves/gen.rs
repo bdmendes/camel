@@ -159,8 +159,8 @@ pub fn generate_regular_moves(
 
 pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
     let mut moves = Vec::with_capacity(64);
-    let board = &position.board;
     let side_to_move = position.side_to_move;
+    let board = &position.board;
 
     let checkers = king_square_attackers::<false>(board, side_to_move.opposite());
 
@@ -195,6 +195,12 @@ pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
                 return king_square_attackers::<true>(&new_position.board, side_to_move.opposite())
                     .is_empty();
             }
+            _ if board.piece_at(mov.to()) == Some(Piece::King) => {
+                // We can't capture a king.
+                // This only happens in illegal positions, that might occur
+                // in the rare case of an undetected hash collision.
+                return false;
+            }
             _ if mov.from() != king_square => {
                 let king_rays = piece_attacks(
                     Piece::Queen,
@@ -220,7 +226,7 @@ pub fn generate_moves(stage: MoveStage, position: &Position) -> Vec<Move> {
                     }
                     0 => {
                         if !possibly_pinned.is_set(mov.from()) {
-                            // We are moving a piece not in the kings ray, so we can't end up in check
+                            // We are moving a piece not in the kings ray, so we can't end up in check.
                             return true;
                         }
                     }

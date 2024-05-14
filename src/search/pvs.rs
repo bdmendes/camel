@@ -205,9 +205,9 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     // We need to keep track of the original alpha and best moves, to store
     // the correct node type and move in the hash table later.
     let original_alpha = alpha;
-    let mut best_move = picker.peek().map(|(mov, _)| *mov).unwrap();
+    let mut best_move = *picker.peek().unwrap();
 
-    for (i, (mov, _)) in picker.enumerate() {
+    for (i, mov) in picker.enumerate() {
         // Extended futility pruning: discard moves without potential
         if depth <= 2 && i > 0 && !may_be_zug {
             let move_potential = MAX_POSITIONAL_GAIN * depth as ValueScore
