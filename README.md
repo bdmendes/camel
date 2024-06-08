@@ -19,6 +19,8 @@ Camel is a chess and chess960 engine written from scratch in Rust. It aims to ac
 
 Camel participates in various community chess engine competitions, such as the [CCRL](https://computerchess.org.uk/ccrl/404/). It may also be seen playing on [Lichess](https://lichess.org/@/camel_bot/).
 
+> NOTE: This repository uses trunk-based development - as such, `master` always contains the latest code and may not be stable. For the latest stable version, please refer to the [releases](https://github.com/bdmendes/camel/releases).
+
 ## Compilation
 
 Make sure you have an updated [Rust](https://www.rust-lang.org/learn/get-started) environment on your machine. For best results, compile with LLVM optimizations enabled:
