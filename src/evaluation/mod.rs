@@ -12,11 +12,11 @@ pub type ValueScore = i16;
 const MATE_SCORE_THRESHOLD: ValueScore = 200;
 pub const MATE_SCORE: ValueScore = ValueScore::MIN + 200;
 
-pub static mut PAWN_VALUE: ValueScore = 91;
-pub static mut KNIGHT_VALUE: ValueScore = 334;
+pub static mut PAWN_VALUE: ValueScore = 94;
+pub static mut KNIGHT_VALUE: ValueScore = 343;
 pub static mut BISHOP_VALUE: ValueScore = 343;
-pub static mut ROOK_VALUE: ValueScore = 529;
-pub static mut QUEEN_VALUE: ValueScore = 1087;
+pub static mut ROOK_VALUE: ValueScore = 541;
+pub static mut QUEEN_VALUE: ValueScore = 1110;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Score {

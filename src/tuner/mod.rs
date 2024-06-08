@@ -8,12 +8,21 @@ use std::ptr::addr_of_mut;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
-    evaluation::{self, ValueScore},
+    evaluation::{
+        self,
+        position::{
+            bishops::BISHOP_PAIR_BONUS,
+            king::SHELTER_PENALTY,
+            pawns::{DOUBLED_PAWNS_PENALTY, PAWN_ISLAND_PENALTY},
+            rooks::{OPEN_FILE_BONUS, SEMI_OPEN_FILE_BONUS},
+        },
+        ValueScore,
+    },
     position::{fen::FromFen, Color, Position},
     search::{constraint::SearchConstraint, quiesce::quiesce},
 };
 
-const NUMBER_PARAMETERS: usize = 10;
+const NUMBER_PARAMETERS: usize = 16;
 const NUMBER_POSITIONS: usize = 300000;
 
 struct PositionEntry {
@@ -47,6 +56,12 @@ unsafe fn get_parameter(idx: usize) -> *mut ValueScore {
         7 => addr_of_mut!(evaluation::position::BISHOP_MIDGAME_RATIO),
         8 => addr_of_mut!(evaluation::position::ROOK_MIDGAME_RATIO),
         9 => addr_of_mut!(evaluation::position::QUEEN_MIDGAME_RATIO),
+        10 => addr_of_mut!(BISHOP_PAIR_BONUS),
+        11 => addr_of_mut!(SHELTER_PENALTY),
+        12 => addr_of_mut!(DOUBLED_PAWNS_PENALTY),
+        13 => addr_of_mut!(PAWN_ISLAND_PENALTY),
+        14 => addr_of_mut!(SEMI_OPEN_FILE_BONUS),
+        15 => addr_of_mut!(OPEN_FILE_BONUS),
         _ => panic!("Invalid parameter index"),
     }
 }
@@ -57,6 +72,17 @@ unsafe fn set_parameters(parameters: &[ValueScore]) {
     evaluation::BISHOP_VALUE = parameters[2];
     evaluation::ROOK_VALUE = parameters[3];
     evaluation::QUEEN_VALUE = parameters[4];
+    evaluation::position::PAWN_MIDGAME_RATIO = parameters[5];
+    evaluation::position::KNIGHT_MIDGAME_RATIO = parameters[6];
+    evaluation::position::BISHOP_MIDGAME_RATIO = parameters[7];
+    evaluation::position::ROOK_MIDGAME_RATIO = parameters[8];
+    evaluation::position::QUEEN_MIDGAME_RATIO = parameters[9];
+    BISHOP_PAIR_BONUS = parameters[10];
+    SHELTER_PENALTY = parameters[11];
+    DOUBLED_PAWNS_PENALTY = parameters[12];
+    PAWN_ISLAND_PENALTY = parameters[13];
+    SEMI_OPEN_FILE_BONUS = parameters[14];
+    OPEN_FILE_BONUS = parameters[15];
 }
 
 fn evaluation_error(entries: &[PositionEntry], k: f64) -> f64 {
@@ -106,10 +132,10 @@ pub fn texel_tune() -> Vec<ValueScore> {
     };
 
     // Find k that minimizes the error.
-    let mut k = 0.8;
+    let mut k = 0.5;
     let mut best_error = f64::MAX;
     let mut best_k = k;
-    while k < 1.6 {
+    while k < 2.0 {
         let error = evaluation_error(&entries, k);
         if error < best_error {
             best_error = error;

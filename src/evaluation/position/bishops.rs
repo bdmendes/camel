@@ -3,7 +3,7 @@ use crate::{
     position::{board::Piece, Color, Position},
 };
 
-const BISHOP_PAIR_BONUS: ValueScore = 30;
+pub static mut BISHOP_PAIR_BONUS: ValueScore = 47;
 
 pub fn evaluate_bishops(position: &Position) -> ValueScore {
     let mut score = 0;
@@ -11,7 +11,7 @@ pub fn evaluate_bishops(position: &Position) -> ValueScore {
     for color in Color::list() {
         let our_bishops = position.board.pieces_bb_color(Piece::Bishop, *color);
         if our_bishops.count_ones() > 1 {
-            score += BISHOP_PAIR_BONUS * color.sign();
+            score += unsafe { BISHOP_PAIR_BONUS * color.sign() };
         }
     }
 
@@ -32,6 +32,6 @@ mod tests {
         )
         .unwrap();
         let bishops_score = super::evaluate_bishops(&position);
-        assert_eq!(bishops_score, BISHOP_PAIR_BONUS);
+        assert_eq!(bishops_score, unsafe { BISHOP_PAIR_BONUS });
     }
 }
