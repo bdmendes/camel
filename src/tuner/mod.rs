@@ -1,9 +1,6 @@
-// This is a very small tuner, tuning only 5 parameters: the piece values.
-// PSQT are purposely not tuned to speed up the process.
+// A simple and small tuner for Camel's evaluation function.
 // The next Camel major version will switch to NNUE, which won't require
-// Texel tuning anymore, so this is a small, temporary solution.
-
-use std::ptr::addr_of_mut;
+// Texel tuning anymore, so this is a temporary solution.
 
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
@@ -13,7 +10,7 @@ use crate::{
         position::{
             bishops::BISHOP_PAIR_BONUS,
             king::SHELTER_PENALTY,
-            pawns::{DOUBLED_PAWNS_PENALTY, PAWN_ISLAND_PENALTY},
+            pawns::{DOUBLED_PAWNS_PENALTY, PASSED_PAWN_BONUS, PAWN_ISLAND_PENALTY},
             rooks::{OPEN_FILE_BONUS, SEMI_OPEN_FILE_BONUS},
         },
         ValueScore,
@@ -22,8 +19,7 @@ use crate::{
     search::{constraint::SearchConstraint, quiesce::quiesce},
 };
 
-const NUMBER_PARAMETERS: usize = 16;
-const NUMBER_POSITIONS: usize = 300000;
+const NUMBER_PARAMETERS: usize = 22;
 
 struct PositionEntry {
     winner: Option<Color>,
@@ -44,26 +40,25 @@ impl PositionEntry {
     }
 }
 
-unsafe fn get_parameter(idx: usize) -> *mut ValueScore {
-    match idx {
-        0 => addr_of_mut!(evaluation::PAWN_VALUE),
-        1 => addr_of_mut!(evaluation::KNIGHT_VALUE),
-        2 => addr_of_mut!(evaluation::BISHOP_VALUE),
-        3 => addr_of_mut!(evaluation::ROOK_VALUE),
-        4 => addr_of_mut!(evaluation::QUEEN_VALUE),
-        5 => addr_of_mut!(evaluation::position::PAWN_MIDGAME_RATIO),
-        6 => addr_of_mut!(evaluation::position::KNIGHT_MIDGAME_RATIO),
-        7 => addr_of_mut!(evaluation::position::BISHOP_MIDGAME_RATIO),
-        8 => addr_of_mut!(evaluation::position::ROOK_MIDGAME_RATIO),
-        9 => addr_of_mut!(evaluation::position::QUEEN_MIDGAME_RATIO),
-        10 => addr_of_mut!(BISHOP_PAIR_BONUS),
-        11 => addr_of_mut!(SHELTER_PENALTY),
-        12 => addr_of_mut!(DOUBLED_PAWNS_PENALTY),
-        13 => addr_of_mut!(PAWN_ISLAND_PENALTY),
-        14 => addr_of_mut!(SEMI_OPEN_FILE_BONUS),
-        15 => addr_of_mut!(OPEN_FILE_BONUS),
-        _ => panic!("Invalid parameter index"),
-    }
+#[allow(static_mut_refs)]
+unsafe fn get_parameters(buf: &mut [ValueScore]) {
+    buf[0] = evaluation::PAWN_VALUE;
+    buf[1] = evaluation::KNIGHT_VALUE;
+    buf[2] = evaluation::BISHOP_VALUE;
+    buf[3] = evaluation::ROOK_VALUE;
+    buf[4] = evaluation::QUEEN_VALUE;
+    buf[5] = evaluation::position::PAWN_MIDGAME_RATIO;
+    buf[6] = evaluation::position::KNIGHT_MIDGAME_RATIO;
+    buf[7] = evaluation::position::BISHOP_MIDGAME_RATIO;
+    buf[8] = evaluation::position::ROOK_MIDGAME_RATIO;
+    buf[9] = evaluation::position::QUEEN_MIDGAME_RATIO;
+    buf[10] = BISHOP_PAIR_BONUS;
+    buf[11] = SHELTER_PENALTY;
+    buf[12] = DOUBLED_PAWNS_PENALTY;
+    buf[13] = PAWN_ISLAND_PENALTY;
+    buf[14..20].copy_from_slice(&PASSED_PAWN_BONUS[1..7]);
+    buf[20] = SEMI_OPEN_FILE_BONUS;
+    buf[21] = OPEN_FILE_BONUS;
 }
 
 unsafe fn set_parameters(parameters: &[ValueScore]) {
@@ -81,8 +76,14 @@ unsafe fn set_parameters(parameters: &[ValueScore]) {
     SHELTER_PENALTY = parameters[11];
     DOUBLED_PAWNS_PENALTY = parameters[12];
     PAWN_ISLAND_PENALTY = parameters[13];
-    SEMI_OPEN_FILE_BONUS = parameters[14];
-    OPEN_FILE_BONUS = parameters[15];
+    PASSED_PAWN_BONUS[1] = parameters[14];
+    PASSED_PAWN_BONUS[2] = parameters[15];
+    PASSED_PAWN_BONUS[3] = parameters[16];
+    PASSED_PAWN_BONUS[4] = parameters[17];
+    PASSED_PAWN_BONUS[5] = parameters[18];
+    PASSED_PAWN_BONUS[6] = parameters[19];
+    SEMI_OPEN_FILE_BONUS = parameters[20];
+    OPEN_FILE_BONUS = parameters[21];
 }
 
 fn evaluation_error(entries: &[PositionEntry], k: f64) -> f64 {
@@ -98,10 +99,7 @@ fn evaluation_error(entries: &[PositionEntry], k: f64) -> f64 {
                 &SearchConstraint::default(),
                 0,
             )
-            .0 * match entry.position.side_to_move {
-                Color::White => 1,
-                Color::Black => -1,
-            };
+            .0 * entry.position.side_to_move.sign();
             (score - sigmoid(evaluation as f64)).powi(2)
         })
         .sum::<f64>();
@@ -114,7 +112,6 @@ pub fn texel_tune() -> Vec<ValueScore> {
             include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/books/quiet-labeled.epd"));
         epd_file
             .lines()
-            .take(NUMBER_POSITIONS)
             .collect::<Vec<&str>>()
             .par_iter()
             .map(|line| {
@@ -149,9 +146,8 @@ pub fn texel_tune() -> Vec<ValueScore> {
 
     let mut improved = true;
     let mut best_error = evaluation_error(&entries, k);
-    let mut best_parameters = unsafe {
-        (0..NUMBER_PARAMETERS).map(|idx| *get_parameter(idx)).collect::<Vec<ValueScore>>()
-    };
+    let mut best_parameters = (0..NUMBER_PARAMETERS).map(|_| 0).collect::<Vec<ValueScore>>();
+    unsafe { get_parameters(&mut best_parameters) };
 
     unsafe {
         while improved {
@@ -183,14 +179,11 @@ pub fn texel_tune() -> Vec<ValueScore> {
                 set_parameters(&best_parameters);
             }
 
-            print!("current values: ");
-            for idx in 0..NUMBER_PARAMETERS {
-                print!("{} ", *get_parameter(idx));
-            }
+            print!("current values: {:?}", best_parameters);
             println!("; error {:.8}", best_error);
         }
     }
 
     println!("Best error: {:.4}", best_error);
-    unsafe { (0..NUMBER_PARAMETERS).map(|idx| *get_parameter(idx)).collect() }
+    best_parameters
 }

@@ -6,7 +6,7 @@ use crate::{
 
 pub static mut DOUBLED_PAWNS_PENALTY: ValueScore = -10;
 pub static mut PAWN_ISLAND_PENALTY: ValueScore = -10;
-pub static mut PASSED_PAWN_BONUS: [ValueScore; 8] = [0, 10, 15, 20, 25, 40, 50, 0];
+pub static mut PASSED_PAWN_BONUS: [ValueScore; 8] = [0, 8, 9, 14, 41, 98, 158, 0];
 
 fn doubled_pawns(bb: Bitboard) -> u8 {
     (0..8).fold(0, |acc, file| {

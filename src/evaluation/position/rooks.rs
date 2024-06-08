@@ -3,8 +3,8 @@ use crate::{
     position::{bitboard::Bitboard, board::Piece, Color, Position},
 };
 
-pub static mut SEMI_OPEN_FILE_BONUS: ValueScore = 17;
-pub static mut OPEN_FILE_BONUS: ValueScore = 19;
+pub static mut SEMI_OPEN_FILE_BONUS: ValueScore = 19;
+pub static mut OPEN_FILE_BONUS: ValueScore = 21;
 
 pub fn evaluate_rooks(position: &Position) -> ValueScore {
     let mut score = 0;

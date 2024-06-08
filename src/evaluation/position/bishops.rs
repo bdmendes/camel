@@ -3,7 +3,7 @@ use crate::{
     position::{board::Piece, Color, Position},
 };
 
-pub static mut BISHOP_PAIR_BONUS: ValueScore = 47;
+pub static mut BISHOP_PAIR_BONUS: ValueScore = 49;
 
 pub fn evaluate_bishops(position: &Position) -> ValueScore {
     let mut score = 0;

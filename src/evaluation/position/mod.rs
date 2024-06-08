@@ -18,8 +18,8 @@ pub const MAX_POSITIONAL_GAIN: ValueScore = 200;
 pub static mut PAWN_MIDGAME_RATIO: ValueScore = 1;
 pub static mut KNIGHT_MIDGAME_RATIO: ValueScore = 5;
 pub static mut BISHOP_MIDGAME_RATIO: ValueScore = 9;
-pub static mut ROOK_MIDGAME_RATIO: ValueScore = 18;
-pub static mut QUEEN_MIDGAME_RATIO: ValueScore = 36;
+pub static mut ROOK_MIDGAME_RATIO: ValueScore = 20;
+pub static mut QUEEN_MIDGAME_RATIO: ValueScore = 38;
 
 fn midgame_ratio(position: &Position) -> u8 {
     Piece::list().iter().fold(0, |acc, piece| {
