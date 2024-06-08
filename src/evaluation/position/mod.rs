@@ -8,18 +8,18 @@ use crate::{
     position::{board::Piece, Color, Position},
 };
 
-mod bishops;
-mod king;
-mod pawns;
-mod rooks;
+pub mod bishops;
+pub mod king;
+pub mod pawns;
+pub mod rooks;
 
 pub const MAX_POSITIONAL_GAIN: ValueScore = 200;
 
-pub static mut PAWN_MIDGAME_RATIO: ValueScore = 4;
-pub static mut KNIGHT_MIDGAME_RATIO: ValueScore = 10;
-pub static mut BISHOP_MIDGAME_RATIO: ValueScore = 10;
-pub static mut ROOK_MIDGAME_RATIO: ValueScore = 16;
-pub static mut QUEEN_MIDGAME_RATIO: ValueScore = 30;
+pub static mut PAWN_MIDGAME_RATIO: ValueScore = 1;
+pub static mut KNIGHT_MIDGAME_RATIO: ValueScore = 5;
+pub static mut BISHOP_MIDGAME_RATIO: ValueScore = 9;
+pub static mut ROOK_MIDGAME_RATIO: ValueScore = 18;
+pub static mut QUEEN_MIDGAME_RATIO: ValueScore = 36;
 
 fn midgame_ratio(position: &Position) -> u8 {
     Piece::list().iter().fold(0, |acc, piece| {

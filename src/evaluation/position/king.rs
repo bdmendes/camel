@@ -3,6 +3,8 @@ use crate::{
     position::{bitboard::Bitboard, board::Piece, square::Square, Color, Position},
 };
 
+pub static mut SHELTER_PENALTY: ValueScore = -20;
+
 fn king_pawn_shelter(position: &Position, king_color: Color, king_square: Square) -> ValueScore {
     let mut shelter = 0;
 
@@ -17,26 +19,26 @@ fn king_pawn_shelter(position: &Position, king_color: Color, king_square: Square
         _ => king_square.file() + 1,
     };
 
-    const SHELTER_PENALTY: ValueScore = -20;
-
     for file in file_min..=file_max {
         let our_pawns_on_file = our_pawns & Bitboard::file_mask(file);
         let most_advanced_pawn = match king_color {
             Color::White => our_pawns_on_file.into_iter().next(),
             Color::Black => our_pawns_on_file.into_iter().next_back(),
         };
-        if let Some(pawn_square) = most_advanced_pawn {
-            let rank_diff = (pawn_square.rank() as i8 - king_square.rank() as i8).abs();
-            let shelter_penalty = match rank_diff {
-                0 => 0,
-                1 => 0,
-                2 => SHELTER_PENALTY / 2,
-                3 => SHELTER_PENALTY,
-                _ => SHELTER_PENALTY * 2,
-            };
-            shelter += shelter_penalty;
-        } else {
-            shelter += SHELTER_PENALTY;
+        unsafe {
+            if let Some(pawn_square) = most_advanced_pawn {
+                let rank_diff = (pawn_square.rank() as i8 - king_square.rank() as i8).abs();
+                let shelter_penalty = match rank_diff {
+                    0 => 0,
+                    1 => 0,
+                    2 => SHELTER_PENALTY / 2,
+                    3 => SHELTER_PENALTY,
+                    _ => SHELTER_PENALTY * 2,
+                };
+                shelter += shelter_penalty;
+            } else {
+                shelter += SHELTER_PENALTY;
+            }
         }
     }
 

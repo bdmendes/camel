@@ -4,6 +4,10 @@ use crate::{
     position::{bitboard::Bitboard, board::Piece, Color, Position},
 };
 
+pub static mut DOUBLED_PAWNS_PENALTY: ValueScore = -10;
+pub static mut PAWN_ISLAND_PENALTY: ValueScore = -10;
+pub static mut PASSED_PAWN_BONUS: [ValueScore; 8] = [0, 10, 15, 20, 25, 40, 50, 0];
+
 fn doubled_pawns(bb: Bitboard) -> u8 {
     (0..8).fold(0, |acc, file| {
         let file_bb = bb & Bitboard::file_mask(file);
@@ -78,21 +82,22 @@ pub fn evaluate_pawn_structure(position: &Position) -> ValueScore {
     let white_pawns = position.board.pieces_bb_color(Piece::Pawn, Color::White);
     let black_pawns = position.board.pieces_bb_color(Piece::Pawn, Color::Black);
 
-    const DOUBLED_PAWNS_PENALTY: ValueScore = -10;
-    score += doubled_pawns(white_pawns) as ValueScore * DOUBLED_PAWNS_PENALTY;
-    score -= doubled_pawns(black_pawns) as ValueScore * DOUBLED_PAWNS_PENALTY;
+    unsafe {
+        score += doubled_pawns(white_pawns) as ValueScore * DOUBLED_PAWNS_PENALTY;
+        score -= doubled_pawns(black_pawns) as ValueScore * DOUBLED_PAWNS_PENALTY;
 
-    const PAWN_ISLAND_PENALTY: ValueScore = -10;
-    score += pawn_islands(white_pawns) as ValueScore * PAWN_ISLAND_PENALTY;
-    score -= pawn_islands(black_pawns) as ValueScore * PAWN_ISLAND_PENALTY;
+        score += pawn_islands(white_pawns) as ValueScore * PAWN_ISLAND_PENALTY;
+        score -= pawn_islands(black_pawns) as ValueScore * PAWN_ISLAND_PENALTY;
 
-    const PASSED_PAWN_BONUS: [ValueScore; 8] = [0, 10, 15, 20, 25, 40, 50, 0];
-    score += passed_pawns(MoveDirection::pawn_direction(Color::White), white_pawns, black_pawns)
-        .iter()
-        .fold(0, |acc, rank| acc + PASSED_PAWN_BONUS[*rank as usize]);
-    score -= passed_pawns(MoveDirection::pawn_direction(Color::Black), black_pawns, white_pawns)
-        .iter()
-        .fold(0, |acc, rank| acc + PASSED_PAWN_BONUS[*rank as usize]);
+        score +=
+            passed_pawns(MoveDirection::pawn_direction(Color::White), white_pawns, black_pawns)
+                .iter()
+                .fold(0, |acc, rank| acc + PASSED_PAWN_BONUS[*rank as usize]);
+        score -=
+            passed_pawns(MoveDirection::pawn_direction(Color::Black), black_pawns, white_pawns)
+                .iter()
+                .fold(0, |acc, rank| acc + PASSED_PAWN_BONUS[*rank as usize]);
+    }
 
     score
 }
