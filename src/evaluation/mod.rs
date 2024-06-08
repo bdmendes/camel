@@ -12,6 +12,12 @@ pub type ValueScore = i16;
 const MATE_SCORE_THRESHOLD: ValueScore = 200;
 pub const MATE_SCORE: ValueScore = ValueScore::MIN + 200;
 
+pub static mut PAWN_VALUE: ValueScore = 91;
+pub static mut KNIGHT_VALUE: ValueScore = 334;
+pub static mut BISHOP_VALUE: ValueScore = 343;
+pub static mut ROOK_VALUE: ValueScore = 529;
+pub static mut QUEEN_VALUE: ValueScore = 1087;
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Score {
     Mate(Color, u8),
@@ -31,13 +37,15 @@ pub trait Evaluable {
 
 impl Evaluable for Piece {
     fn value(&self) -> ValueScore {
-        match self {
-            Piece::Pawn => 100,
-            Piece::Knight => 310,
-            Piece::Bishop => 330,
-            Piece::Rook => 480,
-            Piece::Queen => 900,
-            Piece::King => 6000,
+        unsafe {
+            match self {
+                Piece::Pawn => PAWN_VALUE,
+                Piece::Knight => KNIGHT_VALUE,
+                Piece::Bishop => BISHOP_VALUE,
+                Piece::Rook => ROOK_VALUE,
+                Piece::Queen => QUEEN_VALUE,
+                Piece::King => 6000,
+            }
         }
     }
 }

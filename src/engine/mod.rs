@@ -60,6 +60,7 @@ pub enum Command {
     Help,
     Clear,
     Quit,
+    Tune,
 }
 
 pub struct Engine {

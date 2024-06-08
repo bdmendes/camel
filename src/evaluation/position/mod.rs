@@ -15,18 +15,26 @@ mod rooks;
 
 pub const MAX_POSITIONAL_GAIN: ValueScore = 200;
 
+pub static mut PAWN_MIDGAME_RATIO: ValueScore = 4;
+pub static mut KNIGHT_MIDGAME_RATIO: ValueScore = 10;
+pub static mut BISHOP_MIDGAME_RATIO: ValueScore = 10;
+pub static mut ROOK_MIDGAME_RATIO: ValueScore = 16;
+pub static mut QUEEN_MIDGAME_RATIO: ValueScore = 30;
+
 fn midgame_ratio(position: &Position) -> u8 {
     Piece::list().iter().fold(0, |acc, piece| {
         acc.saturating_add(
             position.board.pieces_bb(*piece).count_ones() as u8
-                * match *piece {
-                    Piece::Pawn => 4,
-                    Piece::Knight => 10,
-                    Piece::Bishop => 10,
-                    Piece::Rook => 16,
-                    Piece::Queen => 30,
-                    Piece::King => 0,
-                },
+                * unsafe {
+                    match *piece {
+                        Piece::Pawn => PAWN_MIDGAME_RATIO,
+                        Piece::Knight => KNIGHT_MIDGAME_RATIO,
+                        Piece::Bishop => BISHOP_MIDGAME_RATIO,
+                        Piece::Rook => ROOK_MIDGAME_RATIO,
+                        Piece::Queen => QUEEN_MIDGAME_RATIO,
+                        Piece::King => 0,
+                    }
+                } as u8,
         )
     })
 }
