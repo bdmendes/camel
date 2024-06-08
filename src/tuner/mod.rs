@@ -9,7 +9,7 @@ use crate::{
         self,
         position::{
             bishops::BISHOP_PAIR_BONUS,
-            king::SHELTER_PENALTY,
+            king::{ATTACKS_WEIGHT, SHELTER_PENALTY},
             pawns::{DOUBLED_PAWNS_PENALTY, PASSED_PAWN_BONUS, PAWN_ISLAND_PENALTY},
             rooks::{OPEN_FILE_BONUS, SEMI_OPEN_FILE_BONUS},
         },
@@ -19,7 +19,7 @@ use crate::{
     search::{constraint::SearchConstraint, quiesce::quiesce},
 };
 
-const NUMBER_PARAMETERS: usize = 22;
+const NUMBER_PARAMETERS: usize = 30;
 
 struct PositionEntry {
     winner: Option<Color>,
@@ -59,6 +59,7 @@ unsafe fn get_parameters(buf: &mut [ValueScore]) {
     buf[14..20].copy_from_slice(&PASSED_PAWN_BONUS[1..7]);
     buf[20] = SEMI_OPEN_FILE_BONUS;
     buf[21] = OPEN_FILE_BONUS;
+    buf[22..30].copy_from_slice(&ATTACKS_WEIGHT[1..9]);
 }
 
 unsafe fn set_parameters(parameters: &[ValueScore]) {
@@ -84,6 +85,14 @@ unsafe fn set_parameters(parameters: &[ValueScore]) {
     PASSED_PAWN_BONUS[6] = parameters[19];
     SEMI_OPEN_FILE_BONUS = parameters[20];
     OPEN_FILE_BONUS = parameters[21];
+    ATTACKS_WEIGHT[1] = parameters[22];
+    ATTACKS_WEIGHT[2] = parameters[23];
+    ATTACKS_WEIGHT[3] = parameters[24];
+    ATTACKS_WEIGHT[4] = parameters[25];
+    ATTACKS_WEIGHT[5] = parameters[26];
+    ATTACKS_WEIGHT[6] = parameters[27];
+    ATTACKS_WEIGHT[7] = parameters[28];
+    ATTACKS_WEIGHT[8] = parameters[29];
 }
 
 fn evaluation_error(entries: &[PositionEntry], k: f64) -> f64 {

@@ -99,6 +99,19 @@ pub fn square_attackers<const EARLY_RETURN: bool>(
     bb
 }
 
+pub fn square_attackers_xray(board: &Board, square: Square, color: Color) -> Bitboard {
+    let mut attackers = Bitboard::new(0);
+    let mut board = *board;
+    loop {
+        let new_attackers = square_attackers::<true>(&board, square, color);
+        if new_attackers.is_empty() {
+            return attackers;
+        }
+        attackers |= new_attackers;
+        new_attackers.for_each(|sq| board.clear_square(sq));
+    }
+}
+
 pub fn piece_attacks(piece: Piece, square: Square, occupancy: Bitboard, color: Color) -> Bitboard {
     match piece {
         Piece::Knight => KNIGHT_ATTACKS[square as usize],

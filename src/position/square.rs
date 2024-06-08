@@ -1,7 +1,19 @@
-use super::Color;
+use crate::moves::gen::MoveDirection;
+
+use super::{bitboard::Bitboard, Color};
 use primitive_enum::primitive_enum;
 
 pub const WHITE_SQUARES: u64 = 0x55_AA_55_AA_55_AA_55_AA;
+static ALL_DIRECTIONS: &[i8; 8] = &[
+    MoveDirection::NORTH,
+    MoveDirection::NORTH + MoveDirection::EAST,
+    MoveDirection::EAST,
+    MoveDirection::SOUTH + MoveDirection::EAST,
+    MoveDirection::SOUTH,
+    MoveDirection::SOUTH + MoveDirection::WEST,
+    MoveDirection::WEST,
+    MoveDirection::NORTH + MoveDirection::WEST,
+];
 
 #[rustfmt::skip]
 primitive_enum!(
@@ -53,6 +65,16 @@ impl Square {
         let file_diff = (self.file() as i8 - other.file() as i8).unsigned_abs();
         let rank_diff = (self.rank() as i8 - other.rank() as i8).unsigned_abs();
         file_diff == rank_diff
+    }
+
+    pub fn squares_around(self) -> Bitboard {
+        let mut squares = Bitboard::new(0);
+        for &direction in ALL_DIRECTIONS {
+            if let Some(square) = self.shift(direction) {
+                squares.set(square);
+            }
+        }
+        squares
     }
 }
 
@@ -200,5 +222,29 @@ mod tests {
         assert!(!Square::A1.same_diagonal(Square::A8));
         assert!(Square::A1.same_diagonal(Square::B2));
         assert!(Square::B2.same_diagonal(Square::A1));
+    }
+
+    #[test]
+    fn squares_around() {
+        let expected_around_e4 = &[
+            Square::D3,
+            Square::E3,
+            Square::F3,
+            Square::D4,
+            Square::F4,
+            Square::D5,
+            Square::E5,
+            Square::F5,
+        ];
+        assert!(Square::E4.squares_around().count_ones() == expected_around_e4.len() as u32);
+        for &square in expected_around_e4 {
+            assert!(Square::E4.squares_around().is_set(square));
+        }
+
+        let expected_around_g1 = &[Square::F1, Square::H2, Square::H1, Square::F2, Square::G2];
+        assert!(Square::G1.squares_around().count_ones() == expected_around_g1.len() as u32);
+        for &square in expected_around_g1 {
+            assert!(Square::G1.squares_around().is_set(square));
+        }
     }
 }
