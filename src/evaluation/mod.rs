@@ -13,10 +13,10 @@ const MATE_SCORE_THRESHOLD: ValueScore = 200;
 pub const MATE_SCORE: ValueScore = ValueScore::MIN + 200;
 
 pub static mut PAWN_VALUE: ValueScore = 94;
-pub static mut KNIGHT_VALUE: ValueScore = 343;
-pub static mut BISHOP_VALUE: ValueScore = 343;
-pub static mut ROOK_VALUE: ValueScore = 541;
-pub static mut QUEEN_VALUE: ValueScore = 1110;
+pub static mut KNIGHT_VALUE: ValueScore = 347;
+pub static mut BISHOP_VALUE: ValueScore = 348;
+pub static mut ROOK_VALUE: ValueScore = 553;
+pub static mut QUEEN_VALUE: ValueScore = 1136;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Score {
