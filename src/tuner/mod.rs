@@ -2,6 +2,8 @@
 // The next Camel major version will switch to NNUE, which won't require
 // Texel tuning anymore, so this is a temporary solution.
 
+use std::fs::read_to_string;
+
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
@@ -109,7 +111,8 @@ fn evaluation_error(entries: &[PositionEntry], k: f64) -> f64 {
 pub fn texel_tune() -> Vec<ValueScore> {
     let entries: Vec<PositionEntry> = {
         let epd_file =
-            include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/books/quiet-labeled.epd"));
+            read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/books/quiet-labeled.epd"))
+                .expect("Could not read file");
         epd_file
             .lines()
             .collect::<Vec<&str>>()
