@@ -5,3 +5,12 @@ version = 3
 [[package]]
 name = "camel"
 version = "2.0.0-alpha"
+dependencies = [
+ "primitive_enum",
+]
+
+[[package]]
+name = "primitive_enum"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b596942df75c18adb3697b3b5e949b850bbed6a4015c58375b0b082e5a0fc5f"

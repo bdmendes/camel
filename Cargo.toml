@@ -4,3 +4,4 @@ version = "2.0.0-alpha"
 edition = "2021"
 
 [dependencies]
+primitive_enum = "1.2.0"

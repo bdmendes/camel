@@ -1,4 +1,4 @@
-use super::Color;
+use super::color::Color;
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct CastlingRights(u8);
@@ -59,7 +59,7 @@ impl CastlingRights {
 #[cfg(test)]
 mod tests {
     use super::CastlingRights;
-    use crate::position::{castling_rights::CastlingSide, Color};
+    use crate::position::{castling_rights::CastlingSide, color::Color};
 
     #[test]
     fn has() {
