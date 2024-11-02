@@ -1,37 +1,6 @@
 [package]
 name = "camel"
-version = "1.6.0"
+version = "2.0.0-alpha"
 edition = "2021"
 
 [dependencies]
-bitflags = "2.5.0"
-primitive_enum = "1.2.0"
-derive_more = "0.99.17"
-rand = "0.8.5"
-ctor = "0.2.8"
-rayon = "1.10.0"
-
-[profile.dev]
-opt-level = 1
-
-[profile.release]
-opt-level = 3
-lto = "fat"
-codegen-units = 1
-panic = "abort"
-strip = "debuginfo"
-
-[dev-dependencies]
-criterion = { version = "0.5.1", features = ["html_reports"] }
-
-[[bench]]
-name = "movegen"
-harness = false
-
-[[bench]]
-name = "eval"
-harness = false
-
-[[bench]]
-name = "see"
-harness = false

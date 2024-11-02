@@ -1,7 +1,5 @@
-use engine::uci_loop;
-
-mod engine;
+mod position;
 
 fn main() {
-    uci_loop();
+    println!("Hello, world!");
 }
