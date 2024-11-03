@@ -1,3 +1,5 @@
+use std::fmt::{Display, Write};
+
 use primitive_enum::primitive_enum;
 
 primitive_enum! { Color u8;
@@ -18,6 +20,15 @@ impl Color {
             Color::White => &1,
             Color::Black => &-1,
         }
+    }
+}
+
+impl Display for Color {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_char(match self {
+            Color::White => 'w',
+            Color::Black => 'b',
+        })
     }
 }
 

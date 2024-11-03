@@ -5,8 +5,8 @@ use super::{
     bitboard::Bitboard,
     castling_rights::{CastlingRights, CastlingSide},
     color::Color,
+    piece::Piece,
     square::Square,
-    Piece,
 };
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
@@ -96,7 +96,9 @@ impl ZobristHash {
 
 #[cfg(test)]
 mod tests {
-    use crate::position::{castling_rights::CastlingSide, color::Color, square::Square, Piece};
+    use crate::position::{
+        castling_rights::CastlingSide, color::Color, piece::Piece, square::Square,
+    };
 
     use super::ZobristHash;
 

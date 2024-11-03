@@ -2,24 +2,18 @@ use bitboard::Bitboard;
 use castling_rights::CastlingRights;
 use color::Color;
 use hash::ZobristHash;
-use primitive_enum::primitive_enum;
+use piece::Piece;
 use square::Square;
 
 mod bitboard;
 mod castling_rights;
 mod color;
+mod fen;
 mod hash;
+mod piece;
 mod square;
 
-primitive_enum! { Piece u8;
-    Pawn,
-    Knight,
-    Bishop,
-    Rook,
-    Queen,
-    King,
-}
-
+#[derive(Debug, Clone)]
 pub struct Position {
     hash: ZobristHash,
     mailbox: [Option<Piece>; 64],
@@ -56,7 +50,23 @@ impl Default for Position {
     }
 }
 
+impl PartialEq for Position {
+    fn eq(&self, other: &Self) -> bool {
+        self.hash == other.hash
+    }
+}
+
+impl Eq for Position {}
+
 impl Position {
+    pub fn occupancy(&self, color: Color) -> Bitboard {
+        self.occupancy[color as usize]
+    }
+
+    pub fn pieces(&self, piece: Piece) -> Bitboard {
+        self.pieces[piece as usize]
+    }
+
     pub fn color_at(&self, square: Square) -> Option<Color> {
         if self.occupancy[0].is_set(square) {
             Some(Color::White)
@@ -116,7 +126,7 @@ impl Position {
         self.hash.xor_color();
     }
 
-    pub fn ep_square(&mut self) -> Option<Square> {
+    pub fn ep_square(&self) -> Option<Square> {
         self.ep_square
     }
 
@@ -311,6 +321,9 @@ mod tests {
         assert_eq!(position.hash(), position.hash_from_scratch());
 
         position.clear_square(Square::E4);
+        assert_eq!(position.hash(), position.hash_from_scratch());
+
+        position.flip_side_to_move();
         assert_eq!(position.hash(), position.hash_from_scratch());
 
         position.set_castling_rights(position.castling_rights.removed_color(Color::White));

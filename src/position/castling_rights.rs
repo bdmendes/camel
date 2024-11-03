@@ -1,4 +1,7 @@
-use std::path::Iter;
+use std::{
+    fmt::{Display, Write},
+    path::Iter,
+};
 
 use super::color::Color;
 use primitive_enum::primitive_enum;
@@ -67,6 +70,10 @@ impl CastlingRights {
     pub fn xor(&self, other: CastlingRights) -> Self {
         Self(self.0 ^ other.0)
     }
+
+    pub fn reversed(&self) -> Self {
+        Self((!self.0) & 0b1111)
+    }
 }
 
 impl Iterator for CastlingRights {
@@ -85,6 +92,24 @@ impl Iterator for CastlingRights {
             2 => (Color::Black, CastlingSide::Kingside),
             _ => (Color::Black, CastlingSide::Queenside),
         })
+    }
+}
+
+impl Display for CastlingRights {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.0 == 0 {
+            return f.write_char('-');
+        }
+
+        for (color, side) in self.into_iter() {
+            f.write_char(match (color, side) {
+                (Color::White, CastlingSide::Kingside) => 'K',
+                (Color::White, CastlingSide::Queenside) => 'Q',
+                (Color::Black, CastlingSide::Kingside) => 'k',
+                (Color::Black, CastlingSide::Queenside) => 'q',
+            })?;
+        }
+        Ok(())
     }
 }
 
@@ -142,6 +167,13 @@ mod tests {
         let castling_rights2 = CastlingRights::new(true, true, false, false);
         let castling_rights3 = CastlingRights::new(false, true, false, true);
         assert_eq!(castling_rights1.xor(castling_rights2), castling_rights3);
+    }
+
+    #[test]
+    fn reversed() {
+        let castling_rights1 = CastlingRights::new(true, false, false, true);
+        let castling_rights2 = CastlingRights::new(false, true, true, false);
+        assert_eq!(castling_rights1.reversed(), castling_rights2);
     }
 
     #[test]
