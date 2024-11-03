@@ -1,6 +1,8 @@
+use derive_more::derive::{BitAnd, BitOr};
+
 use super::Square;
 
-#[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Default, Copy, Clone, Debug, PartialEq, Eq, BitOr, BitAnd)]
 pub struct Bitboard(u64);
 
 impl Bitboard {
@@ -27,7 +29,7 @@ impl Iterator for Bitboard {
 
         let lsb = self.0.trailing_zeros();
         self.0 &= self.0 - 1;
-        Square::from(lsb as u64)
+        Square::from(lsb as u8)
     }
 }
 

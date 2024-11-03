@@ -1,7 +1,4 @@
-use std::{
-    fmt::{Display, Write},
-    path::Iter,
-};
+use std::fmt::{Display, Write};
 
 use super::color::Color;
 use primitive_enum::primitive_enum;

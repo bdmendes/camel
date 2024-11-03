@@ -3,8 +3,8 @@ use std::fmt::{Display, Write};
 use primitive_enum::primitive_enum;
 
 primitive_enum! { Color u8;
-    White = 0,
-    Black = 1
+    White,
+    Black
 }
 
 impl Color {
@@ -40,11 +40,5 @@ mod tests {
     fn flipped() {
         assert_eq!(Color::White.flipped(), Color::Black);
         assert_eq!(Color::Black.flipped(), Color::White);
-    }
-
-    #[test]
-    fn raw() {
-        assert_eq!(Color::White as u8, 0);
-        assert_eq!(Color::Black as u8, 1);
     }
 }

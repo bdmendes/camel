@@ -1,15 +1,12 @@
 use primitive_enum::primitive_enum;
-use std::{
-    fmt::{Display, Write},
-    str::FromStr,
-};
+use std::{fmt::Display, str::FromStr};
 
 use super::Color;
 
 const WHITE_SQUARES: u64 = 0x55_AA_55_AA_55_AA_55_AA;
 
 #[rustfmt::skip]
-primitive_enum! { Square u64;
+primitive_enum! { Square u8;
     A1=0, B1=1, C1, D1, E1, F1, G1, H1,
     A2=8, B2, C2, D2, E2, F2, G2, H2,
     A3, B3, C3, D3, E3, F3, G3, H3,
@@ -21,6 +18,14 @@ primitive_enum! { Square u64;
 }
 
 impl Square {
+    pub fn from_file_rank(file: u8, rank: u8) -> Option<Self> {
+        if file >= 8 || rank >= 8 {
+            None
+        } else {
+            Square::from(rank * 8 + file)
+        }
+    }
+
     pub fn color(self) -> Color {
         if ((1 << self as u64) & WHITE_SQUARES) != 0 {
             Color::White
@@ -45,7 +50,7 @@ impl FromStr for Square {
         let mut chars = s.chars();
 
         let file = chars.next().ok_or(())?;
-        let file: u64 = match file {
+        let file: u8 = match file {
             'a' => 0,
             'b' => 1,
             'c' => 2,
@@ -58,7 +63,7 @@ impl FromStr for Square {
         };
 
         let rank = chars.next().ok_or(())?;
-        let rank: u64 = rank.to_digit(10).ok_or(())?.into();
+        let rank: u8 = rank.to_digit(10).ok_or(())? as u8;
         if !((1..=8).contains(&rank)) {
             return Err(());
         }
@@ -136,6 +141,15 @@ mod tests {
         assert!(Square::from_str("a").is_err());
         assert!(Square::from_str("a9").is_err());
         assert!(Square::from_str("i1").is_err());
+    }
+
+    #[test]
+    fn from_file_rank() {
+        assert_eq!(Square::from_file_rank(4, 3), Some(Square::E4));
+        assert_eq!(Square::from_file_rank(6, 3), Some(Square::G4));
+        assert_eq!(Square::from_file_rank(3, 4), Some(Square::D5));
+        assert_eq!(Square::from_file_rank(8, 0), None);
+        assert_eq!(Square::from_file_rank(0, 8), None);
     }
 
     #[test]

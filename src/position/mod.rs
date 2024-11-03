@@ -1,22 +1,27 @@
+use std::{
+    fmt::{Display, Write},
+    str::FromStr,
+};
+
 use bitboard::Bitboard;
 use castling_rights::CastlingRights;
 use color::Color;
+use fen::Fen;
 use hash::ZobristHash;
 use piece::Piece;
 use square::Square;
 
-mod bitboard;
-mod castling_rights;
-mod color;
-mod fen;
-mod hash;
-mod piece;
-mod square;
+pub mod bitboard;
+pub mod castling_rights;
+pub mod color;
+pub mod fen;
+pub mod hash;
+pub mod piece;
+pub mod square;
 
 #[derive(Debug, Clone)]
 pub struct Position {
     hash: ZobristHash,
-    mailbox: [Option<Piece>; 64],
     pieces: [Bitboard; 6],
     occupancy: [Bitboard; 2],
     side_to_move: Color,
@@ -24,20 +29,18 @@ pub struct Position {
     castling_rights: CastlingRights,
     halfmove_clock: u8,
     fullmove_number: u16,
-    chess960: bool,
 }
 
 impl Default for Position {
     fn default() -> Self {
         Self {
             hash: ZobristHash::new(
-                [None; 64],
+                [Bitboard::default(); 6],
                 [Bitboard::default(); 2],
                 Color::White,
                 CastlingRights::default(),
                 None,
             ),
-            mailbox: [None; 64],
             pieces: [Bitboard::default(); 6],
             occupancy: [Bitboard::default(); 2],
             side_to_move: Color::White,
@@ -45,7 +48,6 @@ impl Default for Position {
             castling_rights: CastlingRights::default(),
             halfmove_clock: 0,
             fullmove_number: 1,
-            chess960: false,
         }
     }
 }
@@ -58,6 +60,45 @@ impl PartialEq for Position {
 
 impl Eq for Position {}
 
+impl FromStr for Position {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Position::try_from(Fen::from_str(s).unwrap())
+    }
+}
+
+impl Display for Position {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for rank in (0..=7).rev() {
+            for file in 0..=7 {
+                let square = Square::from_file_rank(file, rank).unwrap();
+                if let Some((piece, color)) = self.piece_color_at(square) {
+                    f.write_char(match (piece, color) {
+                        (Piece::Pawn, Color::Black) => '♙',
+                        (Piece::Pawn, Color::White) => '♟',
+                        (Piece::Knight, Color::Black) => '♘',
+                        (Piece::Knight, Color::White) => '♞',
+                        (Piece::Bishop, Color::Black) => '♗',
+                        (Piece::Bishop, Color::White) => '♝',
+                        (Piece::Rook, Color::Black) => '♖',
+                        (Piece::Rook, Color::White) => '♜',
+                        (Piece::Queen, Color::Black) => '♕',
+                        (Piece::Queen, Color::White) => '♛',
+                        (Piece::King, Color::Black) => '♔',
+                        (Piece::King, Color::White) => '♚',
+                    })?;
+                } else {
+                    f.write_char('_')?;
+                }
+                f.write_char(' ')?;
+            }
+            f.write_char('\n')?;
+        }
+        f.write_str(&format!("{}\n", Fen::from(self)))
+    }
+}
+
 impl Position {
     pub fn occupancy(&self, color: Color) -> Bitboard {
         self.occupancy[color as usize]
@@ -67,28 +108,31 @@ impl Position {
         self.pieces[piece as usize]
     }
 
+    pub fn pieces_of(&self, piece: Piece, color: Color) -> Bitboard {
+        self.pieces[piece as usize] & self.occupancy[color as usize]
+    }
+
     pub fn color_at(&self, square: Square) -> Option<Color> {
-        if self.occupancy[0].is_set(square) {
-            Some(Color::White)
-        } else if self.occupancy[1].is_set(square) {
-            Some(Color::Black)
-        } else {
-            None
-        }
+        self.occupancy
+            .iter()
+            .position(|bb| bb.is_set(square))
+            .map(|idx| Color::from(idx as u8).unwrap())
     }
 
     pub fn piece_at(&self, square: Square) -> Option<Piece> {
-        self.mailbox[square as usize]
+        self.pieces
+            .iter()
+            .position(|bb| bb.is_set(square))
+            .map(|idx| Piece::from(idx as u8).unwrap())
     }
 
     pub fn piece_color_at(&self, square: Square) -> Option<(Piece, Color)> {
-        self.piece_at(square)
-            .map(|p| (p, self.color_at(square).unwrap()))
+        self.color_at(square)
+            .map(|c| (self.piece_at(square).unwrap(), c))
     }
 
     pub fn clear_square(&mut self, square: Square) {
         if let Some((piece, color)) = self.piece_color_at(square) {
-            self.mailbox[square as usize] = None;
             self.pieces[piece as usize].clear(square);
             self.occupancy[color as usize].clear(square);
             self.hash.xor_piece(piece, square, color);
@@ -97,7 +141,6 @@ impl Position {
 
     pub fn set_square(&mut self, square: Square, piece: Piece, color: Color) {
         self.clear_square(square);
-        self.mailbox[square as usize] = Some(piece);
         self.pieces[piece as usize].set(square);
         self.occupancy[color as usize].set(square);
         self.hash.xor_piece(piece, square, color);
@@ -109,7 +152,7 @@ impl Position {
 
     pub fn hash_from_scratch(&self) -> ZobristHash {
         ZobristHash::new(
-            self.mailbox,
+            self.pieces,
             self.occupancy,
             self.side_to_move,
             self.castling_rights,
@@ -168,10 +211,6 @@ impl Position {
 
     pub fn set_fullmove_number(&mut self, fullmove_number: u16) {
         self.fullmove_number = fullmove_number;
-    }
-
-    pub fn enable_chess960(&mut self) {
-        self.chess960 = true;
     }
 }
 

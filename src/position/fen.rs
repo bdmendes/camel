@@ -1,3 +1,4 @@
+use derive_more::derive::FromStr;
 use std::{fmt::Display, str::FromStr};
 
 use super::{
@@ -12,14 +13,8 @@ pub const START_POSITION: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w 
 pub const KIWIPETE_POSITION: &str =
     "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, FromStr)]
 pub struct Fen(String);
-
-impl Fen {
-    pub fn new(str: &str) -> Self {
-        Self(str.to_string())
-    }
-}
 
 impl Display for Fen {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -27,14 +22,14 @@ impl Display for Fen {
     }
 }
 
-impl From<Position> for Fen {
-    fn from(position: Position) -> Self {
+impl From<&Position> for Fen {
+    fn from(position: &Position) -> Self {
         let mut str = String::new();
         let mut empty_spaces = 0;
 
         for rank in (0..=7).rev() {
             for file in 0..=7 {
-                let square = Square::from(rank * 8 + file).unwrap();
+                let square = Square::from_file_rank(file, rank).unwrap();
                 if let Some((piece, color)) = position.piece_color_at(square) {
                     if empty_spaces > 0 {
                         str.push_str(&empty_spaces.to_string());
@@ -85,14 +80,14 @@ impl TryFrom<Fen> for Position {
     fn try_from(fen: Fen) -> Result<Self, ()> {
         let mut position = Position::default();
         let mut words = fen.0.split_whitespace();
-        let mut rank: u64 = 7;
-        let mut file: u64 = 0;
+        let mut rank: u8 = 7;
+        let mut file: u8 = 0;
 
         for c in words.next().ok_or(())?.chars() {
             match c {
                 ' ' => break,
                 '1'..='8' => {
-                    file += (c as u64) - (b'0') as u64;
+                    file += c as u8 - b'0';
                 }
                 '/' => {
                     if file != 8 {
@@ -111,7 +106,7 @@ impl TryFrom<Fen> for Position {
                     if rank > 7 || file > 7 {
                         return Err(());
                     }
-                    let square = Square::from(rank * 8 + file).unwrap();
+                    let square = Square::from_file_rank(file, rank).unwrap();
                     position.set_square(square, piece, color);
                     file += 1;
                 }
@@ -132,18 +127,43 @@ impl TryFrom<Fen> for Position {
             position.flip_side_to_move();
         }
 
+        let white_king = position.pieces_of(Piece::King, Color::White).next();
+        let black_king = position.pieces_of(Piece::King, Color::Black).next();
+
+        if white_king.is_none() || black_king.is_none() {
+            return Err(());
+        }
+
         let mut rights = CastlingRights::default();
         for c in words.next().ok_or(())?.chars() {
             match c {
-                ' ' => break,
+                ' ' | '-' => break,
                 'K' => rights = rights.removed_side(Color::White, CastlingSide::Kingside),
                 'Q' => rights = rights.removed_side(Color::White, CastlingSide::Queenside),
                 'k' => rights = rights.removed_side(Color::Black, CastlingSide::Kingside),
                 'q' => rights = rights.removed_side(Color::Black, CastlingSide::Queenside),
-                '-' => break,
-                _ => {
-                    todo!("chess 960 port.");
+                c if c.is_alphabetic() => {
+                    let color = if c.is_uppercase() {
+                        Color::White
+                    } else {
+                        Color::Black
+                    };
+                    let file = c.to_ascii_lowercase() as u8 - b'a';
+                    let king_file = match color {
+                        Color::White => white_king.unwrap().file(),
+                        Color::Black => black_king.unwrap().file(),
+                    };
+                    println!("{file} {king_file} {}", white_king.unwrap());
+                    rights = rights.removed_side(
+                        color,
+                        if king_file > file {
+                            CastlingSide::Queenside
+                        } else {
+                            CastlingSide::Kingside
+                        },
+                    )
                 }
+                _ => return Err(()),
             }
         }
         position.set_castling_rights(rights.reversed());
@@ -169,7 +189,12 @@ impl TryFrom<Fen> for Position {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
+    use rstest::rstest;
+
     use crate::position::{
+        castling_rights::CastlingRights,
         color::Color,
         fen::{Fen, START_POSITION},
         piece::Piece,
@@ -213,40 +238,53 @@ mod tests {
         position.set_square(Square::G7, Piece::Pawn, Color::Black);
         position.set_square(Square::H7, Piece::Pawn, Color::Black);
 
-        assert_eq!(Fen::from(position.clone()), Fen::new(START_POSITION));
+        assert_eq!(Fen::from(&position), Fen::from_str(START_POSITION).unwrap());
         assert_eq!(
-            Position::try_from(Fen::new(START_POSITION)).unwrap(),
+            Position::try_from(Fen::from_str(START_POSITION).unwrap()).unwrap(),
             position
         );
     }
 
-    #[test]
-    fn reflection() {
-        let fens = [
-            "2r2rk1/3nqpp1/Q3p1p1/8/2pPR3/2P4P/PP3PP1/2R3K1 b - - 0 20",
-            "r3k2r/p2qppb1/n5p1/1BRPPn1p/5Pb1/2N2N2/1P4PP/2BQK2R b Kkq - 2 14",
-            "r4rk1/pppqp2p/1b1p2p1/3Nn3/2P1p3/3P2Q1/PP2N2P/R1B2R1K w - - 0 20",
-            "r3r1k1/1pp2pp1/p4nbp/3qN3/3P2P1/1PP4P/1P1NQ3/R4RK1 w - - 1 19",
-            "rnbqkbnr/pp4pp/8/3pPp2/8/5N2/PPP2PPP/RNBQKB1R w KQkq f6 0 6",
-        ];
-        for fen in fens {
-            let fen = Fen::new(fen);
-            assert_eq!(Fen::from(Position::try_from(fen.clone()).unwrap()), fen);
-        }
+    #[rstest]
+    #[case("2r2rk1/3nqpp1/Q3p1p1/8/2pPR3/2P4P/PP3PP1/2R3K1 b - - 0 20")]
+    #[case("r3k2r/p2qppb1/n5p1/1BRPPn1p/5Pb1/2N2N2/1P4PP/2BQK2R b Kkq - 2 14")]
+    #[case("r4rk1/pppqp2p/1b1p2p1/3Nn3/2P1p3/3P2Q1/PP2N2P/R1B2R1K w - - 0 20")]
+    #[case("r3r1k1/1pp2pp1/p4nbp/3qN3/3P2P1/1PP4P/1P1NQ3/R4RK1 w - - 1 19")]
+    #[case("rnbqkbnr/pp4pp/8/3pPp2/8/5N2/PPP2PPP/RNBQKB1R w KQkq f6 0 6")]
+    fn reflection(#[case] fen: Fen) {
+        assert_eq!(Fen::from(&Position::try_from(fen.clone()).unwrap()), fen);
+    }
+
+    #[rstest]
+    #[case("2r2rk1/3nqpp1/Q3pp1/8/2pPR3/2P4P/PP3PP1/2R3K1 b - - 0 20")]
+    #[case("r3k2r/p2qppb1/n5p1/1BRPPn1p/4Pb1/2N2N2/1P4PP/2BQK2R b - 2 14")]
+    #[case("r4rk1/pppqp2p/1b1p2p1/3Nn3/2P1p2/3P2Q1/PP2N2P/R1B2R1K w - - 0 20")]
+    #[case("r3r1k1/1pp2pp1/p4nbp/3qN3/3P2P1/1PP4P/1P1NQ3/R4RK1 - - 1 19")]
+    #[case("rnbqkbnr/pp4pp/8/3pPp2/8/5N2/PPP2PPP/RNBQKB1R w KQkq 0 6")]
+    fn invalid(#[case] fen: Fen) {
+        assert_eq!(Position::try_from(fen.clone()), Err(()));
     }
 
     #[test]
-    fn invalid() {
-        let fens = [
-            "2r2rk1/3nqpp1/Q3pp1/8/2pPR3/2P4P/PP3PP1/2R3K1 b - - 0 20",
-            "r3k2r/p2qppb1/n5p1/1BRPPn1p/4Pb1/2N2N2/1P4PP/2BQK2R b - 2 14",
-            "r4rk1/pppqp2p/1b1p2p1/3Nn3/2P1p2/3P2Q1/PP2N2P/R1B2R1K w - - 0 20",
-            "r3r1k1/1pp2pp1/p4nbp/3qN3/3P2P1/1PP4P/1P1NQ3/R4RK1 - - 1 19",
-            "rnbqkbnr/pp4pp/8/3pPp2/8/5N2/PPP2PPP/RNBQKB1R w KQkq 0 6",
-        ];
-        for fen in fens {
-            let fen = Fen::new(fen);
-            assert_eq!(Position::try_from(fen.clone()), Err(()));
-        }
+    fn xfen() {
+        let position1 = Position::try_from(
+            Fen::from_str("rn2k1r1/ppp1pp1p/3p2p1/5bn1/P7/2N2B2/1PPPPP2/2BNK1RR w Gkq - 4 11")
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            position1.castling_rights(),
+            CastlingRights::new(true, false, true, true)
+        );
+
+        let position2 = Position::try_from(
+            Fen::from_str("b1qbrknr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/BNQBRKR1 b Ekq - 3 3")
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            position2.castling_rights(),
+            CastlingRights::new(false, true, true, true)
+        );
     }
 }

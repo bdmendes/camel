@@ -28,7 +28,7 @@ static ZOBRIST_NUMBERS: [ZobristHash; ZOBRIST_NUMBERS_SIZE] = {
 
 impl ZobristHash {
     pub fn new(
-        mailbox: [Option<Piece>; 64],
+        pieces: [Bitboard; 6],
         occupancy: [Bitboard; 2],
         side_to_move: Color,
         castling_rights: CastlingRights,
@@ -36,19 +36,22 @@ impl ZobristHash {
     ) -> Self {
         let mut hash = Self(0);
 
-        for (idx, piece) in mailbox.iter().enumerate() {
-            if let Some(piece) = piece {
-                let square = Square::from(idx as u64).unwrap();
-                hash.xor_piece(
-                    *piece,
-                    square,
-                    if occupancy[0].is_set(square) {
-                        Color::White
-                    } else {
-                        Color::Black
-                    },
-                );
-            }
+        let occupancy_all = occupancy[0] | occupancy[1];
+        for square in occupancy_all {
+            let piece = pieces
+                .iter()
+                .position(|bb| bb.is_set(square))
+                .map(|idx| Piece::from(idx as u8).unwrap())
+                .unwrap();
+            hash.xor_piece(
+                piece,
+                square,
+                if occupancy[Color::White as usize].is_set(square) {
+                    Color::White
+                } else {
+                    Color::Black
+                },
+            );
         }
 
         if side_to_move == Color::Black {
