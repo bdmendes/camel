@@ -4,4 +4,6 @@ version = "2.0.0-alpha"
 edition = "2021"
 
 [dependencies]
+ctor = "0.2.8"
 primitive_enum = "1.2.0"
+rand = "0.8.5"

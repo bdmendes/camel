@@ -1,11 +1,20 @@
-use super::color::Color;
+use std::path::Iter;
 
-#[derive(PartialEq, Eq, Debug)]
+use super::color::Color;
+use primitive_enum::primitive_enum;
+
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct CastlingRights(u8);
 
-pub enum CastlingSide {
+primitive_enum! { CastlingSide u8;
     Kingside,
     Queenside,
+}
+
+impl Default for CastlingRights {
+    fn default() -> Self {
+        Self::new(true, true, true, true)
+    }
 }
 
 impl CastlingRights {
@@ -53,6 +62,29 @@ impl CastlingRights {
 
     pub fn removed_side(&self, color: Color, side: CastlingSide) -> Self {
         Self(self.0 & !Self::mask_side(color, side))
+    }
+
+    pub fn xor(&self, other: CastlingRights) -> Self {
+        Self(self.0 ^ other.0)
+    }
+}
+
+impl Iterator for CastlingRights {
+    type Item = (Color, CastlingSide);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.0 == 0 {
+            return None;
+        }
+
+        let lsb = self.0.trailing_zeros();
+        self.0 &= self.0 - 1;
+        Some(match lsb {
+            0 => (Color::White, CastlingSide::Kingside),
+            1 => (Color::White, CastlingSide::Queenside),
+            2 => (Color::Black, CastlingSide::Kingside),
+            _ => (Color::Black, CastlingSide::Queenside),
+        })
     }
 }
 
@@ -102,5 +134,23 @@ mod tests {
         assert!(!castling_rights
             .removed_color(Color::Black)
             .has_color(Color::Black));
+    }
+
+    #[test]
+    fn xor() {
+        let castling_rights1 = CastlingRights::new(true, false, false, true);
+        let castling_rights2 = CastlingRights::new(true, true, false, false);
+        let castling_rights3 = CastlingRights::new(false, true, false, true);
+        assert_eq!(castling_rights1.xor(castling_rights2), castling_rights3);
+    }
+
+    #[test]
+    fn iter() {
+        let castling_rights = CastlingRights::new(true, true, false, true);
+        let mut iter = castling_rights.into_iter();
+        assert_eq!(iter.next(), Some((Color::White, CastlingSide::Kingside)));
+        assert_eq!(iter.next(), Some((Color::White, CastlingSide::Queenside)));
+        assert_eq!(iter.next(), Some((Color::Black, CastlingSide::Queenside)));
+        assert_eq!(iter.next(), None);
     }
 }
