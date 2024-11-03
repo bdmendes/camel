@@ -114,7 +114,7 @@ impl TryFrom<Fen> for Position {
             }
         }
 
-        if rank != 0 {
+        if rank != 0 || file != 8 {
             return Err(());
         }
 
@@ -127,8 +127,8 @@ impl TryFrom<Fen> for Position {
             position.flip_side_to_move();
         }
 
-        let white_king = position.pieces_of(Piece::King, Color::White).next();
-        let black_king = position.pieces_of(Piece::King, Color::Black).next();
+        let white_king = position.pieces_color_bb(Piece::King, Color::White).next();
+        let black_king = position.pieces_color_bb(Piece::King, Color::Black).next();
 
         if white_king.is_none() || black_king.is_none() {
             return Err(());

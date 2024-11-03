@@ -100,15 +100,23 @@ impl Display for Position {
 }
 
 impl Position {
-    pub fn occupancy(&self, color: Color) -> Bitboard {
+    #[inline]
+    pub fn occupancy_bb(&self, color: Color) -> Bitboard {
         self.occupancy[color as usize]
     }
 
-    pub fn pieces(&self, piece: Piece) -> Bitboard {
+    #[inline]
+    pub fn occupancy_bb_all(&self) -> Bitboard {
+        self.occupancy[0] | self.occupancy[1]
+    }
+
+    #[inline]
+    pub fn pieces_bb(&self, piece: Piece) -> Bitboard {
         self.pieces[piece as usize]
     }
 
-    pub fn pieces_of(&self, piece: Piece, color: Color) -> Bitboard {
+    #[inline]
+    pub fn pieces_color_bb(&self, piece: Piece, color: Color) -> Bitboard {
         self.pieces[piece as usize] & self.occupancy[color as usize]
     }
 
@@ -146,6 +154,7 @@ impl Position {
         self.hash.xor_piece(piece, square, color);
     }
 
+    #[inline]
     pub fn hash(&self) -> ZobristHash {
         self.hash
     }
@@ -160,6 +169,7 @@ impl Position {
         )
     }
 
+    #[inline]
     pub fn side_to_move(&self) -> Color {
         self.side_to_move
     }
@@ -169,6 +179,7 @@ impl Position {
         self.hash.xor_color();
     }
 
+    #[inline]
     pub fn ep_square(&self) -> Option<Square> {
         self.ep_square
     }
@@ -186,6 +197,7 @@ impl Position {
         self.hash.xor_ep_square(ep_square);
     }
 
+    #[inline]
     pub fn castling_rights(&self) -> CastlingRights {
         self.castling_rights
     }
@@ -197,6 +209,7 @@ impl Position {
         self.castling_rights = castling_rights;
     }
 
+    #[inline]
     pub fn halfmove_clock(&self) -> u8 {
         self.halfmove_clock
     }
@@ -205,6 +218,7 @@ impl Position {
         self.halfmove_clock = halfmove_clock;
     }
 
+    #[inline]
     pub fn fullmove_number(&self) -> u16 {
         self.fullmove_number
     }

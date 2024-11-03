@@ -8,4 +8,6 @@ ctor = "0.2.8"
 derive_more = {version = "1.0.0", features = ["full"]}
 primitive_enum = "1.2.0"
 rand = "0.8.5"
+
+[dev-dependencies]
 rstest = "0.23.0"
