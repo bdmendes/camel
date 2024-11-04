@@ -5,9 +5,14 @@ edition = "2021"
 
 [dependencies]
 ctor = "0.2.8"
-derive_more = {version = "1.0.0", features = ["full"]}
+derive_more = { version = "1.0.0", features = ["full"] }
+divan = "0.1.15"
 primitive_enum = "1.2.0"
 rand = "0.8.5"
 
 [dev-dependencies]
 rstest = "0.23.0"
+
+[[bench]]
+name = "position"
+harness = false
