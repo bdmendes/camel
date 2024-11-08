@@ -1,9 +1,20 @@
+use ctor::ctor;
 use primitive_enum::primitive_enum;
-use std::{fmt::Display, str::FromStr};
+use std::{array, fmt::Display, str::FromStr};
 
 use super::Color;
 
-const WHITE_SQUARES: u64 = 0x55_AA_55_AA_55_AA_55_AA;
+#[ctor]
+static SQUARE_COLORS: [Color; 64] = {
+    const WHITE_SQUARES: u64 = 0x55_AA_55_AA_55_AA_55_AA;
+    array::from_fn(|sq| {
+        if ((1 << sq) & WHITE_SQUARES) != 0 {
+            Color::White
+        } else {
+            Color::Black
+        }
+    })
+};
 
 #[rustfmt::skip]
 primitive_enum! { Square u8;
@@ -27,11 +38,7 @@ impl Square {
     }
 
     pub fn color(self) -> Color {
-        if ((1 << self as u64) & WHITE_SQUARES) != 0 {
-            Color::White
-        } else {
-            Color::Black
-        }
+        SQUARE_COLORS[self as usize]
     }
 
     pub fn rank(self) -> u8 {

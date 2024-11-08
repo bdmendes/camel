@@ -127,8 +127,9 @@ impl TryFrom<Fen> for Position {
             position.flip_side_to_move();
         }
 
-        let white_king = position.pieces_color_bb(Piece::King, Color::White).next();
-        let black_king = position.pieces_color_bb(Piece::King, Color::Black).next();
+        let kings = position.pieces_bb(Piece::King);
+        let white_king = (kings & position.occupancy_bb(Color::White)).next();
+        let black_king = (kings & position.occupancy_bb(Color::Black)).next();
 
         if white_king.is_none() || black_king.is_none() {
             return Err(());
