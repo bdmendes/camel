@@ -1,8 +1,15 @@
 use ctor::ctor;
 use primitive_enum::primitive_enum;
-use std::{array, fmt::Display, str::FromStr};
+use std::{
+    array,
+    fmt::Display,
+    ops::{Shl, Shr},
+    str::FromStr,
+};
 
 use super::Color;
+
+pub type Direction = i8;
 
 #[ctor]
 static SQUARE_COLORS: [Color; 64] = {
@@ -29,6 +36,11 @@ primitive_enum! { Square u8;
 }
 
 impl Square {
+    pub const NORTH: Direction = 8;
+    pub const SOUTH: Direction = -8;
+    pub const WEST: Direction = -1;
+    pub const EAST: Direction = 1;
+
     pub fn from_file_rank(file: u8, rank: u8) -> Option<Self> {
         if file >= 8 || rank >= 8 {
             None
@@ -47,6 +59,30 @@ impl Square {
 
     pub fn file(self) -> u8 {
         (self as u8) % 8
+    }
+
+    pub fn shift(self, direction: Direction) -> Self {
+        if direction >= 0 {
+            self << direction as u8
+        } else {
+            self >> (-direction) as u8
+        }
+    }
+}
+
+impl Shr<u8> for Square {
+    type Output = Square;
+
+    fn shr(self, rhs: u8) -> Self::Output {
+        Square::from((self as u8).saturating_sub(rhs)).unwrap()
+    }
+}
+
+impl Shl<u8> for Square {
+    type Output = Square;
+
+    fn shl(self, lhs: u8) -> Self::Output {
+        Square::from((self as u8).saturating_add(lhs).min(63)).unwrap()
     }
 }
 
@@ -133,6 +169,17 @@ mod tests {
         assert_eq!(Square::H8.rank(), 7);
         assert_eq!(Square::E4.rank(), 3);
         assert_eq!(Square::D5.rank(), 4);
+    }
+
+    #[test]
+    fn shift() {
+        assert_eq!(Square::E4 >> 8, Square::E3);
+        assert_eq!(Square::E4 >> 64, Square::A1);
+        assert_eq!(Square::E4 << 8, Square::E5);
+        assert_eq!(Square::E4 << 64, Square::H8);
+
+        assert_eq!(Square::E4.shift(Square::NORTH), Square::E5);
+        assert_eq!(Square::E4.shift(Square::SOUTH), Square::E3);
     }
 
     #[test]

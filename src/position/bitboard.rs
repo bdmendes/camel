@@ -1,8 +1,35 @@
-use derive_more::derive::{BitAnd, BitOr};
+use std::array;
 
-use super::Square;
+use ctor::ctor;
+use derive_more::derive::{BitAnd, BitOr, Not, Shl, ShlAssign, Shr, ShrAssign};
 
-#[derive(Default, Copy, Clone, Debug, PartialEq, Eq, BitOr, BitAnd)]
+use super::{square::Direction, Square};
+
+#[ctor]
+static FILE_MASK: [Bitboard; 8] = {
+    array::from_fn(|idx| {
+        let mut bb = Bitboard(0);
+        for rank in 0..=7 {
+            bb.set(Square::from((idx + rank * 8) as u8).unwrap());
+        }
+        bb
+    })
+};
+
+#[ctor]
+static RANK_MASK: [Bitboard; 8] = {
+    array::from_fn(|idx| {
+        let mut bb = Bitboard(0);
+        for file in 0..=7 {
+            bb.set(Square::from((file + idx * 8) as u8).unwrap());
+        }
+        bb
+    })
+};
+
+#[derive(
+    Default, Copy, Clone, Debug, PartialEq, Eq, BitOr, BitAnd, Shl, Shr, ShlAssign, ShrAssign, Not,
+)]
 pub struct Bitboard(u64);
 
 impl Bitboard {
@@ -20,6 +47,22 @@ impl Bitboard {
 
     pub fn count_ones(&self) -> u32 {
         self.0.count_ones()
+    }
+
+    pub fn shift(&self, direction: Direction) -> Self {
+        if direction >= 0 {
+            Bitboard(self.0 << direction)
+        } else {
+            Bitboard(self.0 >> (-direction))
+        }
+    }
+
+    pub fn file_mask(file: u8) -> Self {
+        FILE_MASK[file.min(7) as usize]
+    }
+
+    pub fn rank_mask(rank: u8) -> Self {
+        RANK_MASK[rank.min(7) as usize]
     }
 }
 
@@ -64,5 +107,53 @@ mod tests {
         assert_eq!(iter.next(), Some(Square::A6));
         assert_eq!(iter.next(), Some(Square::H8));
         assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn shift() {
+        let bb = Bitboard((1 << Square::E4 as u8) | (1 << Square::D4 as u8));
+
+        assert_eq!(
+            bb.shift(Square::NORTH),
+            Bitboard((1 << Square::E5 as u8) | (1 << Square::D5 as u8))
+        );
+
+        assert_eq!(
+            bb.shift(2 * Square::SOUTH + Square::WEST),
+            Bitboard((1 << Square::D2 as u8) | (1 << Square::C2 as u8))
+        );
+    }
+
+    #[test]
+    fn masks() {
+        assert_eq!(
+            Bitboard::file_mask(2),
+            Bitboard(
+                (1 << Square::C1 as u8)
+                    | (1 << Square::C2 as u8)
+                    | (1 << Square::C3 as u8)
+                    | (1 << Square::C4 as u8)
+                    | (1 << Square::C5 as u8)
+                    | (1 << Square::C6 as u8)
+                    | (1 << Square::C7 as u8)
+                    | (1 << Square::C8 as u8)
+            )
+        );
+        assert_eq!(Bitboard::file_mask(30), Bitboard::file_mask(7));
+
+        assert_eq!(
+            Bitboard::rank_mask(2),
+            Bitboard(
+                (1 << Square::A3 as u8)
+                    | (1 << Square::B3 as u8)
+                    | (1 << Square::C3 as u8)
+                    | (1 << Square::D3 as u8)
+                    | (1 << Square::E3 as u8)
+                    | (1 << Square::F3 as u8)
+                    | (1 << Square::G3 as u8)
+                    | (1 << Square::H3 as u8)
+            )
+        );
+        assert_eq!(Bitboard::rank_mask(30), Bitboard::rank_mask(7));
     }
 }
