@@ -4,6 +4,7 @@ use crate::{
     moves::{Move, MoveFlag},
     position::{
         bitboard::Bitboard,
+        color::Color,
         piece::Piece,
         square::{Direction, Square},
         Position,
@@ -43,17 +44,19 @@ fn pawn_moves_front(position: &Position, stage: MoveStage, moves: &mut Vec<Move>
             MoveStage::CapturesAndPromotions => !position.occupancy_bb_all() & *LAST_RANKS,
             MoveStage::Quiet => !position.occupancy_bb_all() & !(*LAST_RANKS),
         };
+    let flipped_direction = PAWN_DIRECTIONS[position.side_to_move().flipped() as usize];
 
-    for sq in walk {
-        let from = sq.shift(PAWN_DIRECTIONS[position.side_to_move().flipped() as usize]);
-        if sq.rank() == 0 || sq.rank() == 7 {
-            moves.push(Move::new(from, sq, MoveFlag::KnightPromotion));
-            moves.push(Move::new(from, sq, MoveFlag::BishopPromotion));
-            moves.push(Move::new(from, sq, MoveFlag::RookPromotion));
-            moves.push(Move::new(from, sq, MoveFlag::QueenPromotion));
-        } else {
-            moves.push(Move::new(from, sq, MoveFlag::Quiet));
-        }
+    for sq in walk & *LAST_RANKS {
+        let from = sq.shift(flipped_direction);
+        moves.push(Move::new(from, sq, MoveFlag::KnightPromotion));
+        moves.push(Move::new(from, sq, MoveFlag::BishopPromotion));
+        moves.push(Move::new(from, sq, MoveFlag::RookPromotion));
+        moves.push(Move::new(from, sq, MoveFlag::QueenPromotion));
+    }
+
+    for sq in walk & !(*LAST_RANKS) {
+        let from = sq.shift(flipped_direction);
+        moves.push(Move::new(from, sq, MoveFlag::Quiet));
     }
 }
 
@@ -82,19 +85,86 @@ fn pawn_moves_double(position: &Position, stage: MoveStage, moves: &mut Vec<Move
     }
 }
 
+fn pawn_moves_captures(position: &Position, stage: MoveStage, moves: &mut Vec<Move>) {
+    if matches!(stage, MoveStage::Quiet) {
+        return;
+    }
+
+    let our_direction = PAWN_DIRECTIONS[position.side_to_move() as usize];
+    let (west_attacks, east_attacks) = pawn_attacks_sided(position, position.side_to_move());
+    let ep_bb = position
+        .ep_square()
+        .map_or(Bitboard::empty(), Bitboard::from_square);
+
+    for sq in west_attacks & !ep_bb {
+        moves.push(Move::new(
+            sq.shift(-our_direction + Square::EAST),
+            sq,
+            MoveFlag::Capture,
+        ));
+    }
+    for sq in west_attacks & ep_bb {
+        moves.push(Move::new(
+            sq.shift(-our_direction + Square::EAST),
+            sq,
+            MoveFlag::EnpassantCapture,
+        ));
+    }
+
+    for sq in east_attacks & !ep_bb {
+        moves.push(Move::new(
+            sq.shift(-our_direction + Square::WEST),
+            sq,
+            MoveFlag::Capture,
+        ));
+    }
+    for sq in east_attacks & ep_bb {
+        moves.push(Move::new(
+            sq.shift(-our_direction + Square::WEST),
+            sq,
+            MoveFlag::EnpassantCapture,
+        ));
+    }
+}
+
+fn pawn_attacks_sided(position: &Position, color: Color) -> (Bitboard, Bitboard) {
+    let our_pawns = position.occupancy_bb(color) & position.pieces_bb(Piece::Pawn);
+    let their_pieces = position.occupancy_bb(color.flipped())
+        | (color == position.side_to_move())
+            .then_some(position.ep_square())
+            .flatten()
+            .map_or(Bitboard::empty(), Bitboard::from_square);
+    let our_direction = PAWN_DIRECTIONS[color as usize];
+
+    let west_attacks =
+        (our_pawns & !Bitboard::file_mask(0)).shift(our_direction + Square::WEST) & their_pieces;
+    let east_attacks =
+        (our_pawns & !Bitboard::file_mask(7)).shift(our_direction + Square::EAST) & their_pieces;
+
+    (west_attacks, east_attacks)
+}
+
+pub fn pawn_attacks(position: &Position, color: Color) -> Bitboard {
+    let (west_attacks, east_attacks) = pawn_attacks_sided(position, color);
+    west_attacks | east_attacks
+}
+
 pub fn pawn_moves(position: &Position, stage: MoveStage, moves: &mut Vec<Move>) {
     pawn_moves_front(position, stage, moves);
     pawn_moves_double(position, stage, moves);
+    pawn_moves_captures(position, stage, moves);
 }
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::*;
-    use crate::moves::gen::tests::test_staged;
+    use crate::moves::gen::tests::assert_staged_moves;
 
     #[test]
     fn front_1() {
-        test_staged(
+        assert_staged_moves(
             "r1bqkbnr/ppp2ppp/2np4/4p3/3PP3/5N2/PPP2PPP/RNBQKB1R w KQkq - 0 4",
             pawn_moves_front,
             [
@@ -107,7 +177,7 @@ mod tests {
 
     #[test]
     fn front_2() {
-        test_staged(
+        assert_staged_moves(
             "8/8/8/8/8/3K1k1p/6p1/5R2 b - - 1 54",
             pawn_moves_front,
             [
@@ -120,7 +190,7 @@ mod tests {
 
     #[test]
     fn double_1() {
-        test_staged(
+        assert_staged_moves(
             "rn1qkb1r/pp3ppp/4pn2/3p2Bb/3P4/2PB1N1P/PP3PP1/RN1QK2R b KQkq - 2 8",
             pawn_moves_double,
             [vec!["b7b5", "a7a5"], vec![], vec!["b7b5", "a7a5"]],
@@ -129,13 +199,70 @@ mod tests {
 
     #[test]
     fn double_2() {
-        test_staged(
+        assert_staged_moves(
             "r3k2r/1pp1qppp/p1p2n2/4b3/4P1b1/2NP1N2/PPP2PPP/R1BQR1K1 w kq - 8 10",
             pawn_moves_double,
             [
                 vec!["a2a4", "b2b4", "h2h4"],
                 vec![],
                 vec!["a2a4", "b2b4", "h2h4"],
+            ],
+        );
+    }
+
+    #[test]
+    fn attacks() {
+        let position = Position::from_str(
+            "3r1rk1/2p1qpp1/p1p4p/Pp2b1B1/4n1b1/2NP1N1P/1PP2PP1/R2QR1K1 w - b6 0 15",
+        )
+        .unwrap();
+
+        assert_eq!(
+            pawn_attacks(&position, Color::White),
+            Bitboard::from_square(Square::B6)
+                | Bitboard::from_square(Square::E4)
+                | Bitboard::from_square(Square::G4)
+        );
+
+        assert_eq!(
+            pawn_attacks(&position, Color::Black),
+            Bitboard::from_square(Square::G5)
+        );
+    }
+
+    #[test]
+    fn captures_1() {
+        assert_staged_moves(
+            "rn1q1rk1/p2b1ppp/3bpn2/3p4/Pp1P4/1BP2N1P/1P1N1PP1/R1BQ1RK1 b - a3 0 11",
+            pawn_moves_captures,
+            [vec!["b4c3", "b4a3"], vec!["b4c3", "b4a3"], vec![]],
+        );
+    }
+
+    #[test]
+    fn captures_2() {
+        assert_staged_moves(
+            "4nrk1/1r6/p7/3R1ppp/2P1p1PP/1P3P2/P4B2/3R2K1 w - - 0 28",
+            pawn_moves_captures,
+            [
+                vec!["h4g5", "g4h5", "g4f5", "f3e4"],
+                vec!["h4g5", "g4h5", "g4f5", "f3e4"],
+                vec![],
+            ],
+        );
+    }
+
+    #[test]
+    fn all() {
+        assert_staged_moves(
+            "rn1q1rk1/p2b1ppp/3bpn2/3p4/Pp1P4/1BP2N1P/1P1N1PP1/R1BQ1RK1 b - a3 0 11",
+            pawn_moves,
+            [
+                vec![
+                    "h7h6", "h7h5", "g7g6", "g7g5", "e6e5", "b4c3", "b4a3", "a7a6", "a7a5",
+                ],
+                vec!["b4c3", "b4a3"],
+                vec!["h7h6", "h7h5", "g7g6", "g7g5", "e6e5", "a7a6", "a7a5"],
             ],
         );
     }

@@ -17,13 +17,18 @@ mod tests {
 
     pub fn assert_eq_vec_move(moves: &[Move], expected: &[&str]) {
         assert_eq!(moves.len(), expected.len());
-        moves
-            .iter()
-            .map(|m| m.to_string())
-            .for_each(|m| assert!(expected.contains(&m.as_str())));
+        let mov_strs = moves.iter().map(|m| m.to_string()).collect::<Vec<String>>();
+        moves.iter().map(|m| m.to_string()).for_each(|m| {
+            assert!(
+                expected.contains(&m.as_str()),
+                "got: {:?}, expected: {:?}",
+                mov_strs,
+                expected
+            )
+        });
     }
 
-    pub fn test_staged(
+    pub fn assert_staged_moves(
         position: &str,
         function: fn(&Position, MoveStage, &mut Vec<Move>),
         expected: [Vec<&str>; 3],
@@ -32,7 +37,6 @@ mod tests {
 
         let mut moves1 = Vec::new();
         function(&position, MoveStage::All, &mut moves1);
-        moves1.iter().for_each(|m| println!("{}", m));
         assert_eq_vec_move(&moves1, &expected[0]);
 
         let mut moves2 = Vec::new();
