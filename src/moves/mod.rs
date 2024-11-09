@@ -4,6 +4,8 @@ use primitive_enum::primitive_enum;
 use std::fmt::Display;
 
 pub mod gen;
+pub mod make;
+pub mod perft;
 
 primitive_enum! { MoveFlag u8;
     Quiet,
@@ -22,6 +24,7 @@ primitive_enum! { MoveFlag u8;
     QueenPromotionCapture,
 }
 
+#[derive(Copy, Clone)]
 pub struct Move(u16);
 
 impl Move {

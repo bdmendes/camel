@@ -19,7 +19,7 @@ pub mod hash;
 pub mod piece;
 pub mod square;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Position {
     hash: ZobristHash,
     pieces: [Bitboard; 6],

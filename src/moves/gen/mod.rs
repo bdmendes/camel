@@ -1,10 +1,26 @@
-pub mod pawns;
+use super::Move;
+use crate::position::Position;
+use pawns::pawn_moves;
+
+mod pawns;
 
 #[derive(Copy, Clone)]
 pub enum MoveStage {
     All,
     CapturesAndPromotions,
     Quiet,
+}
+
+pub fn generate_moves(position: &Position, stage: MoveStage, moves: &mut Vec<Move>) {
+    generate_moves_pseudo(position, stage, moves);
+
+    // TODO: check detection...
+}
+
+pub fn generate_moves_pseudo(position: &Position, stage: MoveStage, moves: &mut Vec<Move>) {
+    pawn_moves(position, stage, moves);
+
+    // TODO: other pieces
 }
 
 #[cfg(test)]
