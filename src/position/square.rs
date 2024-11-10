@@ -1,7 +1,5 @@
-use ctor::ctor;
 use primitive_enum::primitive_enum;
 use std::{
-    array,
     fmt::Display,
     ops::{Shl, Shr},
     str::FromStr,
@@ -11,16 +9,17 @@ use super::Color;
 
 pub type Direction = i8;
 
-#[ctor]
 static SQUARE_COLORS: [Color; 64] = {
     const WHITE_SQUARES: u64 = 0x55_AA_55_AA_55_AA_55_AA;
-    array::from_fn(|sq| {
-        if ((1 << sq) & WHITE_SQUARES) != 0 {
-            Color::White
-        } else {
-            Color::Black
+    let mut arr = [Color::White; 64];
+    let mut sq = 0;
+    while sq < 64 {
+        if ((1 << sq) & WHITE_SQUARES) == 0 {
+            arr[sq] = Color::Black
         }
-    })
+        sq += 1;
+    }
+    arr
 };
 
 #[rustfmt::skip]

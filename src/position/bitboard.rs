@@ -1,33 +1,25 @@
-use std::{
-    array,
-    fmt::{Display, Write},
-};
-
-use ctor::ctor;
-use derive_more::derive::{BitAnd, BitOr, Not, Shl, ShlAssign, Shr, ShrAssign};
-
 use super::{square::Direction, Square};
+use derive_more::derive::{BitAnd, BitOr, Not, Shl, ShlAssign, Shr, ShrAssign};
+use std::fmt::{Display, Write};
 
-#[ctor]
-static FILE_MASK: [Bitboard; 8] = {
-    array::from_fn(|idx| {
-        let mut bb = Bitboard(0);
-        for rank in 0..=7 {
-            bb.set(Square::from((idx + rank * 8) as u8).unwrap());
-        }
-        bb
-    })
+const FILE_MASK: [Bitboard; 8] = {
+    let mut arr = [Bitboard::empty(); 8];
+    let mut file = 0;
+    while file < 8 {
+        arr[file] = Bitboard(0x0101010101010101 << file);
+        file += 1;
+    }
+    arr
 };
 
-#[ctor]
-static RANK_MASK: [Bitboard; 8] = {
-    array::from_fn(|idx| {
-        let mut bb = Bitboard(0);
-        for file in 0..=7 {
-            bb.set(Square::from((file + idx * 8) as u8).unwrap());
-        }
-        bb
-    })
+const RANK_MASK: [Bitboard; 8] = {
+    let mut arr = [Bitboard::empty(); 8];
+    let mut rank = 0;
+    while rank < 8 {
+        arr[rank] = Bitboard(0xFF << (rank * 8));
+        rank += 1;
+    }
+    arr
 };
 
 #[derive(
@@ -36,15 +28,19 @@ static RANK_MASK: [Bitboard; 8] = {
 pub struct Bitboard(u64);
 
 impl Bitboard {
-    pub fn empty() -> Self {
+    pub const fn empty() -> Self {
         Bitboard(0)
     }
 
-    pub fn from_square(square: Square) -> Self {
+    pub const fn new(data: u64) -> Self {
+        Bitboard(data)
+    }
+
+    pub const fn from_square(square: Square) -> Self {
         Bitboard(1 << square as u64)
     }
 
-    pub fn is_set(&self, square: Square) -> bool {
+    pub const fn is_set(&self, square: Square) -> bool {
         (self.0 & (1 << square as u64)) != 0
     }
 
@@ -56,11 +52,11 @@ impl Bitboard {
         self.0 &= !(1 << square as u64);
     }
 
-    pub fn count_ones(&self) -> u32 {
+    pub const fn count_ones(&self) -> u32 {
         self.0.count_ones()
     }
 
-    pub fn shift(&self, direction: Direction) -> Self {
+    pub const fn shifted(&self, direction: Direction) -> Self {
         if direction >= 0 {
             Bitboard(self.0 << direction)
         } else {
@@ -68,12 +64,14 @@ impl Bitboard {
         }
     }
 
-    pub fn file_mask(file: u8) -> Self {
-        FILE_MASK[file.min(7) as usize]
+    pub const fn file_mask(file: u8) -> Self {
+        let file = if file < 8 { file } else { 7 };
+        FILE_MASK[file as usize]
     }
 
-    pub fn rank_mask(rank: u8) -> Self {
-        RANK_MASK[rank.min(7) as usize]
+    pub const fn rank_mask(rank: u8) -> Self {
+        let rank = if rank < 8 { rank } else { 7 };
+        RANK_MASK[rank as usize]
     }
 }
 
@@ -174,12 +172,12 @@ mod tests {
         let bb = Bitboard::from_square(Square::E4) | Bitboard::from_square(Square::D4);
 
         assert_eq!(
-            bb.shift(Square::NORTH),
+            bb.shifted(Square::NORTH),
             Bitboard::from_square(Square::E5) | Bitboard::from_square(Square::D5)
         );
 
         assert_eq!(
-            bb.shift(2 * Square::SOUTH + Square::WEST),
+            bb.shifted(2 * Square::SOUTH + Square::WEST),
             Bitboard::from_square(Square::D2) | Bitboard::from_square(Square::C2)
         );
     }

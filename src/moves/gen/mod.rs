@@ -1,6 +1,6 @@
 use super::Move;
-use crate::position::Position;
-use pawns::pawn_moves;
+use crate::position::{color::Color, square::Square, Position};
+use pawns::{pawn_attacks, pawn_moves};
 
 mod pawns;
 
@@ -21,6 +21,12 @@ pub fn generate_moves_pseudo(position: &Position, stage: MoveStage, moves: &mut 
     pawn_moves(position, stage, moves);
 
     // TODO: other pieces
+}
+
+pub fn square_attackers(position: &Position, square: Square, color: Color) -> bool {
+    // TODO: other pieces
+    let attacks_bb = pawn_attacks(position, color);
+    attacks_bb.is_set(square)
 }
 
 #[cfg(test)]
