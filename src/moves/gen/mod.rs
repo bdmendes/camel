@@ -5,6 +5,7 @@ use pawns::{pawn_attackers, pawn_moves};
 
 mod leapers;
 mod pawns;
+mod sliders;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum MoveStage {
