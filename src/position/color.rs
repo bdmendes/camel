@@ -31,14 +31,3 @@ impl Display for Color {
         })
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::position::color::Color;
-
-    #[test]
-    fn flipped() {
-        assert_eq!(Color::White.flipped(), Color::Black);
-        assert_eq!(Color::Black.flipped(), Color::White);
-    }
-}

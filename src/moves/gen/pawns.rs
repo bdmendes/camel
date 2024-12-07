@@ -9,13 +9,22 @@ use crate::{
     },
 };
 
-use super::MoveStage;
+use super::{
+    leapers::{init_leaper_attacks, LeaperAttackMap},
+    MoveStage,
+};
 
-const PAWN_DIRECTIONS: [Direction; 2] = [Square::NORTH, Square::SOUTH];
+static PAWN_DIRECTIONS: [Direction; 2] = [Square::NORTH, Square::SOUTH];
+
+static PAWN_ATTACKS_WHITE: LeaperAttackMap =
+    init_leaper_attacks(&[Square::NORTH + Square::WEST, Square::NORTH + Square::EAST]);
+
+static PAWN_ATTACKS_BLACK: LeaperAttackMap =
+    init_leaper_attacks(&[Square::SOUTH + Square::WEST, Square::SOUTH + Square::EAST]);
 
 const LAST_RANKS: Bitboard = Bitboard::new(0xFF | ((0xFF) << (8 * 7)));
 
-const DOUBLE_RANKS: [[Bitboard; 3]; 2] = {
+static DOUBLE_RANKS: [[Bitboard; 3]; 2] = {
     [
         [
             Bitboard::rank_mask(1),
@@ -35,15 +44,16 @@ fn pawn_moves_front(position: &Position, stage: MoveStage, moves: &mut Vec<Move>
         position.occupancy_bb(position.side_to_move()) & position.pieces_bb(Piece::Pawn);
 
     let walk = our_pawns.shifted(PAWN_DIRECTIONS[position.side_to_move() as usize])
+        & !position.occupancy_bb_all()
         & match stage {
-            MoveStage::All => !position.occupancy_bb_all(),
-            MoveStage::CapturesAndPromotions => !position.occupancy_bb_all() & LAST_RANKS,
-            MoveStage::Quiet => !position.occupancy_bb_all() & !LAST_RANKS,
+            MoveStage::All => Bitboard::full(),
+            MoveStage::CapturesAndPromotions => LAST_RANKS,
+            MoveStage::Quiet => !LAST_RANKS,
         };
     let flipped_direction = PAWN_DIRECTIONS[position.side_to_move().flipped() as usize];
 
     for sq in walk & LAST_RANKS {
-        let from = sq.shift(flipped_direction);
+        let from = sq.shifted(flipped_direction);
         moves.push(Move::new(from, sq, MoveFlag::KnightPromotion));
         moves.push(Move::new(from, sq, MoveFlag::BishopPromotion));
         moves.push(Move::new(from, sq, MoveFlag::RookPromotion));
@@ -51,7 +61,7 @@ fn pawn_moves_front(position: &Position, stage: MoveStage, moves: &mut Vec<Move>
     }
 
     for sq in walk & !LAST_RANKS {
-        let from = sq.shift(flipped_direction);
+        let from = sq.shifted(flipped_direction);
         moves.push(Move::new(from, sq, MoveFlag::Quiet));
     }
 }
@@ -75,7 +85,7 @@ fn pawn_moves_double(position: &Position, stage: MoveStage, moves: &mut Vec<Move
     for sq in candidates {
         moves.push(Move::new(
             sq,
-            sq.shift(direction * 2),
+            sq.shifted(direction * 2),
             MoveFlag::DoublePawnPush,
         ));
     }
@@ -94,14 +104,14 @@ fn pawn_moves_captures(position: &Position, stage: MoveStage, moves: &mut Vec<Mo
 
     for sq in west_attacks & !ep_bb {
         moves.push(Move::new(
-            sq.shift(-our_direction + Square::EAST),
+            sq.shifted(-our_direction + Square::EAST),
             sq,
             MoveFlag::Capture,
         ));
     }
     for sq in west_attacks & ep_bb {
         moves.push(Move::new(
-            sq.shift(-our_direction + Square::EAST),
+            sq.shifted(-our_direction + Square::EAST),
             sq,
             MoveFlag::EnpassantCapture,
         ));
@@ -109,14 +119,14 @@ fn pawn_moves_captures(position: &Position, stage: MoveStage, moves: &mut Vec<Mo
 
     for sq in east_attacks & !ep_bb {
         moves.push(Move::new(
-            sq.shift(-our_direction + Square::WEST),
+            sq.shifted(-our_direction + Square::WEST),
             sq,
             MoveFlag::Capture,
         ));
     }
     for sq in east_attacks & ep_bb {
         moves.push(Move::new(
-            sq.shift(-our_direction + Square::WEST),
+            sq.shifted(-our_direction + Square::WEST),
             sq,
             MoveFlag::EnpassantCapture,
         ));
@@ -143,6 +153,14 @@ fn pawn_attacks_sided(position: &Position, color: Color) -> (Bitboard, Bitboard)
 pub fn pawn_attacks(position: &Position, color: Color) -> Bitboard {
     let (west_attacks, east_attacks) = pawn_attacks_sided(position, color);
     west_attacks | east_attacks
+}
+
+pub fn pawn_attackers(position: &Position, color: Color, square: Square) -> Bitboard {
+    let attackers = match color.flipped() {
+        Color::White => &PAWN_ATTACKS_WHITE,
+        Color::Black => &PAWN_ATTACKS_BLACK,
+    };
+    attackers[square as usize] & position.pieces_color_bb(Piece::Pawn, color)
 }
 
 pub fn pawn_moves(position: &Position, stage: MoveStage, moves: &mut Vec<Move>) {
@@ -260,6 +278,19 @@ mod tests {
                 vec!["b4c3", "b4a3"],
                 vec!["h7h6", "h7h5", "g7g6", "g7g5", "e6e5", "a7a6", "a7a5"],
             ],
+        );
+    }
+
+    #[test]
+    fn attackers() {
+        let position = Position::from_str(
+            "3r1rk1/2p1qpp1/p1p4p/Pp2b1B1/4n1b1/2NP1N1P/1PP2PP1/R2QR1K1 w - b6 0 15",
+        )
+        .unwrap();
+
+        assert_eq!(
+            pawn_attackers(&position, Color::White, Square::B6),
+            Bitboard::from_square(Square::A5)
         );
     }
 }

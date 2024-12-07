@@ -112,6 +112,10 @@ impl Position {
         self.pieces[piece as usize]
     }
 
+    pub fn pieces_color_bb(&self, piece: Piece, color: Color) -> Bitboard {
+        self.pieces[piece as usize] & self.occupancy[color as usize]
+    }
+
     pub fn color_at(&self, square: Square) -> Option<Color> {
         if self.occupancy[0].is_set(square) {
             Some(Color::White)

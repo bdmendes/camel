@@ -10,7 +10,7 @@ pub fn perft(position: &Position, depth: u8) -> u64 {
         return 1;
     }
 
-    let mut moves = Vec::with_capacity(16);
+    let mut moves = Vec::with_capacity(64);
     generate_moves(position, MoveStage::All, &mut moves);
 
     if depth == 1 {
@@ -18,7 +18,7 @@ pub fn perft(position: &Position, depth: u8) -> u64 {
     } else {
         moves
             .iter()
-            .map(|mov| perft(&make_move(position, *mov), depth - 1))
+            .map(|mov| perft(&make_move::<true>(position, *mov), depth - 1))
             .sum()
     }
 }

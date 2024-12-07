@@ -1,7 +1,8 @@
-use super::Move;
-use crate::position::{color::Color, square::Square, Position};
-use pawns::{pawn_attacks, pawn_moves};
+use super::{make::make_move, Move};
+use crate::position::{bitboard::Bitboard, color::Color, piece::Piece, square::Square, Position};
+use pawns::{pawn_attackers, pawn_attacks, pawn_moves};
 
+mod leapers;
 mod pawns;
 
 #[derive(Copy, Clone)]
@@ -12,21 +13,11 @@ pub enum MoveStage {
 }
 
 pub fn generate_moves(position: &Position, stage: MoveStage, moves: &mut Vec<Move>) {
-    generate_moves_pseudo(position, stage, moves);
-
-    // TODO: check detection...
-}
-
-pub fn generate_moves_pseudo(position: &Position, stage: MoveStage, moves: &mut Vec<Move>) {
     pawn_moves(position, stage, moves);
-
-    // TODO: other pieces
 }
 
-pub fn square_attackers(position: &Position, square: Square, color: Color) -> bool {
-    // TODO: other pieces
-    let attacks_bb = pawn_attacks(position, color);
-    attacks_bb.is_set(square)
+pub fn square_attackers(position: &Position, square: Square, color: Color) -> Bitboard {
+    pawn_attackers(position, color, square)
 }
 
 #[cfg(test)]

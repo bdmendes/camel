@@ -9,7 +9,7 @@ use super::Color;
 
 pub type Direction = i8;
 
-static SQUARE_COLORS: [Color; 64] = {
+const SQUARE_COLORS: [Color; 64] = {
     const WHITE_SQUARES: u64 = 0x55_AA_55_AA_55_AA_55_AA;
     let mut arr = [Color::White; 64];
     let mut sq = 0;
@@ -48,19 +48,19 @@ impl Square {
         }
     }
 
-    pub fn color(self) -> Color {
+    pub const fn color(self) -> Color {
         SQUARE_COLORS[self as usize]
     }
 
-    pub fn rank(self) -> u8 {
+    pub const fn rank(self) -> u8 {
         (self as u8) / 8
     }
 
-    pub fn file(self) -> u8 {
+    pub const fn file(self) -> u8 {
         (self as u8) % 8
     }
 
-    pub fn shift(self, direction: Direction) -> Self {
+    pub fn shifted(self, direction: Direction) -> Self {
         if direction >= 0 {
             self << direction as u8
         } else {
@@ -177,8 +177,8 @@ mod tests {
         assert_eq!(Square::E4 << 8, Square::E5);
         assert_eq!(Square::E4 << 64, Square::H8);
 
-        assert_eq!(Square::E4.shift(Square::NORTH), Square::E5);
-        assert_eq!(Square::E4.shift(Square::SOUTH), Square::E3);
+        assert_eq!(Square::E4.shifted(Square::NORTH), Square::E5);
+        assert_eq!(Square::E4.shifted(Square::SOUTH), Square::E3);
     }
 
     #[test]

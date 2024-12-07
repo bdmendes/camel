@@ -22,6 +22,16 @@ const RANK_MASK: [Bitboard; 8] = {
     arr
 };
 
+const FROM_SQUARE: [u64; 64] = {
+    let mut arr = [0; 64];
+    let mut square = 0;
+    while square < 64 {
+        arr[square] = 1 << square as u64;
+        square += 1;
+    }
+    arr
+};
+
 #[derive(
     Default, Copy, Clone, Debug, PartialEq, Eq, BitOr, BitAnd, Shl, Shr, ShlAssign, ShrAssign, Not,
 )]
@@ -32,24 +42,28 @@ impl Bitboard {
         Bitboard(0)
     }
 
+    pub const fn full() -> Self {
+        Bitboard(u64::MAX)
+    }
+
     pub const fn new(data: u64) -> Self {
         Bitboard(data)
     }
 
     pub const fn from_square(square: Square) -> Self {
-        Bitboard(1 << square as u64)
+        Bitboard(FROM_SQUARE[square as usize])
     }
 
     pub const fn is_set(&self, square: Square) -> bool {
-        (self.0 & (1 << square as u64)) != 0
+        (self.0 & FROM_SQUARE[square as usize]) != 0
     }
 
     pub fn set(&mut self, square: Square) {
-        self.0 |= 1 << square as u64;
+        self.0 |= FROM_SQUARE[square as usize];
     }
 
     pub fn clear(&mut self, square: Square) {
-        self.0 &= !(1 << square as u64);
+        self.0 &= !FROM_SQUARE[square as usize];
     }
 
     pub const fn count_ones(&self) -> u32 {
@@ -57,11 +71,8 @@ impl Bitboard {
     }
 
     pub const fn shifted(&self, direction: Direction) -> Self {
-        if direction >= 0 {
-            Bitboard(self.0 << direction)
-        } else {
-            Bitboard(self.0 >> (-direction))
-        }
+        let shift = direction & 63;
+        Bitboard((self.0 << shift) | (self.0 >> (-shift & 63)))
     }
 
     pub const fn file_mask(file: u8) -> Self {
