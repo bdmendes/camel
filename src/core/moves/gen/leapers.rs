@@ -1,7 +1,8 @@
 use crate::{
-    moves::{Move, MoveFlag},
-    position::{
+    core::moves::{Move, MoveFlag},
+    core::{
         bitboard::Bitboard,
+        color::Color,
         piece::Piece,
         square::{Direction, Square},
         Position,
@@ -88,10 +89,23 @@ pub fn king_regular_moves(position: &Position, stage: MoveStage, moves: &mut Vec
     leaper_moves(Piece::King, &KING_ATTACKS, position, stage, moves);
 }
 
+pub fn knight_attackers(position: &Position, color: Color, square: Square) -> Bitboard {
+    KNIGHT_ATTACKS[square as usize] & position.pieces_color_bb(Piece::Knight, color)
+}
+
+pub fn king_attackers(position: &Position, color: Color, square: Square) -> Bitboard {
+    KING_ATTACKS[square as usize] & position.pieces_color_bb(Piece::King, color)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{king_regular_moves, knight_moves};
-    use crate::moves::gen::tests::assert_staged_moves;
+    use std::str::FromStr;
+
+    use super::{king_attackers, king_regular_moves, knight_attackers, knight_moves};
+    use crate::{
+        core::moves::gen::tests::assert_staged_moves,
+        core::{bitboard::Bitboard, color::Color, square::Square, Position},
+    };
 
     #[test]
     fn knights() {
@@ -118,6 +132,26 @@ mod tests {
                 vec!["g4h4"],
                 vec!["g4h3", "g4g3", "g4f3", "g4f4", "g4f5", "g4g5"],
             ],
+        );
+    }
+
+    #[test]
+    fn knight_attack() {
+        let position =
+            Position::from_str("8/pp3Qpk/7p/3p3K/1nPP1q2/4nNPP/PP6/5R2 w - - 1 34").unwrap();
+        assert_eq!(
+            knight_attackers(&position, Color::Black, Square::C2),
+            Bitboard::from_square(Square::E3) | Bitboard::from_square(Square::B4)
+        );
+    }
+
+    #[test]
+    fn king_attack() {
+        let position =
+            Position::from_str("8/pp3Qpk/7p/3p3K/1nPP1q2/4nNPP/PP6/5R2 w - - 1 34").unwrap();
+        assert_eq!(
+            king_attackers(&position, Color::White, Square::G6),
+            Bitboard::from_square(Square::H5)
         );
     }
 }

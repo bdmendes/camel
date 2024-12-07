@@ -1,9 +1,6 @@
-use crate::position::Position;
+use crate::core::{MoveStage, Position};
 
-use super::{
-    gen::{generate_moves, MoveStage},
-    make::make_move,
-};
+use super::{gen::generate_moves, make::make_move};
 
 pub fn perft(position: &Position, depth: u8) -> u64 {
     if depth == 0 {

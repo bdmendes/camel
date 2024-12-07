@@ -1,19 +1,13 @@
 use super::Move;
-use crate::position::{bitboard::Bitboard, color::Color, square::Square, Position};
-use leapers::{king_regular_moves, knight_moves};
+use crate::core::{bitboard::Bitboard, color::Color, square::Square, MoveStage, Position};
+use leapers::{king_attackers, king_regular_moves, knight_attackers, knight_moves};
 use pawns::{pawn_attackers, pawn_moves};
+use sliders::{bishop_moves, diagonal_attackers, file_attackers, queen_moves, rook_moves};
 
 mod leapers;
 mod magics;
 mod pawns;
 mod sliders;
-
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum MoveStage {
-    All,
-    CapturesAndPromotions,
-    Quiet,
-}
 
 pub fn generate_moves(position: &Position, stage: MoveStage) -> Vec<Move> {
     let mut moves = Vec::with_capacity(64);
@@ -21,19 +15,26 @@ pub fn generate_moves(position: &Position, stage: MoveStage) -> Vec<Move> {
     pawn_moves(position, stage, &mut moves);
     knight_moves(position, stage, &mut moves);
     king_regular_moves(position, stage, &mut moves);
+    bishop_moves(position, stage, &mut moves);
+    rook_moves(position, stage, &mut moves);
+    queen_moves(position, stage, &mut moves);
 
     moves
 }
 
 pub fn square_attackers(position: &Position, square: Square, color: Color) -> Bitboard {
     pawn_attackers(position, color, square)
+        | knight_attackers(position, color, square)
+        | king_attackers(position, color, square)
+        | file_attackers(position, color, square)
+        | diagonal_attackers(position, color, square)
 }
 
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
 
-    use crate::{moves::Move, position::Position};
+    use crate::{core::moves::Move, core::Position};
 
     use super::MoveStage;
 

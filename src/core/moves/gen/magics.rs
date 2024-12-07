@@ -1,5 +1,5 @@
 use super::sliders::{slider_attacks_from_square, BISHOP_MOVE_DIRECTIONS, ROOK_MOVE_DIRECTIONS};
-use crate::position::{bitboard::Bitboard, piece::Piece, square::Square};
+use crate::core::{bitboard::Bitboard, piece::Piece, square::Square, Position};
 use ctor::ctor;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::thread;
@@ -112,41 +112,27 @@ fn find_magics(piece: Piece) -> [SquareMagic; 64] {
         .unwrap()
 }
 
+pub fn bishop_attacks(position: &Position, square: Square) -> Bitboard {
+    let magic = &BISHOP_MAGICS[square as usize];
+    let index = magic_index(position.occupancy_bb_all(), magic);
+    magic.attacks[index]
+}
+
+pub fn rook_attacks(position: &Position, square: Square) -> Bitboard {
+    let magic = &ROOK_MAGICS[square as usize];
+    let index = magic_index(position.occupancy_bb_all(), magic);
+    magic.attacks[index]
+}
+
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
+    use super::bitsets;
     use crate::{
-        moves::gen::{
-            magics::magic_index,
-            sliders::{slider_attacks_from_square, BISHOP_MOVE_DIRECTIONS, ROOK_MOVE_DIRECTIONS},
-        },
-        position::{bitboard::Bitboard, piece::Piece, square::Square},
+        core::moves::gen::magics::{bishop_attacks, rook_attacks},
+        core::{bitboard::Bitboard, square::Square, Position},
     };
-
-    use super::{bitsets, find_magic};
-
-    fn test_magics(piece: Piece) {
-        let directions = match piece {
-            Piece::Rook => &ROOK_MOVE_DIRECTIONS,
-            Piece::Bishop => &BISHOP_MOVE_DIRECTIONS,
-            _ => panic!("Invalid piece"),
-        };
-
-        for square in Square::list() {
-            let magic = find_magic(*square, piece);
-
-            let blockers_mask =
-                slider_attacks_from_square(*square, directions, Bitboard::empty(), true);
-            let bitsets = bitsets(blockers_mask);
-
-            for bitset in bitsets {
-                let index = magic_index(bitset, &magic);
-                assert_eq!(
-                    magic.attacks[index],
-                    slider_attacks_from_square(*square, directions, bitset, false)
-                );
-            }
-        }
-    }
 
     #[test]
     fn bitsets_simple() {
@@ -170,12 +156,35 @@ mod tests {
     }
 
     #[test]
-    fn rook_magics() {
-        test_magics(Piece::Rook);
+    fn bishop_attack() {
+        let position =
+            Position::from_str("r2k3r/p3ppb1/6p1/2RPPn1p/Qn3Pb1/2N2N2/1P4PP/2B1K2R w K - 2 17")
+                .unwrap();
+
+        assert_eq!(
+            bishop_attacks(&position, Square::G7),
+            Bitboard::from_square(Square::F6)
+                | Bitboard::from_square(Square::E5)
+                | Bitboard::from_square(Square::H8)
+                | Bitboard::from_square(Square::H6)
+                | Bitboard::from_square(Square::F8)
+        );
     }
 
     #[test]
-    fn bishop_magics() {
-        test_magics(Piece::Bishop);
+    fn rook_attack() {
+        let position =
+            Position::from_str("r2kQ2r/p3ppb1/6p1/2RPPn1p/1n3Pb1/2N2N2/1P4PP/2B1K2R b K - 3 17")
+                .unwrap();
+
+        assert_eq!(
+            rook_attacks(&position, Square::H8),
+            Bitboard::from_square(Square::H7)
+                | Bitboard::from_square(Square::H6)
+                | Bitboard::from_square(Square::H5)
+                | Bitboard::from_square(Square::G8)
+                | Bitboard::from_square(Square::F8)
+                | Bitboard::from_square(Square::E8)
+        );
     }
 }

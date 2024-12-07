@@ -99,9 +99,7 @@ impl ZobristHash {
 
 #[cfg(test)]
 mod tests {
-    use crate::position::{
-        castling_rights::CastlingSide, color::Color, piece::Piece, square::Square,
-    };
+    use crate::core::{castling_rights::CastlingSide, color::Color, piece::Piece, square::Square};
 
     use super::ZobristHash;
 

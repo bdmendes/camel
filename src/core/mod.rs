@@ -8,8 +8,16 @@ use castling_rights::CastlingRights;
 use color::Color;
 use fen::Fen;
 use hash::ZobristHash;
+use moves::{
+    gen::{generate_moves, square_attackers},
+    make::make_move,
+    perft::perft,
+    Move,
+};
 use piece::Piece;
 use square::Square;
+
+mod moves;
 
 pub mod bitboard;
 pub mod castling_rights;
@@ -18,6 +26,13 @@ pub mod fen;
 pub mod hash;
 pub mod piece;
 pub mod square;
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum MoveStage {
+    All,
+    CapturesAndPromotions,
+    Quiet,
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Position {
@@ -219,11 +234,57 @@ impl Position {
     pub fn set_fullmove_number(&mut self, fullmove_number: u16) {
         self.fullmove_number = fullmove_number;
     }
+
+    pub fn perft(&self, depth: u8) -> u64 {
+        perft(self, depth)
+    }
+
+    pub fn moves(&self, stage: MoveStage) -> Vec<Move> {
+        generate_moves(self, stage)
+    }
+
+    pub fn make_move(&self, mov: Move) -> Self {
+        make_move::<true>(self, mov)
+    }
+
+    pub fn make_move_str(&self, mov: &str) -> Option<Self> {
+        let moves = generate_moves(self, MoveStage::All);
+        for m in moves {
+            if mov == m.to_string().as_str() {
+                return Some(self.make_move(m));
+            }
+        }
+        None
+    }
+
+    pub fn is_check(&self) -> bool {
+        self.pieces_color_bb(Piece::King, self.side_to_move())
+            .next()
+            .map(|sq| !self.attackers(sq, self.side_to_move().flipped()).is_empty())
+            .unwrap_or(false)
+    }
+
+    pub fn attackers(&self, square: Square, by_color: Color) -> Bitboard {
+        square_attackers(self, square, by_color)
+    }
+
+    pub fn fen(&self) -> String {
+        Fen::from(self).to_string()
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::position::{castling_rights::CastlingSide, color::Color, square::Square, Piece};
+    use std::str::FromStr;
+
+    use crate::core::{
+        bitboard::Bitboard,
+        castling_rights::CastlingSide,
+        color::Color,
+        moves::{Move, MoveFlag},
+        square::Square,
+        Piece,
+    };
 
     use super::Position;
 
@@ -394,5 +455,47 @@ mod tests {
 
         position.clear_ep_square();
         assert_eq!(position.hash(), position.hash_from_scratch());
+    }
+
+    #[test]
+    fn check() {
+        let position =
+            Position::from_str("4kr2/3Pppb1/2q2n2/npp1PpNp/1pp3b1/2N5/1P2B1PP/R1BQ1RK1 b - - 0 22")
+                .unwrap();
+        assert!(position.is_check());
+
+        let position = position.make_move(Move::new(Square::E8, Square::D8, MoveFlag::Quiet));
+        assert!(!position.is_check());
+    }
+
+    #[test]
+    fn attack() {
+        let position =
+            Position::from_str("3k3r/3Pppb1/1Nq2n2/npp1PpN1/1pp2Rb1/1P6/2Q1BKpP/R1B5 b - - 0 29")
+                .unwrap();
+        assert_eq!(
+            position.attackers(Square::C4, Color::White),
+            Bitboard::from_square(Square::B6)
+                | Bitboard::from_square(Square::B3)
+                | Bitboard::from_square(Square::E2)
+                | Bitboard::from_square(Square::F4)
+                | Bitboard::from_square(Square::C2)
+        )
+    }
+
+    #[test]
+    fn make_mov_s() {
+        let position =
+            Position::from_str("3k3r/3Pppb1/1Nq2n2/npp1PpN1/1pp2Rb1/1P6/2Q1BKpP/R1B5 b - - 0 29")
+                .unwrap();
+
+        assert_eq!(
+            position.make_move_str("c4b3").map(|p| p.fen()),
+            Some(String::from(
+                "3k3r/3Pppb1/1Nq2n2/npp1PpN1/1p3Rb1/1p6/2Q1BKpP/R1B5 w - - 0 30"
+            ))
+        );
+
+        assert_eq!(position.make_move_str("c6f4").map(|p| p.fen()), None);
     }
 }

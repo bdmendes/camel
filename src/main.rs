@@ -1,15 +1,18 @@
+use crate::core::{fen::START_POSITION, Position};
+use core::MoveStage;
 use std::{str::FromStr, time::Instant};
 
-use camel::{
-    moves::perft::perft,
-    position::{fen::START_POSITION, Position},
-};
+#[allow(unused)]
+mod core;
 
 fn main() {
     let position = Position::from_str(START_POSITION).unwrap();
+    let moves = position.moves(MoveStage::All);
+    moves.iter().for_each(|m| println!("{}", m));
+
     for depth in 1..=10 {
         let time = Instant::now();
-        let nodes = perft(&position, depth);
+        let nodes = position.perft(depth);
         let elapsed = time.elapsed().as_secs_f32();
         println!(
             "perft {}: {} [{} s; {} Mnps]",

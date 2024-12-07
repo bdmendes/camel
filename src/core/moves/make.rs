@@ -1,13 +1,13 @@
-use crate::position::{
+use crate::core::{
     bitboard::Bitboard, castling_rights::CastlingSide, color::Color, piece::Piece, square::Square,
     Position,
 };
 
 use super::{Move, MoveFlag};
 
-const COLOR_CASTLE_RANKS: [Bitboard; 2] = [Bitboard::rank_mask(0), Bitboard::rank_mask(7)];
+static COLOR_CASTLE_RANKS: [Bitboard; 2] = [Bitboard::rank_mask(0), Bitboard::rank_mask(7)];
 
-fn make_castle(
+fn make_castle<const UPDATE_METADATA: bool>(
     position: &mut Position,
     side_to_move: Color,
     castling_side: CastlingSide,
@@ -31,6 +31,10 @@ fn make_castle(
         Piece::Rook,
         side_to_move,
     );
+
+    if UPDATE_METADATA {
+        position.set_castling_rights(position.castling_rights().removed_color(side_to_move));
+    }
 }
 
 pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) -> Position {
@@ -42,13 +46,17 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
     position.clear_square(mov.from());
 
     match mov.flag() {
-        MoveFlag::Quiet if position.pieces_bb(Piece::King).is_set(mov.from()) => {
+        MoveFlag::Quiet
+            if UPDATE_METADATA && position.pieces_bb(Piece::King).is_set(mov.from()) =>
+        {
             position.set_square(mov.to(), piece, side_to_move);
             position.set_castling_rights(position.castling_rights().removed_color(side_to_move));
         }
         MoveFlag::Quiet
-            if (position.pieces_bb(Piece::Rook) & COLOR_CASTLE_RANKS[side_to_move as usize])
-                .is_set(mov.from()) =>
+            if UPDATE_METADATA
+                && (position.pieces_bb(Piece::Rook)
+                    & COLOR_CASTLE_RANKS[side_to_move as usize])
+                    .is_set(mov.from()) =>
         {
             position.set_square(mov.to(), piece, side_to_move);
             let our_king = (position.pieces_bb(Piece::King) & position.occupancy_bb(side_to_move))
@@ -68,10 +76,12 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
         }
         MoveFlag::EnpassantCapture => {
             position.set_square(mov.to(), piece, side_to_move);
-            position.clear_square(position.ep_square().unwrap().shifted(match side_to_move {
-                Color::White => Square::SOUTH,
-                Color::Black => Square::NORTH,
-            }));
+            if UPDATE_METADATA {
+                position.clear_square(position.ep_square().unwrap().shifted(match side_to_move {
+                    Color::White => Square::SOUTH,
+                    Color::Black => Square::NORTH,
+                }));
+            }
         }
         MoveFlag::KnightPromotion | MoveFlag::KnightPromotionCapture => {
             position.set_square(mov.to(), Piece::Knight, side_to_move);
@@ -86,7 +96,7 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
             position.set_square(mov.to(), Piece::Queen, side_to_move);
         }
         MoveFlag::KingsideCastle => {
-            make_castle(
+            make_castle::<UPDATE_METADATA>(
                 &mut position,
                 side_to_move,
                 CastlingSide::Kingside,
@@ -94,7 +104,7 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
             );
         }
         MoveFlag::QueensideCastle => {
-            make_castle(
+            make_castle::<UPDATE_METADATA>(
                 &mut position,
                 side_to_move,
                 CastlingSide::Queenside,

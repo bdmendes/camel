@@ -88,6 +88,10 @@ impl Bitboard {
         let rank = if rank < 8 { rank } else { 7 };
         RANK_MASK[rank as usize]
     }
+
+    pub const fn is_empty(&self) -> bool {
+        self.0 == 0
+    }
 }
 
 impl Iterator for Bitboard {
@@ -136,7 +140,7 @@ impl Display for Bitboard {
 
 #[cfg(test)]
 mod tests {
-    use crate::position::{bitboard::Bitboard, square::Square};
+    use crate::core::{bitboard::Bitboard, square::Square};
 
     #[test]
     fn from_square() {

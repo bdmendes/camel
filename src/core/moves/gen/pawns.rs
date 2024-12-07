@@ -1,18 +1,15 @@
 use crate::{
-    moves::{Move, MoveFlag},
-    position::{
+    core::moves::{Move, MoveFlag},
+    core::{
         bitboard::Bitboard,
         color::Color,
         piece::Piece,
         square::{Direction, Square},
-        Position,
+        MoveStage, Position,
     },
 };
 
-use super::{
-    leapers::{init_leaper_attacks, LeaperAttackMap},
-    MoveStage,
-};
+use super::leapers::{init_leaper_attacks, LeaperAttackMap};
 
 static PAWN_DIRECTIONS: [Direction; 2] = [Square::NORTH, Square::SOUTH];
 
@@ -169,7 +166,7 @@ mod tests {
     use std::str::FromStr;
 
     use super::*;
-    use crate::moves::gen::tests::assert_staged_moves;
+    use crate::core::moves::gen::tests::assert_staged_moves;
 
     fn pawn_attacks(position: &Position, color: Color) -> Bitboard {
         let (west_attacks, east_attacks) = pawn_attacks_sided(position, color);

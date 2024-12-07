@@ -14,13 +14,6 @@ impl Color {
             Color::Black => Color::White,
         }
     }
-
-    pub fn sign(self) -> &'static i8 {
-        match self {
-            Color::White => &1,
-            Color::Black => &-1,
-        }
-    }
 }
 
 impl Display for Color {

@@ -194,7 +194,7 @@ mod tests {
 
     use rstest::rstest;
 
-    use crate::position::{
+    use crate::core::{
         castling_rights::CastlingRights,
         color::Color,
         fen::{Fen, START_POSITION},
