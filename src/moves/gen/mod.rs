@@ -4,6 +4,7 @@ use leapers::{king_regular_moves, knight_moves};
 use pawns::{pawn_attackers, pawn_moves};
 
 mod leapers;
+mod magics;
 mod pawns;
 mod sliders;
 

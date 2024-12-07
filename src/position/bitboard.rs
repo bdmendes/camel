@@ -50,6 +50,10 @@ impl Bitboard {
         Bitboard(data)
     }
 
+    pub const fn raw(&self) -> u64 {
+        self.0
+    }
+
     pub const fn from_square(square: Square) -> Self {
         Bitboard(FROM_SQUARE[square as usize])
     }

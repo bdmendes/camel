@@ -13,7 +13,7 @@ use super::MoveStage;
 pub type LeaperAttackMap = [Bitboard; 64];
 
 pub const fn init_leaper_attacks(move_directions: &[Direction]) -> LeaperAttackMap {
-    let mut attacks: LeaperAttackMap = [Bitboard::new(0); 64];
+    let mut attacks: LeaperAttackMap = [Bitboard::empty(); 64];
 
     let mut square = 0;
     while square < 64 {
