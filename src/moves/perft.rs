@@ -10,8 +10,7 @@ pub fn perft(position: &Position, depth: u8) -> u64 {
         return 1;
     }
 
-    let mut moves = Vec::with_capacity(64);
-    generate_moves(position, MoveStage::All, &mut moves);
+    let moves = generate_moves(position, MoveStage::All);
 
     if depth == 1 {
         moves.len() as u64

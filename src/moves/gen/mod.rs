@@ -1,19 +1,26 @@
-use super::{make::make_move, Move};
-use crate::position::{bitboard::Bitboard, color::Color, piece::Piece, square::Square, Position};
-use pawns::{pawn_attackers, pawn_attacks, pawn_moves};
+use super::Move;
+use crate::position::{bitboard::Bitboard, color::Color, square::Square, Position};
+use leapers::{king_regular_moves, knight_moves};
+use pawns::{pawn_attackers, pawn_moves};
 
 mod leapers;
 mod pawns;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum MoveStage {
     All,
     CapturesAndPromotions,
     Quiet,
 }
 
-pub fn generate_moves(position: &Position, stage: MoveStage, moves: &mut Vec<Move>) {
-    pawn_moves(position, stage, moves);
+pub fn generate_moves(position: &Position, stage: MoveStage) -> Vec<Move> {
+    let mut moves = Vec::with_capacity(64);
+
+    pawn_moves(position, stage, &mut moves);
+    knight_moves(position, stage, &mut moves);
+    king_regular_moves(position, stage, &mut moves);
+
+    moves
 }
 
 pub fn square_attackers(position: &Position, square: Square, color: Color) -> Bitboard {
@@ -28,7 +35,7 @@ mod tests {
 
     use super::MoveStage;
 
-    pub fn assert_eq_vec_move(moves: &[Move], expected: &[&str]) {
+    fn assert_eq_vec_move(moves: &[Move], expected: &[&str]) {
         assert_eq!(moves.len(), expected.len());
         let mov_strs = moves.iter().map(|m| m.to_string()).collect::<Vec<String>>();
         moves.iter().map(|m| m.to_string()).for_each(|m| {

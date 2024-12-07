@@ -150,11 +150,6 @@ fn pawn_attacks_sided(position: &Position, color: Color) -> (Bitboard, Bitboard)
     (west_attacks, east_attacks)
 }
 
-pub fn pawn_attacks(position: &Position, color: Color) -> Bitboard {
-    let (west_attacks, east_attacks) = pawn_attacks_sided(position, color);
-    west_attacks | east_attacks
-}
-
 pub fn pawn_attackers(position: &Position, color: Color, square: Square) -> Bitboard {
     let attackers = match color.flipped() {
         Color::White => &PAWN_ATTACKS_WHITE,
@@ -175,6 +170,11 @@ mod tests {
 
     use super::*;
     use crate::moves::gen::tests::assert_staged_moves;
+
+    fn pawn_attacks(position: &Position, color: Color) -> Bitboard {
+        let (west_attacks, east_attacks) = pawn_attacks_sided(position, color);
+        west_attacks | east_attacks
+    }
 
     #[test]
     fn front_1() {
@@ -284,13 +284,28 @@ mod tests {
     #[test]
     fn attackers() {
         let position = Position::from_str(
-            "3r1rk1/2p1qpp1/p1p4p/Pp2b1B1/4n1b1/2NP1N1P/1PP2PP1/R2QR1K1 w - b6 0 15",
+            "3r1rk1/2p2pp1/p1p4p/Pp2b1B1/1q2n1b1/2NP1P1P/1PP3PN/R2QR1K1 b - - 0 16",
         )
         .unwrap();
 
         assert_eq!(
             pawn_attackers(&position, Color::White, Square::B6),
             Bitboard::from_square(Square::A5)
+        );
+
+        assert_eq!(
+            pawn_attackers(&position, Color::White, Square::E4),
+            Bitboard::from_square(Square::F3) | Bitboard::from_square(Square::D3)
+        );
+
+        assert_eq!(
+            pawn_attackers(&position, Color::Black, Square::C4),
+            Bitboard::from_square(Square::B5)
+        );
+
+        assert_eq!(
+            pawn_attackers(&position, Color::Black, Square::D4),
+            Bitboard::empty()
         );
     }
 }
