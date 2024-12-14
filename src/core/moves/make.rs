@@ -24,10 +24,10 @@ fn make_castle<const UPDATE_METADATA: bool>(
     position.clear_square(rook.unwrap());
     position.set_square(to_square, Piece::King, side_to_move);
     position.set_square(
-        to_square.shifted(match castling_side {
-            CastlingSide::Kingside => Square::WEST,
-            CastlingSide::Queenside => Square::EAST,
-        }),
+        match castling_side {
+            CastlingSide::Kingside => to_square << 1,
+            CastlingSide::Queenside => to_square >> 1,
+        },
         Piece::Rook,
         side_to_move,
     );

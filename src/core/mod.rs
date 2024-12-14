@@ -258,10 +258,13 @@ impl Position {
     }
 
     pub fn is_check(&self) -> bool {
-        self.pieces_color_bb(Piece::King, self.side_to_move())
+        let king_square = self
+            .pieces_color_bb(Piece::King, self.side_to_move())
             .next()
-            .map(|sq| !self.attackers(sq, self.side_to_move().flipped()).is_empty())
-            .unwrap_or(false)
+            .unwrap();
+        !self
+            .attackers(king_square, self.side_to_move().flipped())
+            .is_empty()
     }
 
     pub fn attackers(&self, square: Square, by_color: Color) -> Bitboard {

@@ -93,10 +93,12 @@ impl Bitboard {
         self.0 == 0
     }
 
-    pub const fn between(from: Square, to: Square) -> Bitboard {
+    pub fn between(from: Square, to: Square) -> Bitboard {
         let from = from as u8;
         let to = to as u8;
-        let mask = ((1 << (to - from - 1)) - 1) << (from + 1);
+        let min = from.min(to);
+        let max = from.max(to);
+        let mask = ((1 << (max - min - 1)) - 1) << (min + 1);
         Bitboard::new(mask)
     }
 }
@@ -241,6 +243,11 @@ mod tests {
     fn between_row() {
         assert_eq!(
             Bitboard::between(Square::E1, Square::H1),
+            Bitboard::from_square(Square::F1) | Bitboard::from_square(Square::G1)
+        );
+
+        assert_eq!(
+            Bitboard::between(Square::H1, Square::E1),
             Bitboard::from_square(Square::F1) | Bitboard::from_square(Square::G1)
         );
     }

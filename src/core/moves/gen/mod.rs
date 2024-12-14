@@ -1,9 +1,11 @@
 use super::Move;
 use crate::core::{bitboard::Bitboard, color::Color, square::Square, MoveStage, Position};
+use castle::castle_moves;
 use leapers::{king_attackers, king_regular_moves, knight_attackers, knight_moves};
 use pawns::{pawn_attackers, pawn_moves};
 use sliders::{bishop_moves, diagonal_attackers, file_attackers, queen_moves, rook_moves};
 
+mod castle;
 mod leapers;
 mod magics;
 mod pawns;
@@ -18,6 +20,7 @@ pub fn generate_moves(position: &Position, stage: MoveStage) -> Vec<Move> {
     bishop_moves(position, stage, &mut moves);
     rook_moves(position, stage, &mut moves);
     queen_moves(position, stage, &mut moves);
+    castle_moves(position, stage, &mut moves);
 
     moves
 }
