@@ -92,6 +92,13 @@ impl Bitboard {
     pub const fn is_empty(&self) -> bool {
         self.0 == 0
     }
+
+    pub const fn between(from: Square, to: Square) -> Bitboard {
+        let from = from as u8;
+        let to = to as u8;
+        let mask = ((1 << (to - from - 1)) - 1) << (from + 1);
+        Bitboard::new(mask)
+    }
 }
 
 impl Iterator for Bitboard {
@@ -228,6 +235,14 @@ mod tests {
                 | Bitboard::from_square(Square::H3)
         );
         assert_eq!(Bitboard::rank_mask(30), Bitboard::rank_mask(7));
+    }
+
+    #[test]
+    fn between_row() {
+        assert_eq!(
+            Bitboard::between(Square::E1, Square::H1),
+            Bitboard::from_square(Square::F1) | Bitboard::from_square(Square::G1)
+        );
     }
 
     #[test]
