@@ -22,16 +22,6 @@ const RANK_MASK: [Bitboard; 8] = {
     arr
 };
 
-const FROM_SQUARE: [u64; 64] = {
-    let mut arr = [0; 64];
-    let mut square = 0;
-    while square < 64 {
-        arr[square] = 1 << square as u64;
-        square += 1;
-    }
-    arr
-};
-
 #[derive(
     Default, Copy, Clone, Debug, PartialEq, Eq, BitOr, BitAnd, Shl, Shr, ShlAssign, ShrAssign, Not,
 )]
@@ -55,19 +45,19 @@ impl Bitboard {
     }
 
     pub const fn from_square(square: Square) -> Self {
-        Bitboard(FROM_SQUARE[square as usize])
+        Bitboard(1 << square as usize)
     }
 
     pub const fn is_set(&self, square: Square) -> bool {
-        (self.0 & FROM_SQUARE[square as usize]) != 0
+        (self.0 & 1 << square as usize) != 0
     }
 
     pub fn set(&mut self, square: Square) {
-        self.0 |= FROM_SQUARE[square as usize];
+        self.0 |= 1 << square as usize;
     }
 
     pub fn clear(&mut self, square: Square) {
-        self.0 &= !FROM_SQUARE[square as usize];
+        self.0 &= !(1 << square as usize);
     }
 
     pub const fn count_ones(&self) -> u32 {

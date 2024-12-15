@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-use super::magics::{bishop_attacks, rook_attacks};
+use super::magics::{bishop_attacks, queen_attacks, rook_attacks};
 
 pub static ROOK_MOVE_DIRECTIONS: [Direction; 4] =
     [Square::NORTH, Square::EAST, Square::SOUTH, Square::WEST];
@@ -110,13 +110,7 @@ pub fn bishop_moves(position: &Position, stage: MoveStage, moves: &mut Vec<Move>
 }
 
 pub fn queen_moves(position: &Position, stage: MoveStage, moves: &mut Vec<Move>) {
-    slider_moves(
-        Piece::Queen,
-        |p, sq| rook_attacks(p, sq) | bishop_attacks(p, sq),
-        position,
-        stage,
-        moves,
-    );
+    slider_moves(Piece::Queen, queen_attacks, position, stage, moves);
 }
 
 #[cfg(test)]

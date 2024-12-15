@@ -117,6 +117,10 @@ pub fn rook_attacks(position: &Position, square: Square) -> Bitboard {
     magic.attacks[index]
 }
 
+pub fn queen_attacks(position: &Position, square: Square) -> Bitboard {
+    bishop_attacks(position, square) | rook_attacks(position, square)
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;

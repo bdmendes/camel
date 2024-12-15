@@ -4,6 +4,7 @@ use crate::core::{
 };
 use castle::castle_moves;
 use leapers::{king_attackers, king_regular_moves, knight_attackers, knight_moves};
+use magics::queen_attacks;
 use pawns::{pawn_attackers, pawn_moves};
 use sliders::{bishop_moves, diagonal_attackers, file_attackers, queen_moves, rook_moves};
 
@@ -16,21 +17,41 @@ mod sliders;
 pub fn generate_moves(position: &Position, stage: MoveStage) -> Vec<Move> {
     let mut moves = Vec::with_capacity(64);
 
-    pawn_moves(position, stage, &mut moves);
-    knight_moves(position, stage, &mut moves);
+    let our_king = position.pieces_color_bb(Piece::King, position.side_to_move).next().unwrap();
+    let king_attackers = square_attackers(position, our_king, position.side_to_move.flipped());
+    let king_ray = queen_attacks(position, our_king);
+
     king_regular_moves(position, stage, &mut moves);
-    bishop_moves(position, stage, &mut moves);
-    rook_moves(position, stage, &mut moves);
-    queen_moves(position, stage, &mut moves);
-    castle_moves(position, stage, &mut moves);
 
-    moves.retain(|m| {
-        match m.flag() {
-            MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => return true,
-            _ => (),
+    if king_attackers.count_ones() <= 1 {
+        pawn_moves(position, stage, &mut moves);
+        knight_moves(position, stage, &mut moves);
+        bishop_moves(position, stage, &mut moves);
+        rook_moves(position, stage, &mut moves);
+        queen_moves(position, stage, &mut moves);
+        if king_attackers.is_empty() {
+            castle_moves(position, stage, &mut moves);
         }
+    }
 
-        let mut new_position = make_move::<false>(position, *m);
+    moves.retain(|mov| {
+        match mov.flag() {
+            MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => return true,
+            MoveFlag::Quiet | MoveFlag::DoublePawnPush if mov.from() != our_king => {
+                // If in check, we must try to block the king rays.
+                if !king_attackers.is_empty() && !king_ray.is_set(mov.to()) {
+                    return false;
+                }
+
+                // If not in check and not removing from king rays, we're sure this is legal.
+                if king_attackers.is_empty() && !king_ray.is_set(mov.from()) {
+                    return true;
+                }
+            }
+            _ => (),
+        };
+
+        let mut new_position = make_move::<false>(position, *mov);
         !new_position.is_check()
     });
 
