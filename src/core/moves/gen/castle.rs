@@ -41,6 +41,11 @@ fn kingside_castle(position: &Position, moves: &mut Vec<Move>) {
             king,
             COLOR_KINGSIDE_SQUARES[position.side_to_move as usize] << 1,
         );
+        if !(position.occupancy_bb_all() & until_final_king & !Bitboard::from_square(rook))
+            .is_empty()
+        {
+            return;
+        }
         for sq in until_final_king {
             if !square_attackers(position, sq, position.side_to_move.flipped()).is_empty() {
                 return;
@@ -74,6 +79,11 @@ fn queenside_castle(position: &Position, moves: &mut Vec<Move>) {
             king,
             COLOR_QUEENSIDE_SQUARES[position.side_to_move as usize] >> 1,
         );
+        if !(position.occupancy_bb_all() & until_final_king & !Bitboard::from_square(rook))
+            .is_empty()
+        {
+            return;
+        }
         for sq in until_final_king {
             if !square_attackers(position, sq, position.side_to_move.flipped()).is_empty() {
                 return;
@@ -108,5 +118,114 @@ pub fn castle_moves(position: &Position, stage: MoveStage, moves: &mut Vec<Move>
         .has_side(position.side_to_move, CastlingSide::Queenside)
     {
         queenside_castle(position, moves);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use crate::core::{MoveStage, Position};
+
+    use super::castle_moves;
+
+    fn assert_castle(position: &str, moves: &[&str]) {
+        let position = Position::from_str(position).unwrap();
+        let mut buf = vec![];
+        castle_moves(&position, MoveStage::All, &mut buf);
+
+        assert_eq!(buf.len(), moves.len());
+
+        for m in buf {
+            assert!(moves.contains(&m.to_string().as_str()));
+        }
+    }
+
+    #[test]
+    fn regular_kingside() {
+        assert_castle(
+            "r1bqkb1r/pppp1ppp/2n2n2/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+            &["e1g1"],
+        );
+    }
+
+    #[test]
+    fn regular_queenside() {
+        assert_castle(
+            "r1b1r1k1/1pppqppp/p1n2n2/1Bb1p1B1/4P3/2NP4/PPPQ1PPP/R3K1NR w KQ - 0 9",
+            &["e1c1"],
+        );
+    }
+
+    #[test]
+    fn through_check() {
+        assert_castle(
+            "r1b1r1k1/2ppqpp1/p4n2/1pb1n1p1/B3P3/2NP1N2/PPPQ2PP/R3K2R w KQ - 0 13",
+            &["e1c1"],
+        );
+    }
+
+    #[test]
+    fn through_check_2() {
+        assert_castle(
+            "r3kb1r/pBpnqppp/Np1pp2n/4P3/8/6P1/PPPPNP1P/R1BQK2R b KQkq - 12 12",
+            &[],
+        );
+    }
+
+    #[test]
+    fn in_check() {
+        assert_castle(
+            "r1b1kbnr/pp3ppp/2n5/qB1pP3/8/5N2/PPP2PPP/RNBQK2R w KQkq - 3 7",
+            &[],
+        );
+    }
+
+    #[test]
+    fn chess960_queenside() {
+        assert_castle(
+            "rbnkr1bq/pp2p2p/2p1n1p1/3p1p2/5P2/P2N2P1/BPPPP2P/R2KRNBQ w KQkq - 0 6",
+            &["d1c1"],
+        );
+    }
+
+    #[test]
+    fn chess960_kingside() {
+        assert_castle(
+            "rb1kr2q/pp1ppbpp/2pnn3/5p2/5P2/P2NNQP1/1PPPP2P/RB1KR1B1 b KQkq - 4 6",
+            &["d8g8"],
+        );
+    }
+
+    #[test]
+    fn single_rook() {
+        assert_castle(
+            "r1bqk2r/ppppbppp/2n1p3/7n/3PPB2/P1N2N1P/1PPQB1P1/R3K3 w KQkq - 1 10",
+            &["e1c1"],
+        );
+    }
+
+    #[test]
+    fn rook_attacked_kingside() {
+        assert_castle(
+            "r2qk1nr/pbppbppp/np2p3/4P3/8/6PB/PPPPNP1P/RNBQK2R w KQkq - 4 6",
+            &["e1g1"],
+        );
+    }
+
+    #[test]
+    fn rook_attacked_queenside() {
+        assert_castle(
+            "r3kbnr/p1pnqppp/1pBpp3/4P3/8/6P1/PPPPNP1P/RNBQK2R b KQkq - 2 7",
+            &["e8c8"],
+        );
+    }
+
+    #[test]
+    fn rook_through_attack() {
+        assert_castle(
+            "r3kbnr/p1pnqppp/NpBpp3/4P3/8/6P1/PPPPNP1P/R1BQK2R b KQkq - 10 11",
+            &["e8c8"],
+        );
     }
 }
