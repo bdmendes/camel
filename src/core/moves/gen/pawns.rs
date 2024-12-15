@@ -99,7 +99,14 @@ fn pawn_moves_captures(position: &Position, stage: MoveStage, moves: &mut Vec<Mo
         .ep_square()
         .map_or(Bitboard::empty(), Bitboard::from_square);
 
-    for sq in west_attacks & !ep_bb {
+    for sq in west_attacks & !ep_bb & LAST_RANKS {
+        let to = sq.shifted(-our_direction + Square::EAST);
+        moves.push(Move::new(to, sq, MoveFlag::KnightPromotionCapture));
+        moves.push(Move::new(to, sq, MoveFlag::BishopPromotionCapture));
+        moves.push(Move::new(to, sq, MoveFlag::RookPromotionCapture));
+        moves.push(Move::new(to, sq, MoveFlag::QueenPromotionCapture));
+    }
+    for sq in west_attacks & !ep_bb & !LAST_RANKS {
         moves.push(Move::new(
             sq.shifted(-our_direction + Square::EAST),
             sq,
@@ -114,7 +121,14 @@ fn pawn_moves_captures(position: &Position, stage: MoveStage, moves: &mut Vec<Mo
         ));
     }
 
-    for sq in east_attacks & !ep_bb {
+    for sq in east_attacks & !ep_bb & LAST_RANKS {
+        let to_west = sq.shifted(-our_direction + Square::WEST);
+        moves.push(Move::new(to_west, sq, MoveFlag::KnightPromotionCapture));
+        moves.push(Move::new(to_west, sq, MoveFlag::BishopPromotionCapture));
+        moves.push(Move::new(to_west, sq, MoveFlag::RookPromotionCapture));
+        moves.push(Move::new(to_west, sq, MoveFlag::QueenPromotionCapture));
+    }
+    for sq in east_attacks & !ep_bb & !LAST_RANKS {
         moves.push(Move::new(
             sq.shifted(-our_direction + Square::WEST),
             sq,

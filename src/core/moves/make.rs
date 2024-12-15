@@ -77,12 +77,10 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
         }
         MoveFlag::EnpassantCapture => {
             position.set_square(mov.to(), piece, side_to_move);
-            if UPDATE_METADATA {
-                position.clear_square(match side_to_move {
-                    Color::White => position.ep_square().unwrap() >> 8,
-                    Color::Black => position.ep_square().unwrap() << 8,
-                });
-            }
+            position.clear_square(match side_to_move {
+                Color::White => position.ep_square().unwrap() >> 8,
+                Color::Black => position.ep_square().unwrap() << 8,
+            });
         }
         MoveFlag::KnightPromotion | MoveFlag::KnightPromotionCapture => {
             position.set_square(mov.to(), Piece::Knight, side_to_move);
