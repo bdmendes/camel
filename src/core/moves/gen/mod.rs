@@ -37,9 +37,24 @@ pub fn generate_moves(position: &Position, stage: MoveStage) -> Vec<Move> {
     moves.retain(|mov| {
         match mov.flag() {
             MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => return true,
-            MoveFlag::Quiet | MoveFlag::DoublePawnPush if mov.from() != our_king => {
+            MoveFlag::Quiet
+            | MoveFlag::Capture
+            | MoveFlag::DoublePawnPush
+            | MoveFlag::QueenPromotion
+            | MoveFlag::QueenPromotionCapture
+            | MoveFlag::RookPromotion
+            | MoveFlag::RookPromotionCapture
+            | MoveFlag::BishopPromotion
+            | MoveFlag::BishopPromotionCapture
+            | MoveFlag::KnightPromotion
+            | MoveFlag::KnightPromotionCapture
+                if mov.from() != our_king =>
+            {
                 // If in check, we must try to block the king rays.
-                if !king_attackers.is_empty() && !king_ray.is_set(mov.to()) {
+                if !king_attackers.is_empty()
+                    && !king_ray.is_set(mov.to())
+                    && position.piece_at(mov.to()) != Some(Piece::Knight)
+                {
                     return false;
                 }
 
@@ -48,7 +63,7 @@ pub fn generate_moves(position: &Position, stage: MoveStage) -> Vec<Move> {
                     return true;
                 }
             }
-            _ => (),
+            _ => {}
         };
 
         let mut new_position = make_move::<false>(position, *mov);

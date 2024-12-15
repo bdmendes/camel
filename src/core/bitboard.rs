@@ -80,12 +80,10 @@ impl Bitboard {
     }
 
     pub const fn file_mask(file: u8) -> Self {
-        let file = if file < 8 { file } else { 7 };
         FILE_MASK[file as usize]
     }
 
     pub const fn rank_mask(rank: u8) -> Self {
-        let rank = if rank < 8 { rank } else { 7 };
         RANK_MASK[rank as usize]
     }
 
@@ -237,7 +235,6 @@ mod tests {
                 | Bitboard::from_square(Square::C7)
                 | Bitboard::from_square(Square::C8)
         );
-        assert_eq!(Bitboard::file_mask(30), Bitboard::file_mask(7));
 
         assert_eq!(
             Bitboard::rank_mask(2),
@@ -250,7 +247,6 @@ mod tests {
                 | Bitboard::from_square(Square::G3)
                 | Bitboard::from_square(Square::H3)
         );
-        assert_eq!(Bitboard::rank_mask(30), Bitboard::rank_mask(7));
     }
 
     #[test]
