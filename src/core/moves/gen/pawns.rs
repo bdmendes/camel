@@ -29,9 +29,7 @@ static DOUBLE_RANKS: [[Bitboard; 3]; 2] = {
 };
 
 fn pawn_moves_front(position: &Position, stage: MoveStage, moves: &mut Vec<Move>) {
-    let our_pawns =
-        position.occupancy_bb(position.side_to_move()) & position.pieces_bb(Piece::Pawn);
-
+    let our_pawns = position.pieces_color_bb(Piece::Pawn, position.side_to_move);
     let walk = our_pawns.shifted(PAWN_DIRECTIONS[position.side_to_move() as usize])
         & !position.occupancy_bb_all()
         & match stage {
@@ -60,8 +58,7 @@ fn pawn_moves_double(position: &Position, stage: MoveStage, moves: &mut Vec<Move
         return;
     }
 
-    let our_pawns =
-        position.occupancy_bb(position.side_to_move()) & position.pieces_bb(Piece::Pawn);
+    let our_pawns = position.pieces_color_bb(Piece::Pawn, position.side_to_move);
     let occupancy = position.occupancy_bb_all();
 
     let ranks = DOUBLE_RANKS[position.side_to_move() as usize];
@@ -123,7 +120,7 @@ fn pawn_moves_captures(position: &Position, stage: MoveStage, moves: &mut Vec<Mo
 }
 
 fn pawn_attacks_sided(position: &Position, color: Color) -> (Bitboard, Bitboard) {
-    let our_pawns = position.occupancy_bb(color) & position.pieces_bb(Piece::Pawn);
+    let our_pawns = position.pieces_color_bb(Piece::Pawn, color);
     let their_pieces = position.occupancy_bb(color.flipped())
         | (color == position.side_to_move())
             .then_some(position.ep_square())

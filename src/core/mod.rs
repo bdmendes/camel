@@ -153,18 +153,37 @@ impl Position {
     }
 
     pub fn clear_square(&mut self, square: Square) {
+        self.clear_square_low::<true>(square);
+    }
+
+    pub fn clear_square_low<const HASH: bool>(&mut self, square: Square) {
         if let Some((piece, color)) = self.piece_color_at(square) {
             self.pieces[piece as usize].clear(square);
             self.occupancy[color as usize].clear(square);
-            self.hash.xor_piece(piece, square, color);
+            if HASH {
+                self.hash.xor_piece(piece, square, color);
+            }
         }
     }
 
     pub fn set_square(&mut self, square: Square, piece: Piece, color: Color) {
-        self.clear_square(square);
+        self.set_square_low::<true, true>(square, piece, color);
+    }
+
+    pub fn set_square_low<const HASH: bool, const CLEAR: bool>(
+        &mut self,
+        square: Square,
+        piece: Piece,
+        color: Color,
+    ) {
+        if CLEAR {
+            self.clear_square(square);
+        }
         self.pieces[piece as usize].set(square);
         self.occupancy[color as usize].set(square);
-        self.hash.xor_piece(piece, square, color);
+        if HASH {
+            self.hash.xor_piece(piece, square, color);
+        }
     }
 
     pub fn hash(&self) -> ZobristHash {
