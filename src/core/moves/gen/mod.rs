@@ -1,5 +1,7 @@
-use super::Move;
-use crate::core::{bitboard::Bitboard, color::Color, square::Square, MoveStage, Position};
+use super::{make::make_move, Move, MoveFlag};
+use crate::core::{
+    bitboard::Bitboard, color::Color, piece::Piece, square::Square, MoveStage, Position,
+};
 use castle::castle_moves;
 use leapers::{king_attackers, king_regular_moves, knight_attackers, knight_moves};
 use pawns::{pawn_attackers, pawn_moves};
@@ -21,6 +23,16 @@ pub fn generate_moves(position: &Position, stage: MoveStage) -> Vec<Move> {
     rook_moves(position, stage, &mut moves);
     queen_moves(position, stage, &mut moves);
     castle_moves(position, stage, &mut moves);
+
+    moves.retain(|m| {
+        match m.flag() {
+            MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => return true,
+            _ => (),
+        }
+
+        let mut new_position = make_move::<false>(position, *m);
+        !new_position.is_check()
+    });
 
     moves
 }

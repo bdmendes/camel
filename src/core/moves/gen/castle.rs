@@ -13,6 +13,17 @@ use super::square_attackers;
 static COLOR_CASTLE_RANKS: [Bitboard; 2] = [Bitboard::rank_mask(0), Bitboard::rank_mask(7)];
 static COLOR_KINGSIDE_SQUARES: [Square; 2] = [Square::G1, Square::G8];
 static COLOR_QUEENSIDE_SQUARES: [Square; 2] = [Square::C1, Square::C8];
+static REGULAR_CHESS_ROOKS: Bitboard = Bitboard::new(
+    (1 << Square::A1 as usize)
+        | (1 << Square::A8 as usize)
+        | (1 << Square::H1 as usize)
+        | (1 << Square::H8 as usize),
+);
+static REGULAR_CHESS_KINGS: [Square; 2] = [Square::E1, Square::E8];
+
+fn is_chess960(king: Square, rook: Square, side_to_move: Color) -> bool {
+    !REGULAR_CHESS_ROOKS.is_set(rook) || REGULAR_CHESS_KINGS[side_to_move as usize] != king
+}
 
 fn king_square(position: &Position) -> Square {
     position
@@ -21,14 +32,23 @@ fn king_square(position: &Position) -> Square {
         .unwrap()
 }
 
-fn kingside_castle(position: &Position, moves: &mut Vec<Move>) {
+fn castle_side<const QUEENSIDE: bool>(position: &Position, moves: &mut Vec<Move>) {
     let king = king_square(position);
     let our_rank = COLOR_CASTLE_RANKS[position.side_to_move as usize];
-    let our_rook =
-        (our_rank & position.pieces_color_bb(Piece::Rook, position.side_to_move)).next_back();
+    let mut our_rook = (our_rank & position.pieces_color_bb(Piece::Rook, position.side_to_move));
+    let our_rook = if QUEENSIDE {
+        our_rook.next()
+    } else {
+        our_rook.next_back()
+    };
+    let castle_squares = if QUEENSIDE {
+        &COLOR_QUEENSIDE_SQUARES
+    } else {
+        &COLOR_KINGSIDE_SQUARES
+    };
 
     if let Some(rook) = our_rook {
-        if rook.file() < king.file() {
+        if (QUEENSIDE && rook.file() > king.file()) || (!QUEENSIDE && rook.file() < king.file()) {
             return;
         }
 
@@ -39,7 +59,11 @@ fn kingside_castle(position: &Position, moves: &mut Vec<Move>) {
 
         let until_final_king = Bitboard::between(
             king,
-            COLOR_KINGSIDE_SQUARES[position.side_to_move as usize] << 1,
+            if QUEENSIDE {
+                castle_squares[position.side_to_move as usize] >> 1
+            } else {
+                castle_squares[position.side_to_move as usize] << 1
+            },
         );
         if !(position.occupancy_bb_all() & until_final_king & !Bitboard::from_square(rook))
             .is_empty()
@@ -54,46 +78,16 @@ fn kingside_castle(position: &Position, moves: &mut Vec<Move>) {
 
         moves.push(Move::new(
             king,
-            COLOR_KINGSIDE_SQUARES[position.side_to_move as usize],
-            MoveFlag::KingsideCastle,
-        ));
-    }
-}
-
-fn queenside_castle(position: &Position, moves: &mut Vec<Move>) {
-    let king = king_square(position);
-    let our_rank = COLOR_CASTLE_RANKS[position.side_to_move as usize];
-    let our_rook = (our_rank & position.pieces_color_bb(Piece::Rook, position.side_to_move)).next();
-
-    if let Some(rook) = our_rook {
-        if rook.file() > king.file() {
-            return;
-        }
-
-        let until_rook = Bitboard::between(king, rook);
-        if !(position.occupancy_bb_all() & until_rook).is_empty() {
-            return;
-        }
-
-        let until_final_king = Bitboard::between(
-            king,
-            COLOR_QUEENSIDE_SQUARES[position.side_to_move as usize] >> 1,
-        );
-        if !(position.occupancy_bb_all() & until_final_king & !Bitboard::from_square(rook))
-            .is_empty()
-        {
-            return;
-        }
-        for sq in until_final_king {
-            if !square_attackers(position, sq, position.side_to_move.flipped()).is_empty() {
-                return;
-            }
-        }
-
-        moves.push(Move::new(
-            king,
-            COLOR_QUEENSIDE_SQUARES[position.side_to_move as usize],
-            MoveFlag::QueensideCastle,
+            if is_chess960(king, rook, position.side_to_move) {
+                rook
+            } else {
+                castle_squares[position.side_to_move as usize]
+            },
+            if QUEENSIDE {
+                MoveFlag::QueensideCastle
+            } else {
+                MoveFlag::KingsideCastle
+            },
         ));
     }
 }
@@ -110,14 +104,14 @@ pub fn castle_moves(position: &Position, stage: MoveStage, moves: &mut Vec<Move>
         .castling_rights()
         .has_side(position.side_to_move, CastlingSide::Kingside)
     {
-        kingside_castle(position, moves);
+        castle_side::<false>(position, moves);
     }
 
     if position
         .castling_rights()
         .has_side(position.side_to_move, CastlingSide::Queenside)
     {
-        queenside_castle(position, moves);
+        castle_side::<true>(position, moves);
     }
 }
 
@@ -133,6 +127,10 @@ mod tests {
         let position = Position::from_str(position).unwrap();
         let mut buf = vec![];
         castle_moves(&position, MoveStage::All, &mut buf);
+
+        for m in &buf {
+            println!("{m}");
+        }
 
         assert_eq!(buf.len(), moves.len());
 
@@ -185,7 +183,7 @@ mod tests {
     fn chess960_queenside() {
         assert_castle(
             "rbnkr1bq/pp2p2p/2p1n1p1/3p1p2/5P2/P2N2P1/BPPPP2P/R2KRNBQ w KQkq - 0 6",
-            &["d1c1"],
+            &["d1a1"],
         );
     }
 
@@ -193,7 +191,7 @@ mod tests {
     fn chess960_kingside() {
         assert_castle(
             "rb1kr2q/pp1ppbpp/2pnn3/5p2/5P2/P2NNQP1/1PPPP2P/RB1KR1B1 b KQkq - 4 6",
-            &["d8g8"],
+            &["d8e8"],
         );
     }
 

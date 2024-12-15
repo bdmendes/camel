@@ -6,19 +6,20 @@ use crate::core::{
 use super::{Move, MoveFlag};
 
 static COLOR_CASTLE_RANKS: [Bitboard; 2] = [Bitboard::rank_mask(0), Bitboard::rank_mask(7)];
+static TO_SQUARE_KINGSIDE: [Square; 2] = [Square::G1, Square::G8];
+static TO_SQUARE_QUEENSIDE: [Square; 2] = [Square::C1, Square::C8];
 
 fn make_castle<const UPDATE_METADATA: bool>(
     position: &mut Position,
     side_to_move: Color,
     castling_side: CastlingSide,
-    to_square: Square,
 ) {
     let ours = position.occupancy_bb(side_to_move);
     let mut rooks =
         position.pieces_bb(Piece::Rook) & ours & COLOR_CASTLE_RANKS[side_to_move as usize];
-    let rook = match castling_side {
-        CastlingSide::Kingside => rooks.next_back(),
-        CastlingSide::Queenside => rooks.next(),
+    let (rook, to_square) = match castling_side {
+        CastlingSide::Kingside => (rooks.next_back(), TO_SQUARE_KINGSIDE[side_to_move as usize]),
+        CastlingSide::Queenside => (rooks.next(), TO_SQUARE_QUEENSIDE[side_to_move as usize]),
     };
 
     position.clear_square(rook.unwrap());
@@ -77,10 +78,10 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
         MoveFlag::EnpassantCapture => {
             position.set_square(mov.to(), piece, side_to_move);
             if UPDATE_METADATA {
-                position.clear_square(position.ep_square().unwrap().shifted(match side_to_move {
-                    Color::White => Square::SOUTH,
-                    Color::Black => Square::NORTH,
-                }));
+                position.clear_square(match side_to_move {
+                    Color::White => position.ep_square().unwrap() >> 8,
+                    Color::Black => position.ep_square().unwrap() << 8,
+                });
             }
         }
         MoveFlag::KnightPromotion | MoveFlag::KnightPromotionCapture => {
@@ -96,20 +97,10 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
             position.set_square(mov.to(), Piece::Queen, side_to_move);
         }
         MoveFlag::KingsideCastle => {
-            make_castle::<UPDATE_METADATA>(
-                &mut position,
-                side_to_move,
-                CastlingSide::Kingside,
-                mov.to(),
-            );
+            make_castle::<UPDATE_METADATA>(&mut position, side_to_move, CastlingSide::Kingside);
         }
         MoveFlag::QueensideCastle => {
-            make_castle::<UPDATE_METADATA>(
-                &mut position,
-                side_to_move,
-                CastlingSide::Queenside,
-                mov.to(),
-            );
+            make_castle::<UPDATE_METADATA>(&mut position, side_to_move, CastlingSide::Queenside);
         }
     }
 
