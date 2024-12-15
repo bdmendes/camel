@@ -18,8 +18,8 @@ fn make_castle<const UPDATE_METADATA: bool>(
     let mut rooks =
         position.pieces_bb(Piece::Rook) & ours & COLOR_CASTLE_RANKS[side_to_move as usize];
     let (rook, to_square) = match castling_side {
-        CastlingSide::Kingside => (rooks.next_back(), TO_SQUARE_KINGSIDE[side_to_move as usize]),
-        CastlingSide::Queenside => (rooks.next(), TO_SQUARE_QUEENSIDE[side_to_move as usize]),
+        CastlingSide::Kingside => (rooks.msb(), TO_SQUARE_KINGSIDE[side_to_move as usize]),
+        CastlingSide::Queenside => (rooks.lsb(), TO_SQUARE_QUEENSIDE[side_to_move as usize]),
     };
 
     position.clear_square(rook.unwrap());
@@ -63,7 +63,7 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
         {
             position.set_square(mov.to(), piece, side_to_move);
             let our_king = (position.pieces_bb(Piece::King) & position.occupancy_bb(side_to_move))
-                .next()
+                .lsb()
                 .unwrap();
             position.set_castling_rights(position.castling_rights().removed_side(
                 side_to_move,

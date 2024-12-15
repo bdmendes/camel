@@ -44,6 +44,16 @@ impl Bitboard {
         self.0
     }
 
+    pub fn lsb(&self) -> Option<Square> {
+        let lsb = self.0.trailing_zeros();
+        Square::from(lsb as u8)
+    }
+
+    pub fn msb(&self) -> Option<Square> {
+        let msb = 63_u32.wrapping_sub(self.0.leading_zeros());
+        Square::from(msb as u8)
+    }
+
     pub const fn from_square(square: Square) -> Self {
         Bitboard(1 << square as usize)
     }
@@ -97,25 +107,23 @@ impl Iterator for Bitboard {
     type Item = Square;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.0 == 0 {
-            return None;
+        if let Some(lsb) = self.lsb() {
+            self.0 &= self.0 - 1;
+            Some(lsb)
+        } else {
+            None
         }
-
-        let lsb = self.0.trailing_zeros();
-        self.0 &= self.0 - 1;
-        Square::from(lsb as u8)
     }
 }
 
 impl DoubleEndedIterator for Bitboard {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if self.0 == 0 {
-            return None;
+        if let Some(msb) = self.msb() {
+            self.0 &= !(1 << msb as u8);
+            Some(msb)
+        } else {
+            None
         }
-
-        let msb = 63 - self.0.leading_zeros();
-        self.0 &= !(1 << msb);
-        Square::from(msb as u8)
     }
 }
 
@@ -155,6 +163,24 @@ mod tests {
 
         bb.clear(Square::E4);
         assert!(!bb.is_set(Square::E4));
+    }
+
+    #[test]
+    fn lsb() {
+        let bb = Bitboard::from_square(Square::E4)
+            | Bitboard::from_square(Square::A6)
+            | Bitboard::from_square(Square::H8);
+        assert_eq!(bb.lsb(), Some(Square::E4));
+        assert_eq!(Bitboard::empty().lsb(), None);
+    }
+
+    #[test]
+    fn msb() {
+        let bb = Bitboard::from_square(Square::E4)
+            | Bitboard::from_square(Square::A6)
+            | Bitboard::from_square(Square::H8);
+        assert_eq!(bb.msb(), Some(Square::H8));
+        assert_eq!(Bitboard::empty().msb(), None);
     }
 
     #[test]

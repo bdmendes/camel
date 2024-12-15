@@ -26,14 +26,14 @@ fn is_chess960(king: Square, rook: Square, side_to_move: Color) -> bool {
 }
 
 fn king_square(position: &Position) -> Square {
-    position.pieces_color_bb(Piece::King, position.side_to_move).next().unwrap()
+    position.pieces_color_bb(Piece::King, position.side_to_move).lsb().unwrap()
 }
 
 fn castle_side<const QUEENSIDE: bool>(position: &Position, moves: &mut Vec<Move>) {
     let king = king_square(position);
     let our_rank = COLOR_CASTLE_RANKS[position.side_to_move as usize];
     let mut our_rook = (our_rank & position.pieces_color_bb(Piece::Rook, position.side_to_move));
-    let our_rook = if QUEENSIDE { our_rook.next() } else { our_rook.next_back() };
+    let our_rook = if QUEENSIDE { our_rook.lsb() } else { our_rook.msb() };
     let castle_squares = if QUEENSIDE { &COLOR_QUEENSIDE_SQUARES } else { &COLOR_KINGSIDE_SQUARES };
 
     if let Some(rook) = our_rook {

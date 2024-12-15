@@ -17,7 +17,7 @@ mod sliders;
 pub fn generate_moves(position: &Position, stage: MoveStage) -> Vec<Move> {
     let mut moves = Vec::with_capacity(64);
 
-    let our_king = position.pieces_color_bb(Piece::King, position.side_to_move).next().unwrap();
+    let our_king = position.pieces_color_bb(Piece::King, position.side_to_move).lsb().unwrap();
     let king_attackers = square_attackers(position, our_king, position.side_to_move.flipped());
     let king_ray = queen_attacks(position, our_king);
 

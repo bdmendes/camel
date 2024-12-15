@@ -257,7 +257,7 @@ impl Position {
     }
 
     pub fn is_check(&self) -> bool {
-        let king_square = self.pieces_color_bb(Piece::King, self.side_to_move()).next().unwrap();
+        let king_square = self.pieces_color_bb(Piece::King, self.side_to_move()).lsb().unwrap();
         !self.attackers(king_square, self.side_to_move().flipped()).is_empty()
     }
 
