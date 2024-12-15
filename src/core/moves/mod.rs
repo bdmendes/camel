@@ -73,10 +73,8 @@ impl Display for Move {
             "{}{}{}",
             self.from(),
             self.to(),
-            self.promotion_piece().map_or(String::new(), |p| format!(
-                "={}",
-                p.to_string().to_uppercase()
-            ))
+            self.promotion_piece()
+                .map_or(String::new(), |p| format!("={}", p.to_string().to_uppercase()))
         )
     }
 }

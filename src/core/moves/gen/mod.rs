@@ -57,12 +57,7 @@ mod tests {
         assert_eq!(moves.len(), expected.len());
         let mov_strs = moves.iter().map(|m| m.to_string()).collect::<Vec<String>>();
         moves.iter().map(|m| m.to_string()).for_each(|m| {
-            assert!(
-                expected.contains(&m.as_str()),
-                "got: {:?}, expected: {:?}",
-                mov_strs,
-                expected
-            )
+            assert!(expected.contains(&m.as_str()), "got: {:?}, expected: {:?}", mov_strs, expected)
         });
     }
 

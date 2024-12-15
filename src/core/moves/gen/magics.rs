@@ -59,12 +59,7 @@ fn find_magic(square: Square, piece: Piece) -> SquareMagic {
 
     let occ_move_map = bitsets(blockers_mask)
         .iter()
-        .map(|b| {
-            (
-                *b,
-                slider_attacks_from_square(square, directions, *b, false),
-            )
-        })
+        .map(|b| (*b, slider_attacks_from_square(square, directions, *b, false)))
         .collect::<Vec<_>>();
 
     let mut magic_tentative = SquareMagic {
@@ -91,9 +86,7 @@ fn find_magic(square: Square, piece: Piece) -> SquareMagic {
 
         if !found_collision {
             let largest_used_index = used.iter().rposition(|&used| used).unwrap();
-            magic_tentative
-                .attacks
-                .resize(largest_used_index + 1, Bitboard::empty());
+            magic_tentative.attacks.resize(largest_used_index + 1, Bitboard::empty());
             return magic_tentative;
         }
     }

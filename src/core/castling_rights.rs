@@ -150,12 +150,8 @@ mod tests {
             castling_rights.removed_side(Color::Black, CastlingSide::Queenside)
         );
 
-        assert!(!castling_rights
-            .removed_color(Color::White)
-            .has_color(Color::White));
-        assert!(!castling_rights
-            .removed_color(Color::Black)
-            .has_color(Color::Black));
+        assert!(!castling_rights.removed_color(Color::White).has_color(Color::White));
+        assert!(!castling_rights.removed_color(Color::Black).has_color(Color::Black));
     }
 
     #[test]

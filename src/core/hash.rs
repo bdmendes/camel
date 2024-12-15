@@ -19,10 +19,7 @@ const ZOBRIST_NUMBERS_SIZE: usize = 2 * 6 * 64 + 2 + 4 + 64;
 static ZOBRIST_NUMBERS: [ZobristHash; ZOBRIST_NUMBERS_SIZE] = {
     let mut rng = StdRng::seed_from_u64(0);
     let mut numbers = [0; ZOBRIST_NUMBERS_SIZE];
-    numbers
-        .iter_mut()
-        .take(ZOBRIST_NUMBERS_SIZE)
-        .for_each(|n| *n = rng.gen());
+    numbers.iter_mut().take(ZOBRIST_NUMBERS_SIZE).for_each(|n| *n = rng.gen());
     numbers.map(ZobristHash)
 };
 

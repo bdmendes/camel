@@ -26,8 +26,8 @@ fn make_castle<const UPDATE_METADATA: bool>(
     position.set_square(to_square, Piece::King, side_to_move);
     position.set_square(
         match castling_side {
-            CastlingSide::Kingside => to_square << 1,
-            CastlingSide::Queenside => to_square >> 1,
+            CastlingSide::Kingside => to_square >> 1,
+            CastlingSide::Queenside => to_square << 1,
         },
         Piece::Rook,
         side_to_move,
@@ -47,17 +47,19 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
     position.clear_square(mov.from());
 
     match mov.flag() {
-        MoveFlag::Quiet
-            if UPDATE_METADATA && position.pieces_bb(Piece::King).is_set(mov.from()) =>
+        MoveFlag::Quiet | MoveFlag::Capture
+            if UPDATE_METADATA
+                && piece == Piece::King
+                && position.castling_rights().has_color(side_to_move) =>
         {
             position.set_square(mov.to(), piece, side_to_move);
             position.set_castling_rights(position.castling_rights().removed_color(side_to_move));
         }
-        MoveFlag::Quiet
+        MoveFlag::Quiet | MoveFlag::Capture
             if UPDATE_METADATA
-                && (position.pieces_bb(Piece::Rook)
-                    & COLOR_CASTLE_RANKS[side_to_move as usize])
-                    .is_set(mov.from()) =>
+                && piece == Piece::Rook
+                && position.castling_rights().has_color(side_to_move)
+                && COLOR_CASTLE_RANKS[side_to_move as usize].is_set(mov.from()) =>
         {
             position.set_square(mov.to(), piece, side_to_move);
             let our_king = (position.pieces_bb(Piece::King) & position.occupancy_bb(side_to_move))
@@ -118,8 +120,8 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
 
     if mov.flag() == MoveFlag::DoublePawnPush {
         position.set_ep_square(match side_to_move {
-            Color::White => mov.to().shifted(Square::SOUTH),
-            Color::Black => mov.to().shifted(Square::NORTH),
+            Color::White => mov.to() >> 8,
+            Color::Black => mov.to() << 8,
         });
     } else {
         position.clear_ep_square();
@@ -128,4 +130,40 @@ pub fn make_move<const UPDATE_METADATA: bool>(position: &Position, mov: Move) ->
     position.flip_side_to_move();
 
     position
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+
+    use crate::core::{moves::make::make_move, MoveStage, Position};
+    use std::str::FromStr;
+
+    #[rstest]
+    #[case(
+        "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8",
+        "e1g1",
+        "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQ1RK1 b - - 2 8"
+    )]
+    #[case(
+        "r3k2r/1b4bq/8/8/8/8/7B/R3K2R w KQkq - 0 1",
+        "h2b8",
+        "rB2k2r/1b4bq/8/8/8/8/8/R3K2R b KQkq - 1 1"
+    )]
+    #[case(
+        "rB2k2r/1b4bq/8/8/8/8/8/R3K2R b KQkq - 1 1",
+        "a8b8",
+        "1r2k2r/1b4bq/8/8/8/8/8/R3K2R w KQk - 0 2"
+    )]
+    #[case(
+        "r3k2r/8/3Q4/8/8/8/8/R2qK2R w KQkq - 1 2",
+        "e1d1",
+        "r3k2r/8/3Q4/8/8/8/8/R2K3R b kq - 0 2"
+    )]
+    fn make(#[case] position: &str, #[case] mov: &str, #[case] expected: &str) {
+        let position = Position::from_str(position).unwrap();
+        let moves = position.moves(MoveStage::All);
+        let mov = moves.iter().find(|m| m.to_string().as_str() == mov).unwrap();
+        assert_eq!(make_move::<true>(&position, *mov).fen().as_str(), expected);
+    }
 }

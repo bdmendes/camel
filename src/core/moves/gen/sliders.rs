@@ -167,16 +167,6 @@ mod tests {
             Position::from_str("2r1kb1r/3n1p1p/3Bp3/1p1p4/p1qPp3/1NP3QP/PP3PP1/1K1RR3 b k - 0 19")
                 .unwrap();
 
-        println!(
-            "{}",
-            slider_attacks_from_square(
-                Square::C8,
-                &ROOK_MOVE_DIRECTIONS,
-                position.occupancy_bb_all(),
-                true,
-            )
-        );
-
         assert_eq!(
             slider_attacks_from_square(
                 Square::C8,
@@ -223,11 +213,7 @@ mod tests {
         assert_staged_moves(
             "4k1nr/p1q1ppb1/6p1/nrpPP2p/1pp2Pb1/5N2/PP2B1PP/RNBQ1RK1 w k - 2 16",
             bishop_moves,
-            [
-                vec!["c1d2", "c1e3", "e2d3", "e2c4"],
-                vec!["e2c4"],
-                vec!["c1d2", "c1e3", "e2d3"],
-            ],
+            [vec!["c1d2", "c1e3", "e2d3", "e2c4"], vec!["e2c4"], vec!["c1d2", "c1e3", "e2d3"]],
         );
     }
 
@@ -241,9 +227,7 @@ mod tests {
                     "a1b1", "a1a2", "a1a3", "a1a4", "f1e1", "f1f2", "f1f3", "f1f4", "f1f5", "a1a5",
                 ],
                 vec!["f1f5", "a1a5"],
-                vec![
-                    "a1b1", "a1a2", "a1a3", "a1a4", "f1e1", "f1f2", "f1f3", "f1f4",
-                ],
+                vec!["a1b1", "a1a2", "a1a3", "a1a4", "f1e1", "f1f2", "f1f3", "f1f4"],
             ],
         );
     }
@@ -254,13 +238,9 @@ mod tests {
             "4kr2/2q1ppb1/3P1n2/npp1PpNp/1pp3b1/2N5/1P2B1PP/R1BQ1RK1 b - - 0 21",
             queen_moves,
             [
-                vec![
-                    "c7c6", "c7c8", "c7d7", "c7b7", "c7a7", "c7b8", "c7b6", "c7d8", "c7d6",
-                ],
+                vec!["c7c6", "c7c8", "c7d7", "c7b7", "c7a7", "c7b8", "c7b6", "c7d8", "c7d6"],
                 vec!["c7d6"],
-                vec![
-                    "c7c6", "c7c8", "c7d7", "c7b7", "c7a7", "c7b8", "c7b6", "c7d8",
-                ],
+                vec!["c7c6", "c7c8", "c7d7", "c7b7", "c7a7", "c7b8", "c7b6", "c7d8"],
             ],
         );
     }

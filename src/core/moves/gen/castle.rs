@@ -26,26 +26,15 @@ fn is_chess960(king: Square, rook: Square, side_to_move: Color) -> bool {
 }
 
 fn king_square(position: &Position) -> Square {
-    position
-        .pieces_color_bb(Piece::King, position.side_to_move)
-        .next()
-        .unwrap()
+    position.pieces_color_bb(Piece::King, position.side_to_move).next().unwrap()
 }
 
 fn castle_side<const QUEENSIDE: bool>(position: &Position, moves: &mut Vec<Move>) {
     let king = king_square(position);
     let our_rank = COLOR_CASTLE_RANKS[position.side_to_move as usize];
     let mut our_rook = (our_rank & position.pieces_color_bb(Piece::Rook, position.side_to_move));
-    let our_rook = if QUEENSIDE {
-        our_rook.next()
-    } else {
-        our_rook.next_back()
-    };
-    let castle_squares = if QUEENSIDE {
-        &COLOR_QUEENSIDE_SQUARES
-    } else {
-        &COLOR_KINGSIDE_SQUARES
-    };
+    let our_rook = if QUEENSIDE { our_rook.next() } else { our_rook.next_back() };
+    let castle_squares = if QUEENSIDE { &COLOR_QUEENSIDE_SQUARES } else { &COLOR_KINGSIDE_SQUARES };
 
     if let Some(rook) = our_rook {
         if (QUEENSIDE && rook.file() > king.file()) || (!QUEENSIDE && rook.file() < king.file()) {
@@ -83,11 +72,7 @@ fn castle_side<const QUEENSIDE: bool>(position: &Position, moves: &mut Vec<Move>
             } else {
                 castle_squares[position.side_to_move as usize]
             },
-            if QUEENSIDE {
-                MoveFlag::QueensideCastle
-            } else {
-                MoveFlag::KingsideCastle
-            },
+            if QUEENSIDE { MoveFlag::QueensideCastle } else { MoveFlag::KingsideCastle },
         ));
     }
 }
@@ -100,37 +85,25 @@ pub fn castle_moves(position: &Position, stage: MoveStage, moves: &mut Vec<Move>
         return;
     }
 
-    if position
-        .castling_rights()
-        .has_side(position.side_to_move, CastlingSide::Kingside)
-    {
+    if position.castling_rights().has_side(position.side_to_move, CastlingSide::Kingside) {
         castle_side::<false>(position, moves);
     }
 
-    if position
-        .castling_rights()
-        .has_side(position.side_to_move, CastlingSide::Queenside)
-    {
+    if position.castling_rights().has_side(position.side_to_move, CastlingSide::Queenside) {
         castle_side::<true>(position, moves);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
-    use crate::core::{MoveStage, Position};
-
     use super::castle_moves;
+    use crate::core::{MoveStage, Position};
+    use std::str::FromStr;
 
     fn assert_castle(position: &str, moves: &[&str]) {
         let position = Position::from_str(position).unwrap();
         let mut buf = vec![];
         castle_moves(&position, MoveStage::All, &mut buf);
-
-        for m in &buf {
-            println!("{m}");
-        }
 
         assert_eq!(buf.len(), moves.len());
 
@@ -165,18 +138,12 @@ mod tests {
 
     #[test]
     fn through_check_2() {
-        assert_castle(
-            "r3kb1r/pBpnqppp/Np1pp2n/4P3/8/6P1/PPPPNP1P/R1BQK2R b KQkq - 12 12",
-            &[],
-        );
+        assert_castle("r3kb1r/pBpnqppp/Np1pp2n/4P3/8/6P1/PPPPNP1P/R1BQK2R b KQkq - 12 12", &[]);
     }
 
     #[test]
     fn in_check() {
-        assert_castle(
-            "r1b1kbnr/pp3ppp/2n5/qB1pP3/8/5N2/PPP2PPP/RNBQK2R w KQkq - 3 7",
-            &[],
-        );
+        assert_castle("r1b1kbnr/pp3ppp/2n5/qB1pP3/8/5N2/PPP2PPP/RNBQK2R w KQkq - 3 7", &[]);
     }
 
     #[test]
@@ -205,18 +172,12 @@ mod tests {
 
     #[test]
     fn rook_attacked_kingside() {
-        assert_castle(
-            "r2qk1nr/pbppbppp/np2p3/4P3/8/6PB/PPPPNP1P/RNBQK2R w KQkq - 4 6",
-            &["e1g1"],
-        );
+        assert_castle("r2qk1nr/pbppbppp/np2p3/4P3/8/6PB/PPPPNP1P/RNBQK2R w KQkq - 4 6", &["e1g1"]);
     }
 
     #[test]
     fn rook_attacked_queenside() {
-        assert_castle(
-            "r3kbnr/p1pnqppp/1pBpp3/4P3/8/6P1/PPPPNP1P/RNBQK2R b KQkq - 2 7",
-            &["e8c8"],
-        );
+        assert_castle("r3kbnr/p1pnqppp/1pBpp3/4P3/8/6P1/PPPPNP1P/RNBQK2R b KQkq - 2 7", &["e8c8"]);
     }
 
     #[test]

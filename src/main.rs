@@ -1,5 +1,4 @@
 use crate::core::{fen::START_POSITION, Position};
-use core::MoveStage;
 use std::{str::FromStr, time::Instant};
 
 #[allow(unused)]
@@ -7,8 +6,6 @@ mod core;
 
 fn main() {
     let position = Position::from_str(START_POSITION).unwrap();
-    let moves = position.moves(MoveStage::All);
-    moves.iter().for_each(|m| println!("{}", m));
 
     for depth in 1..=10 {
         let time = Instant::now();
