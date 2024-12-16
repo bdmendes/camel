@@ -62,10 +62,18 @@ mod tests {
     #[case("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1", 5, 15833292)]
     #[case("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8", 4, 2103487)]
     #[case("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - -", 5, 164075551)]
-    // Ad-hoc cases
-    #[case("rB2k2r/1b4bq/8/8/8/8/8/R3K2R b KQkq - 1 1", 3, 54752)]
-    #[case("r3k2r/8/3Q4/8/8/8/8/R2qK2R w KQkq - 1 2", 3, 3782)]
-    fn peter_jones_gist(#[case] fen: Fen, #[case] depth: u8, #[case] nodes: u64) {
+    // Chess960 (https://www.chessprogramming.org/Chess960_Perft_Results)
+    #[case("bqnb1rkr/pp3ppp/3ppn2/2p5/5P2/P2P4/NPP1P1PP/BQ1BNRKR w HFhf - 2 9", 5, 8146062)]
+    #[case("2nnrbkr/p1qppppp/8/1ppb4/6PP/3PP3/PPP2P2/BQNNRBKR w HEhe - 1 9", 5, 16253601)]
+    #[case("b1q1rrkb/pppppppp/3nn3/8/P7/1PPP4/4PPPP/BQNNRKRB w GE - 1 9", 5, 6417013)]
+    #[case("qbbnnrkr/2pp2pp/p7/1p2pp2/8/P3PP2/1PPP1KPP/QBBNNR1R w hf - 0 9", 5, 9183776)]
+    #[case("1nbbnrkr/p1p1ppp1/3p4/1p3P1p/3Pq2P/8/PPP1P1P1/QNBBNRKR w HFhf - 0 9", 5, 34030312)]
+    #[case("qnbnr1kr/ppp1b1pp/4p3/3p1p2/8/2NPP3/PPP1BPPP/QNB1R1KR w HEhe - 1 9", 5, 24851983)]
+    #[case("q1bnrkr1/ppppp2p/2n2p2/4b1p1/2NP4/8/PPP1PPPP/QNB1RRKB w ge - 1 9", 5, 21093346)]
+    #[case("qbn1brkr/ppp1p1p1/2n4p/3p1p2/P7/6PP/QPPPPP2/1BNNBRKR w HFhf - 0 9", 5, 13203304)]
+    #[case("qnnbbrkr/1p2ppp1/2pp3p/p7/1P5P/2NP4/P1P1PPP1/Q1NBBRKR w HFhf - 0 9", 5, 11110203)]
+    #[case("qn1rbbkr/ppp2p1p/1n1pp1p1/8/3P4/P6P/1PP1PPPK/QNNRBB1R w hd - 2 9", 5, 19836606)]
+    fn perft_test(#[case] fen: Fen, #[case] depth: u8, #[case] nodes: u64) {
         let position = Position::try_from(fen.clone()).unwrap();
         let (count, divided) = perft::<true>(&position, depth);
         for (m, branch) in divided {
