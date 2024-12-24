@@ -259,8 +259,8 @@ impl Position {
         self.chess960
     }
 
-    pub fn perft(&self, depth: u8) -> u64 {
-        perft::<false>(self, depth).0
+    pub fn perft(&self, depth: u8) -> (u64, Vec<(Move, u64)>) {
+        perft::<true>(self, depth)
     }
 
     pub fn moves(&self, stage: MoveStage) -> Vec<Move> {

@@ -16,9 +16,9 @@ mod sliders;
 
 pub fn generate_moves(position: &Position, stage: MoveStage) -> Vec<Move> {
     let mut moves = Vec::with_capacity(match stage {
-        MoveStage::All => 48,
-        MoveStage::CapturesAndPromotions => 12,
-        MoveStage::Quiet => 36,
+        MoveStage::All => 64,
+        MoveStage::CapturesAndPromotions => 24,
+        MoveStage::Quiet => 40,
     });
 
     let our_king = position.pieces_color_bb(Piece::King, position.side_to_move).lsb().unwrap();
@@ -40,7 +40,6 @@ pub fn generate_moves(position: &Position, stage: MoveStage) -> Vec<Move> {
 
     moves.retain(|mov| {
         match mov.flag() {
-            MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => return true,
             MoveFlag::Quiet
             | MoveFlag::Capture
             | MoveFlag::DoublePawnPush

@@ -96,7 +96,7 @@ impl Bitboard {
         let to = to as u8;
         let min = from.min(to);
         let max = from.max(to);
-        let mask = ((1 << (max - min - 1)) - 1) << (min + 1);
+        let mask = (((1u64 << (max - min).saturating_sub(1)) - 1) << (min + 1));
         Bitboard::new(mask)
     }
 }
@@ -260,6 +260,8 @@ mod tests {
             Bitboard::between(Square::H1, Square::E1),
             Bitboard::from_square(Square::F1) | Bitboard::from_square(Square::G1)
         );
+
+        assert_eq!(Bitboard::between(Square::E1, Square::E1), Bitboard::empty());
     }
 
     #[test]
