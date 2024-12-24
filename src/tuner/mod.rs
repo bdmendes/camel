@@ -2,11 +2,12 @@
 // The next Camel major version will switch to NNUE, which won't require
 // Texel tuning anymore, so this is a temporary solution.
 
-use std::fs::read_to_string;
+use std::{fs::read_to_string, str::FromStr};
 
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
+    core::{color::Color, Position},
     evaluation::{
         self,
         position::{
@@ -17,7 +18,6 @@ use crate::{
         },
         ValueScore,
     },
-    position::{fen::FromFen, Color, Position},
     search::{constraint::SearchConstraint, quiesce::quiesce},
 };
 
@@ -101,7 +101,7 @@ fn evaluation_error(entries: &[PositionEntry], k: f64) -> f64 {
                 &SearchConstraint::default(),
                 0,
             )
-            .0 * entry.position.side_to_move.sign();
+            .0 * entry.position.side_to_move().sign();
             (score - sigmoid(evaluation as f64)).powi(2)
         })
         .sum::<f64>();
@@ -125,7 +125,7 @@ pub fn texel_tune() -> Vec<ValueScore> {
                     "\"1-0\";" => Some(Color::White),
                     _ => None,
                 };
-                let position = Position::from_fen(&fen).unwrap();
+                let position = Position::from_str(&fen).unwrap();
                 PositionEntry::new(winner, position)
             })
             .collect()

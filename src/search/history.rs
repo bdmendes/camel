@@ -1,4 +1,4 @@
-use crate::position::{board::ZobristHash, Position};
+use crate::core::{hash::ZobristHash, Position};
 
 #[derive(Debug, Copy, Clone)]
 pub struct HistoryEntry {
@@ -10,7 +10,7 @@ pub struct BranchHistory(pub Vec<HistoryEntry>);
 
 impl BranchHistory {
     pub fn visit_position(&mut self, position: &Position, reversible: bool) {
-        self.0.push(HistoryEntry { hash: position.zobrist_hash(), reversible });
+        self.0.push(HistoryEntry { hash: position.hash(), reversible });
     }
 
     pub fn leave_position(&mut self) {
@@ -19,7 +19,7 @@ impl BranchHistory {
 
     pub fn repeated(&self, position: &Position) -> u8 {
         let mut count = 0;
-        let hash = position.zobrist_hash();
+        let hash = position.hash();
         for entry in self.0.iter().rev() {
             if entry.hash == hash {
                 count += 1;
@@ -34,11 +34,10 @@ impl BranchHistory {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use crate::{
-        position::{
-            fen::{FromFen, START_FEN},
-            Position,
-        },
+        core::{fen::START_POSITION, Position},
         search::history::BranchHistory,
     };
 
@@ -46,7 +45,7 @@ mod tests {
     fn repeated_times() {
         let mut history = BranchHistory(Vec::new());
 
-        let mut position = Position::from_fen(START_FEN).unwrap();
+        let mut position = Position::from_str(START_POSITION).unwrap();
         history.visit_position(&position, true);
 
         position = position.make_move_str("e2e4").unwrap();

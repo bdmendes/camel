@@ -1,15 +1,13 @@
 use self::commands::{execute_command, parse_command};
 use camel::{
-    position::{
-        fen::{FromFen, START_FEN},
-        Position,
-    },
+    core::{fen::START_POSITION, Position},
     search::{
         history::HistoryEntry,
         table::{SearchTable, DEFAULT_TABLE_SIZE_MB},
     },
 };
 use std::{
+    str::FromStr,
     sync::{
         atomic::{AtomicBool, AtomicU16},
         Arc,
@@ -74,7 +72,7 @@ pub struct Engine {
 
 pub fn uci_loop() {
     let mut engine = Engine {
-        position: Position::from_fen(START_FEN).unwrap(),
+        position: Position::from_str(START_POSITION).unwrap(),
         stop: Arc::new(AtomicBool::new(true)),
         game_history: Vec::new(),
         table: Arc::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB)),

@@ -1,4 +1,4 @@
-use crate::position::{board::Piece, Color};
+use crate::core::{color::Color, piece::Piece};
 
 pub mod moves;
 pub mod position;

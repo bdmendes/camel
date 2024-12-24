@@ -1,11 +1,7 @@
 use crate::engine::{time::get_duration, Engine, DEFAULT_NUMBER_THREADS, MAX_THREADS};
 use camel::{
+    core::{color::Color, fen::START_POSITION, MoveStage, Position},
     evaluation::Evaluable,
-    moves::gen::{perft, MoveStage},
-    position::{
-        fen::{FromFen, ToFen, START_FEN},
-        Color, Position,
-    },
     search::{
         constraint::{SearchConstraint, TimeConstraint},
         history::HistoryEntry,
@@ -15,6 +11,7 @@ use camel::{
     },
 };
 use std::{
+    str::FromStr,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -30,7 +27,7 @@ pub fn execute_position(new_position: &Position, game_history: &[Position], engi
     engine.position = *new_position;
     engine.game_history = game_history
         .iter()
-        .map(|position| HistoryEntry { hash: position.zobrist_hash(), reversible: true })
+        .map(|position| HistoryEntry { hash: position.hash(), reversible: true })
         .collect();
 }
 
@@ -90,7 +87,7 @@ pub fn execute_go(
 
     thread::spawn(move || {
         stop_now.store(false, Ordering::Release);
-        let current_guess = position.value() * position.side_to_move.sign();
+        let current_guess = position.value() * position.side_to_move().sign();
         pvs_aspiration_iterative(
             &position,
             current_guess,
@@ -153,7 +150,7 @@ pub fn execute_set_option(name: &str, value: &str, engine: &mut Engine) {
 }
 
 pub fn execute_uci_new_game(engine: &mut Engine) {
-    engine.position = Position::from_fen(START_FEN).unwrap();
+    engine.position = Position::from_str(START_POSITION).unwrap();
     engine.game_history = Vec::new();
     engine.table.clear();
 }
@@ -173,7 +170,7 @@ pub fn execute_perft(depth: u8, position: &Position) {
 
     thread::spawn(move || {
         let start = std::time::Instant::now();
-        let nodes = perft::<false, true>(&position, depth);
+        let (nodes, _) = position.perft(depth);
         let elapsed = start.elapsed();
 
         println!("Perft results for depth {}", depth);
@@ -193,13 +190,13 @@ pub fn execute_do_move(mov_str: &str, position: &mut Position) {
 }
 
 pub fn execute_display(position: &Position) {
-    print!("{}", position.board);
-    println!("{}", position.to_fen());
+    print!("{}", position);
+    println!("{}", position.fen());
     println!("Static evaluation: {}", position.value());
-    println!("Chess960: {}", position.is_chess960);
+    println!("Chess960: {}", position.is_chess_960());
     println!(
         "{} to play.",
-        match position.side_to_move {
+        match position.side_to_move() {
             Color::White => "White",
             Color::Black => "Black",
         }

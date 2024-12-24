@@ -1,6 +1,6 @@
 use crate::{
+    core::{bitboard::Bitboard, color::Color, piece::Piece, Position},
     evaluation::ValueScore,
-    position::{bitboard::Bitboard, board::Piece, Color, Position},
 };
 
 pub static mut SEMI_OPEN_FILE_BONUS: ValueScore = 19;
@@ -11,11 +11,11 @@ pub fn evaluate_rooks(position: &Position) -> ValueScore {
 
     unsafe {
         for color in Color::list() {
-            let rooks = position.board.pieces_bb_color(Piece::Rook, *color);
+            let rooks = position.pieces_color_bb(Piece::Rook, *color);
 
             if let Some(rook) = rooks.into_iter().next() {
-                let our_pawns = position.board.pieces_bb_color(Piece::Pawn, *color);
-                let their_pawns = position.board.pieces_bb_color(Piece::Pawn, color.opposite());
+                let our_pawns = position.pieces_color_bb(Piece::Pawn, *color);
+                let their_pawns = position.pieces_color_bb(Piece::Pawn, color.flipped());
                 let our_file = Bitboard::file_mask(rook.file());
 
                 // Semi-open files
@@ -35,15 +35,14 @@ pub fn evaluate_rooks(position: &Position) -> ValueScore {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        evaluation::position::rooks::SEMI_OPEN_FILE_BONUS,
-        position::{fen::FromFen, Position},
-    };
+    use std::str::FromStr;
+
+    use crate::{core::Position, evaluation::position::rooks::SEMI_OPEN_FILE_BONUS};
 
     #[test]
     fn rook_semi_connected_white_open_file_white() {
         let position =
-            Position::from_fen("2kr2nr/pbppb3/1pn1pq1p/6p1/2P5/4BNNP/PPQ1BPP1/3R1RK1 b - - 1 19")
+            Position::from_str("2kr2nr/pbppb3/1pn1pq1p/6p1/2P5/4BNNP/PPQ1BPP1/3R1RK1 b - - 1 19")
                 .unwrap();
         let rooks_score = super::evaluate_rooks(&position);
         assert_eq!(rooks_score, unsafe { SEMI_OPEN_FILE_BONUS });

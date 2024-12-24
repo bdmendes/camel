@@ -1,5 +1,5 @@
 use camel::{
-    position::{fen::FromFen, Position},
+    core::Position,
     search::{
         constraint::{SearchConstraint, TimeConstraint},
         pvs_aspiration_iterative,
@@ -8,6 +8,7 @@ use camel::{
     },
 };
 use std::{
+    str::FromStr,
     sync::{
         atomic::{AtomicBool, AtomicU16},
         Arc,
@@ -41,7 +42,7 @@ fn expect_search(fen: &str, mov: &str) {
         };
 
         let result = pvs_aspiration_iterative(
-            &Position::from_fen(fen).unwrap(),
+            &Position::from_str(fen).unwrap(),
             0,
             MAX_DEPTH,
             table.clone(),

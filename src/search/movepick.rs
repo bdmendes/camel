@@ -1,8 +1,7 @@
 use super::{table::SearchTable, Depth};
 use crate::{
+    core::{moves::Move, piece::Piece, MoveStage, Position},
     evaluation::{moves::evaluate_move, Evaluable, ValueScore},
-    moves::{gen::MoveStage, Move},
-    position::{board::Piece, Position},
 };
 use rand::{thread_rng, Rng};
 use std::sync::Arc;
@@ -93,8 +92,8 @@ impl std::iter::Iterator for MovePicker<false> {
                 self.next()
             }
             MoveStage::CapturesAndPromotions => {
-                self.stage = MoveStage::NonCaptures;
-                let all_non_capture_moves = self.position.moves(MoveStage::NonCaptures);
+                self.stage = MoveStage::Quiet;
+                let all_non_capture_moves = self.position.moves(MoveStage::Quiet);
 
                 let killers = self.table.as_ref().unwrap().get_killers(self.ply);
                 self.moves = decorate_moves_with_score(&all_non_capture_moves, |mov| {

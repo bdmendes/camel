@@ -1,16 +1,13 @@
 use super::Command;
-use camel::{
-    moves::gen::MoveStage,
-    position::{
-        fen::{FromFen, KIWIPETE_WHITE_FEN, START_FEN},
-        Position,
-    },
+use camel::core::{
+    fen::{KIWIPETE_POSITION, START_POSITION},
+    MoveStage, Position,
 };
-use std::{collections::VecDeque, time::Duration};
+use std::{collections::VecDeque, str::FromStr, time::Duration};
 
 pub fn parse_position(words: &mut VecDeque<&str>) -> Result<Command, ()> {
     let mut fen = String::new();
-    let mut position = Position::from_fen(START_FEN).unwrap();
+    let mut position = Position::from_str(START_POSITION).unwrap();
     let mut game_history = Vec::new();
 
     while let Some(word) = words.pop_front() {
@@ -25,10 +22,9 @@ pub fn parse_position(words: &mut VecDeque<&str>) -> Result<Command, ()> {
                     fen.push(' ');
                 }
 
-                if let Some(new_position) = Position::from_fen(&fen) {
-                    position = new_position;
-                } else {
-                    return Err(());
+                match Position::from_str(&fen) {
+                    Ok(new_position) => position = new_position,
+                    Err(_) => return Err(()),
                 }
             }
             "moves" => {
@@ -43,7 +39,7 @@ pub fn parse_position(words: &mut VecDeque<&str>) -> Result<Command, ()> {
                 }
             }
             "kiwi" | "kiwipete" => {
-                let kiwipete_position = Position::from_fen(KIWIPETE_WHITE_FEN).unwrap();
+                let kiwipete_position = Position::from_str(KIWIPETE_POSITION).unwrap();
                 position = kiwipete_position;
             }
             "startpos" => (),

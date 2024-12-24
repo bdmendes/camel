@@ -3,10 +3,7 @@ use self::{
     rooks::evaluate_rooks,
 };
 use super::{psqt::psqt_value, Evaluable, ValueScore};
-use crate::{
-    moves::gen::piece_attacks,
-    position::{board::Piece, Color, Position},
-};
+use crate::core::{color::Color, moves::gen::piece_attacks, piece::Piece, Position};
 
 pub mod bishops;
 pub mod king;
@@ -24,7 +21,7 @@ pub static mut QUEEN_MIDGAME_RATIO: ValueScore = 38;
 fn midgame_ratio(position: &Position) -> u8 {
     Piece::list().iter().fold(0, |acc, piece| {
         acc.saturating_add(
-            position.board.pieces_bb(*piece).count_ones() as u8
+            position.pieces_bb(*piece).count_ones() as u8
                 * unsafe {
                     match *piece {
                         Piece::Pawn => PAWN_MIDGAME_RATIO,
@@ -50,19 +47,19 @@ fn mobility_bonus(piece: Piece) -> ValueScore {
 }
 
 fn insufficient_material(position: &Position) -> bool {
-    let pieces_count = position.board.occupancy_bb_all().count_ones();
+    let pieces_count = position.occupancy_bb_all().count_ones();
 
     if pieces_count > 4 {
         return false;
     }
 
-    let knights_bb = position.board.pieces_bb(Piece::Knight);
+    let knights_bb = position.pieces_bb(Piece::Knight);
     if knights_bb.count_ones() == 2 {
         return true;
     }
 
-    let bishops_bb = position.board.pieces_bb(Piece::Bishop);
-    if pieces_count == 3 && (knights_bb | bishops_bb).is_not_empty() {
+    let bishops_bb = position.pieces_bb(Piece::Bishop);
+    if pieces_count == 3 && !(knights_bb | bishops_bb).is_empty() {
         return true;
     }
 
@@ -77,22 +74,20 @@ impl Evaluable for Position {
 
         let midgame_ratio = midgame_ratio(self);
         let endgame_ratio = 255 - midgame_ratio;
-        let occupancy = self.board.occupancy_bb_all();
 
         let base_score = Piece::list().iter().fold(0, |acc, piece| {
             let piece_value = piece.value();
             let piece_mobility_bonus = mobility_bonus(*piece);
-            let pieces_bb = self.board.pieces_bb(*piece);
+            let pieces_bb = self.pieces_bb(*piece);
 
             acc + Color::list().iter().fold(0, |acc, color| {
-                let bb = pieces_bb & self.board.occupancy_bb(*color);
+                let bb = pieces_bb & self.occupancy_bb(*color);
 
                 let material_score = bb.count_ones() as ValueScore * piece_value;
                 let positional_score = bb.into_iter().fold(0, |acc, square| {
                     acc + psqt_value(*piece, square, *color, endgame_ratio)
                         + piece_mobility_bonus
-                            * piece_attacks(*piece, square, occupancy, *color).count_ones()
-                                as ValueScore
+                            * piece_attacks(*piece, square, self, *color).count_ones() as ValueScore
                 });
 
                 acc + (positional_score + material_score) * color.sign()
@@ -110,24 +105,23 @@ impl Evaluable for Position {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use crate::{
+        core::{fen::START_POSITION, Position},
         evaluation::Evaluable,
-        position::{
-            fen::{FromFen, START_FEN},
-            Position,
-        },
     };
 
     #[test]
     fn eval_starts_zero() {
-        let position = Position::from_fen(START_FEN).unwrap();
+        let position = Position::from_str(START_POSITION).unwrap();
         assert_eq!(position.value(), 0);
     }
 
     #[test]
     fn eval_passed_extra_pawn_midgame() {
         let position =
-            Position::from_fen("3r3k/1p1qQ1pp/p2P1n2/2p5/7B/P7/1P3PPP/4R1K1 w - - 5 26").unwrap();
+            Position::from_str("3r3k/1p1qQ1pp/p2P1n2/2p5/7B/P7/1P3PPP/4R1K1 w - - 5 26").unwrap();
         let evaluation = position.value();
         assert!(evaluation > 100 && evaluation < 300);
     }
@@ -135,9 +129,9 @@ mod tests {
     #[test]
     fn eval_forces_king_cornering() {
         let king_at_center_position =
-            Position::from_fen("8/8/8/3K4/8/4q3/k7/8 b - - 6 55").unwrap();
+            Position::from_str("8/8/8/3K4/8/4q3/k7/8 b - - 6 55").unwrap();
         let king_at_corner_position =
-            Position::from_fen("8/1K6/8/2q5/8/1k6/8/8 w - - 11 58").unwrap();
+            Position::from_str("8/1K6/8/2q5/8/1k6/8/8 w - - 11 58").unwrap();
         let king_at_center_evaluation = king_at_center_position.value();
         let king_at_corner_evaluation = king_at_corner_position.value();
         assert!(king_at_center_evaluation > king_at_corner_evaluation);

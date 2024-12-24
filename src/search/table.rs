@@ -1,8 +1,7 @@
 use super::{Depth, MAX_DEPTH};
 use crate::{
+    core::{moves::Move, Position},
     evaluation::{Score, ValueScore},
-    moves::Move,
-    position::Position,
 };
 use std::{
     array,
@@ -120,14 +119,14 @@ impl TranspositionTable {
     }
 
     pub fn get(&self, position: &Position) -> Option<TableEntry> {
-        let hash = position.zobrist_hash();
-        let entry = self.load_tt_entry(hash as usize % self.data.len());
-        entry.filter(|entry| entry.same_hash(hash))
+        let hash = position.hash();
+        let entry = self.load_tt_entry(hash.0 as usize % self.data.len());
+        entry.filter(|entry| entry.same_hash(hash.0))
     }
 
     pub fn insert(&self, position: &Position, entry: TableEntry, force: bool) {
-        let hash = position.zobrist_hash();
-        let index = hash as usize % self.data.len();
+        let hash = position.hash();
+        let index = hash.0 as usize % self.data.len();
 
         if !force {
             if let Some(old_entry) = self.load_tt_entry(index) {
@@ -235,7 +234,7 @@ impl SearchTable {
             score_type,
             best_move,
             depth,
-            position.zobrist_hash(),
+            position.hash().0,
             self.transposition.read().unwrap().age,
         );
 
@@ -257,10 +256,7 @@ impl SearchTable {
         } else if self.load_killer(index + 1).is_none() {
             self.store_killer(index + 1, mov);
         } else {
-            self.store_killer(
-                index,
-                self.load_killer(index + 1).unwrap_or(Move::new_raw(NULL_KILLER)),
-            );
+            self.store_killer(index, self.load_killer(index + 1).unwrap_or(Move(NULL_KILLER)));
             self.store_killer(index + 1, mov);
         }
     }
@@ -305,27 +301,23 @@ impl SearchTable {
         if killer == NULL_KILLER {
             None
         } else {
-            Some(Move::new_raw(killer))
+            Some(Move(killer))
         }
     }
 
     fn store_killer(&self, index: usize, mov: Move) {
-        self.killer_moves[index].store(mov.raw(), Ordering::Relaxed);
+        self.killer_moves[index].store(mov.0, Ordering::Relaxed);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::Ordering;
+    use std::{str::FromStr, sync::atomic::Ordering};
 
     use super::{SearchTable, TableEntry, TranspositionTable};
     use crate::{
-        moves::Move,
-        position::{
-            fen::{FromFen, START_FEN},
-            square::Square,
-            Position,
-        },
+        core::moves::Move,
+        core::{fen::START_POSITION, square::Square, Position},
         search::{
             table::{ScoreType, NULL_KILLER, NULL_TT_ENTRY},
             MAX_DEPTH,
@@ -334,10 +326,10 @@ mod tests {
 
     #[test]
     fn entry_packing() {
-        let entry1 = TableEntry::new(100, ScoreType::Exact, Move::new_raw(0), MAX_DEPTH, 0, true);
-        let entry2 = TableEntry::new(100, ScoreType::Exact, Move::new_raw(0), 0, 1, false);
-        let entry3 = TableEntry::new(100, ScoreType::Exact, Move::new_raw(0), 1, 2, true);
-        let entry4 = TableEntry::new(100, ScoreType::Exact, Move::new_raw(0), 2, 3, false);
+        let entry1 = TableEntry::new(100, ScoreType::Exact, Move(0), MAX_DEPTH, 0, true);
+        let entry2 = TableEntry::new(100, ScoreType::Exact, Move(0), 0, 1, false);
+        let entry3 = TableEntry::new(100, ScoreType::Exact, Move(0), 1, 2, true);
+        let entry4 = TableEntry::new(100, ScoreType::Exact, Move(0), 2, 3, false);
 
         assert_eq!(entry1.depth(), MAX_DEPTH);
         assert_eq!(entry2.depth(), 0);
@@ -355,8 +347,8 @@ mod tests {
 
     #[test]
     fn entry_transmutation() {
-        let entry1 = TableEntry::new(100, ScoreType::Exact, Move::new_raw(0), MAX_DEPTH, 0, true);
-        let entry2 = TableEntry::new(100, ScoreType::Exact, Move::new_raw(0), 0, 1, false);
+        let entry1 = TableEntry::new(100, ScoreType::Exact, Move(0), MAX_DEPTH, 0, true);
+        let entry2 = TableEntry::new(100, ScoreType::Exact, Move(0), 0, 1, false);
 
         assert!(entry1.raw() != entry2.raw());
 
@@ -367,19 +359,20 @@ mod tests {
     #[test]
     fn tt_raw_contents() {
         let table = TranspositionTable::new(1);
-        let position = Position::from_fen(START_FEN).unwrap();
+        let position = Position::from_str(START_POSITION).unwrap();
 
         assert_eq!(table.data[0].load(Ordering::Relaxed), NULL_TT_ENTRY);
         assert_eq!(table.get(&position), None);
 
-        let first_move = Move::new(Square::E2, Square::E4, crate::moves::MoveFlag::DoublePawnPush);
+        let first_move =
+            Move::new(Square::E2, Square::E4, crate::core::moves::MoveFlag::DoublePawnPush);
         let first_move_entry =
-            TableEntry::new(100, ScoreType::Exact, first_move, 2, position.zobrist_hash(), true);
+            TableEntry::new(100, ScoreType::Exact, first_move, 2, position.hash().0, true);
 
         table.insert(&position, first_move_entry, false);
 
         assert_eq!(
-            table.data[position.zobrist_hash() as usize % table.data.len()].load(Ordering::Relaxed),
+            table.data[position.hash().0 as usize % table.data.len()].load(Ordering::Relaxed),
             first_move_entry.raw()
         );
         assert_eq!(table.get(&position).unwrap().best_move, first_move);
@@ -393,23 +386,26 @@ mod tests {
         assert_eq!(table.killer_moves[1].load(Ordering::Relaxed), NULL_KILLER);
         assert_eq!(table.get_killers(0), [None, None]);
 
-        let first_move = Move::new(Square::E2, Square::E4, crate::moves::MoveFlag::DoublePawnPush);
-        let second_move = Move::new(Square::D2, Square::D4, crate::moves::MoveFlag::DoublePawnPush);
-        let third_move = Move::new(Square::C2, Square::C4, crate::moves::MoveFlag::DoublePawnPush);
+        let first_move =
+            Move::new(Square::E2, Square::E4, crate::core::moves::MoveFlag::DoublePawnPush);
+        let second_move =
+            Move::new(Square::D2, Square::D4, crate::core::moves::MoveFlag::DoublePawnPush);
+        let third_move =
+            Move::new(Square::C2, Square::C4, crate::core::moves::MoveFlag::DoublePawnPush);
 
         table.put_killer_move(0, first_move);
-        assert_eq!(table.killer_moves[0].load(Ordering::Relaxed), first_move.raw());
+        assert_eq!(table.killer_moves[0].load(Ordering::Relaxed), first_move.0);
         assert_eq!(table.killer_moves[1].load(Ordering::Relaxed), NULL_KILLER);
         assert_eq!(table.get_killers(0), [Some(first_move), None]);
 
         table.put_killer_move(0, second_move);
-        assert_eq!(table.killer_moves[0].load(Ordering::Relaxed), first_move.raw());
-        assert_eq!(table.killer_moves[1].load(Ordering::Relaxed), second_move.raw());
+        assert_eq!(table.killer_moves[0].load(Ordering::Relaxed), first_move.0);
+        assert_eq!(table.killer_moves[1].load(Ordering::Relaxed), second_move.0);
         assert_eq!(table.get_killers(0), [Some(first_move), Some(second_move)]);
 
         table.put_killer_move(0, third_move);
-        assert_eq!(table.killer_moves[0].load(Ordering::Relaxed), second_move.raw());
-        assert_eq!(table.killer_moves[1].load(Ordering::Relaxed), third_move.raw());
+        assert_eq!(table.killer_moves[0].load(Ordering::Relaxed), second_move.0);
+        assert_eq!(table.killer_moves[1].load(Ordering::Relaxed), third_move.0);
         assert_eq!(table.get_killers(0), [Some(second_move), Some(third_move)]);
     }
 }

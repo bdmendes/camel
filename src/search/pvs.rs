@@ -7,8 +7,8 @@ use super::{
     Depth, MAX_DEPTH,
 };
 use crate::{
-    evaluation::{position::MAX_POSITIONAL_GAIN, Evaluable, Score, ValueScore, MATE_SCORE},
-    position::{board::Piece, Color, Position},
+    core::{color::Color, piece::Piece, Position},
+    evaluation::{Evaluable, Score, ValueScore, MATE_SCORE},
 };
 use std::{cell::OnceCell, sync::Arc};
 
@@ -16,11 +16,10 @@ const NULL_MOVE_DEPTH_REDUCTION: Depth = 3;
 const WINDOW_SIZE: ValueScore = 100;
 
 fn may_be_zugzwang(position: &Position) -> bool {
-    let king_pawn_bb =
-        position.board.pieces_bb(Piece::King) | position.board.pieces_bb(Piece::Pawn);
+    let king_pawn_bb = position.pieces_bb(Piece::King) | position.pieces_bb(Piece::Pawn);
 
-    let white_pieces_bb = position.board.occupancy_bb(Color::White) & !king_pawn_bb;
-    let black_pieces_bb = position.board.occupancy_bb(Color::Black) & !king_pawn_bb;
+    let white_pieces_bb = position.occupancy_bb(Color::White) & !king_pawn_bb;
+    let black_pieces_bb = position.occupancy_bb(Color::Black) & !king_pawn_bb;
 
     white_pieces_bb.count_ones() < 2 || black_pieces_bb.count_ones() < 2
 }
@@ -101,7 +100,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     let repeated_times = history.repeated(position);
     let twofold_repetition = repeated_times >= 2;
     let threefold_repetition = repeated_times >= 3;
-    if position.halfmove_clock >= 100 || threefold_repetition {
+    if position.halfmove_clock() >= 100 || threefold_repetition {
         return (0, 1);
     }
 
@@ -162,7 +161,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
         && depth > NULL_MOVE_DEPTH_REDUCTION
         && !may_be_zug
     {
-        position.side_to_move = position.side_to_move.opposite();
+        position.flip_side_to_move();
         let (score, nodes) = pvs::<false, MAIN_THREAD, false>(
             position,
             depth - NULL_MOVE_DEPTH_REDUCTION,
@@ -173,7 +172,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             history,
             ply,
         );
-        position.side_to_move = position.side_to_move.opposite();
+        position.flip_side_to_move();
 
         count += nodes;
         let score = -score;
@@ -210,13 +209,12 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     for (i, mov) in picker.enumerate() {
         // Extended futility pruning: discard moves without potential
         if depth <= 2 && i > 0 && !may_be_zug {
-            let move_potential = MAX_POSITIONAL_GAIN * depth as ValueScore
+            let move_potential = 200 * depth as ValueScore
                 + mov
-                    .flag()
                     .is_capture()
-                    .then(|| position.board.piece_at(mov.to()).unwrap_or(Piece::Pawn).value())
+                    .then(|| position.piece_at(mov.to()).unwrap_or(Piece::Pawn).value())
                     .unwrap_or(0);
-            if static_evaluation.get_or_init(|| position.value() * position.side_to_move.sign())
+            if static_evaluation.get_or_init(|| position.value() * position.side_to_move().sign())
                 + move_potential
                 < alpha
             {
@@ -227,11 +225,11 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
         // Late move reduction: we assume our move ordering is good, and are less interested in
         // expected non-PV nodes.
         let late_move_reduction =
-            if depth > 2 && !is_check && mov.flag().is_quiet() && i > 0 { 1 } else { 0 };
+            if depth > 2 && !is_check && mov.is_quiet() && i > 0 { 1 } else { 0 };
 
         let mut new_position = position.make_move(mov);
 
-        history.visit_position(&new_position, mov.flag().is_reversible());
+        history.visit_position(&new_position, mov.is_reversible());
         let (score, nodes) = pvs_recurse::<MAIN_THREAD>(
             &mut new_position,
             depth,
@@ -255,7 +253,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             alpha = score;
 
             if score >= beta {
-                if MAIN_THREAD && mov.flag().is_quiet() {
+                if MAIN_THREAD && mov.is_quiet() {
                     // Killer moves are prioritized in move ordering.
                     // It assumes that similar "refutation" moves at siblings will be useful.
                     table.put_killer_move(ply, mov);
@@ -345,9 +343,9 @@ pub fn pvs_aspiration<const MAIN_THREAD: bool>(
             (
                 Score::Mate(
                     if score > 0 {
-                        position.side_to_move
+                        position.side_to_move()
                     } else {
-                        position.side_to_move.opposite()
+                        position.side_to_move().flipped()
                     },
                     (plys_to_mate + 1) / 2,
                 ),
@@ -363,8 +361,10 @@ pub fn pvs_aspiration<const MAIN_THREAD: bool>(
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::*;
-    use crate::{position::fen::FromFen, search::table::DEFAULT_TABLE_SIZE_MB};
+    use crate::search::table::DEFAULT_TABLE_SIZE_MB;
 
     fn expect_pvs_aspiration(
         fen: &str,
@@ -372,7 +372,7 @@ mod tests {
         expected_moves: Vec<&str>,
         expected_score: Option<Score>,
     ) {
-        let position = Position::from_fen(fen).unwrap();
+        let position = Position::from_str(fen).unwrap();
         let table = Arc::new(SearchTable::new(DEFAULT_TABLE_SIZE_MB));
         let constraint = SearchConstraint::default();
 

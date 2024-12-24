@@ -1,7 +1,7 @@
 use super::{constraint::SearchConstraint, movepick::MovePicker, see, Depth};
 use crate::{
-    evaluation::{position::MAX_POSITIONAL_GAIN, Evaluable, ValueScore, MATE_SCORE},
-    position::{board::Piece, Position},
+    core::{piece::Piece, Position},
+    evaluation::{Evaluable, ValueScore, MATE_SCORE},
 };
 
 pub fn quiesce(
@@ -22,7 +22,7 @@ pub fn quiesce(
     let static_evaluation = if is_check {
         alpha
     } else {
-        let static_evaluation = position.value() * position.side_to_move.sign();
+        let static_evaluation = position.value() * position.side_to_move().sign();
 
         // Standing pat: captures are not forced
         alpha = alpha.max(static_evaluation);
@@ -51,15 +51,15 @@ pub fn quiesce(
     let mut count = 1;
 
     for mov in picker {
-        if !is_check && mov.flag().is_capture() {
+        if !is_check && mov.is_capture() {
             // Delta pruning: this capture cannot improve the score in any way.
-            let captured_piece = position.board.piece_at(mov.to()).unwrap_or(Piece::Pawn);
-            if static_evaluation + captured_piece.value() + MAX_POSITIONAL_GAIN < alpha {
+            let captured_piece = position.piece_at(mov.to()).unwrap_or(Piece::Pawn);
+            if static_evaluation + captured_piece.value() + 200 < alpha {
                 continue;
             }
 
             // Static exchange evaluation: if we lose material, there is no point in searching further.
-            if see::see::<true>(mov, &position.board) < 0 {
+            if see::see::<true>(mov, position) < 0 {
                 continue;
             }
         }

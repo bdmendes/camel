@@ -1,8 +1,7 @@
 use self::{constraint::SearchConstraint, table::SearchTable};
 use crate::{
+    core::{moves::Move, MoveStage, Position},
     evaluation::{moves::evaluate_move, Score, ValueScore},
-    moves::{gen::MoveStage, Move},
-    position::Position,
 };
 use std::{
     sync::{atomic::Ordering, Arc},
@@ -40,7 +39,7 @@ fn print_iter_info(
             print!("score cp {} ", score);
         }
         Score::Mate(color, moves) => {
-            if color == position.side_to_move {
+            if color == position.side_to_move() {
                 print!("score mate {} ", moves);
             } else {
                 let moves = moves as i16;
