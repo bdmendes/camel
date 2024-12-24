@@ -13,17 +13,6 @@ use super::square_attackers;
 static COLOR_CASTLE_RANKS: [Bitboard; 2] = [Bitboard::rank_mask(0), Bitboard::rank_mask(7)];
 static COLOR_KINGSIDE_SQUARES: [Square; 2] = [Square::G1, Square::G8];
 static COLOR_QUEENSIDE_SQUARES: [Square; 2] = [Square::C1, Square::C8];
-static REGULAR_CHESS_ROOKS: Bitboard = Bitboard::new(
-    (1 << Square::A1 as usize)
-        | (1 << Square::A8 as usize)
-        | (1 << Square::H1 as usize)
-        | (1 << Square::H8 as usize),
-);
-static REGULAR_CHESS_KINGS: [Square; 2] = [Square::E1, Square::E8];
-
-fn is_chess960(king: Square, rook: Square, side_to_move: Color) -> bool {
-    !REGULAR_CHESS_ROOKS.is_set(rook) || REGULAR_CHESS_KINGS[side_to_move as usize] != king
-}
 
 fn king_square(position: &Position) -> Square {
     position.pieces_color_bb(Piece::King, position.side_to_move).lsb().unwrap()
@@ -67,7 +56,7 @@ fn castle_side<const QUEENSIDE: bool>(position: &Position, moves: &mut Vec<Move>
 
         moves.push(Move::new(
             king,
-            if is_chess960(king, rook, position.side_to_move) {
+            if position.is_chess_960() {
                 rook
             } else {
                 castle_squares[position.side_to_move as usize]
@@ -165,7 +154,7 @@ mod tests {
     #[test]
     fn single_rook() {
         assert_castle(
-            "r1bqk2r/ppppbppp/2n1p3/7n/3PPB2/P1N2N1P/1PPQB1P1/R3K3 w KQkq - 1 10",
+            "r1bqk2r/ppppbppp/2n1p3/7n/3PPB2/P1N2N1P/1PPQB1P1/R3K3 w Qkq - 1 10",
             &["e1c1"],
         );
     }

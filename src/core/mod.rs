@@ -44,6 +44,7 @@ pub struct Position {
     castling_rights: CastlingRights,
     halfmove_clock: u8,
     fullmove_number: u16,
+    chess960: bool,
 }
 
 impl Default for Position {
@@ -63,6 +64,7 @@ impl Default for Position {
             castling_rights: CastlingRights::default(),
             halfmove_clock: 0,
             fullmove_number: 1,
+            chess960: false,
         }
     }
 }
@@ -251,6 +253,10 @@ impl Position {
 
     pub fn set_fullmove_number(&mut self, fullmove_number: u16) {
         self.fullmove_number = fullmove_number;
+    }
+
+    pub fn is_chess_960(&self) -> bool {
+        self.chess960
     }
 
     pub fn perft(&self, depth: u8) -> u64 {

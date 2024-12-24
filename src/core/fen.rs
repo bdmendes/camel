@@ -2,6 +2,7 @@ use derive_more::derive::FromStr;
 use std::{fmt::Display, str::FromStr};
 
 use super::{
+    bitboard::Bitboard,
     castling_rights::{CastlingRights, CastlingSide},
     color::Color,
     piece::Piece,
@@ -78,6 +79,24 @@ impl TryFrom<Fen> for Position {
     type Error = ();
 
     fn try_from(fen: Fen) -> Result<Self, ()> {
+        fn mark_960(position: &mut Position, castling_side: CastlingSide, color: Color) {
+            let rook = match (castling_side, color) {
+                (CastlingSide::Kingside, Color::White) => Square::H1,
+                (CastlingSide::Kingside, Color::Black) => Square::H8,
+                (CastlingSide::Queenside, Color::White) => Square::A1,
+                (CastlingSide::Queenside, Color::Black) => Square::A8,
+            };
+            let king = match (color) {
+                Color::White => Square::E1,
+                Color::Black => Square::E8,
+            };
+            let is_chess960 = !position.pieces_color_bb(Piece::Rook, color).is_set(rook)
+                || !position.pieces_color_bb(Piece::King, color).is_set(king);
+            if (is_chess960) {
+                position.chess960 = true;
+            }
+        }
+
         let mut position = Position::default();
         let mut words = fen.0.split_whitespace();
         let mut rank: u8 = 7;
@@ -135,10 +154,22 @@ impl TryFrom<Fen> for Position {
         for c in words.next().ok_or(())?.chars() {
             match c {
                 ' ' | '-' => break,
-                'K' => rights = rights.removed_side(Color::White, CastlingSide::Kingside),
-                'Q' => rights = rights.removed_side(Color::White, CastlingSide::Queenside),
-                'k' => rights = rights.removed_side(Color::Black, CastlingSide::Kingside),
-                'q' => rights = rights.removed_side(Color::Black, CastlingSide::Queenside),
+                'K' => {
+                    mark_960(&mut position, CastlingSide::Kingside, Color::White);
+                    rights = rights.removed_side(Color::White, CastlingSide::Kingside)
+                }
+                'Q' => {
+                    mark_960(&mut position, CastlingSide::Queenside, Color::White);
+                    rights = rights.removed_side(Color::White, CastlingSide::Queenside)
+                }
+                'k' => {
+                    mark_960(&mut position, CastlingSide::Kingside, Color::Black);
+                    rights = rights.removed_side(Color::Black, CastlingSide::Kingside)
+                }
+                'q' => {
+                    mark_960(&mut position, CastlingSide::Queenside, Color::Black);
+                    rights = rights.removed_side(Color::Black, CastlingSide::Queenside)
+                }
                 c if c.is_alphabetic() => {
                     let color = if c.is_uppercase() { Color::White } else { Color::Black };
                     let file = c.to_ascii_lowercase() as u8 - b'a';
@@ -146,14 +177,13 @@ impl TryFrom<Fen> for Position {
                         Color::White => white_king.unwrap().file(),
                         Color::Black => black_king.unwrap().file(),
                     };
-                    rights = rights.removed_side(
-                        color,
-                        if king_file > file {
-                            CastlingSide::Queenside
-                        } else {
-                            CastlingSide::Kingside
-                        },
-                    )
+                    let castling_side = if king_file > file {
+                        CastlingSide::Queenside
+                    } else {
+                        CastlingSide::Kingside
+                    };
+                    mark_960(&mut position, castling_side, color);
+                    rights = rights.removed_side(color, castling_side);
                 }
                 _ => return Err(()),
             }
@@ -241,7 +271,8 @@ mod tests {
     #[case("r3r1k1/1pp2pp1/p4nbp/3qN3/3P2P1/1PP4P/1P1NQ3/R4RK1 w - - 1 19")]
     #[case("rnbqkbnr/pp4pp/8/3pPp2/8/5N2/PPP2PPP/RNBQKB1R w KQkq f6 0 6")]
     fn reflection(#[case] fen: Fen) {
-        assert_eq!(Fen::from(&Position::try_from(fen.clone()).unwrap()), fen);
+        let position = Position::try_from(fen.clone()).unwrap();
+        assert_eq!(Fen::from(&position), fen);
     }
 
     #[rstest]
@@ -262,6 +293,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(position1.castling_rights(), CastlingRights::new(true, false, true, true));
+        assert!(position1.is_chess_960());
 
         let position2 = Position::try_from(
             Fen::from_str("b1qbrknr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/BNQBRKR1 b Ekq - 3 3")
@@ -269,5 +301,6 @@ mod tests {
         )
         .unwrap();
         assert_eq!(position2.castling_rights(), CastlingRights::new(false, true, true, true));
+        assert!(position2.is_chess_960());
     }
 }
