@@ -145,6 +145,7 @@ mod tests {
                     hash.xor_piece(*piece, *square, *color);
                     assert!(!seen.contains(&hash.0));
                     seen.insert(hash.0);
+                    hash.xor_piece(*piece, *square, *color);
                 }
             }
         }
