@@ -4,7 +4,7 @@ use crate::{
     evaluation::{moves::evaluate_move, Evaluable, ValueScore},
 };
 use rand::{thread_rng, Rng};
-use std::sync::Arc;
+use std::{sync::Arc, thread::panicking};
 
 type ScoredVec<Move> = Vec<(Move, ValueScore)>;
 
@@ -28,7 +28,12 @@ impl MovePicker<true> {
         });
         Self {
             index: 0,
-            moves: decorate_moves_with_score(&moves, |mov| evaluate_move(position, mov)),
+            moves: decorate_moves_with_score(&moves, |mov| {
+                if mov.to_string().as_str() == "a1c1=N" || mov.to_string().as_str() == "a1g1=N" {
+                    panic!("p2: {}", position.fen());
+                }
+                evaluate_move(position, mov)
+            }),
             stage: MoveStage::CapturesAndPromotions,
             position: *position,
             table: None,
@@ -85,7 +90,14 @@ impl std::iter::Iterator for MovePicker<false> {
                 self.stage = MoveStage::CapturesAndPromotions;
                 self.moves = decorate_moves_with_score(
                     &self.position.moves(MoveStage::CapturesAndPromotions),
-                    |mov| evaluate_move(&self.position, mov),
+                    |mov| {
+                        if mov.to_string().as_str() == "a1c1=N"
+                            || mov.to_string().as_str() == "a1g1=N"
+                        {
+                            panic!("p4: {}", self.position.fen());
+                        }
+                        evaluate_move(&self.position, mov)
+                    },
                 );
 
                 self.index = 0;
@@ -100,6 +112,11 @@ impl std::iter::Iterator for MovePicker<false> {
                     if killers[1] == Some(mov) || killers[0] == Some(mov) {
                         Piece::Queen.value()
                     } else {
+                        if mov.to_string().as_str() == "a1c1=N"
+                            || mov.to_string().as_str() == "a1g1=N"
+                        {
+                            panic!("p6: {}", self.position.fen());
+                        }
                         evaluate_move(&self.position, mov)
                     }
                 });

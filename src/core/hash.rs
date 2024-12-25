@@ -13,11 +13,11 @@ use super::{
 pub struct ZobristHash(pub u64);
 
 // 2 colors, 6 pieces, 64 squares + 1 color + 4 castling rights + 64 ep squares
-const ZOBRIST_NUMBERS_SIZE: usize = 2 * 6 * 64 + 2 + 4 + 64;
+const ZOBRIST_NUMBERS_SIZE: usize = 2 * 6 * 64 + 1 + 4 + 64;
 
 #[ctor]
 static ZOBRIST_NUMBERS: [ZobristHash; ZOBRIST_NUMBERS_SIZE] = {
-    let mut rng = StdRng::seed_from_u64(0);
+    let mut rng = StdRng::seed_from_u64(42);
     let mut numbers = [0; ZOBRIST_NUMBERS_SIZE];
     numbers.iter_mut().take(ZOBRIST_NUMBERS_SIZE).for_each(|n| *n = rng.gen());
     numbers.map(ZobristHash)

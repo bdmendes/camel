@@ -191,7 +191,6 @@ pub fn execute_do_move(mov_str: &str, position: &mut Position) {
 
 pub fn execute_display(position: &Position) {
     print!("{}", position);
-    println!("{}", position.fen());
     println!("Static evaluation: {}", position.value());
     println!("Chess960: {}", position.is_chess_960());
     println!(

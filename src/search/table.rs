@@ -1,13 +1,18 @@
+use portable_atomic::AtomicU128;
+
 use super::{Depth, MAX_DEPTH};
 use crate::{
-    core::{moves::Move, Position},
+    core::{
+        moves::{make::make_move, Move},
+        Position,
+    },
     evaluation::{Score, ValueScore},
 };
 use std::{
     array,
     mem::transmute,
     sync::{
-        atomic::{AtomicU16, AtomicU64, Ordering},
+        atomic::{AtomicU16, Ordering},
         RwLock,
     },
 };
@@ -17,7 +22,7 @@ pub const MIN_TABLE_SIZE_MB: usize = 1;
 pub const DEFAULT_TABLE_SIZE_MB: usize = 64;
 
 const NULL_KILLER: u16 = u16::MAX;
-const NULL_TT_ENTRY: u64 = u64::MAX;
+const NULL_TT_ENTRY: u128 = u128::MAX;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ScoreType {
@@ -28,9 +33,13 @@ pub enum ScoreType {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct TableEntry {
-    score: ValueScore,
-    best_move: Move,
-    data: u32, // bits 0-1: score type, bits 2-7: depth, bit 8: age, bits 9-31: hash
+    pub score: ValueScore,
+    pub best_move: Move,
+    pub score_type: ScoreType,
+    pub depth: Depth,
+    pub age: bool,
+    pub hash: u64,
+    pub pad: u8,
 }
 
 impl TableEntry {
@@ -42,59 +51,31 @@ impl TableEntry {
         hash: u64,
         age: bool,
     ) -> Self {
-        TableEntry {
-            score,
-            best_move,
-            data: (score_type as u32)
-                | ((depth as u32 & 0x3F) << 2)
-                | ((age as u32) << 8)
-                | (hash as u32 & 0xFFFF_FE00),
-        }
+        TableEntry { score, best_move, depth, hash, age, score_type, pad: 0 }
     }
 
-    pub fn from_raw(bytes: u64) -> Self {
-        unsafe { transmute::<u64, TableEntry>(bytes) }
+    pub fn from_raw(bytes: u128) -> Self {
+        unsafe { transmute::<u128, TableEntry>(bytes) }
     }
 
-    pub fn raw(&self) -> u64 {
-        unsafe { transmute::<TableEntry, u64>(*self) }
+    pub fn raw(&self) -> u128 {
+        unsafe { transmute::<TableEntry, u128>(*self) }
     }
 
     pub fn shift_score(&self, shift: ValueScore) -> Self {
         TableEntry { score: self.score + shift, ..*self }
     }
-
-    fn score_type(&self) -> ScoreType {
-        match self.data & 3 {
-            0 => ScoreType::Exact,
-            1 => ScoreType::LowerBound,
-            2 => ScoreType::UpperBound,
-            _ => panic!("Invalid score type"),
-        }
-    }
-
-    fn depth(&self) -> Depth {
-        ((self.data >> 2) & 0x3F) as Depth
-    }
-
-    fn same_hash(&self, hash: u64) -> bool {
-        self.data & 0xFFFF_FE00 == (hash as u32 & 0xFFFF_FE00)
-    }
-
-    fn age(&self) -> bool {
-        ((self.data >> 8) & 1) != 0
-    }
 }
 
 struct TranspositionTable {
-    data: Vec<AtomicU64>,
+    data: Vec<AtomicU128>,
     age: bool,
 }
 
 impl TranspositionTable {
     pub fn new(size_mb: usize) -> Self {
         let data_len = Self::calculate_data_len(size_mb);
-        Self { data: (0..data_len).map(|_| AtomicU64::new(NULL_TT_ENTRY)).collect(), age: false }
+        Self { data: (0..data_len).map(|_| AtomicU128::new(NULL_TT_ENTRY)).collect(), age: false }
     }
 
     fn calculate_data_len(size_mb: usize) -> usize {
@@ -105,7 +86,7 @@ impl TranspositionTable {
 
     pub fn set_size(&mut self, size_mb: usize) {
         let data_len = Self::calculate_data_len(size_mb);
-        self.data = (0..data_len).map(|_| AtomicU64::new(NULL_TT_ENTRY)).collect();
+        self.data = (0..data_len).map(|_| AtomicU128::new(NULL_TT_ENTRY)).collect();
     }
 
     pub fn hashfull_millis(&self) -> usize {
@@ -121,7 +102,7 @@ impl TranspositionTable {
     pub fn get(&self, position: &Position) -> Option<TableEntry> {
         let hash = position.hash();
         let entry = self.load_tt_entry(hash.0 as usize % self.data.len());
-        entry.filter(|entry| entry.same_hash(hash.0))
+        entry.filter(|entry| entry.hash == hash.0)
     }
 
     pub fn insert(&self, position: &Position, entry: TableEntry, force: bool) {
@@ -130,7 +111,7 @@ impl TranspositionTable {
 
         if !force {
             if let Some(old_entry) = self.load_tt_entry(index) {
-                if old_entry.depth() > entry.depth() && old_entry.age() == entry.age() {
+                if old_entry.depth > entry.depth && old_entry.age == entry.age {
                     return;
                 }
             }
@@ -187,7 +168,20 @@ impl SearchTable {
             .unwrap()
             .get(position)
             .map(|entry| entry.best_move)
+            .filter(|e| {
+                if e.from() == e.to() {
+                    println!("AAAAAAAAAAA");
+                };
+                true
+            })
             .filter(|mov| mov.is_pseudo_legal(position))
+            .filter(|m| {
+                // Work around hash collisions.
+                // Our saved hash is a bit too short. Let's workaround that for now,
+                // and improve on 2.0.
+                let new_position = make_move::<false>(position, *m);
+                !new_position.is_check()
+            })
     }
 
     pub fn get_table_score(
@@ -201,8 +195,8 @@ impl SearchTable {
             .unwrap()
             .get(position)
             .and_then(|entry| {
-                if entry.depth() >= depth {
-                    Some((entry.score, entry.score_type()))
+                if entry.depth >= depth {
+                    Some((entry.score, entry.score_type))
                 } else {
                     None
                 }
@@ -292,7 +286,7 @@ impl SearchTable {
             .unwrap()
             .data
             .iter_mut()
-            .for_each(|entry| *entry = AtomicU64::new(NULL_TT_ENTRY));
+            .for_each(|entry| *entry = AtomicU128::new(NULL_TT_ENTRY));
         self.killer_moves.iter().for_each(|entry| entry.store(NULL_KILLER, Ordering::Relaxed));
     }
 
@@ -331,18 +325,18 @@ mod tests {
         let entry3 = TableEntry::new(100, ScoreType::Exact, Move(0), 1, 2, true);
         let entry4 = TableEntry::new(100, ScoreType::Exact, Move(0), 2, 3, false);
 
-        assert_eq!(entry1.depth(), MAX_DEPTH);
-        assert_eq!(entry2.depth(), 0);
-        assert_eq!(entry3.depth(), 1);
-        assert_eq!(entry4.depth(), 2);
+        assert_eq!(entry1.depth, MAX_DEPTH);
+        assert_eq!(entry2.depth, 0);
+        assert_eq!(entry3.depth, 1);
+        assert_eq!(entry4.depth, 2);
 
         assert_eq!(entry1.score, 100);
-        assert_eq!(entry1.score_type(), ScoreType::Exact);
+        assert_eq!(entry1.score_type, ScoreType::Exact);
 
-        assert!(entry1.age());
-        assert!(!entry2.age());
-        assert!(entry3.age());
-        assert!(!entry4.age());
+        assert!(entry1.age);
+        assert!(!entry2.age);
+        assert!(entry3.age);
+        assert!(!entry4.age);
     }
 
     #[test]

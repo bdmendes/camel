@@ -222,12 +222,12 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
             }
         }
 
+        let mut new_position = position.make_move(mov);
+
         // Late move reduction: we assume our move ordering is good, and are less interested in
         // expected non-PV nodes.
         let late_move_reduction =
             if depth > 2 && !is_check && mov.is_quiet() && i > 0 { 1 } else { 0 };
-
-        let mut new_position = position.make_move(mov);
 
         history.visit_position(&new_position, mov.is_reversible());
         let (score, nodes) = pvs_recurse::<MAIN_THREAD>(

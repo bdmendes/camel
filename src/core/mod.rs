@@ -267,6 +267,13 @@ impl Position {
         generate_moves(self, stage)
     }
 
+    pub fn is_legal(&mut self) -> bool {
+        self.flip_side_to_move();
+        let res = !self.is_check();
+        self.flip_side_to_move();
+        res
+    }
+
     pub fn make_move(&self, mov: Move) -> Self {
         make_move::<true>(self, mov)
     }
@@ -276,12 +283,6 @@ impl Position {
         for m in moves {
             if mov == m.to_string().as_str() {
                 let new_position = self.make_move(m);
-                /*println!(
-                    "hash after {}: {} {}",
-                    mov,
-                    new_position.hash().0,
-                    new_position.hash_from_scratch().0
-                );*/
                 return Some(new_position);
             }
         }

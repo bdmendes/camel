@@ -77,11 +77,10 @@ impl Move {
     }
 
     pub fn is_pseudo_legal(&self, position: &Position) -> bool {
-        let from_piece_color = position.piece_color_at(self.from());
         let to_color = position.color_at(self.to());
         let to_piece = position.piece_at(self.to());
 
-        if let Some((piece, color)) = from_piece_color {
+        if let Some((piece, color)) = position.piece_color_at(self.from()) {
             // Basic legality assumptions. This is a good and fast start,
             // but not sufficient.
             if color != position.side_to_move
@@ -89,7 +88,7 @@ impl Move {
                 || to_piece == Some(Piece::King)
                 || (self.is_capture()
                     && self.flag() != MoveFlag::EnpassantCapture
-                    && to_piece.is_none())
+                    && to_color != Some(position.side_to_move.flipped()))
             {
                 return false;
             }
