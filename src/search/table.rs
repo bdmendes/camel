@@ -1,18 +1,13 @@
-use portable_atomic::AtomicU128;
-
 use super::{Depth, MAX_DEPTH};
 use crate::{
-    core::{
-        moves::{make::make_move, Move},
-        Position,
-    },
+    core::{moves::Move, Position},
     evaluation::{Score, ValueScore},
 };
 use std::{
     array,
     mem::transmute,
     sync::{
-        atomic::{AtomicU16, Ordering},
+        atomic::{AtomicU16, AtomicU64, Ordering},
         RwLock,
     },
 };
@@ -22,7 +17,7 @@ pub const MIN_TABLE_SIZE_MB: usize = 1;
 pub const DEFAULT_TABLE_SIZE_MB: usize = 64;
 
 const NULL_KILLER: u16 = u16::MAX;
-const NULL_TT_ENTRY: u128 = u128::MAX;
+const NULL_TT_ENTRY: u64 = u64::MAX;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ScoreType {
@@ -33,13 +28,9 @@ pub enum ScoreType {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct TableEntry {
-    pub score: ValueScore,
-    pub best_move: Move,
-    pub score_type: ScoreType,
-    pub depth: Depth,
-    pub age: u8,
-    pub hash: u64,
-    pub pad: u8,
+    score: ValueScore,
+    best_move: Move,
+    data: u32, // bits 0-1: score type, bits 2-7: depth, bit 8: age, bits 9-31: hash
 }
 
 impl TableEntry {
@@ -49,33 +40,61 @@ impl TableEntry {
         best_move: Move,
         depth: Depth,
         hash: u64,
-        age: u8,
+        age: bool,
     ) -> Self {
-        TableEntry { score, best_move, depth, hash, age, score_type, pad: 0 }
+        TableEntry {
+            score,
+            best_move,
+            data: (score_type as u32)
+                | ((depth as u32 & 0x3F) << 2)
+                | ((age as u32) << 8)
+                | (hash as u32 & 0xFFFF_FE00),
+        }
     }
 
-    pub fn from_raw(bytes: u128) -> Self {
-        unsafe { transmute::<u128, TableEntry>(bytes) }
+    pub fn from_raw(bytes: u64) -> Self {
+        unsafe { transmute::<u64, TableEntry>(bytes) }
     }
 
-    pub fn raw(&self) -> u128 {
-        unsafe { transmute::<TableEntry, u128>(*self) }
+    pub fn raw(&self) -> u64 {
+        unsafe { transmute::<TableEntry, u64>(*self) }
     }
 
     pub fn shift_score(&self, shift: ValueScore) -> Self {
         TableEntry { score: self.score + shift, ..*self }
     }
+
+    fn score_type(&self) -> ScoreType {
+        match self.data & 3 {
+            0 => ScoreType::Exact,
+            1 => ScoreType::LowerBound,
+            2 => ScoreType::UpperBound,
+            _ => panic!("Invalid score type"),
+        }
+    }
+
+    fn depth(&self) -> Depth {
+        ((self.data >> 2) & 0x3F) as Depth
+    }
+
+    fn same_hash(&self, hash: u64) -> bool {
+        self.data & 0xFFFF_FE00 == (hash as u32 & 0xFFFF_FE00)
+    }
+
+    fn age(&self) -> bool {
+        ((self.data >> 8) & 1) != 0
+    }
 }
 
 struct TranspositionTable {
-    data: Vec<AtomicU128>,
-    age: u8,
+    data: Vec<AtomicU64>,
+    age: bool,
 }
 
 impl TranspositionTable {
     pub fn new(size_mb: usize) -> Self {
         let data_len = Self::calculate_data_len(size_mb);
-        Self { data: (0..data_len).map(|_| AtomicU128::new(NULL_TT_ENTRY)).collect(), age: 0 }
+        Self { data: (0..data_len).map(|_| AtomicU64::new(NULL_TT_ENTRY)).collect(), age: false }
     }
 
     fn calculate_data_len(size_mb: usize) -> usize {
@@ -86,7 +105,7 @@ impl TranspositionTable {
 
     pub fn set_size(&mut self, size_mb: usize) {
         let data_len = Self::calculate_data_len(size_mb);
-        self.data = (0..data_len).map(|_| AtomicU128::new(NULL_TT_ENTRY)).collect();
+        self.data = (0..data_len).map(|_| AtomicU64::new(NULL_TT_ENTRY)).collect();
     }
 
     pub fn hashfull_millis(&self) -> usize {
@@ -100,18 +119,18 @@ impl TranspositionTable {
     }
 
     pub fn get(&self, position: &Position) -> Option<TableEntry> {
-        let hash = position.hash();
-        let entry = self.load_tt_entry(hash.0 as usize % self.data.len());
-        entry.filter(|entry| entry.hash == hash.0)
+        let hash = position.hash().0;
+        let entry = self.load_tt_entry(hash as usize % self.data.len());
+        entry.filter(|entry| entry.same_hash(hash))
     }
 
     pub fn insert(&self, position: &Position, entry: TableEntry, force: bool) {
-        let hash = position.hash();
-        let index = hash.0 as usize % self.data.len();
+        let hash = position.hash().0;
+        let index = hash as usize % self.data.len();
 
         if !force {
             if let Some(old_entry) = self.load_tt_entry(index) {
-                if old_entry.depth > entry.depth && old_entry.age == entry.age {
+                if old_entry.depth() > entry.depth() && old_entry.age() == entry.age() {
                     return;
                 }
             }
@@ -152,7 +171,7 @@ impl SearchTable {
         // This is both faster and more effective than clearing the table completely,
         // since we can profit from older entries that are still valid.
         let mut tt = self.transposition.write().unwrap();
-        tt.age = tt.age.saturating_add(1);
+        tt.age = !tt.age;
 
         // Killer moves are no longer at the same ply, so we clear them.
         self.killer_moves.iter().for_each(|entry| entry.store(NULL_KILLER, Ordering::Relaxed));
@@ -169,10 +188,6 @@ impl SearchTable {
             .get(position)
             .map(|entry| entry.best_move)
             .filter(|mov| mov.is_pseudo_legal(position))
-            .filter(|m| {
-                let new_position = make_move::<false>(position, *m);
-                !new_position.is_check()
-            })
     }
 
     pub fn get_table_score(
@@ -186,8 +201,8 @@ impl SearchTable {
             .unwrap()
             .get(position)
             .and_then(|entry| {
-                if entry.depth >= depth {
-                    Some((entry.score, entry.score_type))
+                if entry.depth() >= depth {
+                    Some((entry.score, entry.score_type()))
                 } else {
                     None
                 }
@@ -277,7 +292,7 @@ impl SearchTable {
             .unwrap()
             .data
             .iter_mut()
-            .for_each(|entry| *entry = AtomicU128::new(NULL_TT_ENTRY));
+            .for_each(|entry| *entry = AtomicU64::new(NULL_TT_ENTRY));
         self.killer_moves.iter().for_each(|entry| entry.store(NULL_KILLER, Ordering::Relaxed));
     }
 
@@ -301,8 +316,12 @@ mod tests {
 
     use super::{SearchTable, TableEntry, TranspositionTable};
     use crate::{
-        core::moves::Move,
-        core::{fen::START_POSITION, square::Square, Position},
+        core::{
+            fen::START_POSITION,
+            moves::{Move, MoveFlag},
+            square::Square,
+            Position,
+        },
         search::{
             table::{ScoreType, NULL_KILLER, NULL_TT_ENTRY},
             MAX_DEPTH,
@@ -310,9 +329,30 @@ mod tests {
     };
 
     #[test]
+    fn entry_packing() {
+        let entry1 = TableEntry::new(100, ScoreType::Exact, Move(0), MAX_DEPTH, 0, true);
+        let entry2 = TableEntry::new(100, ScoreType::Exact, Move(0), 0, 1, false);
+        let entry3 = TableEntry::new(100, ScoreType::Exact, Move(0), 1, 2, true);
+        let entry4 = TableEntry::new(100, ScoreType::Exact, Move(0), 2, 3, false);
+
+        assert_eq!(entry1.depth(), MAX_DEPTH);
+        assert_eq!(entry2.depth(), 0);
+        assert_eq!(entry3.depth(), 1);
+        assert_eq!(entry4.depth(), 2);
+
+        assert_eq!(entry1.score, 100);
+        assert_eq!(entry1.score_type(), ScoreType::Exact);
+
+        assert!(entry1.age());
+        assert!(!entry2.age());
+        assert!(entry3.age());
+        assert!(!entry4.age());
+    }
+
+    #[test]
     fn entry_transmutation() {
-        let entry1 = TableEntry::new(100, ScoreType::Exact, Move(0), MAX_DEPTH, 0, 0);
-        let entry2 = TableEntry::new(100, ScoreType::Exact, Move(0), 0, 1, 1);
+        let entry1 = TableEntry::new(100, ScoreType::Exact, Move(0), MAX_DEPTH, 0, true);
+        let entry2 = TableEntry::new(100, ScoreType::Exact, Move(0), 0, 1, false);
 
         assert!(entry1.raw() != entry2.raw());
 
@@ -328,10 +368,9 @@ mod tests {
         assert_eq!(table.data[0].load(Ordering::Relaxed), NULL_TT_ENTRY);
         assert_eq!(table.get(&position), None);
 
-        let first_move =
-            Move::new(Square::E2, Square::E4, crate::core::moves::MoveFlag::DoublePawnPush);
+        let first_move = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
         let first_move_entry =
-            TableEntry::new(100, ScoreType::Exact, first_move, 2, position.hash().0, 1);
+            TableEntry::new(100, ScoreType::Exact, first_move, 2, position.hash().0, true);
 
         table.insert(&position, first_move_entry, false);
 
@@ -350,12 +389,9 @@ mod tests {
         assert_eq!(table.killer_moves[1].load(Ordering::Relaxed), NULL_KILLER);
         assert_eq!(table.get_killers(0), [None, None]);
 
-        let first_move =
-            Move::new(Square::E2, Square::E4, crate::core::moves::MoveFlag::DoublePawnPush);
-        let second_move =
-            Move::new(Square::D2, Square::D4, crate::core::moves::MoveFlag::DoublePawnPush);
-        let third_move =
-            Move::new(Square::C2, Square::C4, crate::core::moves::MoveFlag::DoublePawnPush);
+        let first_move = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
+        let second_move = Move::new(Square::D2, Square::D4, MoveFlag::DoublePawnPush);
+        let third_move = Move::new(Square::C2, Square::C4, MoveFlag::DoublePawnPush);
 
         table.put_killer_move(0, first_move);
         assert_eq!(table.killer_moves[0].load(Ordering::Relaxed), first_move.0);
