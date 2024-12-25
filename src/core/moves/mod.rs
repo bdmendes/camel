@@ -89,6 +89,7 @@ impl Move {
                 || (self.is_capture()
                     && self.flag() != MoveFlag::EnpassantCapture
                     && to_color != Some(position.side_to_move.flipped()))
+                || (!self.is_capture() && to_color.is_some())
             {
                 return false;
             }

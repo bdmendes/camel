@@ -39,9 +39,6 @@ fn make_castle<const UPDATE_META: bool>(
 
 pub fn make_move<const UPDATE_META: bool>(position: &Position, mov: Move) -> Position {
     let mut position = *position;
-    if position.piece_at(mov.from()).is_none() {
-        panic!("m: {}", mov);
-    }
     let piece = position.piece_at(mov.from()).unwrap();
     let side_to_move = position.side_to_move();
 

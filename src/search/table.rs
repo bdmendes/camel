@@ -2,10 +2,7 @@ use portable_atomic::AtomicU128;
 
 use super::{Depth, MAX_DEPTH};
 use crate::{
-    core::{
-        moves::{make::make_move, Move},
-        Position,
-    },
+    core::{moves::Move, Position},
     evaluation::{Score, ValueScore},
 };
 use std::{
@@ -37,7 +34,7 @@ struct TableEntry {
     pub best_move: Move,
     pub score_type: ScoreType,
     pub depth: Depth,
-    pub age: bool,
+    pub age: u8,
     pub hash: u64,
     pub pad: u8,
 }
@@ -49,7 +46,7 @@ impl TableEntry {
         best_move: Move,
         depth: Depth,
         hash: u64,
-        age: bool,
+        age: u8,
     ) -> Self {
         TableEntry { score, best_move, depth, hash, age, score_type, pad: 0 }
     }
@@ -69,13 +66,13 @@ impl TableEntry {
 
 struct TranspositionTable {
     data: Vec<AtomicU128>,
-    age: bool,
+    age: u8,
 }
 
 impl TranspositionTable {
     pub fn new(size_mb: usize) -> Self {
         let data_len = Self::calculate_data_len(size_mb);
-        Self { data: (0..data_len).map(|_| AtomicU128::new(NULL_TT_ENTRY)).collect(), age: false }
+        Self { data: (0..data_len).map(|_| AtomicU128::new(NULL_TT_ENTRY)).collect(), age: 0 }
     }
 
     fn calculate_data_len(size_mb: usize) -> usize {
@@ -152,7 +149,7 @@ impl SearchTable {
         // This is both faster and more effective than clearing the table completely,
         // since we can profit from older entries that are still valid.
         let mut tt = self.transposition.write().unwrap();
-        tt.age = !tt.age;
+        tt.age = tt.age.saturating_add(1);
 
         // Killer moves are no longer at the same ply, so we clear them.
         self.killer_moves.iter().for_each(|entry| entry.store(NULL_KILLER, Ordering::Relaxed));
@@ -168,20 +165,7 @@ impl SearchTable {
             .unwrap()
             .get(position)
             .map(|entry| entry.best_move)
-            .filter(|e| {
-                if e.from() == e.to() {
-                    println!("AAAAAAAAAAA");
-                };
-                true
-            })
             .filter(|mov| mov.is_pseudo_legal(position))
-            .filter(|m| {
-                // Work around hash collisions.
-                // Our saved hash is a bit too short. Let's workaround that for now,
-                // and improve on 2.0.
-                let new_position = make_move::<false>(position, *m);
-                !new_position.is_check()
-            })
     }
 
     pub fn get_table_score(
@@ -319,30 +303,9 @@ mod tests {
     };
 
     #[test]
-    fn entry_packing() {
-        let entry1 = TableEntry::new(100, ScoreType::Exact, Move(0), MAX_DEPTH, 0, true);
-        let entry2 = TableEntry::new(100, ScoreType::Exact, Move(0), 0, 1, false);
-        let entry3 = TableEntry::new(100, ScoreType::Exact, Move(0), 1, 2, true);
-        let entry4 = TableEntry::new(100, ScoreType::Exact, Move(0), 2, 3, false);
-
-        assert_eq!(entry1.depth, MAX_DEPTH);
-        assert_eq!(entry2.depth, 0);
-        assert_eq!(entry3.depth, 1);
-        assert_eq!(entry4.depth, 2);
-
-        assert_eq!(entry1.score, 100);
-        assert_eq!(entry1.score_type, ScoreType::Exact);
-
-        assert!(entry1.age);
-        assert!(!entry2.age);
-        assert!(entry3.age);
-        assert!(!entry4.age);
-    }
-
-    #[test]
     fn entry_transmutation() {
-        let entry1 = TableEntry::new(100, ScoreType::Exact, Move(0), MAX_DEPTH, 0, true);
-        let entry2 = TableEntry::new(100, ScoreType::Exact, Move(0), 0, 1, false);
+        let entry1 = TableEntry::new(100, ScoreType::Exact, Move(0), MAX_DEPTH, 0, 0);
+        let entry2 = TableEntry::new(100, ScoreType::Exact, Move(0), 0, 1, 1);
 
         assert!(entry1.raw() != entry2.raw());
 
@@ -361,7 +324,7 @@ mod tests {
         let first_move =
             Move::new(Square::E2, Square::E4, crate::core::moves::MoveFlag::DoublePawnPush);
         let first_move_entry =
-            TableEntry::new(100, ScoreType::Exact, first_move, 2, position.hash().0, true);
+            TableEntry::new(100, ScoreType::Exact, first_move, 2, position.hash().0, 1);
 
         table.insert(&position, first_move_entry, false);
 

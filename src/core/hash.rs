@@ -71,7 +71,7 @@ impl ZobristHash {
     }
 
     pub fn xor_piece(&mut self, piece: Piece, square: Square, color: Color) {
-        let idx = (color as usize) * (piece as usize) + square as usize;
+        let idx = (color as usize) * 6 * 64 + (piece as usize) * 64 + square as usize;
         self.0 ^= ZOBRIST_NUMBERS[idx].0;
     }
 
@@ -96,9 +96,9 @@ impl ZobristHash {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::{castling_rights::CastlingSide, color::Color, piece::Piece, square::Square};
-
     use super::ZobristHash;
+    use crate::core::{castling_rights::CastlingSide, color::Color, piece::Piece, square::Square};
+    use std::collections::HashSet;
 
     #[test]
     fn reflection() {
@@ -132,5 +132,21 @@ mod tests {
         hash.xor_castle(Color::White, CastlingSide::Kingside);
         hash.xor_piece(Piece::King, Square::H8, Color::Black);
         assert_eq!(hash.0, 0);
+    }
+
+    #[test]
+    fn piece_uniqueness() {
+        let mut hash = ZobristHash(0);
+        let mut seen = HashSet::new();
+
+        for piece in Piece::list() {
+            for color in Color::list() {
+                for square in Square::list() {
+                    hash.xor_piece(*piece, *square, *color);
+                    assert!(!seen.contains(&hash.0));
+                    seen.insert(hash.0);
+                }
+            }
+        }
     }
 }

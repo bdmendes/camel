@@ -7,9 +7,6 @@ use crate::{
 
 pub fn evaluate_move(position: &Position, mov: Move) -> ValueScore {
     let mut score = 0;
-    if position.piece_at(mov.from()).is_none() {
-        panic!("m: {}", mov);
-    }
     let moving_piece = position.piece_at(mov.from()).unwrap();
 
     if mov.is_capture() {
