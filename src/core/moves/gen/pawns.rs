@@ -181,8 +181,8 @@ mod tests {
             "8/8/8/8/8/3K1k1p/6p1/5R2 b - - 1 54",
             pawn_moves_front,
             [
-                vec!["g2g1=Q", "g2g1=R", "g2g1=B", "g2g1=N", "h3h2"],
-                vec!["g2g1=Q", "g2g1=R", "g2g1=B", "g2g1=N"],
+                vec!["g2g1q", "g2g1r", "g2g1b", "g2g1n", "h3h2"],
+                vec!["g2g1q", "g2g1r", "g2g1b", "g2g1n"],
                 vec!["h3h2"],
             ],
         );
