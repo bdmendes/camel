@@ -275,19 +275,22 @@ impl Position {
         let moves = generate_moves(self, MoveStage::All);
         for m in moves {
             if mov == m.to_string().as_str() {
-                return Some(self.make_move(m));
+                let new_position = self.make_move(m);
+                /*println!(
+                    "hash after {}: {} {}",
+                    mov,
+                    new_position.hash().0,
+                    new_position.hash_from_scratch().0
+                );*/
+                return Some(new_position);
             }
         }
         None
     }
 
     pub fn is_check(&self) -> bool {
-        let king = self.pieces_color_bb(Piece::King, self.side_to_move()).lsb();
-        if let Some(king_square) = king {
-            !self.attackers(king_square, self.side_to_move().flipped()).is_empty()
-        } else {
-            true
-        }
+        let king = self.pieces_color_bb(Piece::King, self.side_to_move()).lsb().unwrap();
+        !self.attackers(king, self.side_to_move().flipped()).is_empty()
     }
 
     pub fn attackers(&self, square: Square, by_color: Color) -> Bitboard {

@@ -55,7 +55,7 @@ fn king_tropism(position: &Position, king_color: Color, king_square: Square) -> 
         let piece_cof = match position.piece_at(sq) {
             Some(Piece::Queen) | Some(Piece::Rook) => 2,
             Some(Piece::Bishop) | Some(Piece::Knight) => 1,
-            _ => 2,
+            _ => unreachable!(),
         };
         acc + ((14 - distance) * piece_cof) as ValueScore
     });
