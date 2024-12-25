@@ -69,7 +69,7 @@ pub fn generate_moves(position: &Position, stage: MoveStage) -> Vec<Move> {
             _ => {}
         };
 
-        let mut new_position = make_move::<false>(position, *mov);
+        let new_position = make_move::<false>(position, *mov);
         !new_position.is_check()
     });
 

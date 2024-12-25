@@ -15,8 +15,7 @@ fn make_castle<const UPDATE_META: bool>(
     castling_side: CastlingSide,
 ) {
     let ours = position.occupancy_bb(side_to_move);
-    let mut rooks =
-        position.pieces_bb(Piece::Rook) & ours & COLOR_CASTLE_RANKS[side_to_move as usize];
+    let rooks = position.pieces_bb(Piece::Rook) & ours & COLOR_CASTLE_RANKS[side_to_move as usize];
     let (rook, to_square) = match castling_side {
         CastlingSide::Kingside => (rooks.msb(), TO_SQUARE_KINGSIDE[side_to_move as usize]),
         CastlingSide::Queenside => (rooks.lsb(), TO_SQUARE_QUEENSIDE[side_to_move as usize]),

@@ -1,7 +1,6 @@
 use crate::core::{
     bitboard::Bitboard,
     castling_rights::CastlingSide,
-    color::Color,
     moves::{Move, MoveFlag},
     piece::Piece,
     square::Square,
@@ -79,7 +78,7 @@ fn castle_side(position: &Position, side: CastlingSide, moves: &mut Vec<Move>) {
 
         moves.push(Move::new(
             king,
-            if (position.chess960) { rook } else { final_king_square },
+            if position.chess960 { rook } else { final_king_square },
             FLAG_FROM_SIDE[side as usize],
         ));
     }

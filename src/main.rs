@@ -2,7 +2,7 @@ use crate::core::Position;
 use core::fen::START_POSITION;
 use std::{str::FromStr, time::Instant};
 
-#[allow(unused)]
+#[allow(dead_code)]
 mod core;
 
 fn main() {

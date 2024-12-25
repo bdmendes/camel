@@ -2,7 +2,6 @@ use derive_more::derive::FromStr;
 use std::{fmt::Display, str::FromStr};
 
 use super::{
-    bitboard::Bitboard,
     castling_rights::{CastlingRights, CastlingSide},
     color::Color,
     piece::Piece,
@@ -86,13 +85,13 @@ impl TryFrom<Fen> for Position {
                 (CastlingSide::Queenside, Color::White) => Square::A1,
                 (CastlingSide::Queenside, Color::Black) => Square::A8,
             };
-            let king = match (color) {
+            let king = match color {
                 Color::White => Square::E1,
                 Color::Black => Square::E8,
             };
             let is_chess960 = !position.pieces_color_bb(Piece::Rook, color).is_set(rook)
                 || !position.pieces_color_bb(Piece::King, color).is_set(king);
-            if (is_chess960) {
+            if is_chess960 {
                 position.chess960 = true;
             }
         }

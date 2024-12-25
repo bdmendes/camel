@@ -96,7 +96,7 @@ impl Bitboard {
         let to = to as u8;
         let min = from.min(to);
         let max = from.max(to);
-        let mask = (((1u64 << (max - min).saturating_sub(1)) - 1) << (min + 1));
+        let mask = ((1u64 << (max - min).saturating_sub(1)) - 1) << (min + 1);
         Bitboard::new(mask)
     }
 }
