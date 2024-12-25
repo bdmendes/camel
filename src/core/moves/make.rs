@@ -3,7 +3,7 @@ use crate::core::{
     Position,
 };
 
-use super::{Move, MoveFlag};
+use super::{gen::pawns::pawn_attackers, Move, MoveFlag};
 
 static COLOR_CASTLE_RANKS: [Bitboard; 2] = [Bitboard::rank_mask(0), Bitboard::rank_mask(7)];
 static TO_SQUARE_KINGSIDE: [Square; 2] = [Square::G1, Square::G8];
@@ -131,10 +131,15 @@ pub fn make_move<const UPDATE_META: bool>(position: &Position, mov: Move) -> Pos
     });
 
     if mov.flag() == MoveFlag::DoublePawnPush {
-        position.set_ep_square(match side_to_move {
+        let candidate_ep = match side_to_move {
             Color::White => mov.to() >> 8,
             Color::Black => mov.to() << 8,
-        });
+        };
+        if !pawn_attackers(&position, side_to_move.flipped(), candidate_ep).is_empty() {
+            position.set_ep_square(candidate_ep);
+        } else {
+            position.clear_ep_square();
+        }
     } else {
         position.clear_ep_square();
     };
@@ -171,6 +176,11 @@ mod tests {
         "r3k2r/8/3Q4/8/8/8/8/R2qK2R w KQkq - 1 2",
         "e1d1",
         "r3k2r/8/3Q4/8/8/8/8/R2K3R b kq - 0 2"
+    )]
+    #[case(
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "e2e4",
+        "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
     )]
     fn make(#[case] position: &str, #[case] mov: &str, #[case] expected: &str) {
         let position = Position::from_str(position).unwrap();

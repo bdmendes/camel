@@ -8,11 +8,11 @@ use magics::queen_attacks;
 use pawns::{pawn_attackers, pawn_moves};
 use sliders::{bishop_moves, diagonal_attackers, file_attackers, queen_moves, rook_moves};
 
-mod castle;
-mod leapers;
-mod magics;
-mod pawns;
-mod sliders;
+pub mod castle;
+pub mod leapers;
+pub mod magics;
+pub mod pawns;
+pub mod sliders;
 
 pub fn generate_moves(position: &Position, stage: MoveStage) -> Vec<Move> {
     let mut moves = Vec::with_capacity(match stage {

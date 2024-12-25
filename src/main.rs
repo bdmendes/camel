@@ -10,7 +10,10 @@ fn main() {
 
     for depth in 1..=10 {
         let time = Instant::now();
-        let (nodes, _) = position.perft(depth);
+        let (nodes, div) = position.perft(depth);
+        for (m, d) in div {
+            println!("{}: {}", m, d);
+        }
         let elapsed = time.elapsed().as_secs_f32();
         println!(
             "perft {}: {} [{} s; {} Mnps]",
