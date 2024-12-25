@@ -2,7 +2,10 @@ use portable_atomic::AtomicU128;
 
 use super::{Depth, MAX_DEPTH};
 use crate::{
-    core::{moves::Move, Position},
+    core::{
+        moves::{make::make_move, Move},
+        Position,
+    },
     evaluation::{Score, ValueScore},
 };
 use std::{
@@ -166,6 +169,10 @@ impl SearchTable {
             .get(position)
             .map(|entry| entry.best_move)
             .filter(|mov| mov.is_pseudo_legal(position))
+            .filter(|m| {
+                let new_position = make_move::<false>(position, *m);
+                !new_position.is_check()
+            })
     }
 
     pub fn get_table_score(

@@ -166,8 +166,7 @@ impl Display for Move {
             "{}{}{}",
             self.from(),
             self.to(),
-            self.promotion_piece()
-                .map_or(String::new(), |p| format!("={}", p.to_string().to_uppercase()))
+            self.promotion_piece().map_or(String::new(), |p| p.to_string())
         )
     }
 }
@@ -221,6 +220,6 @@ mod tests {
         assert_eq!(mov1.to_string(), "e4e5".to_string());
 
         let mov1 = Move::new(E7, D8, QueenPromotionCapture);
-        assert_eq!(mov1.to_string(), "e7d8=Q".to_string());
+        assert_eq!(mov1.to_string(), "e7d8q".to_string());
     }
 }
