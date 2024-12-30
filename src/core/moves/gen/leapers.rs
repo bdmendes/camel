@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-use super::MoveStage;
+use super::{MoveStage, MoveVec};
 
 pub type LeaperAttackMap = [Bitboard; 64];
 
@@ -65,7 +65,7 @@ fn leaper_moves(
     map: &LeaperAttackMap,
     position: &Position,
     stage: MoveStage,
-    moves: &mut Vec<Move>,
+    moves: &mut MoveVec,
 ) {
     let our_pieces = position.pieces_color_bb(piece, position.side_to_move());
     let ours = position.occupancy_bb(position.side_to_move());
@@ -81,11 +81,11 @@ fn leaper_moves(
     }
 }
 
-pub fn knight_moves(position: &Position, stage: MoveStage, moves: &mut Vec<Move>) {
+pub fn knight_moves(position: &Position, stage: MoveStage, moves: &mut MoveVec) {
     leaper_moves(Piece::Knight, &KNIGHT_ATTACKS, position, stage, moves);
 }
 
-pub fn king_regular_moves(position: &Position, stage: MoveStage, moves: &mut Vec<Move>) {
+pub fn king_regular_moves(position: &Position, stage: MoveStage, moves: &mut MoveVec) {
     leaper_moves(Piece::King, &KING_ATTACKS, position, stage, moves);
 }
 

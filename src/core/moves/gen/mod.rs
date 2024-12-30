@@ -2,6 +2,7 @@ use super::{make::make_move, Move, MoveFlag};
 use crate::core::{
     bitboard::Bitboard, color::Color, piece::Piece, square::Square, MoveStage, Position,
 };
+use arrayvec::ArrayVec;
 use castle::castle_moves;
 use leapers::{king_attackers, king_regular_moves, knight_attackers, knight_moves};
 use magics::queen_attacks;
@@ -14,8 +15,10 @@ pub mod magics;
 pub mod pawns;
 pub mod sliders;
 
-pub fn generate_moves(position: &Position, stage: MoveStage) -> Vec<Move> {
-    let mut moves = Vec::with_capacity(48);
+pub type MoveVec = ArrayVec<Move, 96>;
+
+pub fn generate_moves(position: &Position, stage: MoveStage) -> MoveVec {
+    let mut moves = MoveVec::new();
 
     let our_king = position.pieces_color_bb(Piece::King, position.side_to_move).lsb().unwrap();
     let king_attackers = square_attackers(position, our_king, position.side_to_move.flipped());
@@ -78,7 +81,7 @@ mod tests {
 
     use crate::{core::moves::Move, core::Position};
 
-    use super::MoveStage;
+    use super::{MoveStage, MoveVec};
 
     fn assert_eq_vec_move(moves: &[Move], expected: &[&str]) {
         assert_eq!(moves.len(), expected.len());
@@ -90,20 +93,20 @@ mod tests {
 
     pub fn assert_staged_moves(
         position: &str,
-        function: fn(&Position, MoveStage, &mut Vec<Move>),
+        function: fn(&Position, MoveStage, &mut MoveVec),
         expected: [Vec<&str>; 3],
     ) {
         let position = Position::from_str(position).unwrap();
 
-        let mut moves1 = Vec::new();
+        let mut moves1 = MoveVec::new();
         function(&position, MoveStage::All, &mut moves1);
         assert_eq_vec_move(&moves1, &expected[0]);
 
-        let mut moves2 = Vec::new();
+        let mut moves2 = MoveVec::new();
         function(&position, MoveStage::CapturesAndPromotions, &mut moves2);
         assert_eq_vec_move(&moves2, &expected[1]);
 
-        let mut moves3 = Vec::new();
+        let mut moves3 = MoveVec::new();
         function(&position, MoveStage::Quiet, &mut moves3);
         assert_eq_vec_move(&moves3, &expected[2]);
     }

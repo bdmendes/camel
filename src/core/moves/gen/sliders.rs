@@ -9,7 +9,10 @@ use crate::{
     },
 };
 
-use super::magics::{bishop_attacks, queen_attacks, rook_attacks};
+use super::{
+    magics::{bishop_attacks, queen_attacks, rook_attacks},
+    MoveVec,
+};
 
 pub static ROOK_MOVE_DIRECTIONS: [Direction; 4] =
     [Square::NORTH, Square::EAST, Square::SOUTH, Square::WEST];
@@ -79,7 +82,7 @@ fn slider_moves(
     attacks_fn: fn(&Position, Square) -> Bitboard,
     position: &Position,
     stage: MoveStage,
-    moves: &mut Vec<Move>,
+    moves: &mut MoveVec,
 ) {
     let our_pieces = position.pieces_color_bb(piece, position.side_to_move());
     let ours = position.occupancy_bb(position.side_to_move());
@@ -101,15 +104,15 @@ pub fn file_attackers(position: &Position, color: Color, square: Square) -> Bitb
     rook_attacks(position, square) & their_rook_queens
 }
 
-pub fn rook_moves(position: &Position, stage: MoveStage, moves: &mut Vec<Move>) {
+pub fn rook_moves(position: &Position, stage: MoveStage, moves: &mut MoveVec) {
     slider_moves(Piece::Rook, rook_attacks, position, stage, moves);
 }
 
-pub fn bishop_moves(position: &Position, stage: MoveStage, moves: &mut Vec<Move>) {
+pub fn bishop_moves(position: &Position, stage: MoveStage, moves: &mut MoveVec) {
     slider_moves(Piece::Bishop, bishop_attacks, position, stage, moves);
 }
 
-pub fn queen_moves(position: &Position, stage: MoveStage, moves: &mut Vec<Move>) {
+pub fn queen_moves(position: &Position, stage: MoveStage, moves: &mut MoveVec) {
     slider_moves(Piece::Queen, queen_attacks, position, stage, moves);
 }
 

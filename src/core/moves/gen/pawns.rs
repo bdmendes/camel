@@ -9,7 +9,10 @@ use crate::{
     },
 };
 
-use super::leapers::{init_leaper_attacks, LeaperAttackMap};
+use super::{
+    leapers::{init_leaper_attacks, LeaperAttackMap},
+    MoveVec,
+};
 
 static PAWN_DIRECTIONS: [Direction; 2] = [Square::NORTH, Square::SOUTH];
 
@@ -28,7 +31,7 @@ static DOUBLE_RANKS: [[Bitboard; 3]; 2] = {
     ]
 };
 
-fn pawn_moves_front(position: &Position, stage: MoveStage, moves: &mut Vec<Move>) {
+fn pawn_moves_front(position: &Position, stage: MoveStage, moves: &mut MoveVec) {
     let our_pawns = position.pieces_color_bb(Piece::Pawn, position.side_to_move);
     let walk = our_pawns.shifted(PAWN_DIRECTIONS[position.side_to_move() as usize])
         & !position.occupancy_bb_all()
@@ -53,7 +56,7 @@ fn pawn_moves_front(position: &Position, stage: MoveStage, moves: &mut Vec<Move>
     }
 }
 
-fn pawn_moves_double(position: &Position, stage: MoveStage, moves: &mut Vec<Move>) {
+fn pawn_moves_double(position: &Position, stage: MoveStage, moves: &mut MoveVec) {
     if matches!(stage, MoveStage::CapturesAndPromotions) {
         return;
     }
@@ -73,7 +76,7 @@ fn pawn_moves_double(position: &Position, stage: MoveStage, moves: &mut Vec<Move
     }
 }
 
-fn pawn_moves_captures(position: &Position, stage: MoveStage, moves: &mut Vec<Move>) {
+fn pawn_moves_captures(position: &Position, stage: MoveStage, moves: &mut MoveVec) {
     if matches!(stage, MoveStage::Quiet) {
         return;
     }
@@ -144,7 +147,7 @@ pub fn pawn_attackers(position: &Position, color: Color, square: Square) -> Bitb
     attackers[square as usize] & position.pieces_color_bb(Piece::Pawn, color)
 }
 
-pub fn pawn_moves(position: &Position, stage: MoveStage, moves: &mut Vec<Move>) {
+pub fn pawn_moves(position: &Position, stage: MoveStage, moves: &mut MoveVec) {
     pawn_moves_front(position, stage, moves);
     pawn_moves_double(position, stage, moves);
     pawn_moves_captures(position, stage, moves);

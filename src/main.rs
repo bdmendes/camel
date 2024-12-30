@@ -1,12 +1,12 @@
 use crate::core::Position;
-use core::fen::START_POSITION;
+use core::fen::KIWIPETE_POSITION;
 use std::{str::FromStr, time::Instant};
 
 #[allow(dead_code)]
 mod core;
 
 fn main() {
-    let position = Position::from_str(START_POSITION).unwrap();
+    let position = Position::from_str(KIWIPETE_POSITION).unwrap();
 
     for depth in 1..=10 {
         let time = Instant::now();

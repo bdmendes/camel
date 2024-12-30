@@ -9,7 +9,7 @@ use color::Color;
 use fen::Fen;
 use hash::ZobristHash;
 use moves::{
-    gen::{generate_moves, square_attackers},
+    gen::{generate_moves, square_attackers, MoveVec},
     make::make_move,
     perft::perft,
     Move,
@@ -263,7 +263,7 @@ impl Position {
         perft::<true>(self, depth)
     }
 
-    pub fn moves(&self, stage: MoveStage) -> Vec<Move> {
+    pub fn moves(&self, stage: MoveStage) -> MoveVec {
         generate_moves(self, stage)
     }
 

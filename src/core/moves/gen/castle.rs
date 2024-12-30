@@ -7,13 +7,13 @@ use crate::core::{
     MoveStage, Position,
 };
 
-use super::square_attackers;
+use super::{square_attackers, MoveVec};
 
 static COLOR_CASTLE_RANKS: [Bitboard; 2] = [Bitboard::rank_mask(0), Bitboard::rank_mask(7)];
 static FINAL_KING_SQUARES: [Square; 4] = [Square::G1, Square::C1, Square::G8, Square::C8];
 static FLAG_FROM_SIDE: [MoveFlag; 2] = [MoveFlag::KingsideCastle, MoveFlag::QueensideCastle];
 
-fn castle_side(position: &Position, side: CastlingSide, moves: &mut Vec<Move>) {
+fn castle_side(position: &Position, side: CastlingSide, moves: &mut MoveVec) {
     let king = position.pieces_color_bb(Piece::King, position.side_to_move).lsb().unwrap();
     let rook = {
         let our_rooks = position.pieces_color_bb(Piece::Rook, position.side_to_move)
@@ -84,7 +84,7 @@ fn castle_side(position: &Position, side: CastlingSide, moves: &mut Vec<Move>) {
     }
 }
 
-pub fn castle_moves(position: &Position, stage: MoveStage, moves: &mut Vec<Move>) {
+pub fn castle_moves(position: &Position, stage: MoveStage, moves: &mut MoveVec) {
     if matches!(stage, MoveStage::CapturesAndPromotions) {
         return;
     }
@@ -101,12 +101,12 @@ pub fn castle_moves(position: &Position, stage: MoveStage, moves: &mut Vec<Move>
 #[cfg(test)]
 mod tests {
     use super::castle_moves;
-    use crate::core::{MoveStage, Position};
+    use crate::core::{moves::gen::MoveVec, MoveStage, Position};
     use std::str::FromStr;
 
     fn assert_castle(position: &str, moves: &[&str]) {
         let position = Position::from_str(position).unwrap();
-        let mut buf = vec![];
+        let mut buf = MoveVec::new();
         castle_moves(&position, MoveStage::All, &mut buf);
 
         assert_eq!(buf.len(), moves.len());
