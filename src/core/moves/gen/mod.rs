@@ -53,10 +53,11 @@ pub fn generate_moves(position: &Position, stage: MoveStage) -> Vec<Move> {
             | MoveFlag::KnightPromotionCapture
                 if mov.from() != our_king =>
             {
-                // If in check, we must try to block the king rays.
                 if !king_attackers.is_empty()
-                    && !king_ray.is_set(mov.to())
-                    && position.piece_at(mov.to()) != Some(Piece::Knight)
+                    && mov
+                        .is_capture()
+                        .then(|| !king_attackers.is_set(mov.to()))
+                        .unwrap_or(!king_ray.is_set(mov.to()))
                 {
                     return false;
                 }
