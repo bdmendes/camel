@@ -22,6 +22,80 @@ const RANK_MASK: [Bitboard; 8] = {
     arr
 };
 
+const BETWEEN: [Bitboard; 64 * 64] = {
+    let mut arr = [0u64; 64 * 64];
+
+    let mut from = 0;
+    while from < 64 {
+        let from_rank = from / 8;
+        let from_file = from % 8;
+
+        let mut to = 0;
+        while to < 64 {
+            if from != to {
+                let to_rank = to / 8;
+                let to_file = to % 8;
+                let idx = from * 64 + to;
+                let mut bb = 0u64;
+
+                // Same rank
+                if from_rank == to_rank {
+                    let (start, end) = if from_file < to_file {
+                        (from_file + 1, to_file)
+                    } else {
+                        (to_file + 1, from_file)
+                    };
+                    let mut file = start;
+                    while file < end {
+                        bb |= 1 << (from_rank * 8 + file);
+                        file += 1;
+                    }
+                }
+                // Same file
+                else if from_file == to_file {
+                    let (start, end) = if from_rank < to_rank {
+                        (from_rank + 1, to_rank)
+                    } else {
+                        (to_rank + 1, from_rank)
+                    };
+                    let mut rank = start;
+                    while rank < end {
+                        bb |= 1 << (rank * 8 + from_file);
+                        rank += 1;
+                    }
+                }
+                // Same diagonal (or anti-diagonal)
+                else if (from_rank as i16 - to_rank as i16).abs()
+                    == (from_file as i16 - to_file as i16).abs()
+                {
+                    let rank_step = if to_rank > from_rank { 1i16 } else { -1i16 };
+                    let file_step = if to_file > from_file { 1i16 } else { -1i16 };
+                    let mut r = from_rank as i16 + rank_step;
+                    let mut f = from_file as i16 + file_step;
+
+                    while r != to_rank as i16 && f != to_file as i16 {
+                        bb |= 1 << (r as u8 * 8 + f as u8);
+                        r += rank_step;
+                        f += file_step;
+                    }
+                }
+
+                arr[idx] = bb;
+            }
+            to += 1;
+        }
+        from += 1;
+    }
+
+    let mut ret_arr = [Bitboard::empty(); 64 * 64];
+    let mut i = 0;
+    while i < 64 * 64 {
+        ret_arr[i] = Bitboard::new(arr[i]);
+        i += 1;
+    }
+    ret_arr
+};
+
 #[derive(
     Default, Copy, Clone, Debug, PartialEq, Eq, BitOr, BitAnd, Shl, Shr, ShlAssign, ShrAssign, Not,
 )]
@@ -91,13 +165,8 @@ impl Bitboard {
         self.0 == 0
     }
 
-    pub fn between(from: Square, to: Square) -> Bitboard {
-        let from = from as u8;
-        let to = to as u8;
-        let min = from.min(to);
-        let max = from.max(to);
-        let mask = ((1u64 << (max - min).saturating_sub(1)) - 1) << (min + 1);
-        Bitboard::new(mask)
+    pub const fn between(from: Square, to: Square) -> Bitboard {
+        BETWEEN[from as usize * 64 + to as usize]
     }
 }
 
@@ -262,6 +331,42 @@ mod tests {
         );
 
         assert_eq!(Bitboard::between(Square::E1, Square::E1), Bitboard::empty());
+    }
+
+    #[test]
+    fn between_file() {
+        assert_eq!(
+            Bitboard::between(Square::E1, Square::E4),
+            Bitboard::from_square(Square::E2) | Bitboard::from_square(Square::E3)
+        );
+
+        assert_eq!(
+            Bitboard::between(Square::E4, Square::E1),
+            Bitboard::from_square(Square::E2) | Bitboard::from_square(Square::E3)
+        );
+    }
+
+    #[test]
+    fn between_diagonal() {
+        assert_eq!(
+            Bitboard::between(Square::E1, Square::B4),
+            Bitboard::from_square(Square::D2) | Bitboard::from_square(Square::C3)
+        );
+
+        assert_eq!(
+            Bitboard::between(Square::B4, Square::E1),
+            Bitboard::from_square(Square::D2) | Bitboard::from_square(Square::C3)
+        );
+
+        assert_eq!(
+            Bitboard::between(Square::E1, Square::H4),
+            Bitboard::from_square(Square::F2) | Bitboard::from_square(Square::G3)
+        );
+
+        assert_eq!(
+            Bitboard::between(Square::H4, Square::E1),
+            Bitboard::from_square(Square::F2) | Bitboard::from_square(Square::G3)
+        );
     }
 
     #[test]

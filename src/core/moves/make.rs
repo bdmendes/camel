@@ -6,8 +6,10 @@ use crate::core::{
 use super::{gen::pawns::pawn_attackers, Move, MoveFlag};
 
 static COLOR_CASTLE_RANKS: [Bitboard; 2] = [Bitboard::rank_mask(0), Bitboard::rank_mask(7)];
-static TO_SQUARE_KINGSIDE: [Square; 2] = [Square::G1, Square::G8];
-static TO_SQUARE_QUEENSIDE: [Square; 2] = [Square::C1, Square::C8];
+static TO_KING_KINGSIDE: [Square; 2] = [Square::G1, Square::G8];
+static TO_KING_QUEENSIDE: [Square; 2] = [Square::C1, Square::C8];
+static TO_ROOK_KINGSIDE: [Square; 2] = [Square::F1, Square::F8];
+static TO_ROOK_QUEENSIDE: [Square; 2] = [Square::D1, Square::D8];
 
 fn make_castle<const UPDATE_META: bool>(
     position: &mut Position,
@@ -16,21 +18,22 @@ fn make_castle<const UPDATE_META: bool>(
 ) {
     let ours = position.occupancy_bb(side_to_move);
     let rooks = position.pieces_bb(Piece::Rook) & ours & COLOR_CASTLE_RANKS[side_to_move as usize];
-    let (rook, to_square) = match castling_side {
-        CastlingSide::Kingside => (rooks.msb(), TO_SQUARE_KINGSIDE[side_to_move as usize]),
-        CastlingSide::Queenside => (rooks.lsb(), TO_SQUARE_QUEENSIDE[side_to_move as usize]),
+    let (rook, to_king, to_rook) = match castling_side {
+        CastlingSide::Kingside => (
+            rooks.msb(),
+            TO_KING_KINGSIDE[side_to_move as usize],
+            TO_ROOK_KINGSIDE[side_to_move as usize],
+        ),
+        CastlingSide::Queenside => (
+            rooks.lsb(),
+            TO_KING_QUEENSIDE[side_to_move as usize],
+            TO_ROOK_QUEENSIDE[side_to_move as usize],
+        ),
     };
 
     position.clear_square(rook.unwrap());
-    position.set_square(to_square, Piece::King, side_to_move);
-    position.set_square(
-        match castling_side {
-            CastlingSide::Kingside => to_square >> 1,
-            CastlingSide::Queenside => to_square << 1,
-        },
-        Piece::Rook,
-        side_to_move,
-    );
+    position.set_square_low::<UPDATE_META, false>(to_king, Piece::King, side_to_move);
+    position.set_square_low::<UPDATE_META, false>(to_rook, Piece::Rook, side_to_move);
 
     if UPDATE_META {
         position.set_castling_rights(position.castling_rights().removed_color(side_to_move));

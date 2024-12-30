@@ -15,15 +15,12 @@ pub mod pawns;
 pub mod sliders;
 
 pub fn generate_moves(position: &Position, stage: MoveStage) -> Vec<Move> {
-    let mut moves = Vec::with_capacity(match stage {
-        MoveStage::All => 64,
-        MoveStage::CapturesAndPromotions => 24,
-        MoveStage::Quiet => 40,
-    });
+    let mut moves = Vec::with_capacity(48);
 
     let our_king = position.pieces_color_bb(Piece::King, position.side_to_move).lsb().unwrap();
     let king_attackers = square_attackers(position, our_king, position.side_to_move.flipped());
     let king_ray = queen_attacks(position, our_king);
+    let between_attacker = Bitboard::between(our_king, king_attackers.msb().unwrap_or(our_king));
 
     king_regular_moves(position, stage, &mut moves);
 
@@ -40,24 +37,14 @@ pub fn generate_moves(position: &Position, stage: MoveStage) -> Vec<Move> {
 
     moves.retain(|mov| {
         match mov.flag() {
-            MoveFlag::Quiet
-            | MoveFlag::Capture
-            | MoveFlag::DoublePawnPush
-            | MoveFlag::QueenPromotion
-            | MoveFlag::QueenPromotionCapture
-            | MoveFlag::RookPromotion
-            | MoveFlag::RookPromotionCapture
-            | MoveFlag::BishopPromotion
-            | MoveFlag::BishopPromotionCapture
-            | MoveFlag::KnightPromotion
-            | MoveFlag::KnightPromotionCapture
-                if mov.from() != our_king =>
-            {
+            MoveFlag::EnpassantCapture | MoveFlag::KingsideCastle | MoveFlag::QueensideCastle => {}
+            _ if mov.from() != our_king => {
+                // If not capturing the checker or attempting to block, this is not legal.
                 if !king_attackers.is_empty()
                     && mov
                         .is_capture()
                         .then(|| !king_attackers.is_set(mov.to()))
-                        .unwrap_or(!king_ray.is_set(mov.to()))
+                        .unwrap_or(!between_attacker.is_set(mov.to()))
                 {
                     return false;
                 }
