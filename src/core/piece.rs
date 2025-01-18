@@ -2,6 +2,8 @@ use std::fmt::{Display, Write};
 
 use primitive_enum::primitive_enum;
 
+static PIECE_VALUES: [i8; 6] = [1, 3, 3, 5, 9, 45];
+
 primitive_enum! { Piece u8;
     Pawn,
     Knight,
@@ -9,6 +11,12 @@ primitive_enum! { Piece u8;
     Rook,
     Queen,
     King,
+}
+
+impl Piece {
+    pub fn value(&self) -> i8 {
+        PIECE_VALUES[*self as usize]
+    }
 }
 
 impl Display for Piece {
