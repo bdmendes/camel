@@ -88,13 +88,21 @@ impl Iterator for MovePicker<'_> {
         }
 
         if self.moves.is_empty() {
+            let generate = if self.quiesce && !self.position.is_check() {
+                MoveStage::CapturesAndPromotions
+            } else {
+                MoveStage::All
+            };
             self.moves = self
                 .position
-                .moves(if self.quiesce { MoveStage::CapturesAndPromotions } else { MoveStage::All })
+                .moves(generate)
                 .iter()
                 .filter(|mov| Some(**mov) != self.hash_move)
                 .map(|&mov| (mov, self.move_value(mov)))
                 .collect();
+            if generate == MoveStage::CapturesAndPromotions {
+                self.moves.retain(|(_, score)| *score >= 0);
+            }
         }
 
         self.find_next_max_and_swap()
@@ -107,7 +115,7 @@ mod tests {
 
     use crate::core::{
         fen::START_POSITION,
-        moves::{Move, MoveFlag},
+        moves::{see, Move, MoveFlag},
         square::Square,
         MoveStage, Position,
     };
@@ -153,7 +161,16 @@ mod tests {
         let picker = MovePicker::new(&position, true, None, [None, None]);
         for mov in picker {
             assert!(mov.is_capture());
+            assert!(see::see(mov, &position) >= 0);
         }
+    }
+
+    #[test]
+    fn quiesce_check() {
+        let position = Position::from_str("8/6pp/p1n1k3/8/1ppKN3/5P1P/PP4P1/8 w - - 1 34").unwrap();
+        let picker = MovePicker::new(&position, true, None, [None, None]);
+        let moves = position.moves(MoveStage::All);
+        assert_eq!(picker.collect::<Vec<_>>().len(), moves.len());
     }
 
     #[test]
