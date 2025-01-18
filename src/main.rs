@@ -4,6 +4,7 @@ use std::{str::FromStr, time::Instant};
 
 #[allow(dead_code)]
 mod core;
+mod search;
 
 fn main() {
     let position = Position::from_str(KIWIPETE_POSITION).unwrap();

@@ -17,7 +17,7 @@ use moves::{
 use piece::Piece;
 use square::Square;
 
-mod moves;
+pub mod moves;
 
 pub mod bitboard;
 pub mod castling_rights;

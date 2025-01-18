@@ -25,7 +25,7 @@ primitive_enum! { MoveFlag u8;
     QueenPromotionCapture,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct Move(u16);
 
 impl Move {
