@@ -153,6 +153,14 @@ mod tests {
     }
 
     #[test]
+    fn no_repeated_hash() {
+        let position = Position::from_str(START_POSITION).unwrap();
+        let moves = position.moves(MoveStage::All);
+        let picker = MovePicker::new(&position, false, Some(moves[0]), [None, None]);
+        assert_eq!(picker.collect::<Vec<_>>().len(), moves.len());
+    }
+
+    #[test]
     fn quiesce_only_captures() {
         let position = Position::from_str(
             "r1bq1rk1/pp2bppp/2n1p3/2Pp4/2P1n3/P3PN2/1P1NBPPP/R1BQ1RK1 b - - 0 10",
