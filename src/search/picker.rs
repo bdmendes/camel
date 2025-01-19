@@ -133,22 +133,22 @@ impl Iterator for MovePicker<'_> {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
+    use super::MovePicker;
     use crate::core::{
         fen::START_POSITION,
         moves::{see, Move, MoveFlag},
         square::Square,
         MoveStage, Position,
     };
+    use std::{str::FromStr, sync::OnceLock};
 
-    use super::MovePicker;
+    static MOCK_POSITION: OnceLock<Position> = OnceLock::new();
 
     fn mocks<'a>() -> (&'a Position, MovePicker<'a>) {
-        let position = Box::leak(Box::new(
+        let position = MOCK_POSITION.get_or_init(|| {
             Position::from_str("3rk1nr/1p3pbp/p1npb1pP/4p1q1/P1B1P3/8/1PP2PP1/RNBQNRK1 w k - 2 15")
-                .unwrap(),
-        ));
+                .unwrap()
+        });
         let killers = [
             Some(Move::new(Square::E1, Square::F3, MoveFlag::Quiet)),
             Some(Move::new(Square::C1, Square::E3, MoveFlag::Quiet)),
