@@ -47,3 +47,18 @@ impl TryFrom<char> for Piece {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::core::piece::Piece;
+
+    #[test]
+    fn piece_value() {
+        assert_eq!(Piece::Pawn.value(), 1);
+        assert_eq!(Piece::Knight.value(), 3);
+        assert_eq!(Piece::Bishop.value(), 3);
+        assert_eq!(Piece::Rook.value(), 5);
+        assert_eq!(Piece::Queen.value(), 9);
+        assert_eq!(Piece::King.value(), 45);
+    }
+}
