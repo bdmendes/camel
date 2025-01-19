@@ -37,6 +37,7 @@ pub enum MoveStage {
 #[derive(Debug, Clone, Copy)]
 pub struct Position {
     hash: ZobristHash,
+    material: i8,
     pieces: [Bitboard; 6],
     occupancy: [Bitboard; 2],
     side_to_move: Color,
@@ -57,6 +58,7 @@ impl Default for Position {
                 CastlingRights::default(),
                 None,
             ),
+            material: 0,
             pieces: [Bitboard::default(); 6],
             occupancy: [Bitboard::default(); 2],
             side_to_move: Color::White,
@@ -158,12 +160,13 @@ impl Position {
         self.clear_square_low::<true>(square);
     }
 
-    pub fn clear_square_low<const HASH: bool>(&mut self, square: Square) {
+    pub fn clear_square_low<const UPDATE_METADATA: bool>(&mut self, square: Square) {
         if let Some((piece, color)) = self.piece_color_at(square) {
             self.pieces[piece as usize].clear(square);
             self.occupancy[color as usize].clear(square);
-            if HASH {
+            if UPDATE_METADATA {
                 self.hash.xor_piece(piece, square, color);
+                self.material = self.material.saturating_sub(piece.value() * color.sign());
             }
         }
     }
@@ -172,19 +175,20 @@ impl Position {
         self.set_square_low::<true, true>(square, piece, color);
     }
 
-    pub fn set_square_low<const HASH: bool, const CLEAR: bool>(
+    pub fn set_square_low<const UPDATE_METADATA: bool, const CLEAR: bool>(
         &mut self,
         square: Square,
         piece: Piece,
         color: Color,
     ) {
         if CLEAR {
-            self.clear_square(square);
+            self.clear_square_low::<UPDATE_METADATA>(square);
         }
         self.pieces[piece as usize].set(square);
         self.occupancy[color as usize].set(square);
-        if HASH {
+        if UPDATE_METADATA {
             self.hash.xor_piece(piece, square, color);
+            self.material = self.material.saturating_add(piece.value() * color.sign());
         }
     }
 
@@ -293,6 +297,10 @@ impl Position {
     pub fn fen(&self) -> String {
         Fen::from(self).to_string()
     }
+
+    pub fn material(&self) -> i8 {
+        self.material
+    }
 }
 
 #[cfg(test)]
@@ -308,7 +316,7 @@ mod tests {
         Piece,
     };
 
-    use super::Position;
+    use super::{fen::START_POSITION, Position};
 
     #[test]
     fn pieces() {
@@ -484,5 +492,29 @@ mod tests {
         );
 
         assert_eq!(position.make_move_str("c6f4").map(|p| p.fen()), None);
+    }
+
+    #[test]
+    fn material() {
+        let mut position = Position::from_str(START_POSITION).unwrap();
+        assert_eq!(position.material(), 0);
+
+        position = position.make_move_str("e2e4").unwrap();
+        assert_eq!(position.material(), 0);
+
+        position = position.make_move_str("d7d5").unwrap();
+        assert_eq!(position.material(), 0);
+
+        position = position.make_move_str("e4d5").unwrap();
+        assert_eq!(position.material(), 1);
+
+        position = position.make_move_str("b8c6").unwrap();
+        assert_eq!(position.material(), 1);
+
+        position = position.make_move_str("d5c6").unwrap();
+        assert_eq!(position.material(), 4);
+
+        position = position.make_move_str("b7c6").unwrap();
+        assert_eq!(position.material(), 3);
     }
 }
