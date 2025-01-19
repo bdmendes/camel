@@ -67,6 +67,10 @@ impl Square {
             self >> (-direction) as u8
         }
     }
+
+    pub fn mirror(self) -> Self {
+        Square::from(self as u8 ^ 0b111000).unwrap()
+    }
 }
 
 impl Shr<u8> for Square {
@@ -179,6 +183,17 @@ mod tests {
 
         assert_eq!(Square::E4.shifted(Square::NORTH), Square::E5);
         assert_eq!(Square::E4.shifted(Square::SOUTH), Square::E3);
+    }
+
+    #[test]
+    fn mirror() {
+        assert_eq!(Square::E4.mirror(), Square::E5);
+        assert_eq!(Square::E5.mirror(), Square::E4);
+        assert_eq!(Square::E2.mirror(), Square::E7);
+        assert_eq!(Square::E7.mirror(), Square::E2);
+        assert_eq!(Square::C3.mirror(), Square::C6);
+        assert_eq!(Square::A1.mirror(), Square::A8);
+        assert_eq!(Square::H1.mirror(), Square::H8);
     }
 
     #[test]

@@ -5,6 +5,8 @@ use std::{str::FromStr, time::Instant};
 #[allow(dead_code)]
 mod core;
 #[allow(dead_code)]
+mod evaluation;
+#[allow(dead_code)]
 mod search;
 
 fn main() {
