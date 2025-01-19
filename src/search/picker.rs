@@ -8,6 +8,18 @@ use crate::core::{
 
 type ScoredMoveVec = ArrayVec<(Move, i8), 96>;
 
+#[rustfmt::skip]
+static QUIET_PSQT: [i8; 64] = [
+    0, 0, 0, 0, 0, 0, 0, 0,
+    1, 2, 2, 2, 2, 2, 2, 1,
+    1, 2, 4, 4, 4, 4, 2, 1,
+    1, 2, 4, 6, 6, 4, 2, 1,
+    1, 2, 4, 6, 6, 4, 2, 1,
+    1, 2, 4, 4, 4, 4, 2, 1,
+    1, 2, 2, 2, 2, 2, 2, 1,
+    0, 0, 0, 0, 0, 0, 0, 0,
+];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PickerStage {
     HashMove,
@@ -44,18 +56,20 @@ impl<'a> MovePicker<'a> {
 
     fn move_value(&self, mov: Move) -> i8 {
         if mov.promotion_piece() == Some(Piece::Queen) {
-            18 + mov.is_capture() as i8
+            36 + mov.is_capture() as i8
+        } else if mov.promotion_piece().is_some() {
+            -36
         } else if mov.is_capture() {
             let see = see::see(mov, self.position);
             if see >= 0 {
-                9 + see
+                18 + see
             } else {
-                -9 + see
+                -18 + see
             }
         } else if Some(mov) == self.killer_moves[0] || Some(mov) == self.killer_moves[1] {
             0
         } else {
-            -1
+            -9 + QUIET_PSQT[mov.to() as usize] - QUIET_PSQT[mov.from() as usize]
         }
     }
 
@@ -161,7 +175,7 @@ mod tests {
     }
 
     #[test]
-    fn quiesce_only_captures() {
+    fn quiesce_only_winning_captures() {
         let position = Position::from_str(
             "r1bq1rk1/pp2bppp/2n1p3/2Pp4/2P1n3/P3PN2/1P1NBPPP/R1BQ1RK1 b - - 0 10",
         )
@@ -179,6 +193,31 @@ mod tests {
         let picker = MovePicker::new(&position, true, None, [None, None]);
         let moves = position.moves(MoveStage::All);
         assert_eq!(picker.collect::<Vec<_>>().len(), moves.len());
+    }
+
+    #[test]
+    fn queen_promotion_first() {
+        let position = Position::from_str("8/5P2/8/7p/8/1Kp5/2N3kP/8 w - - 1 51").unwrap();
+        let mut picker = MovePicker::new(&position, false, None, [None, None]);
+        assert_eq!(
+            picker.next(),
+            Some(Move::new(Square::F7, Square::F8, MoveFlag::QueenPromotion))
+        );
+        assert!(picker.next().unwrap().promotion_piece().is_none());
+    }
+
+    #[test]
+    fn underpromotions_last() {
+        let position = Position::from_str("8/5P2/8/7p/8/1Kp5/2N3kP/8 w - - 1 51").unwrap();
+        let mut picker = MovePicker::new(&position, false, None, [None, None]);
+        let number_of_moves = position.moves(MoveStage::All).len();
+        for _ in 0..(number_of_moves - 3) {
+            picker.next();
+        }
+        assert!(picker.next().unwrap().promotion_piece().is_some());
+        assert!(picker.next().unwrap().promotion_piece().is_some());
+        assert!(picker.next().unwrap().promotion_piece().is_some());
+        assert!(picker.next().is_none());
     }
 
     #[test]
@@ -209,5 +248,23 @@ mod tests {
         assert!(picker.next().unwrap().is_capture());
         assert!(killers.contains(&picker.next()));
         assert!(killers.contains(&picker.next()));
+    }
+
+    #[test]
+    fn quiet_center_heuristic() {
+        let (_, picker) = mocks();
+        let moves = picker.collect::<Vec<_>>();
+
+        let knight_to_corner_idx =
+            moves.iter().position(|mov| mov.from() == Square::B1 && mov.to() == Square::A3);
+        let knight_to_center_idx =
+            moves.iter().position(|mov| mov.from() == Square::B1 && mov.to() == Square::C3);
+        assert!(knight_to_center_idx < knight_to_corner_idx);
+
+        let bishop_to_center_idx =
+            moves.iter().position(|mov| mov.from() == Square::C4 && mov.to() == Square::D5);
+        let bishop_retreat_idx =
+            moves.iter().position(|mov| mov.from() == Square::C4 && mov.to() == Square::E2);
+        assert!(bishop_to_center_idx < bishop_retreat_idx);
     }
 }
