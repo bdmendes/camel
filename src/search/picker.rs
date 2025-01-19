@@ -56,20 +56,32 @@ impl<'a> MovePicker<'a> {
 
     fn move_value(&self, mov: Move) -> i8 {
         if mov.promotion_piece() == Some(Piece::Queen) {
-            36 + mov.is_capture() as i8
+            72 + mov.is_capture() as i8
         } else if mov.promotion_piece().is_some() {
-            -36
+            -72
         } else if mov.is_capture() {
-            let see = see::see(mov, self.position);
-            if see >= 0 {
-                18 + see
+            let mvv_lva = self.position.piece_at(mov.to()).unwrap_or(Piece::Pawn).value()
+                - self.position.piece_at(mov.from()).unwrap().value();
+            if mvv_lva >= 0 {
+                36 + mvv_lva
             } else {
-                -18 + see
+                let see = see::see(mov, self.position);
+                if see >= 0 {
+                    48 + see
+                } else {
+                    -36 + see
+                }
             }
         } else if Some(mov) == self.killer_moves[0] || Some(mov) == self.killer_moves[1] {
             0
-        } else {
+        } else if self
+            .position
+            .attackers(mov.to(), self.position.side_to_move().flipped())
+            .is_empty()
+        {
             -9 + QUIET_PSQT[mov.to() as usize] - QUIET_PSQT[mov.from() as usize]
+        } else {
+            -18 + QUIET_PSQT[mov.to() as usize] - QUIET_PSQT[mov.from() as usize]
         }
     }
 
@@ -138,7 +150,7 @@ mod tests {
 
     fn mocks<'a>() -> (&'a Position, MovePicker<'a>) {
         let position = Box::leak(Box::new(
-            Position::from_str("r3kbnr/1p3ppp/p1npb3/4p1q1/2B1P3/8/PPP2PPP/RNBQNRK1 w kq - 6 9")
+            Position::from_str("3rk1nr/1p3pbp/p1npb1pP/4p1q1/P1B1P3/8/1PP2PP1/RNBQNRK1 w k - 2 15")
                 .unwrap(),
         ));
         let killers = [
@@ -224,6 +236,7 @@ mod tests {
     fn winning_captures_first() {
         let (_, mut picker) = mocks();
         assert_eq!(picker.next(), Some(Move::new(Square::C1, Square::G5, MoveFlag::Capture)));
+        assert_eq!(picker.next(), Some(Move::new(Square::H6, Square::G7, MoveFlag::Capture)));
         assert_eq!(picker.next(), Some(Move::new(Square::C4, Square::E6, MoveFlag::Capture)));
         assert!(!picker.next().unwrap().is_capture());
     }
@@ -246,6 +259,7 @@ mod tests {
         let killers = picker.killer_moves;
         assert!(picker.next().unwrap().is_capture());
         assert!(picker.next().unwrap().is_capture());
+        assert!(picker.next().unwrap().is_capture());
         assert!(killers.contains(&picker.next()));
         assert!(killers.contains(&picker.next()));
     }
@@ -260,11 +274,17 @@ mod tests {
         let knight_to_center_idx =
             moves.iter().position(|mov| mov.from() == Square::B1 && mov.to() == Square::C3);
         assert!(knight_to_center_idx < knight_to_corner_idx);
+    }
 
-        let bishop_to_center_idx =
-            moves.iter().position(|mov| mov.from() == Square::C4 && mov.to() == Square::D5);
-        let bishop_retreat_idx =
-            moves.iter().position(|mov| mov.from() == Square::C4 && mov.to() == Square::E2);
-        assert!(bishop_to_center_idx < bishop_retreat_idx);
+    #[test]
+    fn square_attacked_heuristic() {
+        let (_, picker) = mocks();
+        let moves = picker.collect::<Vec<_>>();
+
+        let queen_to_danger =
+            moves.iter().position(|mov| mov.from() == Square::D1 && mov.to() == Square::D4);
+        let queen_to_safety =
+            moves.iter().position(|mov| mov.from() == Square::D1 && mov.to() == Square::E2);
+        assert!(queen_to_danger > queen_to_safety);
     }
 }
