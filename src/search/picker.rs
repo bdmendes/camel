@@ -74,14 +74,8 @@ impl<'a> MovePicker<'a> {
             }
         } else if Some(mov) == self.killer_moves[0] || Some(mov) == self.killer_moves[1] {
             0
-        } else if self
-            .position
-            .attackers(mov.to(), self.position.side_to_move().flipped())
-            .is_empty()
-        {
-            -9 + QUIET_PSQT[mov.to() as usize] - QUIET_PSQT[mov.from() as usize]
         } else {
-            -18 + QUIET_PSQT[mov.to() as usize] - QUIET_PSQT[mov.from() as usize]
+            -9 + QUIET_PSQT[mov.to() as usize] - QUIET_PSQT[mov.from() as usize]
         }
     }
 
@@ -274,17 +268,5 @@ mod tests {
         let knight_to_center_idx =
             moves.iter().position(|mov| mov.from() == Square::B1 && mov.to() == Square::C3);
         assert!(knight_to_center_idx < knight_to_corner_idx);
-    }
-
-    #[test]
-    fn square_attacked_heuristic() {
-        let (_, picker) = mocks();
-        let moves = picker.collect::<Vec<_>>();
-
-        let queen_to_danger =
-            moves.iter().position(|mov| mov.from() == Square::D1 && mov.to() == Square::D4);
-        let queen_to_safety =
-            moves.iter().position(|mov| mov.from() == Square::D1 && mov.to() == Square::E2);
-        assert!(queen_to_danger > queen_to_safety);
     }
 }
