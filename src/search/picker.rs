@@ -67,15 +67,17 @@ impl<'a> MovePicker<'a> {
             } else {
                 let see = see::see(mov, self.position);
                 if see >= 0 {
-                    48 + see
+                    36 + see
                 } else {
                     -36 + see
                 }
             }
         } else if Some(mov) == self.killer_moves[0] || Some(mov) == self.killer_moves[1] {
             0
-        } else {
+        } else if self.position.piece_at(mov.from()).unwrap().value() <= 3 {
             -9 + QUIET_PSQT[mov.to() as usize] - QUIET_PSQT[mov.from() as usize]
+        } else {
+            -9
         }
     }
 
@@ -263,10 +265,24 @@ mod tests {
         let (_, picker) = mocks();
         let moves = picker.collect::<Vec<_>>();
 
-        let knight_to_corner_idx =
-            moves.iter().position(|mov| mov.from() == Square::B1 && mov.to() == Square::A3);
-        let knight_to_center_idx =
-            moves.iter().position(|mov| mov.from() == Square::B1 && mov.to() == Square::C3);
+        let knight_to_corner_idx = moves
+            .iter()
+            .position(|mov| mov.from() == Square::B1 && mov.to() == Square::A3)
+            .unwrap();
+        let knight_to_center_idx = moves
+            .iter()
+            .position(|mov| mov.from() == Square::B1 && mov.to() == Square::C3)
+            .unwrap();
         assert!(knight_to_center_idx < knight_to_corner_idx);
+
+        let bishop_retreat_idx = moves
+            .iter()
+            .position(|mov| mov.from() == Square::C4 && mov.to() == Square::E2)
+            .unwrap();
+        let bishop_to_center_idx = moves
+            .iter()
+            .position(|mov| mov.from() == Square::C4 && mov.to() == Square::D5)
+            .unwrap();
+        assert!(bishop_to_center_idx < bishop_retreat_idx);
     }
 }
