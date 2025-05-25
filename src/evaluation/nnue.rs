@@ -1,4 +1,5 @@
 use crate::core::{color::Color, piece::Piece, square::Square, Position};
+use rand::Rng;
 
 // 2 sides, 6 pieces, 64 squares.
 const INPUT_SIZE: usize = 768;
@@ -12,25 +13,43 @@ const HIDDEN_LAYER_SIZE: usize = 128;
 // to deal with the fact that integers are easier.
 pub const SCALE: i16 = 400;
 
-struct Parameters {
+pub struct Parameters {
     // The "accumulator" is the cached input of the hidden layer.
     // In practice, it will be 0 (empty) or 1 (set) times the weights.
-    acc_weights: [i32; INPUT_SIZE * HIDDEN_LAYER_SIZE],
-    acc_biases: [i32; HIDDEN_LAYER_SIZE],
+    pub acc_weights: [i32; INPUT_SIZE * HIDDEN_LAYER_SIZE],
+    pub acc_biases: [i32; HIDDEN_LAYER_SIZE],
 
     // The output of the hidden layer is fed to the "output"
     // parameters to generate the final static evaluation.
-    out_weights: [i32; HIDDEN_LAYER_SIZE],
-    out_bias: i16,
+    pub out_weights: [i32; HIDDEN_LAYER_SIZE],
+    pub out_bias: i16,
+}
+
+impl Parameters {
+    pub fn random() -> Self {
+        let mut rng = rand::thread_rng();
+
+        let acc_weights = [0; INPUT_SIZE * HIDDEN_LAYER_SIZE].map(|_| rng.gen_range(-128..=127));
+        let acc_biases = [0; HIDDEN_LAYER_SIZE].map(|_| rng.gen_range(-128..=127));
+        let out_weights = [0; HIDDEN_LAYER_SIZE].map(|_| rng.gen_range(-128..=127));
+        let out_bias = rng.gen_range(-128..=127);
+
+        Self { acc_weights, acc_biases, out_weights, out_bias }
+    }
 }
 
 pub struct NeuralNetwork {
     acc: [i32; HIDDEN_LAYER_SIZE],
     params: Parameters,
     last_seen_position: Option<Position>,
+    last_result: i16,
 }
 
 impl NeuralNetwork {
+    fn new(params: Parameters) -> Self {
+        Self { acc: [0; HIDDEN_LAYER_SIZE], params, last_seen_position: None, last_result: 0 }
+    }
+
     fn acc_index(piece: Piece, color: Color, square: Square) -> usize {
         (color as usize) * 64 * 6 + (piece as usize) * 64 + square as usize
     }
@@ -61,8 +80,16 @@ impl NeuralNetwork {
         eval as i16 + self.params.out_bias
     }
 
-    pub fn evaluate(&mut self, _position: &Position) -> i16 {
-        // TODO: diff with position
-        self.forward()
+    pub fn evaluate(&mut self, position: &Position) -> i16 {
+        if Some(position.hash()) == self.last_seen_position.map(|p| p.hash()) {
+            self.last_result
+        } else {
+            // TODO: diff with position
+
+            self.last_seen_position = Some(*position);
+            let res = self.forward();
+            self.last_result = res;
+            res
+        }
     }
 }
