@@ -44,10 +44,11 @@ pub fn generate_moves(position: &Position, stage: MoveStage) -> MoveVec {
             _ if mov.from() != our_king => {
                 // If not capturing the checker or attempting to block, this is not legal.
                 if !king_attackers.is_empty()
-                    && mov
-                        .is_capture()
-                        .then(|| !king_attackers.is_set(mov.to()))
-                        .unwrap_or(!between_attacker.is_set(mov.to()))
+                    && if mov.is_capture() {
+                        !king_attackers.is_set(mov.to())
+                    } else {
+                        !between_attacker.is_set(mov.to())
+                    }
                 {
                     return false;
                 }

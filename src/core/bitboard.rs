@@ -22,7 +22,7 @@ const RANK_MASK: [Bitboard; 8] = {
     arr
 };
 
-const BETWEEN: [Bitboard; 64 * 64] = {
+static BETWEEN: [Bitboard; 64 * 64] = {
     let mut arr = [0u64; 64 * 64];
 
     let mut from = 0;

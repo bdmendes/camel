@@ -2,16 +2,19 @@ use crate::core::{color::Color, piece::Piece, square::Square, Position, Position
 use rand::Rng;
 
 // 2 sides, 6 pieces, 64 squares.
-const INPUT_SIZE: usize = 768;
+pub const INPUT_SIZE: usize = 768;
 
 // We have a single hidden layer in our network.
-const HIDDEN_LAYER_SIZE: usize = 128;
+pub const HIDDEN_LAYER_SIZE: usize = 128;
 
 // This is only relevant to scale the training data:
 // 0-1 to -SCALE, 0.5-0.5 to 0, and 1-0 to +SCALE.
 // This is a rough mapping to centipawns, and a way
 // to deal with the fact that integers are easier.
 pub const SCALE: i16 = 400;
+
+// The maximum value for the output of a node.
+pub const MAX_CLAMP: i32 = 255;
 
 pub struct Parameters {
     // The "accumulator" is the cached input of the hidden layer.
@@ -39,14 +42,14 @@ impl Parameters {
 }
 
 pub struct NeuralNetwork {
-    acc: [i32; HIDDEN_LAYER_SIZE],
-    params: Parameters,
-    last_seen_position: Option<Position>,
-    last_result: i16,
+    pub acc: [i32; HIDDEN_LAYER_SIZE],
+    pub params: Parameters,
+    pub last_seen_position: Option<Position>,
+    pub last_result: i16,
 }
 
 impl NeuralNetwork {
-    fn new(params: Parameters) -> Self {
+    pub fn new(params: Parameters) -> Self {
         Self { acc: [0; HIDDEN_LAYER_SIZE], params, last_seen_position: None, last_result: 0 }
     }
 
@@ -78,7 +81,7 @@ impl NeuralNetwork {
                 .saturating_mul(self.params.out_weights[i]);
         }
 
-        eval as i16 + self.params.out_bias
+        (eval as i16).saturating_add(self.params.out_bias)
     }
 
     pub fn evaluate(&mut self, position: &Position) -> i16 {

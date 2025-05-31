@@ -1,6 +1,7 @@
-use crate::core::Position;
-use core::fen::KIWIPETE_POSITION;
-use std::{str::FromStr, time::Instant};
+use evaluation::{
+    nnue::{NeuralNetwork, Parameters},
+    train::{dataset::load_scored_epd, train_nnue},
+};
 
 #[allow(dead_code)]
 mod core;
@@ -10,21 +11,13 @@ mod evaluation;
 mod search;
 
 fn main() {
-    let position = Position::from_str(KIWIPETE_POSITION).unwrap();
+    let dataset = load_scored_epd("assets/books/quiet-labeled.epd");
+    println!("Loaded {} positions from dataset", dataset.len());
 
-    for depth in 1..=10 {
-        let time = Instant::now();
-        let (nodes, div) = position.perft(depth);
-        for (m, d) in div {
-            println!("{}: {}", m, d);
-        }
-        let elapsed = time.elapsed().as_secs_f32();
-        println!(
-            "perft {}: {} [{} s; {} Mnps]",
-            depth,
-            nodes,
-            time.elapsed().as_secs_f32(),
-            ((nodes / 1000000).max(1)) as f32 / elapsed
-        );
-    }
+    let params = Parameters::random();
+    let mut net = NeuralNetwork::new(params);
+
+    let learning_rate = 0.008;
+    let epochs = 10;
+    train_nnue(&mut net, &dataset, learning_rate, epochs);
 }
