@@ -1,4 +1,4 @@
-use crate::core::{color::Color, piece::Piece, square::Square, Position};
+use crate::core::{color::Color, piece::Piece, square::Square, Position, PositionDiffEntry};
 use rand::Rng;
 
 // 2 sides, 6 pieces, 64 squares.
@@ -12,6 +12,7 @@ const HIDDEN_LAYER_SIZE: usize = 128;
 // This is a rough mapping to centipawns, and a way
 // to deal with the fact that integers are easier.
 pub const SCALE: i16 = 400;
+
 pub struct Parameters {
     // The "accumulator" is the cached input of the hidden layer.
     // In practice, it will be 0 (empty) or 1 (set) times the weights.
@@ -60,7 +61,7 @@ impl NeuralNetwork {
         }
     }
 
-    fn unset(&mut self, piece: Piece, color: Color, square: Square) {
+    fn clear(&mut self, piece: Piece, color: Color, square: Square) {
         let idx = Self::acc_index(piece, color, square);
         for i in 0..HIDDEN_LAYER_SIZE {
             self.acc[i] -= self.params.acc_weights[idx * HIDDEN_LAYER_SIZE + i];
@@ -84,7 +85,25 @@ impl NeuralNetwork {
         if Some(position.hash()) == self.last_seen_position.map(|p| p.hash()) {
             self.last_result
         } else {
-            // TODO: diff with position
+            if let Some(last_position) = self.last_seen_position {
+                let diff = position.diff(&last_position);
+                for e in diff {
+                    match e {
+                        PositionDiffEntry::Set(square, piece, color) => {
+                            self.set(piece, color, square);
+                        }
+                        PositionDiffEntry::Clear(square, piece, color) => {
+                            self.clear(piece, color, square);
+                        }
+                    }
+                }
+            } else {
+                for square in Square::list() {
+                    if let Some((piece, color)) = position.piece_color_at(*square) {
+                        self.set(piece, color, *square);
+                    }
+                }
+            }
 
             self.last_seen_position = Some(*position);
             let res = self.forward();
@@ -109,7 +128,7 @@ mod tests {
         };
         let mut net = NeuralNetwork::new(params);
 
-        // Indepently of the square, all accumulator nodes will be fed with 1.
+        // Independently of the square, all accumulator nodes will be fed with 1.
         net.set(Piece::Queen, Color::White, Square::E4);
 
         net.acc.iter().for_each(|&x| assert_eq!(x, 1));
@@ -136,10 +155,59 @@ mod tests {
         net.set(Piece::Rook, Color::White, Square::E4);
         net.acc.iter().for_each(|&x| assert_eq!(x, 3));
 
-        net.unset(Piece::Queen, Color::White, Square::E4);
+        net.clear(Piece::Queen, Color::White, Square::E4);
         net.acc.iter().for_each(|&x| assert_eq!(x, 1));
 
-        net.unset(Piece::Rook, Color::White, Square::E4);
+        net.clear(Piece::Rook, Color::White, Square::E4);
         net.acc.iter().for_each(|&x| assert_eq!(x, 0));
+    }
+
+    #[test]
+    fn forward() {
+        // Set all accumulator weights to 1, and biases to 0.
+        let params = Parameters {
+            acc_weights: [1; INPUT_SIZE * HIDDEN_LAYER_SIZE],
+            acc_biases: [2; HIDDEN_LAYER_SIZE],
+            out_weights: [1; HIDDEN_LAYER_SIZE],
+            out_bias: 10,
+        };
+        let mut net = NeuralNetwork::new(params);
+
+        // Set the Queen on E4, which will set all accumulators to 1.
+        net.set(Piece::Queen, Color::White, Square::E4);
+        assert_eq!(net.forward(), HIDDEN_LAYER_SIZE as i16 * 3 + 10);
+
+        // Set the Rook on E4, which will add 1 to all accumulators.
+        net.set(Piece::Rook, Color::White, Square::E4);
+        assert_eq!(net.forward(), HIDDEN_LAYER_SIZE as i16 * 4 + 10);
+    }
+
+    #[test]
+    fn evaluate() {
+        // Set all weights to 1, except for the White Queen on E4.
+        let mut params = Parameters {
+            acc_weights: [1; INPUT_SIZE * HIDDEN_LAYER_SIZE],
+            acc_biases: [0; HIDDEN_LAYER_SIZE],
+            out_weights: [1; HIDDEN_LAYER_SIZE],
+            out_bias: 0,
+        };
+        let queen_e4_index = NeuralNetwork::acc_index(Piece::Queen, Color::White, Square::E4);
+        for i in 0..HIDDEN_LAYER_SIZE {
+            params.acc_weights[queen_e4_index * HIDDEN_LAYER_SIZE + i] = 2;
+        }
+        let mut net = NeuralNetwork::new(params);
+
+        let mut position = Position::default();
+        position.set_square(Square::E4, Piece::Queen, Color::White);
+
+        assert_eq!(net.evaluate(&position), 2 * HIDDEN_LAYER_SIZE as i16);
+
+        assert_eq!(net.evaluate(&position), 2 * HIDDEN_LAYER_SIZE as i16);
+
+        position.clear_square(Square::E4);
+        assert_eq!(net.evaluate(&position), 0);
+
+        position.set_square(Square::E4, Piece::Rook, Color::White);
+        assert_eq!(net.evaluate(&position), HIDDEN_LAYER_SIZE as i16);
     }
 }

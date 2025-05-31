@@ -3,6 +3,7 @@ use std::{
     str::FromStr,
 };
 
+use arrayvec::ArrayVec;
 use bitboard::Bitboard;
 use castling_rights::CastlingRights;
 use color::Color;
@@ -33,6 +34,14 @@ pub enum MoveStage {
     CapturesAndPromotions,
     Quiet,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PositionDiffEntry {
+    Set(Square, Piece, Color),
+    Clear(Square, Piece, Color),
+}
+
+pub type PositionDiffVec = ArrayVec<PositionDiffEntry, 64>;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Position {
@@ -160,7 +169,7 @@ impl Position {
         self.clear_square_low::<true>(square);
     }
 
-    pub fn clear_square_low<const UPDATE_METADATA: bool>(&mut self, square: Square) {
+    fn clear_square_low<const UPDATE_METADATA: bool>(&mut self, square: Square) {
         if let Some((piece, color)) = self.piece_color_at(square) {
             self.pieces[piece as usize].clear(square);
             self.occupancy[color as usize].clear(square);
@@ -175,7 +184,7 @@ impl Position {
         self.set_square_low::<true, true>(square, piece, color);
     }
 
-    pub fn set_square_low<const UPDATE_METADATA: bool, const CLEAR: bool>(
+    fn set_square_low<const UPDATE_METADATA: bool, const CLEAR: bool>(
         &mut self,
         square: Square,
         piece: Piece,
@@ -301,6 +310,30 @@ impl Position {
     pub fn material(&self) -> i8 {
         self.material
     }
+
+    pub fn diff(&self, other: &Self) -> PositionDiffVec {
+        let mut diff = PositionDiffVec::new();
+        for square in Square::list() {
+            let ours = self.piece_color_at(*square);
+            let theirs = other.piece_color_at(*square);
+            match (ours, theirs) {
+                (Some((piece, color)), None) => {
+                    diff.push(PositionDiffEntry::Set(*square, piece, color))
+                }
+                (None, Some((piece, color))) => {
+                    diff.push(PositionDiffEntry::Clear(*square, piece, color))
+                }
+                (Some((piece1, color1)), Some((piece2, color2)))
+                    if piece1 != piece2 || color1 != color2 =>
+                {
+                    diff.push(PositionDiffEntry::Set(*square, piece1, color1));
+                    diff.push(PositionDiffEntry::Clear(*square, piece2, color2));
+                }
+                _ => {}
+            }
+        }
+        diff
+    }
 }
 
 #[cfg(test)]
@@ -313,7 +346,7 @@ mod tests {
         color::Color,
         moves::{Move, MoveFlag},
         square::Square,
-        Piece,
+        Piece, PositionDiffEntry, PositionDiffVec,
     };
 
     use super::{fen::START_POSITION, Position};
@@ -516,5 +549,22 @@ mod tests {
 
         position = position.make_move_str("b7c6").unwrap();
         assert_eq!(position.material(), 3);
+    }
+
+    #[test]
+    fn diff() {
+        let position = Position::from_str(START_POSITION).unwrap();
+        assert!(position.diff(&position).is_empty());
+
+        let position2 = position.make_move_str("e2e4").unwrap().make_move_str("d7d5").unwrap();
+        assert_eq!(
+            position2.diff(&position),
+            PositionDiffVec::from_iter([
+                PositionDiffEntry::Clear(Square::E2, Piece::Pawn, Color::White),
+                PositionDiffEntry::Set(Square::E4, Piece::Pawn, Color::White),
+                PositionDiffEntry::Set(Square::D5, Piece::Pawn, Color::Black),
+                PositionDiffEntry::Clear(Square::D7, Piece::Pawn, Color::Black),
+            ])
+        );
     }
 }
