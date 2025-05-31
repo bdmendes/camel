@@ -12,7 +12,6 @@ const HIDDEN_LAYER_SIZE: usize = 128;
 // This is a rough mapping to centipawns, and a way
 // to deal with the fact that integers are easier.
 pub const SCALE: i16 = 400;
-
 pub struct Parameters {
     // The "accumulator" is the cached input of the hidden layer.
     // In practice, it will be 0 (empty) or 1 (set) times the weights.
@@ -73,8 +72,9 @@ impl NeuralNetwork {
 
         for i in 0..HIDDEN_LAYER_SIZE {
             // Activate with a clipped ReLU, with bounds 0 and 255.
-            let hidden_out = (self.acc[i] + self.params.acc_biases[i]).clamp(0, 255);
-            eval += hidden_out.saturating_mul(self.params.out_weights[i]);
+            eval += (self.acc[i] + self.params.acc_biases[i])
+                .clamp(0, 255)
+                .saturating_mul(self.params.out_weights[i]);
         }
 
         eval as i16 + self.params.out_bias
@@ -91,5 +91,55 @@ impl NeuralNetwork {
             self.last_result = res;
             res
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn accumulator1() {
+        // Set all accumulator weights to 1, and biases to 0.
+        let params = Parameters {
+            acc_weights: [1; INPUT_SIZE * HIDDEN_LAYER_SIZE],
+            acc_biases: [0; HIDDEN_LAYER_SIZE],
+            out_weights: [0; HIDDEN_LAYER_SIZE],
+            out_bias: 0,
+        };
+        let mut net = NeuralNetwork::new(params);
+
+        // Indepently of the square, all accumulator nodes will be fed with 1.
+        net.set(Piece::Queen, Color::White, Square::E4);
+
+        net.acc.iter().for_each(|&x| assert_eq!(x, 1));
+    }
+
+    #[test]
+    fn accumulator2() {
+        // Set all accumulator weights to 1, except for the White Queen on E4.
+        let mut params = Parameters {
+            acc_weights: [1; INPUT_SIZE * HIDDEN_LAYER_SIZE],
+            acc_biases: [0; HIDDEN_LAYER_SIZE],
+            out_weights: [0; HIDDEN_LAYER_SIZE],
+            out_bias: 0,
+        };
+        let queen_e4_index = NeuralNetwork::acc_index(Piece::Queen, Color::White, Square::E4);
+        for i in 0..HIDDEN_LAYER_SIZE {
+            params.acc_weights[queen_e4_index * HIDDEN_LAYER_SIZE + i] = 2;
+        }
+        let mut net = NeuralNetwork::new(params);
+
+        net.set(Piece::Queen, Color::White, Square::E4);
+        net.acc.iter().for_each(|&x| assert_eq!(x, 2));
+
+        net.set(Piece::Rook, Color::White, Square::E4);
+        net.acc.iter().for_each(|&x| assert_eq!(x, 3));
+
+        net.unset(Piece::Queen, Color::White, Square::E4);
+        net.acc.iter().for_each(|&x| assert_eq!(x, 1));
+
+        net.unset(Piece::Rook, Color::White, Square::E4);
+        net.acc.iter().for_each(|&x| assert_eq!(x, 0));
     }
 }
