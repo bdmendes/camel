@@ -18,6 +18,7 @@ fn main() {
     println!("Loaded {} positions from dataset", dataset.len());
 
     let params = Parameters::random();
+
     let mut net = NeuralNetwork::new(params);
 
     let learning_rate = 0.01;
@@ -36,4 +37,8 @@ fn main() {
         "Black better: {}",
         net.evaluate(&Position::from_str("4r3/8/8/5p2/5k2/8/K7/6n1 b - - 0 1").unwrap())
     );
+
+    net.params
+        .save("assets/models/nnue-quiet-labeled4.bin")
+        .expect("Failed to save NNUE parameters");
 }
