@@ -29,6 +29,14 @@ impl Score {
         !((MATE_SCORE + MATE_SCORE_THRESHOLD)..=(MATE_SCORE.abs() - MATE_SCORE_THRESHOLD))
             .contains(&score)
     }
+
+    pub fn cp(&self) -> ValueScore {
+        match self {
+            Score::Mate(Color::White, _) => -1000,
+            Score::Mate(Color::Black, _) => 1000,
+            Score::Value(score) => *score,
+        }
+    }
 }
 
 pub trait Evaluable {

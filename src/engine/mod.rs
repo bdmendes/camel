@@ -61,6 +61,7 @@ pub enum Command {
     Clear,
     Quit,
     Tune,
+    LabelEval,
 }
 
 pub struct Engine {
