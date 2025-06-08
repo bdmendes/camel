@@ -64,10 +64,10 @@ fn wac() {
     for line in WAC_POSITIONS.lines() {
         let parts = line.split(';').collect::<Vec<_>>();
         let fen = parts[0].split(' ').take(4).collect::<Vec<_>>().join(" ");
-        let mov = parts[0].split(' ').last().unwrap();
+        let mov = parts[0].split(' ').next_back().unwrap();
         let test_number = parts[1]
             .split(' ')
-            .last()
+            .next_back()
             .unwrap()
             .replace('"', "")
             .replace("WAC.", "")
