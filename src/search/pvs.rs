@@ -211,11 +211,11 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
         // Extended futility pruning: discard moves without potential
         if depth <= 2 && i > 0 && !may_be_zug {
             let move_potential = MAX_POSITIONAL_GAIN * depth as ValueScore
-                + mov
-                    .flag()
-                    .is_capture()
-                    .then(|| position.board.piece_at(mov.to()).unwrap_or(Piece::Pawn).value())
-                    .unwrap_or(0);
+                + if mov.flag().is_capture() {
+                    position.board.piece_at(mov.to()).unwrap_or(Piece::Pawn).value()
+                } else {
+                    0
+                };
             if static_evaluation.get_or_init(|| position.value() * position.side_to_move.sign())
                 + move_potential
                 < alpha
@@ -349,7 +349,7 @@ pub fn pvs_aspiration<const MAIN_THREAD: bool>(
                     } else {
                         position.side_to_move.opposite()
                     },
-                    (plys_to_mate + 1) / 2,
+                    plys_to_mate.div_ceil(2),
                 ),
                 all_count,
             )

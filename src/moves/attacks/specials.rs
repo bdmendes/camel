@@ -195,10 +195,11 @@ fn generate_kingside_castle(color: Color, position: &Position, moves: &mut Vec<M
     if may_castle {
         moves.push(Move::new(
             king_square.unwrap(),
-            position
-                .is_chess960
-                .then(|| right_hand_side_rook_square.unwrap())
-                .unwrap_or_else(|| king_square.unwrap().shift(MoveDirection::EAST * 2).unwrap()),
+            if position.is_chess960 {
+                right_hand_side_rook_square.unwrap()
+            } else {
+                king_square.unwrap().shift(MoveDirection::EAST * 2).unwrap()
+            },
             MoveFlag::KingsideCastle,
         ));
     }
@@ -225,10 +226,11 @@ fn generate_queenside_castle(color: Color, position: &Position, moves: &mut Vec<
     if may_castle {
         moves.push(Move::new(
             king_square.unwrap(),
-            position
-                .is_chess960
-                .then(|| left_hand_side_rook_square.unwrap())
-                .unwrap_or_else(|| king_square.unwrap().shift(MoveDirection::WEST * 2).unwrap()),
+            if position.is_chess960 {
+                left_hand_side_rook_square.unwrap()
+            } else {
+                king_square.unwrap().shift(MoveDirection::WEST * 2).unwrap()
+            },
             MoveFlag::QueensideCastle,
         ));
     }

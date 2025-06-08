@@ -162,7 +162,7 @@ impl Move {
                     };
                     piece == Piece::King
                         && position.castling_rights.contains(castle_right)
-                        && (!position.is_chess960).then(|| to_piece.is_none()).unwrap_or(true)
+                        && if !position.is_chess960 { to_piece.is_none() } else { true }
                 }
                 MoveFlag::QueensideCastle => {
                     let castle_right = match position.side_to_move {
@@ -171,7 +171,7 @@ impl Move {
                     };
                     piece == Piece::King
                         && position.castling_rights.contains(castle_right)
-                        && (!position.is_chess960).then(|| to_piece.is_none()).unwrap_or(true)
+                        && if !position.is_chess960 { to_piece.is_none() } else { true }
                 }
                 MoveFlag::BishopPromotion
                 | MoveFlag::KnightPromotion
@@ -197,7 +197,7 @@ impl Move {
                                 Color::White => MoveDirection::SOUTH,
                                 Color::Black => MoveDirection::NORTH,
                             })
-                            .map_or(false, |sq| position.board.color_at(sq).is_none())
+                            .is_some_and(|sq| position.board.color_at(sq).is_none())
                 }
             }
         } else {
@@ -240,7 +240,7 @@ pub fn make_move(position: &Position, mov: Move) -> Position {
             MoveFlag::KingsideCastle => match position.side_to_move {
                 Color::White => {
                     let right_hand_side_rook =
-                        position.is_chess960.then(|| mov.to()).unwrap_or(Square::H1);
+                        if position.is_chess960 { mov.to() } else { Square::H1 };
                     new_board.clear_square(right_hand_side_rook);
                     new_board.set_square(Square::G1, Piece::King, Color::White);
                     new_board.set_square(Square::F1, Piece::Rook, Color::White);
@@ -249,7 +249,7 @@ pub fn make_move(position: &Position, mov: Move) -> Position {
                 }
                 Color::Black => {
                     let right_hand_side_rook =
-                        position.is_chess960.then(|| mov.to()).unwrap_or(Square::H8);
+                        if position.is_chess960 { mov.to() } else { Square::H8 };
                     new_board.clear_square(right_hand_side_rook);
                     new_board.set_square(Square::G8, Piece::King, Color::Black);
                     new_board.set_square(Square::F8, Piece::Rook, Color::Black);
@@ -260,7 +260,7 @@ pub fn make_move(position: &Position, mov: Move) -> Position {
             MoveFlag::QueensideCastle => match position.side_to_move {
                 Color::White => {
                     let left_hand_side_rook =
-                        position.is_chess960.then(|| mov.to()).unwrap_or(Square::A1);
+                        if position.is_chess960 { mov.to() } else { Square::A1 };
                     new_board.clear_square(left_hand_side_rook);
                     new_board.set_square(Square::C1, Piece::King, Color::White);
                     new_board.set_square(Square::D1, Piece::Rook, Color::White);
@@ -269,7 +269,7 @@ pub fn make_move(position: &Position, mov: Move) -> Position {
                 }
                 Color::Black => {
                     let left_hand_side_rook =
-                        position.is_chess960.then(|| mov.to()).unwrap_or(Square::A8);
+                        if position.is_chess960 { mov.to() } else { Square::A8 };
                     new_board.clear_square(left_hand_side_rook);
                     new_board.set_square(Square::C8, Piece::King, Color::Black);
                     new_board.set_square(Square::D8, Piece::Rook, Color::Black);
