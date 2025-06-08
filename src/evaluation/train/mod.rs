@@ -1,4 +1,3 @@
-use dataset::PositionScore;
 use rand::seq::SliceRandom;
 
 use super::nnue::{NeuralNetwork, HIDDEN_LAYER_SIZE, INPUT_SIZE, MAX_CLAMP};
@@ -17,9 +16,9 @@ fn input_value(position: &Position, index: usize) -> i16 {
     }
 }
 
-fn backpropagate(net: &mut NeuralNetwork, position: &PositionScore, learning_rate: f32) -> f32 {
-    let output = net.evaluate(&position.position) as f32;
-    let target = position.result.to_score() as f32;
+fn backpropagate(net: &mut NeuralNetwork, position: &(Position, i16), learning_rate: f32) -> f32 {
+    let output = net.evaluate(&position.0) as f32;
+    let target = position.1 as f32;
     let error = output - target;
     let loss = error * error;
 
@@ -37,7 +36,7 @@ fn backpropagate(net: &mut NeuralNetwork, position: &PositionScore, learning_rat
         if activation > 0 {
             let delta = error * net.params.out_weights[i] as f32;
             for j in 0..INPUT_SIZE {
-                let input = input_value(&position.position, j) as f32;
+                let input = input_value(&position.0, j) as f32;
                 let grad_acc_weight = delta * input;
                 net.params.acc_weights[j * HIDDEN_LAYER_SIZE + i] -=
                     (grad_acc_weight * learning_rate) as i32;
@@ -51,7 +50,7 @@ fn backpropagate(net: &mut NeuralNetwork, position: &PositionScore, learning_rat
 
 pub fn train_nnue(
     net: &mut NeuralNetwork,
-    dataset: &[PositionScore],
+    dataset: &[(Position, i16)],
     learning_rate: f32,
     epochs: usize,
 ) {

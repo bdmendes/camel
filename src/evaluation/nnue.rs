@@ -6,13 +6,7 @@ use serde::{Deserialize, Serialize};
 pub const INPUT_SIZE: usize = 768;
 
 // We have a single hidden layer in our network.
-pub const HIDDEN_LAYER_SIZE: usize = 256;
-
-// This is only relevant to scale the training data:
-// 0-1 to -SCALE, 0.5-0.5 to 0, and 1-0 to +SCALE.
-// This is a rough mapping to centipawns, and a way
-// to deal with the fact that integers are easier.
-pub const SCALE: i16 = 400;
+pub const HIDDEN_LAYER_SIZE: usize = 128;
 
 // The maximum value for the output of a node.
 pub const MAX_CLAMP: i32 = 255;
@@ -107,7 +101,7 @@ impl NeuralNetwork {
         for i in 0..HIDDEN_LAYER_SIZE {
             // Activate with a clipped ReLU, with bounds 0 and 255.
             eval += (self.acc[i] + self.params.acc_biases[i])
-                .clamp(0, 255)
+                .clamp(0, MAX_CLAMP)
                 .saturating_mul(self.params.out_weights[i]);
         }
 

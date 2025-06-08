@@ -14,15 +14,15 @@ mod evaluation;
 mod search;
 
 fn main() {
-    let dataset = load_scored_epd("assets/books/quiet-labeled.epd");
+    let dataset: Vec<_> = load_scored_epd("assets/books/quiet-evaluated-camelv1.epd");
     println!("Loaded {} positions from dataset", dataset.len());
 
     let params = Parameters::random();
 
     let mut net = NeuralNetwork::new(params);
 
-    let learning_rate = 0.01;
-    let epochs = 1000;
+    let learning_rate = 0.1;
+    let epochs = 100;
 
     println!("Equal: {}", net.evaluate(&Position::from_str(START_POSITION).unwrap()));
     println!(
@@ -39,6 +39,6 @@ fn main() {
     );
 
     net.params
-        .save("assets/models/nnue-quiet-labeled4.bin")
+        .save("assets/models/nnue-quiet-labeled.bin")
         .expect("Failed to save NNUE parameters");
 }
