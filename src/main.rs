@@ -14,14 +14,14 @@ mod evaluation;
 mod search;
 
 fn main() {
-    let dataset: Vec<_> = load_scored_epd("assets/books/quiet-evaluated-camelv1.epd");
+    let dataset: Vec<_> = load_scored_epd("assets/books/quiet-evaluated-filtered-camelv1.epd");
     println!("Loaded {} positions from dataset", dataset.len());
 
     let params = Parameters::random();
 
     let mut net = NeuralNetwork::new(params);
 
-    let learning_rate = 0.1;
+    let learning_rate = 0.01;
     let epochs = 100;
 
     println!("Equal: {}", net.evaluate(&Position::from_str(START_POSITION).unwrap()));
