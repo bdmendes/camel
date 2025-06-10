@@ -4,4 +4,3 @@ pub mod labeler;
 pub mod moves;
 pub mod position;
 pub mod search;
-pub mod tuner;

@@ -1,6 +1,6 @@
 use super::{constraint::SearchConstraint, movepick::MovePicker, see, Depth};
 use crate::{
-    evaluation::{position::MAX_POSITIONAL_GAIN, Evaluable, ValueScore, MATE_SCORE},
+    evaluation::{Evaluable, ValueScore, MATE_SCORE},
     position::{board::Piece, Position},
 };
 
@@ -54,7 +54,7 @@ pub fn quiesce(
         if !is_check && mov.flag().is_capture() {
             // Delta pruning: this capture cannot improve the score in any way.
             let captured_piece = position.board.piece_at(mov.to()).unwrap_or(Piece::Pawn);
-            if static_evaluation + captured_piece.value() + MAX_POSITIONAL_GAIN < alpha {
+            if static_evaluation + captured_piece.value() + 200 < alpha {
                 continue;
             }
 

@@ -1,6 +1,6 @@
 use super::{Depth, MAX_DEPTH};
 use crate::{
-    evaluation::{Score, ValueScore},
+    evaluation::{nnue::NeuralNetwork, Score, ValueScore},
     moves::Move,
     position::Position,
 };
@@ -9,7 +9,7 @@ use std::{
     mem::transmute,
     sync::{
         atomic::{AtomicU16, AtomicU64, Ordering},
-        RwLock,
+        Mutex, RwLock,
     },
 };
 
@@ -157,6 +157,7 @@ impl TranspositionTable {
 pub struct SearchTable {
     transposition: RwLock<TranspositionTable>,
     killer_moves: [AtomicU16; 3 * (MAX_DEPTH + 1) as usize],
+    nn: Mutex<NeuralNetwork>,
 }
 
 impl SearchTable {

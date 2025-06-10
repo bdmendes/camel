@@ -1,8 +1,8 @@
-use crate::position::{board::Piece, Color};
-
 pub mod moves;
-pub mod position;
+pub mod nnue;
 pub mod psqt;
+
+use crate::position::{board::Piece, Color};
 
 pub type ValueScore = i16;
 
@@ -32,8 +32,8 @@ impl Score {
 
     pub fn cp(&self) -> ValueScore {
         match self {
-            Score::Mate(Color::White, _) => -1000,
-            Score::Mate(Color::Black, _) => 1000,
+            Score::Mate(Color::White, _) => -MATE_SCORE,
+            Score::Mate(Color::Black, _) => MATE_SCORE,
             Score::Value(score) => *score,
         }
     }

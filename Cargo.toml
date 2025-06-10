@@ -10,6 +10,8 @@ derive_more = "0.99.17"
 rand = "0.8.5"
 ctor = "0.2.8"
 rayon = "1.10.0"
+serde = "1.0.219"
+serde_json = "1.0.140"
 
 [profile.dev]
 opt-level = 1

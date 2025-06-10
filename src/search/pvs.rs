@@ -7,7 +7,7 @@ use super::{
     Depth, MAX_DEPTH,
 };
 use crate::{
-    evaluation::{position::MAX_POSITIONAL_GAIN, Evaluable, Score, ValueScore, MATE_SCORE},
+    evaluation::{Evaluable, Score, ValueScore, MATE_SCORE},
     position::{board::Piece, Color, Position},
 };
 use std::{cell::OnceCell, sync::Arc};
@@ -210,7 +210,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     for (i, mov) in picker.enumerate() {
         // Extended futility pruning: discard moves without potential
         if depth <= 2 && i > 0 && !may_be_zug {
-            let move_potential = MAX_POSITIONAL_GAIN * depth as ValueScore
+            let move_potential = 200 * depth as ValueScore
                 + if mov.flag().is_capture() {
                     position.board.piece_at(mov.to()).unwrap_or(Piece::Pawn).value()
                 } else {
