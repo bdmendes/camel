@@ -78,7 +78,7 @@ pub fn execute_command(command: Command, engine: &mut Engine) {
         Command::Smp => execute_smp(engine),
         Command::Perft(depth) => execute_perft(depth, &engine.position),
         Command::DoMove { mov_str } => execute_do_move(&mov_str, &mut engine.position),
-        Command::Display => execute_display(&engine.position),
+        Command::Display => execute_display(engine),
         Command::ListMoves => execute_all_moves(&engine.position),
         Command::Help => execute_help(),
         Command::Clear => execute_clear(),

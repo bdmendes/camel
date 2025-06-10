@@ -193,10 +193,12 @@ pub fn execute_do_move(mov_str: &str, position: &mut Position) {
     }
 }
 
-pub fn execute_display(position: &Position) {
+pub fn execute_display(engine: &Engine) {
+    let position = &engine.position;
     print!("{}", position.board);
     println!("{}", position.to_fen());
     println!("Chess960: {}", position.is_chess960);
+    println!("Static evaluation: {}", engine.table.evaluate_nnue(position));
     println!(
         "{} to play.",
         match position.side_to_move {
