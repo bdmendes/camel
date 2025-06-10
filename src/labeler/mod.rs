@@ -1,17 +1,17 @@
-use std::{
-    fs::{read_to_string, OpenOptions},
-    io::Write,
-    sync::Arc,
-};
-
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-
 use crate::{
+    evaluation::Evaluable,
     position::{
         fen::{FromFen, ToFen},
         Color, Position,
     },
     search::{constraint::SearchConstraint, pvs::pvs_aspiration, table::SearchTable, Depth},
+};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use std::{
+    collections::HashSet,
+    fs::{read_to_string, OpenOptions},
+    io::Write,
+    sync::Arc,
 };
 
 const EVAL_DEPTH: Depth = 6;
@@ -33,26 +33,40 @@ pub fn label_quiet_epd() {
             .collect()
     };
 
-    let table = Arc::new(SearchTable::new(256));
+    let mut seen = HashSet::<u64>::new();
+
+    let table = Arc::new(SearchTable::new(2048));
     let constraint = SearchConstraint::default();
 
     let mut file = OpenOptions::new()
         .write(true)
         .create(true)
         .truncate(true)
-        .open(concat!(env!("CARGO_MANIFEST_DIR"), "/books/quiet-evaluated-camelv1.epd"))
+        .open(concat!(env!("CARGO_MANIFEST_DIR"), "/books/quiet-evaluated-filtered-camelv1.epd"))
         .unwrap();
 
     positions.iter().enumerate().for_each(|(i, p)| {
+        let static_eval = p.value();
         let eval = {
             let ours =
-                pvs_aspiration::<false>(p, 0, EVAL_DEPTH, table.clone(), &constraint).unwrap().0;
+                pvs_aspiration::<false>(p, static_eval, EVAL_DEPTH, table.clone(), &constraint)
+                    .unwrap()
+                    .0;
             match p.side_to_move {
                 Color::White => ours.cp(),
                 Color::Black => -ours.cp(),
             }
         };
-        println!("[{}] {} cp \"{}\";", i, p.to_fen(), eval);
-        writeln!(&mut file, "{} cp \"{}\";", p.to_fen(), eval).unwrap();
+        let diff = eval.saturating_sub(static_eval).unsigned_abs();
+        let fen = p.to_fen();
+        let hash = p.zobrist_hash();
+
+        if seen.contains(&hash) || diff >= 200 {
+            println!("/{}/ {}: not included ({})", i, fen, diff);
+        } else {
+            println!("[{}] {} cp \"{}\";", i, fen, eval);
+            writeln!(&mut file, "{} cp \"{}\";", fen, eval).unwrap();
+            seen.insert(hash);
+        }
     });
 }
