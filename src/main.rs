@@ -1,10 +1,7 @@
-use core::{fen::START_POSITION, Position};
+use core::Position;
 use std::str::FromStr;
 
-use evaluation::{
-    nnue::{NeuralNetwork, Parameters},
-    train::{dataset::load_scored_epd, train_nnue},
-};
+use evaluation::nnue::{NeuralNetwork, Parameters};
 
 #[allow(dead_code)]
 mod core;
@@ -14,31 +11,29 @@ mod evaluation;
 mod search;
 
 fn main() {
-    let dataset: Vec<_> = load_scored_epd("assets/books/quiet-evaluated-filtered-camelv1.epd");
-    println!("Loaded {} positions from dataset", dataset.len());
-
-    let params = Parameters::random();
-
+    let params = Parameters::load("assets/models/nnue-quiet-labeled.bin").unwrap();
     let mut net = NeuralNetwork::new(params);
 
-    let learning_rate = 0.01;
-    let epochs = 100;
+    // REPL: read fen and evaluate position
+    let mut input = String::new();
+    loop {
+        println!("Enter FEN (or 'exit' to quit):");
+        input.clear();
+        std::io::stdin().read_line(&mut input).unwrap();
+        let input = input.trim();
 
-    println!("Equal: {}", net.evaluate(&Position::from_str(START_POSITION).unwrap()));
-    println!(
-        "Black better: {}",
-        net.evaluate(&Position::from_str("4r3/8/8/5p2/5k2/8/K7/6n1 b - - 0 1").unwrap())
-    );
+        if input == "exit" {
+            break;
+        }
 
-    train_nnue(&mut net, &dataset, learning_rate, epochs);
-
-    println!("Equal: {}", net.evaluate(&Position::from_str(START_POSITION).unwrap()));
-    println!(
-        "Black better: {}",
-        net.evaluate(&Position::from_str("4r3/8/8/5p2/5k2/8/K7/6n1 b - - 0 1").unwrap())
-    );
-
-    net.params
-        .save("assets/models/nnue-quiet-labeled.bin")
-        .expect("Failed to save NNUE parameters");
+        match Position::from_str(input) {
+            Ok(position) => {
+                let evaluation = net.evaluate(&position);
+                println!("Evaluation: {}", evaluation);
+            }
+            Err(e) => {
+                println!("Error parsing FEN.");
+            }
+        }
+    }
 }

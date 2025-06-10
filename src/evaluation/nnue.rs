@@ -8,38 +8,38 @@ pub const INPUT_SIZE: usize = 768;
 // We have a single hidden layer in our network.
 pub const HIDDEN_LAYER_SIZE: usize = 128;
 
-// The maximum value for the output of a node.
-pub const MAX_CLAMP: i32 = 255;
+// The actual NN output is -1 to 1, to improve training dynamics.
+pub const SCALE: f32 = 2000.0;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Parameters {
     // The "accumulator" is the cached input of the hidden layer.
     // In practice, it will be 0 (empty) or 1 (set) times the weights.
-    pub acc_weights: Vec<i32>,
-    pub acc_biases: Vec<i32>,
+    pub acc_weights: Vec<f32>,
+    pub acc_biases: Vec<f32>,
 
     // The output of the hidden layer is fed to the "output"
     // parameters to generate the final static evaluation.
-    pub out_weights: Vec<i32>,
-    pub out_bias: i16,
+    pub out_weights: Vec<f32>,
+    pub out_bias: f32,
 }
 
 impl Parameters {
     pub fn random() -> Self {
         let mut rng = rand::thread_rng();
         let acc_weights =
-            (0..INPUT_SIZE * HIDDEN_LAYER_SIZE).map(|_| rng.gen_range(-128..=127)).collect();
-        let acc_biases = (0..HIDDEN_LAYER_SIZE).map(|_| rng.gen_range(-128..=127)).collect();
-        let out_weights = (0..HIDDEN_LAYER_SIZE).map(|_| rng.gen_range(-128..=127)).collect();
-        let out_bias = rng.gen_range(-128..=127);
+            (0..INPUT_SIZE * HIDDEN_LAYER_SIZE).map(|_| rng.gen_range(-1.0..1.0)).collect();
+        let acc_biases = (0..HIDDEN_LAYER_SIZE).map(|_| rng.gen_range(-1.0..1.0)).collect();
+        let out_weights = (0..HIDDEN_LAYER_SIZE).map(|_| rng.gen_range(-1.0..1.0)).collect();
+        let out_bias = rng.gen_range(-1.0..1.0);
         Self { acc_weights, acc_biases, out_weights, out_bias }
     }
 
     pub fn filled(
-        acc_weight_val: i32,
-        acc_bias_val: i32,
-        out_weight_val: i32,
-        out_bias_val: i16,
+        acc_weight_val: f32,
+        acc_bias_val: f32,
+        out_weight_val: f32,
+        out_bias_val: f32,
     ) -> Self {
         Self {
             acc_weights: vec![acc_weight_val; INPUT_SIZE * HIDDEN_LAYER_SIZE],
@@ -66,7 +66,7 @@ impl Parameters {
 }
 
 pub struct NeuralNetwork {
-    pub acc: Vec<i32>,
+    pub acc: Vec<f32>,
     pub params: Parameters,
     pub last_seen_position: Option<Position>,
     pub last_result: i16,
@@ -74,11 +74,16 @@ pub struct NeuralNetwork {
 
 impl NeuralNetwork {
     pub fn new(params: Parameters) -> Self {
-        Self { acc: vec![0; HIDDEN_LAYER_SIZE], params, last_seen_position: None, last_result: 0 }
+        Self { acc: vec![0.0; HIDDEN_LAYER_SIZE], params, last_seen_position: None, last_result: 0 }
     }
 
     fn acc_index(piece: Piece, color: Color, square: Square) -> usize {
         (color as usize) * 64 * 6 + (piece as usize) * 64 + square as usize
+    }
+
+    pub fn activate(value: f32) -> f32 {
+        // Regular ReLU.
+        value.max(0.0)
     }
 
     fn set(&mut self, piece: Piece, color: Color, square: Square) {
@@ -95,17 +100,15 @@ impl NeuralNetwork {
         }
     }
 
-    fn forward(&self) -> i16 {
-        let mut eval: i32 = 0;
+    fn forward(&self) -> f32 {
+        let mut eval: f32 = 0.0;
 
         for i in 0..HIDDEN_LAYER_SIZE {
-            // Activate with a clipped ReLU, with bounds 0 and 255.
-            eval += (self.acc[i] + self.params.acc_biases[i])
-                .clamp(0, MAX_CLAMP)
-                .saturating_mul(self.params.out_weights[i]);
+            let hidden_out = Self::activate(self.acc[i] + self.params.acc_biases[i]);
+            eval += hidden_out * self.params.out_weights[i];
         }
 
-        (eval as i16).saturating_add(self.params.out_bias)
+        eval + self.params.out_bias
     }
 
     pub fn evaluate(&mut self, position: &Position) -> i16 {
@@ -133,10 +136,16 @@ impl NeuralNetwork {
             }
 
             self.last_seen_position = Some(*position);
-            let res = self.forward();
+            let res = (self.forward() * SCALE) as i16;
             self.last_result = res;
             res
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.acc.fill(0.0);
+        self.last_seen_position = None;
+        self.last_result = 0;
     }
 }
 
@@ -147,62 +156,62 @@ mod tests {
     #[test]
     fn accumulator1() {
         // Set all accumulator weights to 1, and biases to 0.
-        let params = Parameters::filled(1, 0, 0, 0);
+        let params = Parameters::filled(1.0, 0.0, 0.0, 0.0);
         let mut net = NeuralNetwork::new(params);
 
         // Independently of the square, all accumulator nodes will be fed with 1.
         net.set(Piece::Queen, Color::White, Square::E4);
 
-        net.acc.iter().for_each(|&x| assert_eq!(x, 1));
+        net.acc.iter().for_each(|&x| assert_eq!(x, 1.0));
     }
 
     #[test]
     fn accumulator2() {
         // Set all accumulator weights to 1, except for the White Queen on E4.
-        let mut params = Parameters::filled(1, 0, 0, 0);
+        let mut params = Parameters::filled(1.0, 0.0, 0.0, 0.0);
 
         let queen_e4_index = NeuralNetwork::acc_index(Piece::Queen, Color::White, Square::E4);
         for i in 0..HIDDEN_LAYER_SIZE {
-            params.acc_weights[queen_e4_index * HIDDEN_LAYER_SIZE + i] = 2;
+            params.acc_weights[queen_e4_index * HIDDEN_LAYER_SIZE + i] = 2.0;
         }
         let mut net = NeuralNetwork::new(params);
 
         net.set(Piece::Queen, Color::White, Square::E4);
-        net.acc.iter().for_each(|&x| assert_eq!(x, 2));
+        net.acc.iter().for_each(|&x| assert_eq!(x, 2.0));
 
         net.set(Piece::Rook, Color::White, Square::E4);
-        net.acc.iter().for_each(|&x| assert_eq!(x, 3));
+        net.acc.iter().for_each(|&x| assert_eq!(x, 3.0));
 
         net.clear(Piece::Queen, Color::White, Square::E4);
-        net.acc.iter().for_each(|&x| assert_eq!(x, 1));
+        net.acc.iter().for_each(|&x| assert_eq!(x, 1.0));
 
         net.clear(Piece::Rook, Color::White, Square::E4);
-        net.acc.iter().for_each(|&x| assert_eq!(x, 0));
+        net.acc.iter().for_each(|&x| assert_eq!(x, 0.0));
     }
 
     #[test]
     fn forward() {
         // Set all accumulator weights to 1, and biases to 0.
-        let params = Parameters::filled(1, 2, 1, 10);
+        let params = Parameters::filled(1.0, 2.0, 1.0, 10.0);
         let mut net = NeuralNetwork::new(params);
 
         // Set the Queen on E4, which will set all accumulators to 1.
         net.set(Piece::Queen, Color::White, Square::E4);
-        assert_eq!(net.forward(), HIDDEN_LAYER_SIZE as i16 * 3 + 10);
+        assert_eq!(net.forward(), HIDDEN_LAYER_SIZE as f32 * 3.0 + 10.0);
 
         // Set the Rook on E4, which will add 1 to all accumulators.
         net.set(Piece::Rook, Color::White, Square::E4);
-        assert_eq!(net.forward(), HIDDEN_LAYER_SIZE as i16 * 4 + 10);
+        assert_eq!(net.forward(), HIDDEN_LAYER_SIZE as f32 * 4.0 + 10.0);
     }
 
     #[test]
     fn evaluate() {
         // Set all weights to 1, except for the White Queen on E4.
-        let mut params = Parameters::filled(1, 0, 1, 0);
+        let mut params = Parameters::filled(1.0, 0.0, 1.0, 0.0);
 
         let queen_e4_index = NeuralNetwork::acc_index(Piece::Queen, Color::White, Square::E4);
         for i in 0..HIDDEN_LAYER_SIZE {
-            params.acc_weights[queen_e4_index * HIDDEN_LAYER_SIZE + i] = 2;
+            params.acc_weights[queen_e4_index * HIDDEN_LAYER_SIZE + i] = 2.0;
         }
         let mut net = NeuralNetwork::new(params);
 
