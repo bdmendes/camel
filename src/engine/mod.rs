@@ -60,7 +60,6 @@ pub enum Command {
     Help,
     Clear,
     Quit,
-    LabelEval,
 }
 
 pub struct Engine {
