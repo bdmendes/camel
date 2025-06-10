@@ -64,6 +64,11 @@ impl Parameters {
         let reader = std::io::BufReader::new(file);
         serde_json::from_reader(reader).map_err(std::io::Error::other)
     }
+
+    pub fn load_from_string(data: &str) -> std::io::Result<Self> {
+        serde_json::from_str(data)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+    }
 }
 
 pub struct NeuralNetwork {

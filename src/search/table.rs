@@ -1,6 +1,9 @@
 use super::{Depth, MAX_DEPTH};
 use crate::{
-    evaluation::{nnue::NeuralNetwork, Score, ValueScore},
+    evaluation::{
+        nnue::{NeuralNetwork, Parameters},
+        Score, ValueScore,
+    },
     moves::Move,
     position::Position,
 };
@@ -19,6 +22,11 @@ pub const DEFAULT_TABLE_SIZE_MB: usize = 64;
 
 const NULL_KILLER: u16 = u16::MAX;
 const NULL_TT_ENTRY: u64 = u64::MAX;
+
+// include "models/nnue-quiet-labeled.bin" string
+// from root, use CARGO_MANIFEST_DIR to get the path
+pub const NNUE_MODEL_STR: &str =
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/models/nnue-quiet-labeled.bin"));
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ScoreType {
@@ -165,7 +173,15 @@ impl SearchTable {
         Self {
             transposition: RwLock::new(TranspositionTable::new(size_mb)),
             killer_moves: array::from_fn(|_| AtomicU16::new(NULL_KILLER)),
+            nn: Mutex::new(NeuralNetwork::new(
+                Parameters::load_from_string(NNUE_MODEL_STR).unwrap(),
+            )),
         }
+    }
+
+    pub fn evaluate_nnue(&self, position: &Position) -> ValueScore {
+        let mut nn = self.nn.lock().unwrap();
+        nn.evaluate(position)
     }
 
     pub fn prepare_for_new_search(&self) {

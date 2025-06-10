@@ -1,6 +1,5 @@
 use crate::engine::{time::get_duration, Engine, DEFAULT_NUMBER_THREADS, MAX_THREADS};
 use camel::{
-    evaluation::Evaluable,
     moves::gen::{perft, MoveStage},
     position::{
         fen::{FromFen, ToFen, START_FEN},
@@ -88,9 +87,11 @@ pub fn execute_go(
         number_threads: engine.number_threads.clone(),
     };
 
+    let current_guess = engine.table.evaluate_nnue(&position);
+
     thread::spawn(move || {
         stop_now.store(false, Ordering::Release);
-        let current_guess = position.value() * position.side_to_move.sign();
+        let current_guess = current_guess * position.side_to_move.sign();
         pvs_aspiration_iterative(
             &position,
             current_guess,
@@ -195,7 +196,6 @@ pub fn execute_do_move(mov_str: &str, position: &mut Position) {
 pub fn execute_display(position: &Position) {
     print!("{}", position.board);
     println!("{}", position.to_fen());
-    println!("Static evaluation: {}", position.value());
     println!("Chess960: {}", position.is_chess960);
     println!(
         "{} to play.",

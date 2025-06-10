@@ -89,7 +89,7 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
 ) -> (ValueScore, usize) {
     // Max depth reached; search for quiet position
     if depth == 0 {
-        return quiesce::quiesce(position, alpha, beta, constraint, ply);
+        return quiesce::quiesce(position, alpha, beta, constraint, ply, &table);
     }
 
     // Time limit reached
@@ -216,7 +216,8 @@ fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
                 } else {
                     0
                 };
-            if static_evaluation.get_or_init(|| position.value() * position.side_to_move.sign())
+            if static_evaluation
+                .get_or_init(|| table.evaluate_nnue(position) * position.side_to_move.sign())
                 + move_potential
                 < alpha
             {

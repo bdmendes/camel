@@ -2,6 +2,7 @@ use super::{constraint::SearchConstraint, movepick::MovePicker, see, Depth};
 use crate::{
     evaluation::{Evaluable, ValueScore, MATE_SCORE},
     position::{board::Piece, Position},
+    search::table::SearchTable,
 };
 
 pub fn quiesce(
@@ -10,6 +11,7 @@ pub fn quiesce(
     beta: ValueScore,
     constraint: &SearchConstraint,
     ply: Depth,
+    table: &SearchTable,
 ) -> (ValueScore, usize) {
     // Time limit reached
     if constraint.should_stop_search() {
@@ -22,7 +24,7 @@ pub fn quiesce(
     let static_evaluation = if is_check {
         alpha
     } else {
-        let static_evaluation = position.value() * position.side_to_move.sign();
+        let static_evaluation = table.evaluate_nnue(position) * position.side_to_move.sign();
 
         // Standing pat: captures are not forced
         alpha = alpha.max(static_evaluation);
@@ -64,8 +66,14 @@ pub fn quiesce(
             }
         }
 
-        let (score, nodes) =
-            quiesce(&position.make_move(mov), -beta, -alpha, constraint, ply.saturating_add(1));
+        let (score, nodes) = quiesce(
+            &position.make_move(mov),
+            -beta,
+            -alpha,
+            constraint,
+            ply.saturating_add(1),
+            table,
+        );
         let score = -score;
         count += nodes;
 

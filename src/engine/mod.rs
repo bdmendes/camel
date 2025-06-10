@@ -60,7 +60,6 @@ pub enum Command {
     Help,
     Clear,
     Quit,
-    Tune,
     LabelEval,
 }
 
