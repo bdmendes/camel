@@ -77,7 +77,7 @@ fn pvs_recurse<const MAIN_THREAD: bool>(
     (-score, count)
 }
 
-fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
+pub fn pvs<const ROOT: bool, const MAIN_THREAD: bool, const ALLOW_NMR: bool>(
     position: &mut Position,
     mut depth: Depth,
     mut alpha: ValueScore,
