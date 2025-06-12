@@ -1,8 +1,8 @@
-use crate::position::{board::Piece, Color};
-
 pub mod moves;
-pub mod position;
+pub mod nnue;
 pub mod psqt;
+
+use crate::position::{board::Piece, Color};
 
 pub type ValueScore = i16;
 

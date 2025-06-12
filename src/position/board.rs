@@ -18,12 +18,12 @@ static ZOBRIST_NUMBERS: [ZobristHash; ZOBRIST_NUMBERS_SIZE] = {
 
 primitive_enum!(
     Piece u8;
-    Queen,
-    Rook,
-    Bishop,
-    Knight,
     Pawn,
-    King
+    Knight,
+    Bishop,
+    Rook,
+    Queen,
+    King,
 );
 
 #[derive(Hash, PartialEq, Copy, Clone, Debug)]

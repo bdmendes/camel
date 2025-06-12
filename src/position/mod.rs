@@ -2,9 +2,12 @@ use self::{
     board::{Board, ZobristHash},
     square::Square,
 };
-use crate::moves::{
-    gen::{generate_moves, king_square_attackers, MoveStage},
-    make_move, Move,
+use crate::{
+    moves::{
+        gen::{generate_moves, king_square_attackers, MoveStage},
+        make_move, Move,
+    },
+    position::board::Piece,
 };
 use bitflags::bitflags;
 use primitive_enum::primitive_enum;
@@ -13,6 +16,14 @@ pub mod bitboard;
 pub mod board;
 pub mod fen;
 pub mod square;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PositionDiffEntry {
+    Set(Square, Piece, Color),
+    Clear(Square, Piece, Color),
+}
+
+pub type PositionDiffVec = Vec<PositionDiffEntry>;
 
 primitive_enum!(
     Color u8;
@@ -81,5 +92,29 @@ impl Position {
 
     pub fn is_check(&self) -> bool {
         king_square_attackers::<true>(&self.board, self.side_to_move.opposite()).is_not_empty()
+    }
+
+    pub fn diff(&self, other: &Self) -> PositionDiffVec {
+        let mut diff = PositionDiffVec::new();
+        for square in Square::list() {
+            let ours = self.board.piece_color_at(*square);
+            let theirs = other.board.piece_color_at(*square);
+            match (ours, theirs) {
+                (Some((piece, color)), None) => {
+                    diff.push(PositionDiffEntry::Set(*square, piece, color))
+                }
+                (None, Some((piece, color))) => {
+                    diff.push(PositionDiffEntry::Clear(*square, piece, color))
+                }
+                (Some((piece1, color1)), Some((piece2, color2)))
+                    if piece1 != piece2 || color1 != color2 =>
+                {
+                    diff.push(PositionDiffEntry::Set(*square, piece1, color1));
+                    diff.push(PositionDiffEntry::Clear(*square, piece2, color2));
+                }
+                _ => {}
+            }
+        }
+        diff
     }
 }

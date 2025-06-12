@@ -1,7 +1,5 @@
 use std::collections::VecDeque;
 
-use camel::{labeler::label_quiet_epd, tuner::texel_tune};
-
 use self::{
     executor::{
         execute_all_moves, execute_clear, execute_debug, execute_display, execute_do_move,
@@ -43,8 +41,6 @@ pub fn parse_command(input: &str) -> Result<Command, ()> {
         "help" | "h" => Ok(Command::Help),
         "clear" | "c" => Ok(Command::Clear),
         "quit" | "q" => Ok(Command::Quit),
-        "tune" => Ok(Command::Tune),
-        "label" => Ok(Command::LabelEval),
         _ => Err(()),
     }
 }
@@ -82,16 +78,10 @@ pub fn execute_command(command: Command, engine: &mut Engine) {
         Command::Smp => execute_smp(engine),
         Command::Perft(depth) => execute_perft(depth, &engine.position),
         Command::DoMove { mov_str } => execute_do_move(&mov_str, &mut engine.position),
-        Command::Display => execute_display(&engine.position),
+        Command::Display => execute_display(engine),
         Command::ListMoves => execute_all_moves(&engine.position),
         Command::Help => execute_help(),
         Command::Clear => execute_clear(),
         Command::Quit => execute_quit(),
-        Command::Tune => {
-            texel_tune();
-        }
-        Command::LabelEval => {
-            label_quiet_epd();
-        }
     }
 }

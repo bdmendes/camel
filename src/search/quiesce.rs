@@ -1,7 +1,8 @@
 use super::{constraint::SearchConstraint, movepick::MovePicker, see, Depth};
 use crate::{
-    evaluation::{position::MAX_POSITIONAL_GAIN, Evaluable, ValueScore, MATE_SCORE},
+    evaluation::{Evaluable, ValueScore, MATE_SCORE},
     position::{board::Piece, Position},
+    search::table::SearchTable,
 };
 
 pub fn quiesce(
@@ -10,6 +11,7 @@ pub fn quiesce(
     beta: ValueScore,
     constraint: &SearchConstraint,
     ply: Depth,
+    table: &SearchTable,
 ) -> (ValueScore, usize) {
     // Time limit reached
     if constraint.should_stop_search() {
@@ -22,7 +24,7 @@ pub fn quiesce(
     let static_evaluation = if is_check {
         alpha
     } else {
-        let static_evaluation = position.value() * position.side_to_move.sign();
+        let static_evaluation = table.evaluate_nnue(position) * position.side_to_move.sign();
 
         // Standing pat: captures are not forced
         alpha = alpha.max(static_evaluation);
@@ -54,7 +56,7 @@ pub fn quiesce(
         if !is_check && mov.flag().is_capture() {
             // Delta pruning: this capture cannot improve the score in any way.
             let captured_piece = position.board.piece_at(mov.to()).unwrap_or(Piece::Pawn);
-            if static_evaluation + captured_piece.value() + MAX_POSITIONAL_GAIN < alpha {
+            if static_evaluation + captured_piece.value() + 200 < alpha {
                 continue;
             }
 
@@ -64,8 +66,14 @@ pub fn quiesce(
             }
         }
 
-        let (score, nodes) =
-            quiesce(&position.make_move(mov), -beta, -alpha, constraint, ply.saturating_add(1));
+        let (score, nodes) = quiesce(
+            &position.make_move(mov),
+            -beta,
+            -alpha,
+            constraint,
+            ply.saturating_add(1),
+            table,
+        );
         let score = -score;
         count += nodes;
 

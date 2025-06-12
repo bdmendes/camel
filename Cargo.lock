@@ -52,6 +52,8 @@ dependencies = [
  "primitive_enum",
  "rand",
  "rayon",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
