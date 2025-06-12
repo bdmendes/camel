@@ -2,19 +2,21 @@ use crate::{
     evaluation::Evaluable,
     position::{
         fen::{FromFen, ToFen},
-        Color, Position,
+        Position,
     },
-    search::{constraint::SearchConstraint, pvs::pvs_aspiration, table::SearchTable, Depth},
+    search::{
+        constraint::SearchConstraint, history::BranchHistory, pvs::pvs, table::SearchTable, Depth,
+    },
 };
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::{
-    collections::HashSet,
+    collections::HashMap,
     fs::{read_to_string, OpenOptions},
     io::Write,
     sync::Arc,
 };
 
-const EVAL_DEPTH: Depth = 6;
+const EVAL_DEPTH: Depth = 7;
 
 pub fn label_quiet_epd() {
     let positions: Vec<Position> = {
@@ -33,8 +35,6 @@ pub fn label_quiet_epd() {
             .collect()
     };
 
-    let mut seen = HashSet::<u64>::new();
-
     let table = Arc::new(SearchTable::new(2048));
     let constraint = SearchConstraint::default();
 
@@ -45,28 +45,37 @@ pub fn label_quiet_epd() {
         .open(concat!(env!("CARGO_MANIFEST_DIR"), "/books/quiet-evaluated-filtered-camelv1.epd"))
         .unwrap();
 
-    positions.iter().enumerate().for_each(|(i, p)| {
-        let static_eval = p.value();
-        let eval = {
-            let ours =
-                pvs_aspiration::<false>(p, static_eval, EVAL_DEPTH, table.clone(), &constraint)
-                    .unwrap()
-                    .0;
-            match p.side_to_move {
-                Color::White => ours.cp(),
-                Color::Black => -ours.cp(),
-            }
-        };
-        let diff = eval.saturating_sub(static_eval).unsigned_abs();
-        let fen = p.to_fen();
-        let hash = p.zobrist_hash();
+    let mut counter: u64 = 0;
+    let data: HashMap<String, i16> = positions
+        .iter()
+        .filter_map(|p| {
+            let static_eval = p.value();
+            let eval = pvs::<true, true, false>(
+                &mut p.clone(),
+                EVAL_DEPTH,
+                -20000,
+                20000,
+                table.clone(),
+                &constraint,
+                &mut BranchHistory(Vec::new()),
+                0,
+            )
+            .0 * p.side_to_move.sign();
+            let diff = eval.saturating_sub(static_eval).unsigned_abs();
+            let fen = p.to_fen();
 
-        if seen.contains(&hash) || diff >= 200 {
-            println!("/{}/ {}: not included ({})", i, fen, diff);
-        } else {
-            println!("[{}] {} cp \"{}\";", i, fen, eval);
-            writeln!(&mut file, "{} cp \"{}\";", fen, eval).unwrap();
-            seen.insert(hash);
-        }
-    });
+            counter += 1;
+
+            if diff < 200 && eval.abs() < 2000 {
+                println!("[{}] fen: {}, eval: {}, diff: {}", counter, fen, eval, diff);
+                Some((fen, eval))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    for (fen, eval) in data {
+        writeln!(&mut file, "{} cp \"{}\";", fen, eval).unwrap();
+    }
 }
