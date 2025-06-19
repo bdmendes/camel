@@ -7,7 +7,7 @@ edition = "2021"
 bitflags = "2.5.0"
 primitive_enum = "1.2.0"
 derive_more = "0.99.17"
-rand = "0.8.5"
+rand = "0.9.1"
 ctor = "0.2.8"
 rayon = "1.10.0"
 
