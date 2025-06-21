@@ -60,6 +60,11 @@ enum Command {
     },
     /// Search from the current position.
     Go { subcommands: Vec<String> },
+    /// Set an engine option.
+    Setoption {
+        #[command(subcommand)]
+        name: SetoptionNameCommand,
+    },
     /// Statically evaluate the current position.
     Evaluate,
     /// List the moves available in the current position.
@@ -94,13 +99,35 @@ enum PositionCommand {
 enum PositionStartposCommand {
     /// A sequence of moves from the start position in long algebraic notation. For example, "e4e5 g8f6".
     Moves {
-        /// The sequence of moves after the starting position.
+        /// The sequence of moves.
         moves: Vec<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum SetoptionNameCommand {
+    /// The name of the option.
+    Name {
+        /// The name of the option.
+        name: String,
+
+        #[command(subcommand)]
+        value: SetoptionValueCommand,
+    },
+}
+
+#[derive(Subcommand)]
+enum SetoptionValueCommand {
+    /// The value of the option.
+    Value {
+        /// The value of the option.
+        value: String,
     },
 }
 
 fn main() {
     let mut engine = Engine::default();
+    println!("Camel {} by Bruno Mendes", env!("CARGO_PKG_VERSION"));
 
     let rl = ClapEditor::<Command>::builder()
         .with_prompt(Box::new(EmptyPrompt))
@@ -133,6 +160,14 @@ fn main() {
         Command::Go { subcommands: _ } => {
             println!("Search is not yet implemented. Please use Camel 1.6.0 in the meantime!")
         }
+        Command::Setoption { name } => match name {
+            SetoptionNameCommand::Name { name, value } => match value {
+                SetoptionValueCommand::Value { value } => match (name.as_str(), value.as_str()) {
+                    ("UCI_Chess960", _) => (),
+                    _ => print!("Invalid option."),
+                },
+            },
+        },
         Command::Evaluate => println!("{}cp", engine.evaluator.evaluate(&engine.position)),
         Command::List => {
             let moves = engine.position.moves(MoveStage::All);
