@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 serde = { version = "1.0.219", features = ["derive"] }
-ctor = "0.2.8"
+ctor = "0.4.2"
 derive_more = { version = "1.0.0", features = ["full"] }
 primitive_enum = "1.2.0"
 rand = "0.9.0"
