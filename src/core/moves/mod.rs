@@ -1,4 +1,4 @@
-use crate::core::{piece::Piece, square::Square};
+use crate::core::position::{piece::Piece, square::Square};
 
 use primitive_enum::primitive_enum;
 use std::fmt::Display;
@@ -84,9 +84,9 @@ impl Display for Move {
 mod tests {
     use super::{Move, MoveFlag};
     use crate::core::moves::MoveFlag::*;
-    use crate::core::piece::Piece::*;
-    use crate::core::square::Square::*;
-    use crate::core::{piece::Piece, square::Square};
+    use crate::core::position::piece::Piece::*;
+    use crate::core::position::square::Square::*;
+    use crate::core::position::{piece::Piece, square::Square};
 
     #[test]
     fn pack_unpack() {

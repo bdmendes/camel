@@ -1,4 +1,4 @@
-use crate::core::{MoveStage, Position};
+use crate::core::position::{MoveStage, Position};
 
 use super::{Move, generate::generate_moves, make::make_move};
 
@@ -27,7 +27,8 @@ pub fn perft<const DIVIDE: bool>(position: &Position, depth: u8) -> (u64, Vec<(M
 
 #[cfg(test)]
 mod tests {
-    use crate::core::{Position, fen::Fen, moves::perft::perft};
+    use super::perft;
+    use crate::core::position::{Position, fen::Fen};
     use rstest::rstest;
 
     #[rstest]

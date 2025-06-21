@@ -100,7 +100,9 @@ impl ZobristHash {
 #[cfg(test)]
 mod tests {
     use super::ZobristHash;
-    use crate::core::{castling_rights::CastlingSide, color::Color, piece::Piece, square::Square};
+    use crate::core::position::{
+        castling_rights::CastlingSide, color::Color, piece::Piece, square::Square,
+    };
     use std::collections::HashSet;
 
     #[test]

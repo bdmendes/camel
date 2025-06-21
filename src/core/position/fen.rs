@@ -222,7 +222,7 @@ mod tests {
 
     use rstest::rstest;
 
-    use crate::core::{
+    use crate::core::position::{
         Position,
         castling_rights::CastlingRights,
         color::Color,

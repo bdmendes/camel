@@ -1,6 +1,6 @@
 use crate::{
     core::moves::{Move, MoveFlag},
-    core::{
+    core::position::{
         MoveStage, Position,
         bitboard::Bitboard,
         color::Color,
@@ -40,7 +40,7 @@ static DOUBLE_RANKS: [[Bitboard; 3]; 2] = {
 };
 
 fn pawn_moves_front(position: &Position, stage: MoveStage, moves: &mut MoveVec) {
-    let our_pawns = position.pieces_color_bb(Piece::Pawn, position.side_to_move);
+    let our_pawns = position.pieces_color_bb(Piece::Pawn, position.side_to_move());
     let walk = our_pawns.shifted(PAWN_DIRECTIONS[position.side_to_move() as usize])
         & !position.occupancy_bb_all()
         & match stage {
@@ -69,7 +69,7 @@ fn pawn_moves_double(position: &Position, stage: MoveStage, moves: &mut MoveVec)
         return;
     }
 
-    let our_pawns = position.pieces_color_bb(Piece::Pawn, position.side_to_move);
+    let our_pawns = position.pieces_color_bb(Piece::Pawn, position.side_to_move());
     let occupancy = position.occupancy_bb_all();
 
     let ranks = DOUBLE_RANKS[position.side_to_move() as usize];

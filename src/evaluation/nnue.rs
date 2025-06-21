@@ -1,5 +1,7 @@
+use std::str::FromStr;
+
 use crate::{
-    core::{Position, PositionDiffEntry, color::Color, piece::Piece, square::Square},
+    core::position::{Position, PositionDiffEntry, color::Color, piece::Piece, square::Square},
     evaluation::ValueScore,
 };
 use rand::Rng;
@@ -70,11 +72,13 @@ impl Parameters {
         let writer = std::io::BufWriter::new(file);
         serde_json::to_writer(writer, self).map_err(std::io::Error::other)
     }
+}
 
-    pub fn load(path: &str) -> std::io::Result<Self> {
-        let file = std::fs::File::open(path)?;
-        let reader = std::io::BufReader::new(file);
-        serde_json::from_reader(reader).map_err(std::io::Error::other)
+impl FromStr for Parameters {
+    type Err = serde_json::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(s)
     }
 }
 

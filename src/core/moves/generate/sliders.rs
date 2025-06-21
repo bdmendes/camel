@@ -1,6 +1,6 @@
 use crate::{
     core::moves::{Move, MoveFlag},
-    core::{
+    core::position::{
         MoveStage, Position,
         bitboard::Bitboard,
         color::Color,
@@ -123,7 +123,7 @@ mod tests {
             sliders::{diagonal_attackers, file_attackers},
             tests::assert_staged_moves,
         },
-        core::{Position, bitboard::Bitboard, color::Color, square::Square},
+        core::position::{Position, bitboard::Bitboard, color::Color, square::Square},
     };
     use std::str::FromStr;
 
