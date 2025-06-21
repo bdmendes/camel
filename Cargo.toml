@@ -5,6 +5,8 @@ edition = "2024"
 
 [dependencies]
 arrayvec = "0.7.6"
+clap = { version = "4.5.40", features = ["derive"] }
+clap-repl = "0.3.2"
 ctor = "0.4.2"
 derive_more = { version = "2.0.1", features = ["full"] }
 primitive_enum = "1.2.0"
@@ -20,7 +22,5 @@ opt-level = 1
 
 [profile.release]
 opt-level = 3
-lto = "fat"
-codegen-units = 1
 panic = "abort"
 strip = "debuginfo"
