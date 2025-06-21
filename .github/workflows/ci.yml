@@ -31,6 +31,11 @@ jobs:
       - name: Lint Rust
         run: cargo clippy --verbose -- -D warnings
 
+      - name: Lint Cargo.toml
+        run: |
+          cargo install cargo-sort
+          cargo sort --check
+
       - name: Lint Shell
         uses: ludeeus/action-shellcheck@2.0.0
 
