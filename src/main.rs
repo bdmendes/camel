@@ -3,7 +3,7 @@ use std::{process, str::FromStr};
 use clap::{Parser, Subcommand};
 use clap_repl::{
     ClapEditor,
-    reedline::{DefaultPrompt, DefaultPromptSegment},
+    reedline::{self},
 };
 
 use crate::{
@@ -14,13 +14,41 @@ use crate::{
     engine::Engine,
 };
 
-#[allow(dead_code)]
 pub mod core;
 pub mod engine;
-#[allow(dead_code)]
 pub mod evaluation;
 #[allow(dead_code)]
 pub mod search;
+
+struct EmptyPrompt;
+
+impl reedline::Prompt for EmptyPrompt {
+    fn render_prompt_left(&self) -> std::borrow::Cow<str> {
+        "".into()
+    }
+
+    fn render_prompt_right(&self) -> std::borrow::Cow<str> {
+        "".into()
+    }
+
+    fn render_prompt_indicator(
+        &self,
+        _prompt_mode: reedline::PromptEditMode,
+    ) -> std::borrow::Cow<str> {
+        "".into()
+    }
+
+    fn render_prompt_multiline_indicator(&self) -> std::borrow::Cow<str> {
+        "".into()
+    }
+
+    fn render_prompt_history_search_indicator(
+        &self,
+        _history_search: reedline::PromptHistorySearch,
+    ) -> std::borrow::Cow<str> {
+        "".into()
+    }
+}
 
 #[derive(Parser)]
 #[command(name = "")]
@@ -32,6 +60,11 @@ enum Command {
     },
     /// Search from the current position.
     Go { subcommands: Vec<String> },
+    /// Set an engine option.
+    Setoption {
+        #[command(subcommand)]
+        name: SetoptionNameCommand,
+    },
     /// Statically evaluate the current position.
     Evaluate,
     /// List the moves available in the current position.
@@ -40,6 +73,8 @@ enum Command {
     Display,
     /// Respond when available.
     Isready,
+    /// Identify the engine.
+    Uci,
     /// Exit the process.
     Exit,
 }
@@ -62,22 +97,40 @@ enum PositionCommand {
 
 #[derive(Subcommand)]
 enum PositionStartposCommand {
-    /// Set a position from a sequence of moves from the start position in long algebraic notation. For example, "e4e5 g8f6".
+    /// A sequence of moves from the start position in long algebraic notation. For example, "e4e5 g8f6".
     Moves {
-        /// The sequence of moves after the starting position.
+        /// The sequence of moves.
         moves: Vec<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum SetoptionNameCommand {
+    /// The name of the option.
+    Name {
+        /// The name of the option.
+        name: String,
+
+        #[command(subcommand)]
+        value: SetoptionValueCommand,
+    },
+}
+
+#[derive(Subcommand)]
+enum SetoptionValueCommand {
+    /// The value of the option.
+    Value {
+        /// The value of the option.
+        value: String,
     },
 }
 
 fn main() {
     let mut engine = Engine::default();
+    println!("Camel {} by Bruno Mendes", env!("CARGO_PKG_VERSION"));
 
-    let prompt = DefaultPrompt {
-        left_prompt: DefaultPromptSegment::Basic("camel".to_string()),
-        right_prompt: DefaultPromptSegment::Empty,
-    };
     let rl = ClapEditor::<Command>::builder()
-        .with_prompt(Box::new(prompt))
+        .with_prompt(Box::new(EmptyPrompt))
         .build();
     rl.repl(|cmd| match cmd {
         Command::Position { subcommand } => match subcommand {
@@ -107,6 +160,14 @@ fn main() {
         Command::Go { subcommands: _ } => {
             println!("Search is not yet implemented. Please use Camel 1.6.0 in the meantime!")
         }
+        Command::Setoption { name } => match name {
+            SetoptionNameCommand::Name { name, value } => match value {
+                SetoptionValueCommand::Value { value } => match (name.as_str(), value.as_str()) {
+                    ("UCI_Chess960", _) => (),
+                    _ => print!("Invalid option."),
+                },
+            },
+        },
         Command::Evaluate => println!("{}cp", engine.evaluator.evaluate(&engine.position)),
         Command::List => {
             let moves = engine.position.moves(MoveStage::All);
@@ -121,6 +182,23 @@ fn main() {
         }
         Command::Display => print!("{}", engine.position),
         Command::Isready => println!("readyok"),
+        Command::Uci => {
+            println!("id name Camel {}", env!("CARGO_PKG_VERSION"));
+            println!("id author Bruno Mendes");
+
+            //println!(
+            //    "option name Threads type spin default {} min 1 max {}",
+            //    DEFAULT_NUMBER_THREADS, MAX_THREADS
+            //);
+            //println!(
+            //    "option name Hash type spin default {} min {} max {}",
+            //    DEFAULT_TABLE_SIZE_MB, MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB
+            //);
+            println!("option name UCI_Chess960 type check default true",);
+            //println!("option name Ponder type check default true",);
+
+            println!("uciok");
+        }
         Command::Exit => process::exit(0),
     });
 }
