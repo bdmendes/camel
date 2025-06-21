@@ -31,7 +31,7 @@ fn main() {
                 let evaluation = net.evaluate(&position);
                 println!("Evaluation: {}", evaluation);
             }
-            Err(e) => {
+            Err(_) => {
                 println!("Error parsing FEN.");
             }
         }
