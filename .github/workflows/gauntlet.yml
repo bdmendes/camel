@@ -11,11 +11,14 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  upstream_gauntlet:
+  gauntlet:
     if: false # FIXME: Re-enable once v2 is ready to play.
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+    strategy:
+      matrix:
+        target: [upstream, release]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -24,52 +27,28 @@ jobs:
       - name: Set up script permissions
         run: chmod +x ./scripts/gauntlet.sh
 
-      - name: Set up local master branch
-        run: git fetch origin master:master
-
-      - name: Run script and collect results
-        env:
-          CURRENT_BRANCH: ${{ github.head_ref }}
+      - name: Set up reference branch
         run: |
-          ./scripts/gauntlet.sh || echo "GAUNTLET_FAILED=1" >> $GITHUB_ENV
-
-      - uses: mshick/add-pr-comment@v2
-        with:
-          message-path: fast-chess/message.txt
-          message-id: upstream
-
-      - name: Fail if gauntlet failed
-        run: |
-          if [ -n "$GAUNTLET_FAILED" ]; then
-            exit 1
+          if [ "${{ matrix.target }}" == "upstream" ]; then
+            git fetch origin master:master
+          else
+            git fetch origin $(git describe --tags --abbrev=0)
           fi
 
-  release_gauntlet:
-    if: false # FIXME: Re-enable once v2 is ready to play.
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Set up script permissions
-        run: chmod +x ./scripts/gauntlet.sh
-
-      - name: Set up local release tag
-        run: git fetch origin $(git describe --tags --abbrev=0)
-
       - name: Run script and collect results
         env:
           CURRENT_BRANCH: ${{ github.head_ref }}
         run: |
-          ./scripts/gauntlet.sh $(git describe --tags --abbrev=0) || echo "GAUNTLET_FAILED=1" >> $GITHUB_ENV
+          if [ "${{ matrix.target }}" == "upstream" ]; then
+            ./scripts/gauntlet.sh || echo "GAUNTLET_FAILED=1" >> $GITHUB_ENV
+          else
+            ./scripts/gauntlet.sh $(git describe --tags --abbrev=0) || echo "GAUNTLET_FAILED=1" >> $GITHUB_ENV
+          fi
 
       - uses: mshick/add-pr-comment@v2
         with:
           message-path: fast-chess/message.txt
-          message-id: release
+          message-id: ${{ matrix.target }}
 
       - name: Fail if gauntlet failed
         run: |
