@@ -31,6 +31,12 @@ jobs:
       - name: Lint Rust
         run: cargo clippy --verbose -- -D warnings
 
+      - name: Install cargo-sort
+        uses: taiki-e/install-action@cargo-sort
+
+      - name: Lint Cargo.toml
+        run: cargo sort --check
+
       - name: Lint Shell
         uses: ludeeus/action-shellcheck@2.0.0
 

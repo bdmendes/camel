@@ -1,4 +1,7 @@
-use crate::core::{Position, PositionDiffEntry, color::Color, piece::Piece, square::Square};
+use crate::{
+    core::{Position, PositionDiffEntry, color::Color, piece::Piece, square::Square},
+    evaluation::ValueScore,
+};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
@@ -76,19 +79,17 @@ impl Parameters {
 }
 
 pub struct NeuralNetwork {
-    pub acc: Vec<f32>,
     pub params: Parameters,
-    pub last_seen_position: Option<Position>,
-    pub last_result: i16,
+    pub acc: Vec<f32>,
+    pub last_seen: Option<(Position, f32)>,
 }
 
 impl NeuralNetwork {
     pub fn new(params: Parameters) -> Self {
         Self {
-            acc: vec![0.0; HIDDEN_LAYER_SIZE],
             params,
-            last_seen_position: None,
-            last_result: 0,
+            acc: vec![0.0; HIDDEN_LAYER_SIZE],
+            last_seen: None,
         }
     }
 
@@ -126,12 +127,17 @@ impl NeuralNetwork {
         eval + self.params.out_bias
     }
 
-    pub fn evaluate(&mut self, position: &Position) -> i16 {
-        if Some(position.hash()) == self.last_seen_position.map(|p| p.hash()) {
-            self.last_result
-        } else {
-            if let Some(last_position) = self.last_seen_position {
-                let diff = position.diff(&last_position);
+    fn forward_and_cache(&mut self, position: &Position) -> f32 {
+        let res = self.forward();
+        self.last_seen = Some((*position, res));
+        res
+    }
+
+    fn evaluate_unscaled(&mut self, position: &Position) -> f32 {
+        match self.last_seen {
+            Some((last_seen, score)) if last_seen.hash() == position.hash() => score,
+            Some((last_seen, _)) => {
+                let diff = position.diff(&last_seen);
                 for e in diff {
                     match e {
                         PositionDiffEntry::Set(square, piece, color) => {
@@ -142,25 +148,21 @@ impl NeuralNetwork {
                         }
                     }
                 }
-            } else {
+                self.forward_and_cache(position)
+            }
+            _ => {
                 for square in Square::list() {
                     if let Some((piece, color)) = position.piece_color_at(*square) {
                         self.set(piece, color, *square);
                     }
                 }
+                self.forward_and_cache(position)
             }
-
-            self.last_seen_position = Some(*position);
-            let res = (self.forward() * SCALE) as i16;
-            self.last_result = res;
-            res
         }
     }
 
-    pub fn reset(&mut self) {
-        self.acc.fill(0.0);
-        self.last_seen_position = None;
-        self.last_result = 0;
+    pub fn evaluate(&mut self, position: &Position) -> ValueScore {
+        (self.evaluate_unscaled(position) * SCALE) as ValueScore
     }
 }
 
@@ -230,17 +232,30 @@ mod tests {
         }
         let mut net = NeuralNetwork::new(params);
 
+        assert_eq!(net.last_seen, None);
+
         let mut position = Position::default();
         position.set_square(Square::E4, Piece::Queen, Color::White);
 
-        assert_eq!(net.evaluate(&position), 2 * HIDDEN_LAYER_SIZE as i16);
+        assert_eq!(
+            net.evaluate_unscaled(&position),
+            2.0 * HIDDEN_LAYER_SIZE as f32
+        );
 
-        assert_eq!(net.evaluate(&position), 2 * HIDDEN_LAYER_SIZE as i16);
+        assert_eq!(
+            net.last_seen,
+            Some((position, 2.0 * HIDDEN_LAYER_SIZE as f32))
+        );
+
+        assert_eq!(
+            net.evaluate_unscaled(&position),
+            2.0 * HIDDEN_LAYER_SIZE as f32
+        );
 
         position.clear_square(Square::E4);
-        assert_eq!(net.evaluate(&position), 0);
+        assert_eq!(net.evaluate_unscaled(&position), 0.0);
 
         position.set_square(Square::E4, Piece::Rook, Color::White);
-        assert_eq!(net.evaluate(&position), HIDDEN_LAYER_SIZE as i16);
+        assert_eq!(net.evaluate_unscaled(&position), HIDDEN_LAYER_SIZE as f32);
     }
 }

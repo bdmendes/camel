@@ -4,16 +4,16 @@ version = "2.0.0-alpha"
 edition = "2024"
 
 [dependencies]
-serde = { version = "1.0.219", features = ["derive"] }
-ctor = "0.2.8"
-derive_more = { version = "1.0.0", features = ["full"] }
-primitive_enum = "1.2.0"
-rand = "0.9.0"
 arrayvec = "0.7.6"
+ctor = "0.4.2"
+derive_more = { version = "2.0.1", features = ["full"] }
+primitive_enum = "1.2.0"
+rand = "0.9.1"
+serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 
 [dev-dependencies]
-rstest = "0.23.0"
+rstest = "0.25.0"
 
 [profile.dev]
 opt-level = 1
