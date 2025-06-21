@@ -1,17 +1,17 @@
 use crate::{
     core::moves::{Move, MoveFlag},
     core::{
+        MoveStage, Position,
         bitboard::Bitboard,
         color::Color,
         piece::Piece,
         square::{Direction, Square},
-        MoveStage, Position,
     },
 };
 
 use super::{
-    magics::{bishop_attacks, queen_attacks, rook_attacks},
     MoveVec,
+    magics::{bishop_attacks, queen_attacks, rook_attacks},
 };
 
 pub static ROOK_MOVE_DIRECTIONS: [Direction; 4] =
@@ -119,17 +119,17 @@ pub fn queen_moves(position: &Position, stage: MoveStage, moves: &mut MoveVec) {
 #[cfg(test)]
 mod tests {
     use crate::{
-        core::moves::gen::{
+        core::moves::generate::{
             sliders::{diagonal_attackers, file_attackers},
             tests::assert_staged_moves,
         },
-        core::{bitboard::Bitboard, color::Color, square::Square, Position},
+        core::{Position, bitboard::Bitboard, color::Color, square::Square},
     };
     use std::str::FromStr;
 
     use super::{
-        bishop_moves, queen_moves, rook_moves, slider_attacks_from_square, BISHOP_MOVE_DIRECTIONS,
-        ROOK_MOVE_DIRECTIONS,
+        BISHOP_MOVE_DIRECTIONS, ROOK_MOVE_DIRECTIONS, bishop_moves, queen_moves, rook_moves,
+        slider_attacks_from_square,
     };
 
     #[test]
@@ -210,7 +210,11 @@ mod tests {
         assert_staged_moves(
             "4k1nr/p1q1ppb1/6p1/nrpPP2p/1pp2Pb1/5N2/PP2B1PP/RNBQ1RK1 w k - 2 16",
             bishop_moves,
-            [vec!["c1d2", "c1e3", "e2d3", "e2c4"], vec!["e2c4"], vec!["c1d2", "c1e3", "e2d3"]],
+            [
+                vec!["c1d2", "c1e3", "e2d3", "e2c4"],
+                vec!["e2c4"],
+                vec!["c1d2", "c1e3", "e2d3"],
+            ],
         );
     }
 
@@ -224,7 +228,9 @@ mod tests {
                     "a1b1", "a1a2", "a1a3", "a1a4", "f1e1", "f1f2", "f1f3", "f1f4", "f1f5", "a1a5",
                 ],
                 vec!["f1f5", "a1a5"],
-                vec!["a1b1", "a1a2", "a1a3", "a1a4", "f1e1", "f1f2", "f1f3", "f1f4"],
+                vec![
+                    "a1b1", "a1a2", "a1a3", "a1a4", "f1e1", "f1f2", "f1f3", "f1f4",
+                ],
             ],
         );
     }
@@ -235,9 +241,13 @@ mod tests {
             "4kr2/2q1ppb1/3P1n2/npp1PpNp/1pp3b1/2N5/1P2B1PP/R1BQ1RK1 b - - 0 21",
             queen_moves,
             [
-                vec!["c7c6", "c7c8", "c7d7", "c7b7", "c7a7", "c7b8", "c7b6", "c7d8", "c7d6"],
+                vec![
+                    "c7c6", "c7c8", "c7d7", "c7b7", "c7a7", "c7b8", "c7b6", "c7d8", "c7d6",
+                ],
                 vec!["c7d6"],
-                vec!["c7c6", "c7c8", "c7d7", "c7b7", "c7a7", "c7b8", "c7b6", "c7d8"],
+                vec![
+                    "c7c6", "c7c8", "c7d7", "c7b7", "c7a7", "c7b8", "c7b6", "c7d8",
+                ],
             ],
         );
     }

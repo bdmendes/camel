@@ -3,7 +3,7 @@ use crate::core::{piece::Piece, square::Square};
 use primitive_enum::primitive_enum;
 use std::fmt::Display;
 
-pub mod gen;
+pub mod generate;
 pub mod make;
 pub mod perft;
 pub mod see;
@@ -74,7 +74,8 @@ impl Display for Move {
             "{}{}{}",
             self.from(),
             self.to(),
-            self.promotion_piece().map_or(String::new(), |p| p.to_string())
+            self.promotion_piece()
+                .map_or(String::new(), |p| p.to_string())
         )
     }
 }

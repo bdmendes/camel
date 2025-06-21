@@ -2,11 +2,11 @@ use derive_more::derive::FromStr;
 use std::{fmt::Display, str::FromStr};
 
 use super::{
+    Position,
     castling_rights::{CastlingRights, CastlingSide},
     color::Color,
     piece::Piece,
     square::Square,
-    Position,
 };
 
 pub const START_POSITION: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -115,7 +115,11 @@ impl TryFrom<Fen> for Position {
                     file = 0;
                 }
                 'p' | 'P' | 'n' | 'N' | 'b' | 'B' | 'r' | 'R' | 'q' | 'Q' | 'k' | 'K' => {
-                    let color = if c.is_lowercase() { Color::Black } else { Color::White };
+                    let color = if c.is_lowercase() {
+                        Color::Black
+                    } else {
+                        Color::White
+                    };
                     let piece = Piece::try_from(c)?;
                     if rank > 7 || file > 7 {
                         return Err(());
@@ -170,7 +174,11 @@ impl TryFrom<Fen> for Position {
                     rights = rights.removed_side(Color::Black, CastlingSide::Queenside)
                 }
                 c if c.is_alphabetic() => {
-                    let color = if c.is_uppercase() { Color::White } else { Color::Black };
+                    let color = if c.is_uppercase() {
+                        Color::White
+                    } else {
+                        Color::Black
+                    };
                     let file = c.to_ascii_lowercase() as u8 - b'a';
                     let king_file = match color {
                         Color::White => white_king.unwrap().file(),
@@ -215,12 +223,12 @@ mod tests {
     use rstest::rstest;
 
     use crate::core::{
+        Position,
         castling_rights::CastlingRights,
         color::Color,
         fen::{Fen, START_POSITION},
         piece::Piece,
         square::Square,
-        Position,
     };
 
     #[test]
@@ -260,7 +268,10 @@ mod tests {
         position.set_square(Square::H7, Piece::Pawn, Color::Black);
 
         assert_eq!(Fen::from(&position), Fen::from_str(START_POSITION).unwrap());
-        assert_eq!(Position::try_from(Fen::from_str(START_POSITION).unwrap()).unwrap(), position);
+        assert_eq!(
+            Position::try_from(Fen::from_str(START_POSITION).unwrap()).unwrap(),
+            position
+        );
     }
 
     #[rstest]
@@ -291,7 +302,10 @@ mod tests {
                 .unwrap(),
         )
         .unwrap();
-        assert_eq!(position1.castling_rights(), CastlingRights::new(true, false, true, true));
+        assert_eq!(
+            position1.castling_rights(),
+            CastlingRights::new(true, false, true, true)
+        );
         assert!(position1.is_chess_960());
 
         let position2 = Position::try_from(
@@ -299,7 +313,10 @@ mod tests {
                 .unwrap(),
         )
         .unwrap();
-        assert_eq!(position2.castling_rights(), CastlingRights::new(false, true, true, true));
+        assert_eq!(
+            position2.castling_rights(),
+            CastlingRights::new(false, true, true, true)
+        );
         assert!(position2.is_chess_960());
     }
 }

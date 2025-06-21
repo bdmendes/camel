@@ -1,4 +1,4 @@
-use crate::core::{color::Color, piece::Piece, square::Square, Position};
+use crate::core::{Position, color::Color, piece::Piece, square::Square};
 
 use super::Move;
 
@@ -41,7 +41,7 @@ pub fn see(mov: Move, position: &Position) -> i8 {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::{moves::see, MoveStage, Position};
+    use crate::core::{MoveStage, Position, moves::see};
     use std::str::FromStr;
 
     fn assert_see(position: &str, mov: &str, value: i8) {
@@ -56,26 +56,46 @@ mod tests {
 
     #[test]
     fn free_piece_instant() {
-        assert_see("r2qk1nr/pp3ppp/2nBp3/3p4/3P2b1/5N2/PPP1BPPP/RN1Q1RK1 b kq - 0 8", "d8d6", 3);
+        assert_see(
+            "r2qk1nr/pp3ppp/2nBp3/3p4/3P2b1/5N2/PPP1BPPP/RN1Q1RK1 b kq - 0 8",
+            "d8d6",
+            3,
+        );
     }
 
     #[test]
     fn free_piece_instant_with_kings() {
-        assert_see("8/1p3p2/1P2p1k1/pP1pP1p1/3P1pKP/5P2/6P1/8 w - - 1 38", "h4g5", 1);
+        assert_see(
+            "8/1p3p2/1P2p1k1/pP1pP1p1/3P1pKP/5P2/6P1/8 w - - 1 38",
+            "h4g5",
+            1,
+        );
     }
 
     #[test]
     fn free_piece_after_exchange() {
-        assert_see("2r1r1k1/pp4pp/2n1qnp1/3p2P1/7P/2P2N2/PP2BP2/2RQ1RK1 b - - 0 19", "e6e2", 3);
+        assert_see(
+            "2r1r1k1/pp4pp/2n1qnp1/3p2P1/7P/2P2N2/PP2BP2/2RQ1RK1 b - - 0 19",
+            "e6e2",
+            3,
+        );
     }
 
     #[test]
     fn equal_exchange() {
-        assert_see("r3k1nr/pp3ppp/3qp3/3p4/3n2b1/P4N1P/1PP1BPP1/RN1Q1RK1 b kq - 0 10", "d4f3", 0);
+        assert_see(
+            "r3k1nr/pp3ppp/3qp3/3p4/3n2b1/P4N1P/1PP1BPP1/RN1Q1RK1 b kq - 0 10",
+            "d4f3",
+            0,
+        );
     }
 
     #[test]
     fn equal_exchange_ep() {
-        assert_see("r1bqkbnr/ppp1pppp/2n5/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3", "e5d6", 0);
+        assert_see(
+            "r1bqkbnr/ppp1pppp/2n5/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3",
+            "e5d6",
+            0,
+        );
     }
 }

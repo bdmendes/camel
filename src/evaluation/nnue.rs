@@ -1,4 +1,4 @@
-use crate::core::{color::Color, piece::Piece, square::Square, Position, PositionDiffEntry};
+use crate::core::{Position, PositionDiffEntry, color::Color, piece::Piece, square::Square};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
@@ -26,13 +26,23 @@ pub struct Parameters {
 
 impl Parameters {
     pub fn random() -> Self {
-        let mut rng = rand::thread_rng();
-        let acc_weights =
-            (0..INPUT_SIZE * HIDDEN_LAYER_SIZE).map(|_| rng.gen_range(-1.0..1.0)).collect();
-        let acc_biases = (0..HIDDEN_LAYER_SIZE).map(|_| rng.gen_range(-1.0..1.0)).collect();
-        let out_weights = (0..HIDDEN_LAYER_SIZE).map(|_| rng.gen_range(-1.0..1.0)).collect();
-        let out_bias = rng.gen_range(-1.0..1.0);
-        Self { acc_weights, acc_biases, out_weights, out_bias }
+        let mut rng = rand::rng();
+        let acc_weights = (0..INPUT_SIZE * HIDDEN_LAYER_SIZE)
+            .map(|_| rng.random_range(-1.0..1.0))
+            .collect();
+        let acc_biases = (0..HIDDEN_LAYER_SIZE)
+            .map(|_| rng.random_range(-1.0..1.0))
+            .collect();
+        let out_weights = (0..HIDDEN_LAYER_SIZE)
+            .map(|_| rng.random_range(-1.0..1.0))
+            .collect();
+        let out_bias = rng.random_range(-1.0..1.0);
+        Self {
+            acc_weights,
+            acc_biases,
+            out_weights,
+            out_bias,
+        }
     }
 
     pub fn filled(
@@ -74,7 +84,12 @@ pub struct NeuralNetwork {
 
 impl NeuralNetwork {
     pub fn new(params: Parameters) -> Self {
-        Self { acc: vec![0.0; HIDDEN_LAYER_SIZE], params, last_seen_position: None, last_result: 0 }
+        Self {
+            acc: vec![0.0; HIDDEN_LAYER_SIZE],
+            params,
+            last_seen_position: None,
+            last_result: 0,
+        }
     }
 
     fn acc_index(piece: Piece, color: Color, square: Square) -> usize {

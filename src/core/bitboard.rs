@@ -1,4 +1,4 @@
-use super::{square::Direction, Square};
+use super::{Square, square::Direction};
 use derive_more::derive::{BitAnd, BitOr, Not, Shl, ShlAssign, Shr, ShrAssign};
 use std::fmt::{Display, Write};
 
@@ -198,11 +198,13 @@ impl Display for Bitboard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for rank in (0..8).rev() {
             for file in 0..8 {
-                f.write_char(if self.is_set(Square::from_file_rank(file, rank).unwrap()) {
-                    '1'
-                } else {
-                    '0'
-                })?;
+                f.write_char(
+                    if self.is_set(Square::from_file_rank(file, rank).unwrap()) {
+                        '1'
+                    } else {
+                        '0'
+                    },
+                )?;
             }
             f.write_char('\n')?;
         }

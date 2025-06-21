@@ -1,9 +1,9 @@
 use arrayvec::ArrayVec;
 
 use crate::core::{
-    moves::{see, Move},
-    piece::Piece,
     MoveStage, Position,
+    moves::{Move, see},
+    piece::Piece,
 };
 
 type ScoredMoveVec = ArrayVec<(Move, i8), 96>;
@@ -60,17 +60,17 @@ impl<'a> MovePicker<'a> {
         } else if mov.promotion_piece().is_some() {
             -72
         } else if mov.is_capture() {
-            let mvv_lva = self.position.piece_at(mov.to()).unwrap_or(Piece::Pawn).value()
+            let mvv_lva = self
+                .position
+                .piece_at(mov.to())
+                .unwrap_or(Piece::Pawn)
+                .value()
                 - self.position.piece_at(mov.from()).unwrap().value();
             if mvv_lva >= 0 {
                 36 + mvv_lva
             } else {
                 let see = see::see(mov, self.position);
-                if see >= 0 {
-                    36 + see
-                } else {
-                    -36 + see
-                }
+                if see >= 0 { 36 + see } else { -36 + see }
             }
         } else if Some(mov) == self.killer_moves[0] || Some(mov) == self.killer_moves[1] {
             0
@@ -135,10 +135,10 @@ impl Iterator for MovePicker<'_> {
 mod tests {
     use super::MovePicker;
     use crate::core::{
-        fen::START_POSITION,
-        moves::{see, Move, MoveFlag},
-        square::Square,
         MoveStage, Position,
+        fen::START_POSITION,
+        moves::{Move, MoveFlag, see},
+        square::Square,
     };
     use std::{str::FromStr, sync::OnceLock};
 
@@ -231,9 +231,18 @@ mod tests {
     #[test]
     fn winning_captures_first() {
         let (_, mut picker) = mocks();
-        assert_eq!(picker.next(), Some(Move::new(Square::C1, Square::G5, MoveFlag::Capture)));
-        assert_eq!(picker.next(), Some(Move::new(Square::H6, Square::G7, MoveFlag::Capture)));
-        assert_eq!(picker.next(), Some(Move::new(Square::C4, Square::E6, MoveFlag::Capture)));
+        assert_eq!(
+            picker.next(),
+            Some(Move::new(Square::C1, Square::G5, MoveFlag::Capture))
+        );
+        assert_eq!(
+            picker.next(),
+            Some(Move::new(Square::H6, Square::G7, MoveFlag::Capture))
+        );
+        assert_eq!(
+            picker.next(),
+            Some(Move::new(Square::C4, Square::E6, MoveFlag::Capture))
+        );
         assert!(!picker.next().unwrap().is_capture());
     }
 
@@ -244,8 +253,14 @@ mod tests {
         for _ in 0..(number_of_moves - 2) {
             picker.next();
         }
-        assert_eq!(picker.next(), Some(Move::new(Square::C4, Square::A6, MoveFlag::Capture)));
-        assert_eq!(picker.next(), Some(Move::new(Square::D1, Square::D6, MoveFlag::Capture)));
+        assert_eq!(
+            picker.next(),
+            Some(Move::new(Square::C4, Square::A6, MoveFlag::Capture))
+        );
+        assert_eq!(
+            picker.next(),
+            Some(Move::new(Square::D1, Square::D6, MoveFlag::Capture))
+        );
         assert!(picker.next().is_none());
     }
 

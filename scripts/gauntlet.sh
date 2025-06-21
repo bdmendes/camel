@@ -15,7 +15,6 @@ readonly ELO_THRESHOLD=40
 # Arguments
 readonly UPSTREAM=${1:-"master"}
 readonly CONCURRENCY_GAMES=${2:-"4"}
-readonly ENGINE_THREADS=${3:-"1"}
 readonly ENGINE_HASH=${4:-"64"}
 readonly ROUNDS=${5:-"500"}
 readonly TIME_CONTROL=${6:-"5+0.2"}
@@ -27,14 +26,14 @@ function run_gauntlet {
 
     echo ""
     echo "Running gauntlet with $rounds rounds and $time_control time control against $UPSTREAM."
-    echo "Settings: concurrency=$CONCURRENCY_GAMES; hash=$ENGINE_HASH; threads=$ENGINE_THREADS."
+    echo "Settings: concurrency=$CONCURRENCY_GAMES; hash=$ENGINE_HASH."
     echo ""
 
     # Run the gauntlet and store output in temp file
     OUTPUT_FILE=$(mktemp)
     stdbuf -i0 -o0 -e0 ./${RUNNER} \
-        -engine cmd="${CURRENT_BRANCH_BIN_NAME}" name="${CURRENT_BRANCH_BIN_NAME}" option.Hash="${ENGINE_HASH}" option.Threads="${ENGINE_THREADS}" \
-        -engine cmd="${UPSTREAM_BIN_NAME}" name="${UPSTREAM_BIN_NAME}" option.Hash="${ENGINE_HASH}" option.Threads="${ENGINE_THREADS}" \
+        -engine cmd="${CURRENT_BRANCH_BIN_NAME}" name="${CURRENT_BRANCH_BIN_NAME}" option.Hash="${ENGINE_HASH}" \
+        -engine cmd="${UPSTREAM_BIN_NAME}" name="${UPSTREAM_BIN_NAME}" option.Hash="${ENGINE_HASH}" \
         -each tc="${time_control}" -rounds "${rounds}" -repeat -concurrency "${CONCURRENCY_GAMES}" -openings \
         file=${BOOK_NAME} format=${BOOK_FORMAT} order=random -draw movecount=8 score=8 movenumber=30 | tee "$OUTPUT_FILE"
 
@@ -50,7 +49,7 @@ function run_gauntlet {
 
     # Print result
     failed=0
-    echo -n "Against ${UPSTREAM} [hash=$ENGINE_HASH; threads=$ENGINE_THREADS]: " | tee -a $MESSAGE_FILE
+    echo -n "Against ${UPSTREAM} [hash=$ENGINE_HASH]: " | tee -a $MESSAGE_FILE
     if [ $((elo_diff)) -lt -$ELO_THRESHOLD ]; then
         echo -n "❌ " | tee -a $MESSAGE_FILE
         failed=1

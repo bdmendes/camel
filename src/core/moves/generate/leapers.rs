@@ -1,11 +1,11 @@
 use crate::{
     core::moves::{Move, MoveFlag},
     core::{
+        Position,
         bitboard::Bitboard,
         color::Color,
         piece::Piece,
         square::{Direction, Square},
-        Position,
     },
 };
 
@@ -103,8 +103,8 @@ mod tests {
 
     use super::{king_attackers, king_regular_moves, knight_attackers, knight_moves};
     use crate::{
-        core::moves::gen::tests::assert_staged_moves,
-        core::{bitboard::Bitboard, color::Color, square::Square, Position},
+        core::moves::generate::tests::assert_staged_moves,
+        core::{Position, bitboard::Bitboard, color::Color, square::Square},
     };
 
     #[test]
@@ -113,7 +113,9 @@ mod tests {
             "r1bqkb1r/ppppnppp/2n5/4p3/4P3/N4N2/PPPP1PPP/R1BQKB1R w KQkq - 4 4",
             knight_moves,
             [
-                vec!["f3g1", "f3h4", "f3d4", "f3g5", "a3b1", "a3b5", "a3c4", "f3e5"],
+                vec![
+                    "f3g1", "f3h4", "f3d4", "f3g5", "a3b1", "a3b5", "a3c4", "f3e5",
+                ],
                 vec!["f3e5"],
                 vec!["f3g1", "f3h4", "f3d4", "f3g5", "a3b1", "a3b5", "a3c4"],
             ],

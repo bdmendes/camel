@@ -1,7 +1,7 @@
-use super::sliders::{slider_attacks_from_square, BISHOP_MOVE_DIRECTIONS, ROOK_MOVE_DIRECTIONS};
-use crate::core::{bitboard::Bitboard, piece::Piece, square::Square, Position};
+use super::sliders::{BISHOP_MOVE_DIRECTIONS, ROOK_MOVE_DIRECTIONS, slider_attacks_from_square};
+use crate::core::{Position, bitboard::Bitboard, piece::Piece, square::Square};
 use ctor::ctor;
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use rand::{RngCore, SeedableRng, rngs::StdRng};
 use std::thread;
 
 #[ctor]
@@ -36,9 +36,9 @@ fn bitsets(bitboard: Bitboard) -> Vec<Bitboard> {
 
 fn sparse_random(seed: u64) -> u64 {
     let mut rng = StdRng::seed_from_u64(seed);
-    let r1 = rng.gen::<u64>();
-    let r2 = rng.gen::<u64>();
-    let r3 = rng.gen::<u64>();
+    let r1 = rng.next_u64();
+    let r2 = rng.next_u64();
+    let r3 = rng.next_u64();
     r1 & r2 & r3
 }
 
@@ -59,7 +59,12 @@ fn find_magic(square: Square, piece: Piece) -> SquareMagic {
 
     let occ_move_map = bitsets(blockers_mask)
         .iter()
-        .map(|b| (*b, slider_attacks_from_square(square, directions, *b, false)))
+        .map(|b| {
+            (
+                *b,
+                slider_attacks_from_square(square, directions, *b, false),
+            )
+        })
         .collect::<Vec<_>>();
 
     let mut magic_tentative = SquareMagic {
@@ -86,7 +91,9 @@ fn find_magic(square: Square, piece: Piece) -> SquareMagic {
 
         if !found_collision {
             let largest_used_index = used.iter().rposition(|&used| used).unwrap();
-            magic_tentative.attacks.resize(largest_used_index + 1, Bitboard::empty());
+            magic_tentative
+                .attacks
+                .resize(largest_used_index + 1, Bitboard::empty());
             return magic_tentative;
         }
     }
@@ -127,8 +134,8 @@ mod tests {
 
     use super::bitsets;
     use crate::{
-        core::moves::gen::magics::{bishop_attacks, rook_attacks},
-        core::{bitboard::Bitboard, square::Square, Position},
+        core::moves::generate::magics::{bishop_attacks, rook_attacks},
+        core::{Position, bitboard::Bitboard, square::Square},
     };
 
     #[test]

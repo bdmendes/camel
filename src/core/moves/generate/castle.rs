@@ -1,20 +1,23 @@
 use crate::core::{
+    MoveStage, Position,
     bitboard::Bitboard,
     castling_rights::CastlingSide,
     moves::{Move, MoveFlag},
     piece::Piece,
     square::Square,
-    MoveStage, Position,
 };
 
-use super::{square_attackers, MoveVec};
+use super::{MoveVec, square_attackers};
 
 static COLOR_CASTLE_RANKS: [Bitboard; 2] = [Bitboard::rank_mask(0), Bitboard::rank_mask(7)];
 static FINAL_KING_SQUARES: [Square; 4] = [Square::G1, Square::C1, Square::G8, Square::C8];
 static FLAG_FROM_SIDE: [MoveFlag; 2] = [MoveFlag::KingsideCastle, MoveFlag::QueensideCastle];
 
 fn castle_side(position: &Position, side: CastlingSide, moves: &mut MoveVec) {
-    let king = position.pieces_color_bb(Piece::King, position.side_to_move).lsb().unwrap();
+    let king = position
+        .pieces_color_bb(Piece::King, position.side_to_move)
+        .lsb()
+        .unwrap();
     let rook = {
         let our_rooks = position.pieces_color_bb(Piece::Rook, position.side_to_move)
             & COLOR_CASTLE_RANKS[position.side_to_move as usize];
@@ -78,7 +81,11 @@ fn castle_side(position: &Position, side: CastlingSide, moves: &mut MoveVec) {
 
         moves.push(Move::new(
             king,
-            if position.chess960 { rook } else { final_king_square },
+            if position.chess960 {
+                rook
+            } else {
+                final_king_square
+            },
             FLAG_FROM_SIDE[side as usize],
         ));
     }
@@ -89,11 +96,17 @@ pub fn castle_moves(position: &Position, stage: MoveStage, moves: &mut MoveVec) 
         return;
     }
 
-    if position.castling_rights().has_side(position.side_to_move, CastlingSide::Kingside) {
+    if position
+        .castling_rights()
+        .has_side(position.side_to_move, CastlingSide::Kingside)
+    {
         castle_side(position, CastlingSide::Kingside, moves);
     }
 
-    if position.castling_rights().has_side(position.side_to_move, CastlingSide::Queenside) {
+    if position
+        .castling_rights()
+        .has_side(position.side_to_move, CastlingSide::Queenside)
+    {
         castle_side(position, CastlingSide::Queenside, moves);
     }
 }
@@ -101,7 +114,7 @@ pub fn castle_moves(position: &Position, stage: MoveStage, moves: &mut MoveVec) 
 #[cfg(test)]
 mod tests {
     use super::castle_moves;
-    use crate::core::{moves::gen::MoveVec, MoveStage, Position};
+    use crate::core::{MoveStage, Position, moves::generate::MoveVec};
     use std::str::FromStr;
 
     fn assert_castle(position: &str, moves: &[&str]) {
@@ -166,12 +179,18 @@ mod tests {
 
     #[test]
     fn rook_attacked_kingside() {
-        assert_castle("r2qk1nr/pbppbppp/np2p3/4P3/8/6PB/PPPPNP1P/RNBQK2R w KQkq - 4 6", &["e1g1"]);
+        assert_castle(
+            "r2qk1nr/pbppbppp/np2p3/4P3/8/6PB/PPPPNP1P/RNBQK2R w KQkq - 4 6",
+            &["e1g1"],
+        );
     }
 
     #[test]
     fn rook_attacked_queenside() {
-        assert_castle("r3kbnr/p1pnqppp/1pBpp3/4P3/8/6P1/PPPPNP1P/RNBQK2R b KQkq - 2 7", &["e8c8"]);
+        assert_castle(
+            "r3kbnr/p1pnqppp/1pBpp3/4P3/8/6P1/PPPPNP1P/RNBQK2R b KQkq - 2 7",
+            &["e8c8"],
+        );
     }
 
     #[test]

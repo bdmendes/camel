@@ -1,9 +1,9 @@
 use crate::core::{
-    bitboard::Bitboard, castling_rights::CastlingSide, color::Color, piece::Piece, square::Square,
-    Position,
+    Position, bitboard::Bitboard, castling_rights::CastlingSide, color::Color, piece::Piece,
+    square::Square,
 };
 
-use super::{gen::pawns::pawn_attackers, Move, MoveFlag};
+use super::{Move, MoveFlag, generate::pawns::pawn_attackers};
 
 static COLOR_CASTLE_RANKS: [Bitboard; 2] = [Bitboard::rank_mask(0), Bitboard::rank_mask(7)];
 static TO_KING_KINGSIDE: [Square; 2] = [Square::G1, Square::G8];
@@ -64,7 +64,10 @@ pub fn make_move<const UPDATE_META: bool>(position: &Position, mov: Move) -> Pos
                 && COLOR_CASTLE_RANKS[side_to_move as usize].is_set(mov.from()) =>
         {
             position.set_square(mov.to(), piece, side_to_move);
-            let our_king = position.pieces_color_bb(Piece::King, side_to_move).lsb().unwrap();
+            let our_king = position
+                .pieces_color_bb(Piece::King, side_to_move)
+                .lsb()
+                .unwrap();
             position.set_castling_rights(position.castling_rights().removed_side(
                 side_to_move,
                 if mov.from().file() > our_king.file() {
@@ -156,7 +159,7 @@ pub fn make_move<const UPDATE_META: bool>(position: &Position, mov: Move) -> Pos
 mod tests {
     use rstest::rstest;
 
-    use crate::core::{moves::make::make_move, MoveStage, Position};
+    use crate::core::{MoveStage, Position, moves::make::make_move};
     use std::str::FromStr;
 
     #[rstest]
@@ -188,7 +191,10 @@ mod tests {
     fn make(#[case] position: &str, #[case] mov: &str, #[case] expected: &str) {
         let position = Position::from_str(position).unwrap();
         let moves = position.moves(MoveStage::All);
-        let mov = moves.iter().find(|m| m.to_string().as_str() == mov).unwrap();
+        let mov = moves
+            .iter()
+            .find(|m| m.to_string().as_str() == mov)
+            .unwrap();
         assert_eq!(make_move::<true>(&position, *mov).fen().as_str(), expected);
     }
 }
