@@ -635,5 +635,32 @@ mod tests {
                 PositionDiffEntry::Clear(Square::D7, Piece::Pawn, Color::Black),
             ])
         );
+
+        let position3 = position2.make_move_str("e4d5").unwrap();
+        assert_eq!(
+            position3.diff(&position2),
+            PositionDiffVec::from_iter([
+                PositionDiffEntry::Clear(Square::E4, Piece::Pawn, Color::White),
+                PositionDiffEntry::Set(Square::D5, Piece::Pawn, Color::White),
+                PositionDiffEntry::Clear(Square::D5, Piece::Pawn, Color::Black),
+            ])
+        );
+    }
+
+    #[test]
+    fn display() {
+        let position = Position::from_str(START_POSITION).unwrap();
+        assert_eq!(
+            position.to_string(),
+            "♖ ♘ ♗ ♕ ♔ ♗ ♘ ♖ \n\
+             ♙ ♙ ♙ ♙ ♙ ♙ ♙ ♙ \n\
+             _ _ _ _ _ _ _ _ \n\
+             _ _ _ _ _ _ _ _ \n\
+             _ _ _ _ _ _ _ _ \n\
+             _ _ _ _ _ _ _ _ \n\
+             ♟ ♟ ♟ ♟ ♟ ♟ ♟ ♟ \n\
+             ♜ ♞ ♝ ♛ ♚ ♝ ♞ ♜ \n\
+             rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\n"
+        );
     }
 }
