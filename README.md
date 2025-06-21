@@ -55,7 +55,7 @@ You can use a GUI such as [Scid](https://flathub.org/apps/details/io.github.beni
 
 <pre>
   <b>camel〉</b>position fen r1q1k1r1/pp1np1b1/5npp/1Q1NN1p1/3P4/4B2P/PPP2PP1/4RRK1 w q - 3 16
-  $ <b>display</b>
+  <b>camel〉</b>display
   ♜ - ♛ - ♚ - ♜ - 
   ♟ ♟ - ♞ ♟ - ♝ - 
   - - - - - ♞ ♟ ♟ 
