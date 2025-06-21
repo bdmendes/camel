@@ -113,7 +113,7 @@ impl Display for CastlingRights {
 #[cfg(test)]
 mod tests {
     use super::CastlingRights;
-    use crate::core::{castling_rights::CastlingSide, color::Color};
+    use crate::core::position::{castling_rights::CastlingSide, color::Color};
 
     #[test]
     fn has() {

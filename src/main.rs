@@ -6,6 +6,5 @@ mod evaluation;
 mod search;
 
 fn main() {
-    println!("Camel v2 is in development and is not a complete chess engine yet.");
-    println!("Please use v1.6.0 in the meantime.");
+    println!("WARNING: Camel v2 is in development and is not a complete chess engine yet.");
 }

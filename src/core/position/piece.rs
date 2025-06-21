@@ -50,7 +50,7 @@ impl TryFrom<char> for Piece {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::piece::Piece;
+    use crate::core::position::piece::Piece;
 
     #[test]
     fn piece_value() {

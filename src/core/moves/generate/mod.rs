@@ -1,5 +1,5 @@
 use super::{Move, MoveFlag, make::make_move};
-use crate::core::{
+use crate::core::position::{
     MoveStage, Position, bitboard::Bitboard, color::Color, piece::Piece, square::Square,
 };
 use arrayvec::ArrayVec;
@@ -21,10 +21,10 @@ pub fn generate_moves(position: &Position, stage: MoveStage) -> MoveVec {
     let mut moves = MoveVec::new();
 
     let our_king = position
-        .pieces_color_bb(Piece::King, position.side_to_move)
+        .pieces_color_bb(Piece::King, position.side_to_move())
         .lsb()
         .unwrap();
-    let king_attackers = square_attackers(position, our_king, position.side_to_move.flipped());
+    let king_attackers = square_attackers(position, our_king, position.side_to_move().flipped());
     let king_ray = queen_attacks(position, our_king);
     let between_attacker = Bitboard::between(our_king, king_attackers.msb().unwrap_or(our_king));
 
@@ -83,7 +83,7 @@ pub fn square_attackers(position: &Position, square: Square, color: Color) -> Bi
 mod tests {
     use std::str::FromStr;
 
-    use crate::{core::Position, core::moves::Move};
+    use crate::{core::moves::Move, core::position::Position};
 
     use super::{MoveStage, MoveVec};
 

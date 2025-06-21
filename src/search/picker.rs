@@ -1,9 +1,8 @@
 use arrayvec::ArrayVec;
 
 use crate::core::{
-    MoveStage, Position,
     moves::{Move, see},
-    piece::Piece,
+    position::{MoveStage, Position, piece::Piece},
 };
 
 type ScoredMoveVec = ArrayVec<(Move, i8), 96>;
@@ -135,10 +134,8 @@ impl Iterator for MovePicker<'_> {
 mod tests {
     use super::MovePicker;
     use crate::core::{
-        MoveStage, Position,
-        fen::START_POSITION,
         moves::{Move, MoveFlag, see},
-        square::Square,
+        position::{MoveStage, Position, fen::START_POSITION, square::Square},
     };
     use std::{str::FromStr, sync::OnceLock};
 

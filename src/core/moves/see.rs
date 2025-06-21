@@ -1,4 +1,4 @@
-use crate::core::{Position, color::Color, piece::Piece, square::Square};
+use crate::core::position::{Position, color::Color, piece::Piece, square::Square};
 
 use super::Move;
 
@@ -27,7 +27,7 @@ fn see_recurse(
 
 pub fn see(mov: Move, position: &Position) -> i8 {
     let mut position = *position;
-    let side_to_move = position.side_to_move.flipped();
+    let side_to_move = position.side_to_move().flipped();
 
     let from_square = mov.from();
     let from_piece = position.piece_at(from_square).unwrap();
@@ -41,7 +41,10 @@ pub fn see(mov: Move, position: &Position) -> i8 {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::{MoveStage, Position, moves::see};
+    use crate::core::{
+        moves::see,
+        position::{MoveStage, Position},
+    };
     use std::str::FromStr;
 
     fn assert_see(position: &str, mov: &str, value: i8) {

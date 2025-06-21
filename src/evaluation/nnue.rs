@@ -1,5 +1,5 @@
 use crate::{
-    core::{Position, PositionDiffEntry, color::Color, piece::Piece, square::Square},
+    core::position::{Position, PositionDiffEntry, color::Color, piece::Piece, square::Square},
     evaluation::ValueScore,
 };
 use rand::Rng;

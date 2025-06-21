@@ -1,5 +1,5 @@
 use super::sliders::{BISHOP_MOVE_DIRECTIONS, ROOK_MOVE_DIRECTIONS, slider_attacks_from_square};
-use crate::core::{Position, bitboard::Bitboard, piece::Piece, square::Square};
+use crate::core::position::{Position, bitboard::Bitboard, piece::Piece, square::Square};
 use ctor::ctor;
 use rand::{RngCore, SeedableRng, rngs::StdRng};
 use std::thread;
@@ -135,7 +135,7 @@ mod tests {
     use super::bitsets;
     use crate::{
         core::moves::generate::magics::{bishop_attacks, rook_attacks},
-        core::{Position, bitboard::Bitboard, square::Square},
+        core::position::{Position, bitboard::Bitboard, square::Square},
     };
 
     #[test]

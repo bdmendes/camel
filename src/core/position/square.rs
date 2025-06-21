@@ -139,7 +139,7 @@ impl Display for Square {
 mod tests {
     use std::str::FromStr;
 
-    use crate::core::{Color, square::Square};
+    use crate::core::position::{Color, square::Square};
 
     #[test]
     fn color() {

@@ -1,9 +1,6 @@
-use crate::core::{
-    MoveStage, Position,
-    bitboard::Bitboard,
-    castling_rights::CastlingSide,
-    moves::{Move, MoveFlag},
-    piece::Piece,
+use crate::core::moves::{Move, MoveFlag};
+use crate::core::position::{
+    MoveStage, Position, bitboard::Bitboard, castling_rights::CastlingSide, piece::Piece,
     square::Square,
 };
 
@@ -15,12 +12,12 @@ static FLAG_FROM_SIDE: [MoveFlag; 2] = [MoveFlag::KingsideCastle, MoveFlag::Quee
 
 fn castle_side(position: &Position, side: CastlingSide, moves: &mut MoveVec) {
     let king = position
-        .pieces_color_bb(Piece::King, position.side_to_move)
+        .pieces_color_bb(Piece::King, position.side_to_move())
         .lsb()
         .unwrap();
     let rook = {
-        let our_rooks = position.pieces_color_bb(Piece::Rook, position.side_to_move)
-            & COLOR_CASTLE_RANKS[position.side_to_move as usize];
+        let our_rooks = position.pieces_color_bb(Piece::Rook, position.side_to_move())
+            & COLOR_CASTLE_RANKS[position.side_to_move() as usize];
         match side {
             CastlingSide::Kingside => our_rooks.msb(),
             CastlingSide::Queenside => our_rooks.lsb(),
@@ -44,8 +41,8 @@ fn castle_side(position: &Position, side: CastlingSide, moves: &mut MoveVec) {
         }
 
         let final_king_square =
-            FINAL_KING_SQUARES[(position.side_to_move as usize * 2) + (side as usize)];
-        if position.chess960 {
+            FINAL_KING_SQUARES[(position.side_to_move() as usize * 2) + (side as usize)];
+        if position.is_chess_960() {
             // In chess960, the king and rook jump over each other,
             // so we must check each path manually.
             let final_king_range_including = Bitboard::between(
@@ -74,14 +71,14 @@ fn castle_side(position: &Position, side: CastlingSide, moves: &mut MoveVec) {
 
         let king_final_range = Bitboard::between(king, final_king_square);
         for sq in king_final_range {
-            if !square_attackers(position, sq, position.side_to_move.flipped()).is_empty() {
+            if !square_attackers(position, sq, position.side_to_move().flipped()).is_empty() {
                 return;
             }
         }
 
         moves.push(Move::new(
             king,
-            if position.chess960 {
+            if position.is_chess_960() {
                 rook
             } else {
                 final_king_square
@@ -98,14 +95,14 @@ pub fn castle_moves(position: &Position, stage: MoveStage, moves: &mut MoveVec) 
 
     if position
         .castling_rights()
-        .has_side(position.side_to_move, CastlingSide::Kingside)
+        .has_side(position.side_to_move(), CastlingSide::Kingside)
     {
         castle_side(position, CastlingSide::Kingside, moves);
     }
 
     if position
         .castling_rights()
-        .has_side(position.side_to_move, CastlingSide::Queenside)
+        .has_side(position.side_to_move(), CastlingSide::Queenside)
     {
         castle_side(position, CastlingSide::Queenside, moves);
     }
@@ -114,7 +111,10 @@ pub fn castle_moves(position: &Position, stage: MoveStage, moves: &mut MoveVec) 
 #[cfg(test)]
 mod tests {
     use super::castle_moves;
-    use crate::core::{MoveStage, Position, moves::generate::MoveVec};
+    use crate::core::{
+        moves::generate::MoveVec,
+        position::{MoveStage, Position},
+    };
     use std::str::FromStr;
 
     fn assert_castle(position: &str, moves: &[&str]) {
