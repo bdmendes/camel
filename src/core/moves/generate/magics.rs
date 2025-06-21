@@ -5,10 +5,10 @@ use rand::{RngCore, SeedableRng, rngs::StdRng};
 use std::thread;
 
 #[ctor]
-static BISHOP_MAGICS: [SquareMagic; 64] = find_magics(Piece::Bishop);
+static BISHOP_MAGICS: [SquareMagic; 64] = { find_magics(Piece::Bishop) };
 
 #[ctor]
-static ROOK_MAGICS: [SquareMagic; 64] = find_magics(Piece::Rook);
+static ROOK_MAGICS: [SquareMagic; 64] = { find_magics(Piece::Rook) };
 
 #[derive(Debug)]
 struct SquareMagic {
