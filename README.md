@@ -15,7 +15,7 @@
 
 ## Overview
 
-Camel is a chess and chess960 engine written from scratch in Rust. It aims to achieve a high level of play, while also being easy to understand and modify. It is primarily meant to be used within a GUI compatible with the [UCI protocol](https://backscattering.de/chess/uci/), but may also be operated in a CLI.
+Camel is a chess and Chess960 engine written from scratch in Rust. It aims to achieve a high level of play, while also being easy to understand and modify. It is primarily meant to be used within a GUI compatible with the [UCI protocol](https://backscattering.de/chess/uci/), but may also be operated directly via the CLI.
 
 Camel participates in various community chess engine competitions, such as the [CCRL](https://computerchess.org.uk/ccrl/404/). It may also be seen playing on [Lichess](https://lichess.org/@/camel_bot/).
 
@@ -37,13 +37,13 @@ You can probe the integrity of the engine by running the test suite, which inclu
   $ cargo test
 </pre>
 
-Upon development, to be able to claim a statistically significant improvement, it is recommended to set up a tournament against other version, using a utility such as [fast-chess](https://github.com/Disservin/fast-chess) or [cutechess-cli](https://github.com/cutechess/cutechess). For convenience, rely on the bundled script to automate the process using fast-chess:
+Upon development, to be able to claim a statistically significant improvement, it is recommended to set up a tournament against other version, using a utility such as [FastChess](https://github.com/Disservin/fast-chess) or [CuteChess CLI](https://github.com/cutechess/cutechess). For convenience, rely on the bundled script to automate the process using FastChess:
 
 <pre>
   $ ./scripts/gauntlet.sh [BRANCH/TAG]
 </pre>
 
-It is also possible and fun to deploy the engine to [lichess](https://lichess.org/), through the [lichess-bot bridge](https://github.com/lichess-bot-devs/lichess-bot). Please note, however, that the obtained [Glicko](https://lichess.org/page/rating-systems) rating is not directly comparable to [FIDE](https://en.wikipedia.org/wiki/FIDE)'s due to different player pools. With that in mind, you can simply use the bundled script to deploy the engine to lichess:
+It is also possible and fun to deploy the engine to [Lichess](https://lichess.org/), through the [lichess-bot bridge](https://github.com/lichess-bot-devs/lichess-bot). Please note, however, that the obtained [Glicko](https://lichess.org/page/rating-systems) rating is not directly comparable to [FIDE](https://en.wikipedia.org/wiki/FIDE)'s due to different player pools. With that in mind, you can simply use the bundled script to deploy the engine to Lichess:
 
 <pre>
   $ ./scripts/deploy.sh
@@ -51,7 +51,7 @@ It is also possible and fun to deploy the engine to [lichess](https://lichess.or
 
 ## Usage
 
-You can use a GUI such as [Scid](https://flathub.org/apps/details/io.github.benini.scid) to be able to play against the engine or analyze a game. Alternatively, you can explore the engine through the interactive CLI, which builds on top of the UCI protocol, allowing you to visualize the board, make a move of your own, query legal moves and ask the engine to move.
+You can use a GUI such as [Scid](https://flathub.org/apps/details/io.github.benini.scid) to be able to play against the engine or analyze a game. Alternatively, you can explore the engine through the REPL, which builds on top of the UCI protocol, allowing you to visualize the board, make a move of your own, query legal moves and ask the engine to move.
 
 <pre>
   $ <b>position fen r1q1k1r1/pp1np1b1/5npp/1Q1NN1p1/3P4/4B2P/PPP2PP1/4RRK1 w q - 3 16</b>
@@ -92,11 +92,9 @@ Type `help` to see the available commands.
 
 ## Design
 
-<img src="assets/readme/components.svg" width="400">
+Camel uses domain-specific techniques to achieve higher performance. The board is represented using [bitboards](https://www.chessprogramming.org/Bitboards) and the move generation is aided by [magics](https://www.chessprogramming.org/Magic_Bitboards). The search is based on [alpha-beta pruning](https://www.chessprogramming.org/Alpha-Beta), enhanced with a [transposition table](https://www.chessprogramming.org/Transposition_Table) and [extension](https://www.chessprogramming.org/Extensions) and [reduction](https://www.chessprogramming.org/Reductions) schemas. [Iterative deepening](https://www.chessprogramming.org/Iterative_Deepening) enables the time management framework. Position evaluation is performed by a custom neural network, better known as [NNUE](https://www.chessprogramming.org/NNUE).
 
-Camel uses domain-specific techniques to achieve higher performance. The board is represented using [bitboards](https://www.chessprogramming.org/Bitboards) and the move generation is aided by [magics](https://www.chessprogramming.org/Magic_Bitboards). The search is based on [alpha-beta pruning](https://www.chessprogramming.org/Alpha-Beta), enhanced with a [transposition table](https://www.chessprogramming.org/Transposition_Table) and [extension](https://www.chessprogramming.org/Extensions) and [reduction](https://www.chessprogramming.org/Reductions) schemas. [Iterative deepening](https://www.chessprogramming.org/Iterative_Deepening) enables the time management framework.
-
-Dive into the [chess programming wiki](https://www.chessprogramming.org/Main_Page) to learn more about these techniques.
+Dive into the [Chess Programming Wiki](https://www.chessprogramming.org/Main_Page) to learn more about these techniques.
 
 ## What can I do with it?
 
@@ -108,7 +106,7 @@ Camel is licensed under the [GNU General Public License v3.0](./LICENSE.md). You
 - [Neural Networks for Chess](https://github.com/asdfjkl/neural_network_chess): for the great explanations on Deep Learning and NNUEs.
 - [CCRL](https://computerchess.org.uk/ccrl/404/): for kindly including the engine in their competitions.
 - [Lichess](https://lichess.org/): for the friendly bot API.
-- [Fast-Chess](https://github.com/Disservin/fast-chess): for a lightweight, dependency-free way to set up engine matches.
+- [FastChess](https://github.com/Disservin/fast-chess): for a lightweight, dependency-free way to set up engine matches.
 - [@biromiro](https://github.com/biromiro): for designing the cute camel logo.
 
 ## Why Camel?
