@@ -6,7 +6,9 @@ use crate::{
     search::SearchStatus,
 };
 
-static NNUE_PARAMS_BLOB: &str = include_str!("../assets/models/quiet-labeled-20250610.nnue");
+pub mod repl;
+
+static NNUE_PARAMS_BLOB: &str = include_str!("../../assets/models/quiet-labeled-20250610.nnue");
 
 pub struct Engine {
     pub position: Position,
