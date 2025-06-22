@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand, command};
+use clap::{Error, Parser, Subcommand, command};
 
 use crate::search::Depth;
 
@@ -54,7 +54,7 @@ pub enum Command {
 
         /// The maximum time the engine should search for.
         #[arg(long)]
-        movetime: Option<u8>,
+        movetime: Option<u32>,
     },
     /// Set an engine option.
     Setoption {
@@ -106,6 +106,23 @@ pub enum PositionCommand {
     Kiwi,
 }
 
+fn parse(input: &String) -> Result<Command, Error> {
+    let mut input = input.to_owned();
+
+    for ommited in OMITTED_FLAGS {
+        input = input.replace(ommited, "");
+    }
+
+    for relaxed in RELAXED_FLAGS {
+        input = input.replace(
+            format!(" {}", relaxed).as_str(),
+            format!(" --{}", relaxed).as_str(),
+        );
+    }
+
+    Command::try_parse_from(std::iter::once("").chain(input.split_ascii_whitespace()))
+}
+
 pub fn repl(mut handler: impl FnMut(Command)) {
     loop {
         let mut buf = String::new();
@@ -115,20 +132,49 @@ pub fn repl(mut handler: impl FnMut(Command)) {
             continue;
         }
 
-        for ommited in OMITTED_FLAGS {
-            buf = buf.replace(ommited, "");
-        }
-
-        for relaxed in RELAXED_FLAGS {
-            buf = buf.replace(
-                format!(" {}", relaxed).as_str(),
-                format!(" --{}", relaxed).as_str(),
-            );
-        }
-
-        match Command::try_parse_from(std::iter::once("").chain(buf.split_ascii_whitespace())) {
+        match parse(&buf) {
             Ok(cmd) => handler(cmd),
             Err(err) => print!("{}", err.render().ansi()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::engine::repl::parse;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case("uci")]
+    #[case("ucinewgame")]
+    #[case("isready")]
+    #[case("setoption name Hash value 64")]
+    #[case("setoption name ClearHash")]
+    #[case("position startpos")]
+    #[case("position startpos moves e2e4 d7d5")]
+    #[case("position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")]
+    #[case("go")]
+    #[case("go infinite")]
+    #[case("go depth 6")]
+    #[case("go depth 8 movetime 6000")]
+    #[case("go wtime 53000 btime 50000 winc 3000 binc 3000")]
+    #[case("stop")]
+    #[case("ponderhit")]
+    #[case("debug on")]
+    #[case("quit")]
+    fn uci_ok(#[case] input: String) {
+        assert!(parse(&input).is_ok());
+    }
+
+    #[rstest]
+    #[case("position middlegame")]
+    #[case("setoption Hash 64")]
+    #[case("position moves e2e4")]
+    #[case("position e2e4")]
+    #[case("e2e4")]
+    #[case("go wtime infinite")]
+    #[case("go depth -2")]
+    fn uci_err(#[case] input: String) {
+        assert!(parse(&input).is_err());
     }
 }

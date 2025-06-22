@@ -8,7 +8,7 @@ pub mod picker;
 
 pub type Depth = u8;
 
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Debug)]
 #[repr(u8)]
 pub enum SearchStatusValue {
     Stopped,
@@ -35,5 +35,24 @@ impl SearchStatus {
         // SAFETY: We only access the wrapped val in this context.
         let inner: u8 = unsafe { transmute(value) };
         self.0.store(inner, Ordering::Release);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::search::{SearchStatus, SearchStatusValue};
+
+    #[test]
+    fn status_default() {
+        let status = SearchStatus::default();
+        assert_eq!(status.get(), SearchStatusValue::Stopped);
+    }
+
+    #[test]
+    fn status_get_set() {
+        let status = SearchStatus::new(SearchStatusValue::Searching);
+        assert_eq!(status.get(), SearchStatusValue::Searching);
+        status.set(SearchStatusValue::Stopped);
+        assert_eq!(status.get(), SearchStatusValue::Stopped);
     }
 }
