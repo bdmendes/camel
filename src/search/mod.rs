@@ -1,9 +1,12 @@
 use std::mem::transmute;
+use std::sync::Arc;
 use std::sync::atomic::AtomicU8;
 use std::sync::atomic::Ordering;
 
 pub mod perft;
 pub mod picker;
+
+pub type Depth = u8;
 
 #[derive(Eq, PartialEq)]
 #[repr(u8)]
@@ -13,8 +16,8 @@ pub enum SearchStatusValue {
     Pondering,
 }
 
-#[derive(Default)]
-pub struct SearchStatus(AtomicU8);
+#[derive(Default, Clone)]
+pub struct SearchStatus(Arc<AtomicU8>);
 
 impl SearchStatus {
     pub fn new(value: SearchStatusValue) -> Self {

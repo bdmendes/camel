@@ -1,4 +1,4 @@
-use std::{process, str::FromStr};
+use std::{process, str::FromStr, thread, time::Instant};
 
 use clap::{Parser, Subcommand};
 use clap_repl::{
@@ -8,16 +8,16 @@ use clap_repl::{
 
 use crate::{
     core::position::{
-        MoveStage, Position,
+        Position,
         fen::{KIWIPETE_POSITION, START_POSITION},
     },
     engine::Engine,
+    search::{Depth, SearchStatusValue, perft::perft, picker::MovePicker},
 };
 
 pub mod core;
 pub mod engine;
 pub mod evaluation;
-#[allow(dead_code)]
 pub mod search;
 
 struct EmptyPrompt;
@@ -67,6 +67,12 @@ enum Command {
     },
     /// Statically evaluate the current position.
     Evaluate,
+    /// Run a move generation test in the current position.
+    Perft { depth: Depth },
+    /// Stop the current search.
+    Stop,
+    /// Signal that the expected move was played.
+    Ponderhit,
     /// List the moves available in the current position.
     List,
     /// Display the current position.
@@ -132,6 +138,7 @@ fn main() {
     let rl = ClapEditor::<Command>::builder()
         .with_prompt(Box::new(EmptyPrompt))
         .build();
+
     rl.repl(|cmd| match cmd {
         Command::Position { subcommand } => match subcommand {
             PositionCommand::Startpos { continuation } => match continuation {
@@ -147,10 +154,10 @@ fn main() {
                 None => engine.position = Position::from_str(START_POSITION).unwrap(),
             },
             PositionCommand::Fen { fen } => {
-                let joined_fen = fen.join(" ");
-                match Position::from_str(&joined_fen) {
+                let flattened = fen.join(" ");
+                match Position::from_str(&flattened) {
                     Ok(position) => engine.position = position,
-                    Err(_) => println!("Invalid FEN: {}", joined_fen),
+                    Err(_) => println!("Invalid FEN: {}", flattened),
                 }
             }
             PositionCommand::Kiwi => {
@@ -164,21 +171,36 @@ fn main() {
             SetoptionNameCommand::Name { name, value } => match value {
                 SetoptionValueCommand::Value { value } => match (name.as_str(), value.as_str()) {
                     ("UCI_Chess960", _) => (),
+                    ("Ponder", _) => (),
                     _ => print!("Invalid option."),
                 },
             },
         },
         Command::Evaluate => println!("{}cp", engine.evaluator.evaluate(&engine.position)),
+        Command::Perft { depth } => {
+            let status = engine.search_status.clone();
+            status.set(SearchStatusValue::Searching);
+            let _ = thread::spawn(move || {
+                let now = Instant::now();
+                let (nodes, _divided) = perft::<true>(&engine.position, depth, &status);
+                println!("{} in {} millis", nodes, (Instant::now() - now).as_millis());
+                status.set(SearchStatusValue::Stopped);
+            });
+        }
+        Command::Stop => engine.search_status.set(SearchStatusValue::Stopped),
+        Command::Ponderhit => match engine.search_status.get() {
+            SearchStatusValue::Stopped | SearchStatusValue::Searching => {
+                println!("I am not pondering.")
+            }
+            SearchStatusValue::Pondering => engine.search_status.set(SearchStatusValue::Searching),
+        },
         Command::List => {
-            let moves = engine.position.moves(MoveStage::All);
-            println!(
-                "{}",
-                moves
-                    .iter()
-                    .map(|m| m.to_string())
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            );
+            let picker: MovePicker<'_> =
+                MovePicker::new(&engine.position, false, None, [None, None]);
+            for m in picker {
+                print!("{} ", m);
+            }
+            println!();
         }
         Command::Display => print!("{}", engine.position),
         Command::Isready => println!("readyok"),
@@ -187,15 +209,11 @@ fn main() {
             println!("id author Bruno Mendes");
 
             //println!(
-            //    "option name Threads type spin default {} min 1 max {}",
-            //    DEFAULT_NUMBER_THREADS, MAX_THREADS
-            //);
-            //println!(
             //    "option name Hash type spin default {} min {} max {}",
             //    DEFAULT_TABLE_SIZE_MB, MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB
             //);
-            println!("option name UCI_Chess960 type check default true",);
-            //println!("option name Ponder type check default true",);
+            println!("option name UCI_Chess960 type check default true");
+            println!("option name Ponder type check default true");
 
             println!("uciok");
         }
