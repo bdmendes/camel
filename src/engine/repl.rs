@@ -14,6 +14,7 @@ static RELAXED_FLAGS: &[&str] = &[
     "binc",
     "ponder",
     "movestogo",
+    "movetime",
 ];
 static OMITTED_FLAGS: &[&str] = &["infinite", "moves"];
 
@@ -50,6 +51,10 @@ pub enum Command {
         /// The moves to go until the next time control.
         #[arg(long)]
         movestogo: Option<u8>,
+
+        /// The maximum time the engine should search for.
+        #[arg(long)]
+        movetime: Option<u8>,
     },
     /// Set an engine option.
     Setoption {
