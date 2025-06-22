@@ -1,39 +1,23 @@
 use clap::{Parser, Subcommand, command};
-use clap_repl::reedline;
 
 use crate::search::Depth;
 
-pub struct EmptyPrompt;
+// The UCI protocol omits the prefix "--" from most flags and uses some redundant keywords.
+// To simplify modelling with clap, we'll preprocess the input string.
+static RELAXED_FLAGS: &[&str] = &[
+    "name",
+    "value",
+    "depth",
+    "wtime",
+    "btime",
+    "winc",
+    "binc",
+    "ponder",
+    "movestogo",
+];
+static OMITTED_FLAGS: &[&str] = &["infinite", "moves"];
 
-impl reedline::Prompt for EmptyPrompt {
-    fn render_prompt_left(&self) -> std::borrow::Cow<str> {
-        "".into()
-    }
-
-    fn render_prompt_right(&self) -> std::borrow::Cow<str> {
-        "".into()
-    }
-
-    fn render_prompt_indicator(
-        &self,
-        _prompt_mode: reedline::PromptEditMode,
-    ) -> std::borrow::Cow<str> {
-        "".into()
-    }
-
-    fn render_prompt_multiline_indicator(&self) -> std::borrow::Cow<str> {
-        "".into()
-    }
-
-    fn render_prompt_history_search_indicator(
-        &self,
-        _history_search: reedline::PromptHistorySearch,
-    ) -> std::borrow::Cow<str> {
-        "".into()
-    }
-}
-
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[command(name = "")]
 pub enum Command {
     /// Set the current engine position.
@@ -42,11 +26,40 @@ pub enum Command {
         subcommand: PositionCommand,
     },
     /// Search from the current position.
-    Go { subcommands: Vec<String> },
+    Go {
+        /// A fixed depth to search to.
+        #[arg(long)]
+        depth: Option<Depth>,
+
+        /// The remaining time for white, in milliseconds.
+        #[arg(long)]
+        wtime: Option<u32>,
+
+        /// The remaining time for black, in milliseconds.
+        #[arg(long)]
+        btime: Option<u32>,
+
+        /// The increment set for white in this time control, in milliseconds.
+        #[arg(long)]
+        winc: Option<u32>,
+
+        /// The increment set for black in this time control, in milliseconds.
+        #[arg(long)]
+        binc: Option<u32>,
+
+        /// The moves to go until the next time control.
+        #[arg(long)]
+        movestogo: Option<u8>,
+    },
     /// Set an engine option.
     Setoption {
-        #[command(subcommand)]
-        name: SetoptionNameCommand,
+        /// The name of the option.
+        #[arg(long)]
+        name: String,
+
+        /// The value of the option.
+        #[arg(long)]
+        value: Option<String>,
     },
     /// Statically evaluate the current position.
     Evaluate,
@@ -56,19 +69,26 @@ pub enum Command {
     Stop,
     /// Signal that the expected move was played.
     Ponderhit,
+    /// Signal that a new game is to be played.
+    Ucinewgame,
     /// List the moves available in the current position.
     List,
     /// Display the current position.
     Display,
     /// Respond when available.
     Isready,
-    /// Identify the engine.
+    /// Identify the engine and list available options.
     Uci,
-    /// Exit the process.
-    Exit,
+    /// Set debug mode.
+    Debug {
+        /// "on" or "off".
+        value: String,
+    },
+    /// Quit the process.
+    Quit,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 pub enum PositionCommand {
     /// From a Forsyth–Edwards Notation string.
     Fen {
@@ -76,40 +96,34 @@ pub enum PositionCommand {
         fen: Vec<String>,
     },
     /// From the starting position.
-    Startpos {
-        #[command(subcommand)]
-        continuation: Option<PositionStartposCommand>,
-    },
+    Startpos { moves: Vec<String> },
     /// The Kiwipete position.
     Kiwi,
 }
 
-#[derive(Subcommand)]
-pub enum PositionStartposCommand {
-    /// A sequence of moves from the start position in long algebraic notation. For example, "e4e5 g8f6".
-    Moves {
-        /// The sequence of moves.
-        moves: Vec<String>,
-    },
-}
+pub fn repl(mut handler: impl FnMut(Command)) {
+    loop {
+        let mut buf = String::new();
+        std::io::stdin().read_line(&mut buf).unwrap();
 
-#[derive(Subcommand)]
-pub enum SetoptionNameCommand {
-    /// The name of the option.
-    Name {
-        /// The name of the option.
-        name: String,
+        if buf.trim().is_empty() {
+            continue;
+        }
 
-        #[command(subcommand)]
-        value: SetoptionValueCommand,
-    },
-}
+        for ommited in OMITTED_FLAGS {
+            buf = buf.replace(ommited, "");
+        }
 
-#[derive(Subcommand)]
-pub enum SetoptionValueCommand {
-    /// The value of the option.
-    Value {
-        /// The value of the option.
-        value: String,
-    },
+        for relaxed in RELAXED_FLAGS {
+            buf = buf.replace(
+                format!(" {}", relaxed).as_str(),
+                format!(" --{}", relaxed).as_str(),
+            );
+        }
+
+        match Command::try_parse_from(std::iter::once("").chain(buf.split_ascii_whitespace())) {
+            Ok(cmd) => handler(cmd),
+            Err(err) => print!("{}", err.render().ansi()),
+        }
+    }
 }
