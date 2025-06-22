@@ -1,9 +1,17 @@
-use crate::core::position::{MoveStage, Position};
+use crate::{
+    core::{
+        moves::{Move, generate::generate_moves, make::make_move},
+        position::{MoveStage, Position},
+    },
+    search::{SearchStatus, SearchStatusValue},
+};
 
-use super::{Move, generate::generate_moves, make::make_move};
-
-pub fn perft<const DIVIDE: bool>(position: &Position, depth: u8) -> (u64, Vec<(Move, u64)>) {
-    if depth == 0 {
+pub fn perft<const DIVIDE: bool>(
+    position: &Position,
+    depth: u8,
+    status: &SearchStatus,
+) -> (u64, Vec<(Move, u64)>) {
+    if depth == 0 || status.get() == SearchStatusValue::Stopped {
         return (1, vec![]);
     }
 
@@ -15,7 +23,7 @@ pub fn perft<const DIVIDE: bool>(position: &Position, depth: u8) -> (u64, Vec<(M
         let mut count = 0;
         let mut divided = vec![];
         for m in moves {
-            let (branch, _) = perft::<false>(&make_move::<true>(position, m), depth - 1);
+            let (branch, _) = perft::<false>(&make_move::<true>(position, m), depth - 1, status);
             if DIVIDE {
                 divided.push((m, branch));
             }
@@ -28,7 +36,10 @@ pub fn perft<const DIVIDE: bool>(position: &Position, depth: u8) -> (u64, Vec<(M
 #[cfg(test)]
 mod tests {
     use super::perft;
-    use crate::core::position::{Position, fen::Fen};
+    use crate::{
+        core::position::{Position, fen::Fen},
+        search::{SearchStatus, SearchStatusValue},
+    };
     use rstest::rstest;
 
     #[rstest]
@@ -144,7 +155,11 @@ mod tests {
     )]
     fn perft_test(#[case] fen: Fen, #[case] depth: u8, #[case] nodes: u64) {
         let position = Position::try_from(fen.clone()).unwrap();
-        let (count, divided) = perft::<true>(&position, depth);
+        let (count, divided) = perft::<true>(
+            &position,
+            depth,
+            &SearchStatus::new(SearchStatusValue::Searching),
+        );
         for (m, branch) in divided {
             println!("{}: {}", m, branch);
         }
