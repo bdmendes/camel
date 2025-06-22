@@ -3,6 +3,7 @@ use std::str::FromStr;
 use crate::{
     core::position::{Position, fen::START_POSITION},
     evaluation::nnue::{NeuralNetwork, Parameters},
+    search::SearchStatus,
 };
 
 static NNUE_PARAMS_BLOB: &str = include_str!("../assets/models/quiet-labeled-20250610.nnue");
@@ -10,6 +11,7 @@ static NNUE_PARAMS_BLOB: &str = include_str!("../assets/models/quiet-labeled-202
 pub struct Engine {
     pub position: Position,
     pub evaluator: NeuralNetwork,
+    pub search_status: SearchStatus,
 }
 
 impl Default for Engine {
@@ -20,6 +22,7 @@ impl Default for Engine {
                 let params = Parameters::from_str(NNUE_PARAMS_BLOB).unwrap();
                 NeuralNetwork::new(params)
             },
+            search_status: SearchStatus::default(),
         }
     }
 }

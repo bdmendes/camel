@@ -5,7 +5,6 @@ use std::fmt::Display;
 
 pub mod generate;
 pub mod make;
-pub mod perft;
 pub mod see;
 
 primitive_enum! { MoveFlag u8;

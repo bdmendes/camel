@@ -7,7 +7,6 @@ use super::moves::{
     Move,
     generate::{MoveVec, generate_moves, square_attackers},
     make::make_move,
-    perft::perft,
 };
 use arrayvec::ArrayVec;
 use bitboard::Bitboard;
@@ -269,10 +268,6 @@ impl Position {
 
     pub fn is_chess_960(&self) -> bool {
         self.chess960
-    }
-
-    pub fn perft(&self, depth: u8) -> (u64, Vec<(Move, u64)>) {
-        perft::<true>(self, depth)
     }
 
     pub fn moves(&self, stage: MoveStage) -> MoveVec {
