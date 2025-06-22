@@ -97,12 +97,12 @@ fn main() {
             },
             Command::Ucinewgame => todo!("clear hash table."),
             Command::List => {
-                let picker: MovePicker<'_> =
-                    MovePicker::new(&engine.position, false, None, [None, None]);
-                for m in picker {
-                    print!("{} ", m);
-                }
-                println!();
+                let picker = MovePicker::new(&engine.position, false, None, [None, None]);
+                let moves = picker
+                    .into_iter()
+                    .map(|m| format!("{} ", m))
+                    .collect::<String>();
+                println!("{}", moves);
             }
             Command::Display => print!("{}", engine.position),
             Command::Isready => println!("readyok"),

@@ -86,40 +86,38 @@ mod tests {
     use crate::core::position::piece::Piece::*;
     use crate::core::position::square::Square::*;
     use crate::core::position::{piece::Piece, square::Square};
+    use rstest::rstest;
 
-    #[test]
-    fn pack_unpack() {
-        fn reflect(
-            from: Square,
-            to: Square,
-            flag: MoveFlag,
-            quiet: bool,
-            capture: bool,
-            promotion_piece: Option<Piece>,
-        ) {
-            let mov = Move::new(from, to, flag);
-            assert_eq!(mov.from(), from);
-            assert_eq!(mov.to(), to);
-            assert_eq!(mov.flag(), flag);
-            assert_eq!(mov.is_quiet(), quiet);
-            assert_eq!(mov.is_capture(), capture);
-            assert_eq!(mov.promotion_piece(), promotion_piece);
-        }
-
-        reflect(E4, H8, Quiet, true, false, None);
-        reflect(E2, E4, DoublePawnPush, true, false, None);
-        reflect(E1, G1, KingsideCastle, true, false, None);
-        reflect(E8, C8, QueensideCastle, true, false, None);
-        reflect(E4, E5, Capture, false, true, None);
-        reflect(D5, C6, EnpassantCapture, false, true, None);
-        reflect(E7, E8, KnightPromotion, false, false, Some(Knight));
-        reflect(E7, E8, BishopPromotion, false, false, Some(Bishop));
-        reflect(E7, E8, RookPromotion, false, false, Some(Rook));
-        reflect(E7, E8, QueenPromotion, false, false, Some(Queen));
-        reflect(E7, E8, KnightPromotionCapture, false, true, Some(Knight));
-        reflect(E7, E8, BishopPromotionCapture, false, true, Some(Bishop));
-        reflect(E7, E8, RookPromotionCapture, false, true, Some(Rook));
-        reflect(E7, E8, QueenPromotionCapture, false, true, Some(Queen));
+    #[rstest]
+    #[case(E4, H8, Quiet, true, false, None)]
+    #[case(E2, E4, DoublePawnPush, true, false, None)]
+    #[case(E1, G1, KingsideCastle, true, false, None)]
+    #[case(E8, C8, QueensideCastle, true, false, None)]
+    #[case(E4, E5, Capture, false, true, None)]
+    #[case(D5, C6, EnpassantCapture, false, true, None)]
+    #[case(E7, E8, KnightPromotion, false, false, Some(Knight))]
+    #[case(E7, E8, BishopPromotion, false, false, Some(Bishop))]
+    #[case(E7, E8, RookPromotion, false, false, Some(Rook))]
+    #[case(E7, E8, QueenPromotion, false, false, Some(Queen))]
+    #[case(E7, E8, KnightPromotionCapture, false, true, Some(Knight))]
+    #[case(E7, E8, BishopPromotionCapture, false, true, Some(Bishop))]
+    #[case(E7, E8, RookPromotionCapture, false, true, Some(Rook))]
+    #[case(E7, E8, QueenPromotionCapture, false, true, Some(Queen))]
+    fn pack_unpack(
+        #[case] from: Square,
+        #[case] to: Square,
+        #[case] flag: MoveFlag,
+        #[case] quiet: bool,
+        #[case] capture: bool,
+        #[case] promotion_piece: Option<Piece>,
+    ) {
+        let mov = Move::new(from, to, flag);
+        assert_eq!(mov.from(), from);
+        assert_eq!(mov.to(), to);
+        assert_eq!(mov.flag(), flag);
+        assert_eq!(mov.is_quiet(), quiet);
+        assert_eq!(mov.is_capture(), capture);
+        assert_eq!(mov.promotion_piece(), promotion_piece);
     }
 
     #[test]
