@@ -1,4 +1,7 @@
-use std::str::FromStr;
+use std::{
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
 
 use crate::{
     core::position::{Position, fen::START_POSITION},
@@ -6,11 +9,13 @@ use crate::{
     search::SearchStatus,
 };
 
-static NNUE_PARAMS_BLOB: &str = include_str!("../assets/models/quiet-labeled-20250610.nnue");
+pub mod repl;
+
+static NNUE_PARAMS_BLOB: &str = include_str!("../../assets/models/quiet-labeled-20250610.nnue");
 
 pub struct Engine {
     pub position: Position,
-    pub evaluator: NeuralNetwork,
+    pub evaluator: Arc<Mutex<NeuralNetwork>>,
     pub search_status: SearchStatus,
 }
 
@@ -20,7 +25,7 @@ impl Default for Engine {
             position: Position::from_str(START_POSITION).unwrap(),
             evaluator: {
                 let params = Parameters::from_str(NNUE_PARAMS_BLOB).unwrap();
-                NeuralNetwork::new(params)
+                Arc::new(Mutex::new(NeuralNetwork::new(params)))
             },
             search_status: SearchStatus::default(),
         }
