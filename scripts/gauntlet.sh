@@ -15,9 +15,9 @@ readonly ELO_THRESHOLD=40
 # Arguments
 readonly UPSTREAM=${1:-"master"}
 readonly CONCURRENCY_GAMES=${2:-"4"}
-readonly ENGINE_HASH=${4:-"64"}
-readonly ROUNDS=${5:-"500"}
-readonly TIME_CONTROL=${6:-"5+0.2"}
+readonly ENGINE_HASH=${3:-"64"}
+readonly ROUNDS=${4:-"500"}
+readonly TIME_CONTROL=${5:-"5+0.2"}
 
 function run_gauntlet {
     # (rounds, time_control)
