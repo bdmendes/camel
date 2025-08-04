@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 arrayvec = "0.7.6"
 clap = { version = "4.5.40", features = ["derive"] }
-ctor = "0.4.2"
+ctor = "0.4.3"
 derive_more = { version = "2.0.1", features = ["full"] }
 primitive_enum = "1.2.0"
 rand = "0.9.1"
