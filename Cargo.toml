@@ -2,7 +2,6 @@
 name = "camel"
 version = "2.0.0-alpha"
 edition = "2024"
-rust-version = "1.85"
 
 [dependencies]
 arrayvec = "0.7.6"
