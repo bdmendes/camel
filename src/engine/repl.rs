@@ -1,4 +1,4 @@
-use clap::{Error, Parser, Subcommand, command};
+use clap::{Error, Parser, Subcommand};
 
 use crate::search::Depth;
 
