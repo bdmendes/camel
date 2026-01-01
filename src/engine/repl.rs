@@ -80,6 +80,8 @@ pub enum Command {
     List,
     /// Display the current position.
     Display,
+    /// Execute a move in the current position.
+    Move { r#move: String },
     /// Respond when available.
     Isready,
     /// Identify the engine and list available options.
