@@ -104,6 +104,14 @@ fn main() {
                     .collect::<String>();
                 println!("{}", moves);
             }
+            Command::Move { r#move } => {
+                let picker = MovePicker::new(&engine.position, false, None, [None, None]);
+                if let Some(mov) = picker.into_iter().find(|&m| m.to_string() == r#move) {
+                    engine.position = engine.position.make_move(mov);
+                } else {
+                    println!("{} is not a valid move in the current position.", r#move);
+                }
+            }
             Command::Display => print!("{}", engine.position),
             Command::Isready => println!("readyok"),
             Command::Uci => {
