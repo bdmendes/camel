@@ -5,13 +5,14 @@ use std::{
 
 use crate::{
     core::position::{Position, fen::START_POSITION},
-    evaluation::nnue::{NeuralNetwork, Parameters},
+    evaluation::{
+        NNUE_PARAMS_BLOB,
+        nnue::{NeuralNetwork, Parameters},
+    },
     search::SearchStatus,
 };
 
 pub mod repl;
-
-static NNUE_PARAMS_BLOB: &str = include_str!("../../assets/models/quiet-labeled-20250610.nnue");
 
 pub struct Engine {
     pub position: Position,
