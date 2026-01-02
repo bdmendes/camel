@@ -59,12 +59,7 @@ fn find_magic(square: Square, piece: Piece) -> SquareMagic {
 
     let occ_move_map = bitsets(blockers_mask)
         .iter()
-        .map(|b| {
-            (
-                *b,
-                slider_attacks_from_square(square, directions, *b, false),
-            )
-        })
+        .map(|b| (*b, slider_attacks_from_square(square, directions, *b, false)))
         .collect::<Vec<_>>();
 
     let mut magic_tentative = SquareMagic {
@@ -161,9 +156,7 @@ mod tests {
 
     #[test]
     fn bishop_attack() {
-        let position =
-            Position::from_str("r2k3r/p3ppb1/6p1/2RPPn1p/Qn3Pb1/2N2N2/1P4PP/2B1K2R w K - 2 17")
-                .unwrap();
+        let position = Position::from_str("r2k3r/p3ppb1/6p1/2RPPn1p/Qn3Pb1/2N2N2/1P4PP/2B1K2R w K - 2 17").unwrap();
 
         assert_eq!(
             bishop_attacks(&position, Square::G7),
@@ -177,9 +170,7 @@ mod tests {
 
     #[test]
     fn rook_attack() {
-        let position =
-            Position::from_str("r2kQ2r/p3ppb1/6p1/2RPPn1p/1n3Pb1/2N2N2/1P4PP/2B1K2R b K - 3 17")
-                .unwrap();
+        let position = Position::from_str("r2kQ2r/p3ppb1/6p1/2RPPn1p/1n3Pb1/2N2N2/1P4PP/2B1K2R b K - 3 17").unwrap();
 
         assert_eq!(
             rook_attacks(&position, Square::H8),

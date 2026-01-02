@@ -14,8 +14,7 @@ use super::{
     magics::{bishop_attacks, queen_attacks, rook_attacks},
 };
 
-pub static ROOK_MOVE_DIRECTIONS: [Direction; 4] =
-    [Square::NORTH, Square::EAST, Square::SOUTH, Square::WEST];
+pub static ROOK_MOVE_DIRECTIONS: [Direction; 4] = [Square::NORTH, Square::EAST, Square::SOUTH, Square::WEST];
 
 pub static BISHOP_MOVE_DIRECTIONS: [Direction; 4] = [
     Square::NORTH + Square::EAST,
@@ -72,8 +71,8 @@ pub fn slider_attacks_from_square(
 }
 
 pub fn diagonal_attackers(position: &Position, color: Color, square: Square) -> Bitboard {
-    let their_bishop_queens = position.occupancy_bb(color)
-        & (position.pieces_bb(Piece::Bishop) | position.pieces_bb(Piece::Queen));
+    let their_bishop_queens =
+        position.occupancy_bb(color) & (position.pieces_bb(Piece::Bishop) | position.pieces_bb(Piece::Queen));
     bishop_attacks(position, square) & their_bishop_queens
 }
 
@@ -99,8 +98,8 @@ fn slider_moves(
 }
 
 pub fn file_attackers(position: &Position, color: Color, square: Square) -> Bitboard {
-    let their_rook_queens = position.occupancy_bb(color)
-        & (position.pieces_bb(Piece::Rook) | position.pieces_bb(Piece::Queen));
+    let their_rook_queens =
+        position.occupancy_bb(color) & (position.pieces_bb(Piece::Rook) | position.pieces_bb(Piece::Queen));
     rook_attacks(position, square) & their_rook_queens
 }
 
@@ -128,22 +127,14 @@ mod tests {
     use std::str::FromStr;
 
     use super::{
-        BISHOP_MOVE_DIRECTIONS, ROOK_MOVE_DIRECTIONS, bishop_moves, queen_moves, rook_moves,
-        slider_attacks_from_square,
+        BISHOP_MOVE_DIRECTIONS, ROOK_MOVE_DIRECTIONS, bishop_moves, queen_moves, rook_moves, slider_attacks_from_square,
     };
 
     #[test]
     fn bishop() {
-        let position =
-            Position::from_str("r3kb1r/3n1p1p/3Bp3/1p1p4/p1qPp3/1NP3Q1/PP3PPP/1K1R3R w kq - 0 18")
-                .unwrap();
+        let position = Position::from_str("r3kb1r/3n1p1p/3Bp3/1p1p4/p1qPp3/1NP3Q1/PP3PPP/1K1R3R w kq - 0 18").unwrap();
         assert_eq!(
-            slider_attacks_from_square(
-                Square::D6,
-                &BISHOP_MOVE_DIRECTIONS,
-                position.occupancy_bb_all(),
-                false,
-            ),
+            slider_attacks_from_square(Square::D6, &BISHOP_MOVE_DIRECTIONS, position.occupancy_bb_all(), false,),
             Bitboard::from_square(Square::A3)
                 | Bitboard::from_square(Square::A3)
                 | Bitboard::from_square(Square::B4)
@@ -160,17 +151,10 @@ mod tests {
 
     #[test]
     fn rook() {
-        let position =
-            Position::from_str("2r1kb1r/3n1p1p/3Bp3/1p1p4/p1qPp3/1NP3QP/PP3PP1/1K1RR3 b k - 0 19")
-                .unwrap();
+        let position = Position::from_str("2r1kb1r/3n1p1p/3Bp3/1p1p4/p1qPp3/1NP3QP/PP3PP1/1K1RR3 b k - 0 19").unwrap();
 
         assert_eq!(
-            slider_attacks_from_square(
-                Square::C8,
-                &ROOK_MOVE_DIRECTIONS,
-                position.occupancy_bb_all(),
-                true,
-            ),
+            slider_attacks_from_square(Square::C8, &ROOK_MOVE_DIRECTIONS, position.occupancy_bb_all(), true,),
             Bitboard::from_square(Square::B8)
                 | Bitboard::from_square(Square::D8)
                 | Bitboard::from_square(Square::E8)
@@ -183,10 +167,8 @@ mod tests {
 
     #[test]
     fn file_attacks() {
-        let position = Position::from_str(
-            "4k1nr/p1pqppb1/2n3p1/1r1PP2p/1pp2Pb1/5N2/PP2B1PP/RNBQR1K1 w k - 4 13",
-        )
-        .unwrap();
+        let position =
+            Position::from_str("4k1nr/p1pqppb1/2n3p1/1r1PP2p/1pp2Pb1/5N2/PP2B1PP/RNBQR1K1 w k - 4 13").unwrap();
         assert_eq!(
             file_attackers(&position, Color::Black, Square::D5),
             Bitboard::from_square(Square::D7) | Bitboard::from_square(Square::B5)
@@ -195,10 +177,8 @@ mod tests {
 
     #[test]
     fn diagonal_attacks() {
-        let position = Position::from_str(
-            "4k1nr/p1q1ppb1/6p1/nrpPP2p/1pp2Pb1/5N2/PP2B1PP/RNBQ1RK1 w k - 2 16",
-        )
-        .unwrap();
+        let position =
+            Position::from_str("4k1nr/p1q1ppb1/6p1/nrpPP2p/1pp2Pb1/5N2/PP2B1PP/RNBQ1RK1 w k - 2 16").unwrap();
         assert_eq!(
             diagonal_attackers(&position, Color::Black, Square::E5),
             Bitboard::from_square(Square::C7) | Bitboard::from_square(Square::G7)
@@ -228,9 +208,7 @@ mod tests {
                     "a1b1", "a1a2", "a1a3", "a1a4", "f1e1", "f1f2", "f1f3", "f1f4", "f1f5", "a1a5",
                 ],
                 vec!["f1f5", "a1a5"],
-                vec![
-                    "a1b1", "a1a2", "a1a3", "a1a4", "f1e1", "f1f2", "f1f3", "f1f4",
-                ],
+                vec!["a1b1", "a1a2", "a1a3", "a1a4", "f1e1", "f1f2", "f1f3", "f1f4"],
             ],
         );
     }
@@ -241,13 +219,9 @@ mod tests {
             "4kr2/2q1ppb1/3P1n2/npp1PpNp/1pp3b1/2N5/1P2B1PP/R1BQ1RK1 b - - 0 21",
             queen_moves,
             [
-                vec![
-                    "c7c6", "c7c8", "c7d7", "c7b7", "c7a7", "c7b8", "c7b6", "c7d8", "c7d6",
-                ],
+                vec!["c7c6", "c7c8", "c7d7", "c7b7", "c7a7", "c7b8", "c7b6", "c7d8", "c7d6"],
                 vec!["c7d6"],
-                vec![
-                    "c7c6", "c7c8", "c7d7", "c7b7", "c7a7", "c7b8", "c7b6", "c7d8",
-                ],
+                vec!["c7c6", "c7c8", "c7d7", "c7b7", "c7a7", "c7b8", "c7b6", "c7d8"],
             ],
         );
     }

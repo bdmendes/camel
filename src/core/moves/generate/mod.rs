@@ -1,7 +1,5 @@
 use super::{Move, MoveFlag, make::make_move};
-use crate::core::position::{
-    MoveStage, Position, bitboard::Bitboard, color::Color, piece::Piece, square::Square,
-};
+use crate::core::position::{MoveStage, Position, bitboard::Bitboard, color::Color, piece::Piece, square::Square};
 use arrayvec::ArrayVec;
 use castle::castle_moves;
 use leapers::{king_attackers, king_regular_moves, knight_attackers, knight_moves};

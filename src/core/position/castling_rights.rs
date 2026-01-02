@@ -18,12 +18,7 @@ impl Default for CastlingRights {
 }
 
 impl CastlingRights {
-    pub fn new(
-        white_kingside: bool,
-        white_queenside: bool,
-        black_kingside: bool,
-        black_queenside: bool,
-    ) -> Self {
+    pub fn new(white_kingside: bool, white_queenside: bool, black_kingside: bool, black_queenside: bool) -> Self {
         let mut payload = 0;
         white_kingside.then(|| payload |= 0b1);
         white_queenside.then(|| payload |= 0b10);
@@ -150,16 +145,8 @@ mod tests {
             castling_rights.removed_side(Color::Black, CastlingSide::Queenside)
         );
 
-        assert!(
-            !castling_rights
-                .removed_color(Color::White)
-                .has_color(Color::White)
-        );
-        assert!(
-            !castling_rights
-                .removed_color(Color::Black)
-                .has_color(Color::Black)
-        );
+        assert!(!castling_rights.removed_color(Color::White).has_color(Color::White));
+        assert!(!castling_rights.removed_color(Color::Black).has_color(Color::Black));
     }
 
     #[test]

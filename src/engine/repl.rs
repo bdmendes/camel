@@ -116,10 +116,7 @@ fn parse(input: &String) -> Result<Command, Error> {
     }
 
     for relaxed in RELAXED_FLAGS {
-        input = input.replace(
-            format!(" {}", relaxed).as_str(),
-            format!(" --{}", relaxed).as_str(),
-        );
+        input = input.replace(format!(" {}", relaxed).as_str(), format!(" --{}", relaxed).as_str());
     }
 
     Command::try_parse_from(std::iter::once("").chain(input.split_ascii_whitespace()))

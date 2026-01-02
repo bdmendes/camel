@@ -59,11 +59,7 @@ impl<'a> MovePicker<'a> {
         } else if mov.promotion_piece().is_some() {
             -72
         } else if mov.is_capture() {
-            let mvv_lva = self
-                .position
-                .piece_at(mov.to())
-                .unwrap_or(Piece::Pawn)
-                .value()
+            let mvv_lva = self.position.piece_at(mov.to()).unwrap_or(Piece::Pawn).value()
                 - self.position.piece_at(mov.from()).unwrap().value();
             if mvv_lva >= 0 {
                 36 + mvv_lva
@@ -143,8 +139,7 @@ mod tests {
 
     fn mocks<'a>() -> (&'a Position, MovePicker<'a>) {
         let position = MOCK_POSITION.get_or_init(|| {
-            Position::from_str("3rk1nr/1p3pbp/p1npb1pP/4p1q1/P1B1P3/8/1PP2PP1/RNBQNRK1 w k - 2 15")
-                .unwrap()
+            Position::from_str("3rk1nr/1p3pbp/p1npb1pP/4p1q1/P1B1P3/8/1PP2PP1/RNBQNRK1 w k - 2 15").unwrap()
         });
         let killers = [
             Some(Move::new(Square::E1, Square::F3, MoveFlag::Quiet)),
@@ -181,10 +176,8 @@ mod tests {
 
     #[test]
     fn quiesce_only_winning_captures() {
-        let position = Position::from_str(
-            "r1bq1rk1/pp2bppp/2n1p3/2Pp4/2P1n3/P3PN2/1P1NBPPP/R1BQ1RK1 b - - 0 10",
-        )
-        .unwrap();
+        let position =
+            Position::from_str("r1bq1rk1/pp2bppp/2n1p3/2Pp4/2P1n3/P3PN2/1P1NBPPP/R1BQ1RK1 b - - 0 10").unwrap();
         let picker = MovePicker::new(&position, true, None, [None, None]);
         for mov in picker {
             assert!(mov.is_capture());

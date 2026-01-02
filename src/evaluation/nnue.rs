@@ -35,12 +35,8 @@ impl Parameters {
         let acc_weights = (0..INPUT_SIZE * HIDDEN_LAYER_SIZE)
             .map(|_| rng.random_range(-1.0..1.0))
             .collect();
-        let acc_biases = (0..HIDDEN_LAYER_SIZE)
-            .map(|_| rng.random_range(-1.0..1.0))
-            .collect();
-        let out_weights = (0..HIDDEN_LAYER_SIZE)
-            .map(|_| rng.random_range(-1.0..1.0))
-            .collect();
+        let acc_biases = (0..HIDDEN_LAYER_SIZE).map(|_| rng.random_range(-1.0..1.0)).collect();
+        let out_weights = (0..HIDDEN_LAYER_SIZE).map(|_| rng.random_range(-1.0..1.0)).collect();
         let out_bias = rng.random_range(-1.0..1.0);
         Self {
             acc_weights,
@@ -50,12 +46,7 @@ impl Parameters {
         }
     }
 
-    pub fn filled(
-        acc_weight_val: f32,
-        acc_bias_val: f32,
-        out_weight_val: f32,
-        out_bias_val: f32,
-    ) -> Self {
+    pub fn filled(acc_weight_val: f32, acc_bias_val: f32, out_weight_val: f32, out_bias_val: f32) -> Self {
         Self {
             acc_weights: vec![acc_weight_val; INPUT_SIZE * HIDDEN_LAYER_SIZE],
             acc_biases: vec![acc_bias_val; HIDDEN_LAYER_SIZE],
@@ -242,20 +233,11 @@ mod tests {
         let mut position = Position::default();
         position.set_square(Square::E4, Piece::Queen, Color::White);
 
-        assert_eq!(
-            net.evaluate_unscaled(&position),
-            2.0 * HIDDEN_LAYER_SIZE as f32
-        );
+        assert_eq!(net.evaluate_unscaled(&position), 2.0 * HIDDEN_LAYER_SIZE as f32);
 
-        assert_eq!(
-            net.last_seen,
-            Some((position, 2.0 * HIDDEN_LAYER_SIZE as f32))
-        );
+        assert_eq!(net.last_seen, Some((position, 2.0 * HIDDEN_LAYER_SIZE as f32)));
 
-        assert_eq!(
-            net.evaluate_unscaled(&position),
-            2.0 * HIDDEN_LAYER_SIZE as f32
-        );
+        assert_eq!(net.evaluate_unscaled(&position), 2.0 * HIDDEN_LAYER_SIZE as f32);
 
         position.clear_square(Square::E4);
         assert_eq!(net.evaluate_unscaled(&position), 0.0);
