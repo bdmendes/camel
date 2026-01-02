@@ -20,7 +20,7 @@ mod tests {
         sync::{Arc, LazyLock, Mutex},
     };
 
-    const EVALUATOR: LazyLock<Arc<Mutex<NeuralNetwork>>> = LazyLock::new(|| {
+    static EVALUATOR: LazyLock<Arc<Mutex<NeuralNetwork>>> = LazyLock::new(|| {
         let params = Parameters::from_str(NNUE_PARAMS_BLOB).unwrap();
         Arc::new(Mutex::new(NeuralNetwork::new(params)))
     });
