@@ -2,8 +2,8 @@ use std::fmt::{Display, Write};
 
 use primitive_enum::primitive_enum;
 
-static FLIPPED_COLORS: [Color; 2] = [Color::Black, Color::White];
-static COLOR_SIGNS: [i8; 2] = [1, -1];
+const FLIPPED_COLORS: [Color; 2] = [Color::Black, Color::White];
+const COLOR_SIGNS: [i8; 2] = [1, -1];
 
 primitive_enum! { Color u8;
     White,

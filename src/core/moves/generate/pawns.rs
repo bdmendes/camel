@@ -14,17 +14,17 @@ use super::{
     leapers::{LeaperAttackMap, init_leaper_attacks},
 };
 
-static PAWN_DIRECTIONS: [Direction; 2] = [Square::NORTH, Square::SOUTH];
+const PAWN_DIRECTIONS: [Direction; 2] = [Square::NORTH, Square::SOUTH];
 
-static PAWN_ATTACKS_WHITE: LeaperAttackMap =
+const PAWN_ATTACKS_WHITE: LeaperAttackMap =
     init_leaper_attacks(&[Square::NORTH + Square::WEST, Square::NORTH + Square::EAST]);
 
-static PAWN_ATTACKS_BLACK: LeaperAttackMap =
+const PAWN_ATTACKS_BLACK: LeaperAttackMap =
     init_leaper_attacks(&[Square::SOUTH + Square::WEST, Square::SOUTH + Square::EAST]);
 
 const LAST_RANKS: Bitboard = Bitboard::new(0xFF | ((0xFF) << (8 * 7)));
 
-static DOUBLE_RANKS: [[Bitboard; 3]; 2] = {
+const DOUBLE_RANKS: [[Bitboard; 3]; 2] = {
     [
         [Bitboard::rank_mask(1), Bitboard::rank_mask(2), Bitboard::rank_mask(3)],
         [Bitboard::rank_mask(6), Bitboard::rank_mask(5), Bitboard::rank_mask(4)],

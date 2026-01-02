@@ -4,11 +4,11 @@ use crate::core::position::{
 
 use super::{Move, MoveFlag, generate::pawns::pawn_attackers};
 
-static COLOR_CASTLE_RANKS: [Bitboard; 2] = [Bitboard::rank_mask(0), Bitboard::rank_mask(7)];
-static TO_KING_KINGSIDE: [Square; 2] = [Square::G1, Square::G8];
-static TO_KING_QUEENSIDE: [Square; 2] = [Square::C1, Square::C8];
-static TO_ROOK_KINGSIDE: [Square; 2] = [Square::F1, Square::F8];
-static TO_ROOK_QUEENSIDE: [Square; 2] = [Square::D1, Square::D8];
+const COLOR_CASTLE_RANKS: [Bitboard; 2] = [Bitboard::rank_mask(0), Bitboard::rank_mask(7)];
+const TO_KING_KINGSIDE: [Square; 2] = [Square::G1, Square::G8];
+const TO_KING_QUEENSIDE: [Square; 2] = [Square::C1, Square::C8];
+const TO_ROOK_KINGSIDE: [Square; 2] = [Square::F1, Square::F8];
+const TO_ROOK_QUEENSIDE: [Square; 2] = [Square::D1, Square::D8];
 
 fn make_castle<const UPDATE_META: bool>(position: &mut Position, side_to_move: Color, castling_side: CastlingSide) {
     let ours = position.occupancy_bb(side_to_move);
