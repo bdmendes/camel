@@ -64,21 +64,22 @@ impl Parameters {
         }
     }
 
-    pub fn save(&self, path: &str) -> std::io::Result<()> {
-        if let Some(parent) = std::path::Path::new(path).parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let file = std::fs::File::create(path)?;
-        let writer = std::io::BufWriter::new(file);
-        serde_json::to_writer(writer, self).map_err(std::io::Error::other)
+    fn valid_full_sizes(&self) -> bool {
+        self.acc_weights.len() == INPUT_SIZE * HIDDEN_LAYER_SIZE
+            && self.acc_biases.len() == HIDDEN_LAYER_SIZE
+            && self.out_weights.len() == HIDDEN_LAYER_SIZE
     }
 }
 
 impl FromStr for Parameters {
-    type Err = serde_json::Error;
+    type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        serde_json::from_str(s)
+        match serde_json::from_str::<Self>(s) {
+            Ok(params) if params.valid_full_sizes() => Ok(params),
+            Ok(_) => Err("Invalid sizes in NNUE parameters.".to_string()),
+            Err(e) => Err(e.to_string()),
+        }
     }
 }
 
