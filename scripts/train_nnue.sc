@@ -13,6 +13,7 @@ import io.circe.parser.*
 import java.io.PrintWriter
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import scala.collection.mutable
 import scala.io.Source
 import scala.util.*
 import synapses.lib.*
@@ -31,7 +32,7 @@ val EpdPathFromRoot = "./assets/books/quiet-evaluated-filtered-camelv1.epd"
 
 def toInput(fen: String): List[Double] =
   val position = new Position(fen)
-  var input = Vector.fill(768)(0.0)
+  val input = mutable.ArraySeq.fill(768)(0.0)
   Pieces
     .zipWithIndex
     .foreach: (piece, idx) =>
@@ -39,7 +40,7 @@ def toInput(fen: String): List[Double] =
       while bb.getValue() != 0 do
         val sq = bb.trailingZeros()
         bb.popLastBit()
-        input = input.updated(idx * 64 + sq, 1.0)
+        input.update(idx * 64 + sq, 1.0)
   input.toList
 end toInput
 
@@ -102,22 +103,19 @@ def printSampleResults(net: Net): Unit =
     println(net.predict(toInput(pos)).head * Scale)
 end printSampleResults
 
-val lines = Source.fromFile(EpdPathFromRoot).getLines().take(Observations)
-val data = lines.map(toInputExpected).toList
-
+val mkLinesStream = () => Source.fromFile(EpdPathFromRoot).getLines().take(Observations).map(toInputExpected)
 val mkNetwork = () => Net(List(768, 128, 1), _ => Fun.leakyReLU, _ => Random.nextDouble() * 2 - 1)
+
 (1 to Epochs).foldLeft(mkNetwork()):
   case (nn, epoch) =>
     val learningRate = LearningRate * math.pow(LearningRateDecayFactor, epoch - 1)
     println(s"Starting epoch $epoch. Learning rate = $learningRate.")
     val (next, _) =
-      Random
-        .shuffle(data)
-        .foldLeft(nn -> 0):
-          case (acc -> counter, xs -> ys) =>
-            if counter % (data.length / 20) == 0 then
-              println(s"[Epoch $epoch/$Epochs] Processed $counter/${data.length} elements.")
-            acc.parFit(learningRate, xs, List(ys)) -> (counter + 1)
+      mkLinesStream().foldLeft(nn -> 0):
+        case (acc -> counter, xs -> ys) =>
+          if counter % 1000 == 0 then
+            println(s"[Epoch $epoch/$Epochs] Processed $counter elements.")
+          acc.parFit(learningRate, xs, List(ys)) -> (counter + 1)
     serialize(next)
     printSampleResults(next)
     next
