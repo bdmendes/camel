@@ -6,8 +6,8 @@ use primitive_enum::primitive_enum;
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct CastlingRights(u8);
 
-static MASK_COLOR: [u8; 2] = [0b11, 0b1100];
-static MASK_SIDE: [u8; 4] = [0b1, 0b10, 0b100, 0b1000];
+const MASK_COLOR: [u8; 2] = [0b11, 0b1100];
+const MASK_SIDE: [u8; 4] = [0b1, 0b10, 0b100, 0b1000];
 
 primitive_enum! { CastlingSide u8;
     Kingside,
