@@ -20,7 +20,7 @@ jobs:
       matrix:
         target: [upstream, release]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
