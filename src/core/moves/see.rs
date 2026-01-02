@@ -2,12 +2,7 @@ use crate::core::position::{Position, color::Color, piece::Piece, square::Square
 
 use super::Move;
 
-fn see_recurse(
-    square: Square,
-    position: &mut Position,
-    side_to_move: Color,
-    at_square: Piece,
-) -> i8 {
+fn see_recurse(square: Square, position: &mut Position, side_to_move: Color, at_square: Piece) -> i8 {
     let attackers = position.attackers(square, side_to_move);
     if attackers.is_empty() {
         return 0;
@@ -68,11 +63,7 @@ mod tests {
 
     #[test]
     fn free_piece_instant_with_kings() {
-        assert_see(
-            "8/1p3p2/1P2p1k1/pP1pP1p1/3P1pKP/5P2/6P1/8 w - - 1 38",
-            "h4g5",
-            1,
-        );
+        assert_see("8/1p3p2/1P2p1k1/pP1pP1p1/3P1pKP/5P2/6P1/8 w - - 1 38", "h4g5", 1);
     }
 
     #[test]

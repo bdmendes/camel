@@ -1,7 +1,6 @@
 use crate::core::moves::{Move, MoveFlag};
 use crate::core::position::{
-    MoveStage, Position, bitboard::Bitboard, castling_rights::CastlingSide, piece::Piece,
-    square::Square,
+    MoveStage, Position, bitboard::Bitboard, castling_rights::CastlingSide, piece::Piece, square::Square,
 };
 
 use super::{MoveVec, square_attackers};
@@ -40,8 +39,7 @@ fn castle_side(position: &Position, side: CastlingSide, moves: &mut MoveVec) {
             return;
         }
 
-        let final_king_square =
-            FINAL_KING_SQUARES[(position.side_to_move() as usize * 2) + (side as usize)];
+        let final_king_square = FINAL_KING_SQUARES[(position.side_to_move() as usize * 2) + (side as usize)];
         if position.is_chess_960() {
             // In chess960, the king and rook jump over each other,
             // so we must check each path manually.

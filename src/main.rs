@@ -23,10 +23,7 @@ fn main() {
 
     repl(|cmd| {
         if engine.search_status.get() != SearchStatusValue::Stopped
-            && matches!(
-                cmd,
-                Command::Go { .. } | Command::Perft { .. } | Command::Evaluate
-            )
+            && matches!(cmd, Command::Go { .. } | Command::Perft { .. } | Command::Evaluate)
         {
             println!("I am searching. Stop the search first.");
             return;
@@ -52,9 +49,7 @@ fn main() {
                         Err(_) => println!("Invalid FEN: {}", flattened),
                     }
                 }
-                PositionCommand::Kiwi => {
-                    engine.position = Position::from_str(KIWIPETE_POSITION).unwrap()
-                }
+                PositionCommand::Kiwi => engine.position = Position::from_str(KIWIPETE_POSITION).unwrap(),
             },
             Command::Go { .. } => {
                 println!("Search is not yet implemented. Please use Camel 1.6.0 in the meantime!")
@@ -65,10 +60,7 @@ fn main() {
                 _ => println!("Invalid option."),
             },
             Command::Evaluate => {
-                println!(
-                    "{}cp",
-                    engine.evaluator.lock().unwrap().evaluate(&engine.position)
-                )
+                println!("{}cp", engine.evaluator.lock().unwrap().evaluate(&engine.position))
             }
             Command::Perft { depth } => {
                 let status = engine.search_status.clone();
@@ -91,17 +83,12 @@ fn main() {
                 SearchStatusValue::Stopped | SearchStatusValue::Searching => {
                     println!("I am not pondering.")
                 }
-                SearchStatusValue::Pondering => {
-                    engine.search_status.set(SearchStatusValue::Searching)
-                }
+                SearchStatusValue::Pondering => engine.search_status.set(SearchStatusValue::Searching),
             },
             Command::Ucinewgame => todo!("clear hash table."),
             Command::List => {
                 let picker = MovePicker::new(&engine.position, false, None, [None, None]);
-                let moves = picker
-                    .into_iter()
-                    .map(|m| format!("{} ", m))
-                    .collect::<String>();
+                let moves = picker.into_iter().map(|m| format!("{} ", m)).collect::<String>();
                 println!("{}", moves);
             }
             Command::Move { r#move } => {

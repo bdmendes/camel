@@ -10,8 +10,7 @@ use super::{
 };
 
 pub const START_POSITION: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-pub const KIWIPETE_POSITION: &str =
-    "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+pub const KIWIPETE_POSITION: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
 
 #[derive(PartialEq, Eq, Debug, Clone, FromStr)]
 pub struct Fen(String);
@@ -115,11 +114,7 @@ impl TryFrom<Fen> for Position {
                     file = 0;
                 }
                 'p' | 'P' | 'n' | 'N' | 'b' | 'B' | 'r' | 'R' | 'q' | 'Q' | 'k' | 'K' => {
-                    let color = if c.is_lowercase() {
-                        Color::Black
-                    } else {
-                        Color::White
-                    };
+                    let color = if c.is_lowercase() { Color::Black } else { Color::White };
                     let piece = Piece::try_from(c)?;
                     if rank > 7 || file > 7 {
                         return Err(());
@@ -174,11 +169,7 @@ impl TryFrom<Fen> for Position {
                     rights = rights.removed_side(Color::Black, CastlingSide::Queenside)
                 }
                 c if c.is_alphabetic() => {
-                    let color = if c.is_uppercase() {
-                        Color::White
-                    } else {
-                        Color::Black
-                    };
+                    let color = if c.is_uppercase() { Color::White } else { Color::Black };
                     let file = c.to_ascii_lowercase() as u8 - b'a';
                     let king_file = match color {
                         Color::White => white_king.unwrap().file(),
@@ -298,8 +289,7 @@ mod tests {
     #[test]
     fn xfen() {
         let position1 = Position::try_from(
-            Fen::from_str("rn2k1r1/ppp1pp1p/3p2p1/5bn1/P7/2N2B2/1PPPPP2/2BNK1RR w Gkq - 4 11")
-                .unwrap(),
+            Fen::from_str("rn2k1r1/ppp1pp1p/3p2p1/5bn1/P7/2N2B2/1PPPPP2/2BNK1RR w Gkq - 4 11").unwrap(),
         )
         .unwrap();
         assert_eq!(
@@ -309,8 +299,7 @@ mod tests {
         assert!(position1.is_chess_960());
 
         let position2 = Position::try_from(
-            Fen::from_str("b1qbrknr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/BNQBRKR1 b Ekq - 3 3")
-                .unwrap(),
+            Fen::from_str("b1qbrknr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/BNQBRKR1 b Ekq - 3 3").unwrap(),
         )
         .unwrap();
         assert_eq!(

@@ -65,9 +65,7 @@ static BETWEEN: [Bitboard; 64 * 64] = {
                     }
                 }
                 // Same diagonal (or anti-diagonal)
-                else if (from_rank as i16 - to_rank as i16).abs()
-                    == (from_file as i16 - to_file as i16).abs()
-                {
+                else if (from_rank as i16 - to_rank as i16).abs() == (from_file as i16 - to_file as i16).abs() {
                     let rank_step = if to_rank > from_rank { 1i16 } else { -1i16 };
                     let file_step = if to_file > from_file { 1i16 } else { -1i16 };
                     let mut r = from_rank as i16 + rank_step;
@@ -96,9 +94,7 @@ static BETWEEN: [Bitboard; 64 * 64] = {
     ret_arr
 };
 
-#[derive(
-    Default, Copy, Clone, Debug, PartialEq, Eq, BitOr, BitAnd, Shl, Shr, ShlAssign, ShrAssign, Not,
-)]
+#[derive(Default, Copy, Clone, Debug, PartialEq, Eq, BitOr, BitAnd, Shl, Shr, ShlAssign, ShrAssign, Not)]
 pub struct Bitboard(u64);
 
 impl Bitboard {
@@ -198,13 +194,11 @@ impl Display for Bitboard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for rank in (0..8).rev() {
             for file in 0..8 {
-                f.write_char(
-                    if self.is_set(Square::from_file_rank(file, rank).unwrap()) {
-                        '1'
-                    } else {
-                        '0'
-                    },
-                )?;
+                f.write_char(if self.is_set(Square::from_file_rank(file, rank).unwrap()) {
+                    '1'
+                } else {
+                    '0'
+                })?;
             }
             f.write_char('\n')?;
         }
@@ -236,27 +230,24 @@ mod tests {
 
     #[test]
     fn lsb() {
-        let bb = Bitboard::from_square(Square::E4)
-            | Bitboard::from_square(Square::A6)
-            | Bitboard::from_square(Square::H8);
+        let bb =
+            Bitboard::from_square(Square::E4) | Bitboard::from_square(Square::A6) | Bitboard::from_square(Square::H8);
         assert_eq!(bb.lsb(), Some(Square::E4));
         assert_eq!(Bitboard::empty().lsb(), None);
     }
 
     #[test]
     fn msb() {
-        let bb = Bitboard::from_square(Square::E4)
-            | Bitboard::from_square(Square::A6)
-            | Bitboard::from_square(Square::H8);
+        let bb =
+            Bitboard::from_square(Square::E4) | Bitboard::from_square(Square::A6) | Bitboard::from_square(Square::H8);
         assert_eq!(bb.msb(), Some(Square::H8));
         assert_eq!(Bitboard::empty().msb(), None);
     }
 
     #[test]
     fn iter() {
-        let bb = Bitboard::from_square(Square::E4)
-            | Bitboard::from_square(Square::A6)
-            | Bitboard::from_square(Square::H8);
+        let bb =
+            Bitboard::from_square(Square::E4) | Bitboard::from_square(Square::A6) | Bitboard::from_square(Square::H8);
 
         let mut iter = bb.into_iter();
         assert_eq!(iter.next(), Some(Square::E4));
@@ -267,9 +258,8 @@ mod tests {
 
     #[test]
     fn iter_rev() {
-        let bb = Bitboard::from_square(Square::E4)
-            | Bitboard::from_square(Square::A6)
-            | Bitboard::from_square(Square::H8);
+        let bb =
+            Bitboard::from_square(Square::E4) | Bitboard::from_square(Square::A6) | Bitboard::from_square(Square::H8);
 
         let mut iter = bb.into_iter().rev();
         assert_eq!(iter.next(), Some(Square::H8));
@@ -373,9 +363,8 @@ mod tests {
 
     #[test]
     fn display() {
-        let bb = Bitboard::from_square(Square::E4)
-            | Bitboard::from_square(Square::A6)
-            | Bitboard::from_square(Square::H8);
+        let bb =
+            Bitboard::from_square(Square::E4) | Bitboard::from_square(Square::A6) | Bitboard::from_square(Square::H8);
         let str = bb.to_string();
         let lines = str.lines().collect::<Vec<&str>>();
         assert_eq!(lines[0], "00000001");

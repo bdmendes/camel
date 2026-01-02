@@ -1,6 +1,5 @@
 use crate::core::position::{
-    Position, bitboard::Bitboard, castling_rights::CastlingSide, color::Color, piece::Piece,
-    square::Square,
+    Position, bitboard::Bitboard, castling_rights::CastlingSide, color::Color, piece::Piece, square::Square,
 };
 
 use super::{Move, MoveFlag, generate::pawns::pawn_attackers};
@@ -11,11 +10,7 @@ static TO_KING_QUEENSIDE: [Square; 2] = [Square::C1, Square::C8];
 static TO_ROOK_KINGSIDE: [Square; 2] = [Square::F1, Square::F8];
 static TO_ROOK_QUEENSIDE: [Square; 2] = [Square::D1, Square::D8];
 
-fn make_castle<const UPDATE_META: bool>(
-    position: &mut Position,
-    side_to_move: Color,
-    castling_side: CastlingSide,
-) {
+fn make_castle<const UPDATE_META: bool>(position: &mut Position, side_to_move: Color, castling_side: CastlingSide) {
     let ours = position.occupancy_bb(side_to_move);
     let rooks = position.pieces_bb(Piece::Rook) & ours & COLOR_CASTLE_RANKS[side_to_move as usize];
     let (rook, to_king, to_rook) = match castling_side {
@@ -50,9 +45,7 @@ pub fn make_move<const UPDATE_META: bool>(position: &Position, mov: Move) -> Pos
 
     match mov.flag() {
         MoveFlag::Quiet | MoveFlag::Capture
-            if UPDATE_META
-                && piece == Piece::King
-                && position.castling_rights().has_color(side_to_move) =>
+            if UPDATE_META && piece == Piece::King && position.castling_rights().has_color(side_to_move) =>
         {
             position.set_square(mov.to(), piece, side_to_move);
             position.set_castling_rights(position.castling_rights().removed_color(side_to_move));
@@ -64,10 +57,7 @@ pub fn make_move<const UPDATE_META: bool>(position: &Position, mov: Move) -> Pos
                 && COLOR_CASTLE_RANKS[side_to_move as usize].is_set(mov.from()) =>
         {
             position.set_square(mov.to(), piece, side_to_move);
-            let our_king = position
-                .pieces_color_bb(Piece::King, side_to_move)
-                .lsb()
-                .unwrap();
+            let our_king = position.pieces_color_bb(Piece::King, side_to_move).lsb().unwrap();
             position.set_castling_rights(position.castling_rights().removed_side(
                 side_to_move,
                 if mov.from().file() > our_king.file() {
@@ -191,10 +181,7 @@ mod tests {
     fn make(#[case] position: &str, #[case] mov: &str, #[case] expected: &str) {
         let position = Position::from_str(position).unwrap();
         let moves = position.moves(MoveStage::All);
-        let mov = moves
-            .iter()
-            .find(|m| m.to_string().as_str() == mov)
-            .unwrap();
+        let mov = moves.iter().find(|m| m.to_string().as_str() == mov).unwrap();
         assert_eq!(make_move::<true>(&position, *mov).fen().as_str(), expected);
     }
 }

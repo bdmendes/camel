@@ -159,8 +159,7 @@ impl Position {
     }
 
     pub fn piece_color_at(&self, square: Square) -> Option<(Piece, Color)> {
-        self.color_at(square)
-            .map(|c| (self.piece_at(square).unwrap(), c))
+        self.color_at(square).map(|c| (self.piece_at(square).unwrap(), c))
     }
 
     pub fn clear_square(&mut self, square: Square) {
@@ -289,13 +288,8 @@ impl Position {
     }
 
     pub fn is_check(&self) -> bool {
-        let king_square = self
-            .pieces_color_bb(Piece::King, self.side_to_move())
-            .lsb()
-            .unwrap();
-        !self
-            .attackers(king_square, self.side_to_move().flipped())
-            .is_empty()
+        let king_square = self.pieces_color_bb(Piece::King, self.side_to_move()).lsb().unwrap();
+        !self.attackers(king_square, self.side_to_move().flipped()).is_empty()
     }
 
     pub fn attackers(&self, square: Square, by_color: Color) -> Bitboard {
@@ -316,15 +310,9 @@ impl Position {
             let ours = self.piece_color_at(*square);
             let theirs = other.piece_color_at(*square);
             match (ours, theirs) {
-                (Some((piece, color)), None) => {
-                    diff.push(PositionDiffEntry::Set(*square, piece, color))
-                }
-                (None, Some((piece, color))) => {
-                    diff.push(PositionDiffEntry::Clear(*square, piece, color))
-                }
-                (Some((piece1, color1)), Some((piece2, color2)))
-                    if piece1 != piece2 || color1 != color2 =>
-                {
+                (Some((piece, color)), None) => diff.push(PositionDiffEntry::Set(*square, piece, color)),
+                (None, Some((piece, color))) => diff.push(PositionDiffEntry::Clear(*square, piece, color)),
+                (Some((piece1, color1)), Some((piece2, color2))) if piece1 != piece2 || color1 != color2 => {
                     diff.push(PositionDiffEntry::Set(*square, piece1, color1));
                     diff.push(PositionDiffEntry::Clear(*square, piece2, color2));
                 }
@@ -342,8 +330,8 @@ mod tests {
     use crate::core::{
         moves::{Move, MoveFlag},
         position::{
-            Piece, PositionDiffEntry, PositionDiffVec, bitboard::Bitboard,
-            castling_rights::CastlingSide, color::Color, square::Square,
+            Piece, PositionDiffEntry, PositionDiffVec, bitboard::Bitboard, castling_rights::CastlingSide, color::Color,
+            square::Square,
         },
     };
 
@@ -362,10 +350,7 @@ mod tests {
         let hash2 = position.hash();
         assert_eq!(position.piece_at(Square::E4), Some(Piece::Pawn));
         assert_eq!(position.color_at(Square::E4), Some(Color::White));
-        assert_eq!(
-            position.piece_color_at(Square::E4),
-            Some((Piece::Pawn, Color::White))
-        );
+        assert_eq!(position.piece_color_at(Square::E4), Some((Piece::Pawn, Color::White)));
         assert_ne!(hash1, hash2);
 
         position.clear_square(Square::E4);
@@ -544,9 +529,7 @@ mod tests {
 
     #[test]
     fn check() {
-        let position =
-            Position::from_str("4kr2/3Pppb1/2q2n2/npp1PpNp/1pp3b1/2N5/1P2B1PP/R1BQ1RK1 b - - 0 22")
-                .unwrap();
+        let position = Position::from_str("4kr2/3Pppb1/2q2n2/npp1PpNp/1pp3b1/2N5/1P2B1PP/R1BQ1RK1 b - - 0 22").unwrap();
         assert!(position.is_check());
 
         let position = position.make_move(Move::new(Square::E8, Square::D8, MoveFlag::Quiet));
@@ -555,9 +538,7 @@ mod tests {
 
     #[test]
     fn attack() {
-        let position =
-            Position::from_str("3k3r/3Pppb1/1Nq2n2/npp1PpN1/1pp2Rb1/1P6/2Q1BKpP/R1B5 b - - 0 29")
-                .unwrap();
+        let position = Position::from_str("3k3r/3Pppb1/1Nq2n2/npp1PpN1/1pp2Rb1/1P6/2Q1BKpP/R1B5 b - - 0 29").unwrap();
         assert_eq!(
             position.attackers(Square::C4, Color::White),
             Bitboard::from_square(Square::B6)
@@ -570,9 +551,7 @@ mod tests {
 
     #[test]
     fn make_mov_s() {
-        let position =
-            Position::from_str("3k3r/3Pppb1/1Nq2n2/npp1PpN1/1pp2Rb1/1P6/2Q1BKpP/R1B5 b - - 0 29")
-                .unwrap();
+        let position = Position::from_str("3k3r/3Pppb1/1Nq2n2/npp1PpN1/1pp2Rb1/1P6/2Q1BKpP/R1B5 b - - 0 29").unwrap();
 
         assert_eq!(
             position.make_move_str("c4b3").map(|p| p.fen()),
@@ -613,11 +592,7 @@ mod tests {
         let position = Position::from_str(START_POSITION).unwrap();
         assert!(position.diff(&position).is_empty());
 
-        let position2 = position
-            .make_move_str("e2e4")
-            .unwrap()
-            .make_move_str("d7d5")
-            .unwrap();
+        let position2 = position.make_move_str("e2e4").unwrap().make_move_str("d7d5").unwrap();
         assert_eq!(
             position2.diff(&position),
             PositionDiffVec::from_iter([
