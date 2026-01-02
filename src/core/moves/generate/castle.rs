@@ -5,9 +5,9 @@ use crate::core::position::{
 
 use super::{MoveVec, square_attackers};
 
-static COLOR_CASTLE_RANKS: [Bitboard; 2] = [Bitboard::rank_mask(0), Bitboard::rank_mask(7)];
-static FINAL_KING_SQUARES: [Square; 4] = [Square::G1, Square::C1, Square::G8, Square::C8];
-static FLAG_FROM_SIDE: [MoveFlag; 2] = [MoveFlag::KingsideCastle, MoveFlag::QueensideCastle];
+const COLOR_CASTLE_RANKS: [Bitboard; 2] = [Bitboard::rank_mask(0), Bitboard::rank_mask(7)];
+const FINAL_KING_SQUARES: [Square; 4] = [Square::G1, Square::C1, Square::G8, Square::C8];
+const FLAG_FROM_SIDE: [MoveFlag; 2] = [MoveFlag::KingsideCastle, MoveFlag::QueensideCastle];
 
 fn castle_side(position: &Position, side: CastlingSide, moves: &mut MoveVec) {
     let king = position

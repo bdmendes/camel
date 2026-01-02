@@ -8,7 +8,7 @@ use crate::core::{
 type ScoredMoveVec = ArrayVec<(Move, i8), 96>;
 
 #[rustfmt::skip]
-static QUIET_PSQT: [i8; 64] = [
+const QUIET_PSQT: [i8; 64] = [
     0, 0, 0, 0, 0, 0, 0, 0,
     1, 2, 2, 2, 2, 2, 2, 1,
     1, 2, 4, 4, 4, 4, 2, 1,

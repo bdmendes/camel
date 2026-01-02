@@ -38,7 +38,7 @@ pub const fn init_leaper_attacks(move_directions: &[Direction]) -> LeaperAttackM
     attacks
 }
 
-static KNIGHT_ATTACKS: LeaperAttackMap = init_leaper_attacks(&[
+const KNIGHT_ATTACKS: LeaperAttackMap = init_leaper_attacks(&[
     Square::NORTH + 2 * Square::WEST,
     Square::NORTH + 2 * Square::EAST,
     Square::SOUTH + 2 * Square::WEST,
@@ -49,7 +49,7 @@ static KNIGHT_ATTACKS: LeaperAttackMap = init_leaper_attacks(&[
     2 * Square::SOUTH + Square::EAST,
 ]);
 
-static KING_ATTACKS: LeaperAttackMap = init_leaper_attacks(&[
+const KING_ATTACKS: LeaperAttackMap = init_leaper_attacks(&[
     Square::NORTH,
     Square::NORTH + Square::EAST,
     Square::EAST,

@@ -14,9 +14,9 @@ use super::{
     magics::{bishop_attacks, queen_attacks, rook_attacks},
 };
 
-pub static ROOK_MOVE_DIRECTIONS: [Direction; 4] = [Square::NORTH, Square::EAST, Square::SOUTH, Square::WEST];
+pub const ROOK_MOVE_DIRECTIONS: [Direction; 4] = [Square::NORTH, Square::EAST, Square::SOUTH, Square::WEST];
 
-pub static BISHOP_MOVE_DIRECTIONS: [Direction; 4] = [
+pub const BISHOP_MOVE_DIRECTIONS: [Direction; 4] = [
     Square::NORTH + Square::EAST,
     Square::SOUTH + Square::EAST,
     Square::SOUTH + Square::WEST,

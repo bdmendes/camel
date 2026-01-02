@@ -2,7 +2,7 @@ use std::fmt::{Display, Write};
 
 use primitive_enum::primitive_enum;
 
-static PIECE_VALUES: [i8; 6] = [1, 3, 3, 5, 9, 45];
+const PIECE_VALUES: [i8; 6] = [1, 3, 3, 5, 9, 45];
 
 primitive_enum! { Piece u8;
     Pawn,
