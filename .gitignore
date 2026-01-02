@@ -1,8 +1,11 @@
 # Build artifacts
 /target
+.scala-build
 
 # IDE files
-/.vscode
+.vscode
+.bsp
+.metals
 
 # External tooling
 fast-chess/

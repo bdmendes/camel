@@ -13,7 +13,7 @@ jobs:
   format:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
 
       - name: Format Rust
         run: cargo fmt --check
@@ -23,10 +23,14 @@ jobs:
           sudo apt-get install shfmt
           shfmt -i 4 -d .
 
+      - uses: VirtusLab/scala-cli-setup@v1.11
+      - name: Format Scala
+        run: scala-cli fmt --check .
+
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
 
       - name: Lint Rust
         run: cargo clippy --verbose -- -D warnings
@@ -43,7 +47,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov

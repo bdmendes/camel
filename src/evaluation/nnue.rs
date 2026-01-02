@@ -102,8 +102,8 @@ impl NeuralNetwork {
     }
 
     pub fn activate(value: f32) -> f32 {
-        // Regular ReLU.
-        value.max(0.0)
+        // Leaky ReLU.
+        if value < 0.0 { 0.01 * value } else { value }
     }
 
     fn set(&mut self, piece: Piece, color: Color, square: Square) {
