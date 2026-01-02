@@ -6,6 +6,9 @@ use primitive_enum::primitive_enum;
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct CastlingRights(u8);
 
+static MASK_COLOR: [u8; 2] = [0b11, 0b1100];
+static MASK_SIDE: [u8; 4] = [0b1, 0b10, 0b100, 0b1000];
+
 primitive_enum! { CastlingSide u8;
     Kingside,
     Queenside,
@@ -27,36 +30,20 @@ impl CastlingRights {
         Self(payload)
     }
 
-    fn mask_color(color: Color) -> &'static u8 {
-        match color {
-            Color::White => &0b11,
-            Color::Black => &0b1100,
-        }
-    }
-
-    fn mask_side(color: Color, side: CastlingSide) -> &'static u8 {
-        match (color, side) {
-            (Color::White, CastlingSide::Kingside) => &0b1,
-            (Color::White, CastlingSide::Queenside) => &0b10,
-            (Color::Black, CastlingSide::Kingside) => &0b100,
-            (Color::Black, CastlingSide::Queenside) => &0b1000,
-        }
-    }
-
     pub fn has_color(&self, color: Color) -> bool {
-        (self.0 & Self::mask_color(color)) != 0
+        (self.0 & MASK_COLOR[color as usize]) != 0
     }
 
     pub fn has_side(&self, color: Color, side: CastlingSide) -> bool {
-        (self.0 & Self::mask_side(color, side)) != 0
+        (self.0 & MASK_SIDE[(color as usize) * 2 + (side as usize)]) != 0
     }
 
     pub fn removed_color(&self, color: Color) -> Self {
-        Self(self.0 & !Self::mask_color(color))
+        Self(self.0 & !MASK_COLOR[color as usize])
     }
 
     pub fn removed_side(&self, color: Color, side: CastlingSide) -> Self {
-        Self(self.0 & !Self::mask_side(color, side))
+        Self(self.0 & !MASK_SIDE[(color as usize) * 2 + (side as usize)])
     }
 
     pub fn xor(&self, other: CastlingRights) -> Self {
