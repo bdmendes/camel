@@ -1,5 +1,7 @@
 //> using scala "3.3.7"
 //> using jvm 21
+//> using javaOpt "-Xms4G"
+//> using javaOpt "-Xmx16G"
 //> using dep com.github.mrdimosthenis::synapses:8.0.0
 //> using dep "io.github.lunalobos:chessapi4j:1.2.11"
 //> using dep "io.circe::circe-core:0.14.15"
@@ -98,12 +100,12 @@ def serialize(net: Net): Unit =
     writer.write(nnueJson.noSpaces)
 end serialize
 
-def mse(net: Net): Double =
+def meanError(net: Net): Double =
   val err =
     SamplePositions.foldLeft(0.0):
       case (acc, (fen, expectedEval)) =>
         val output = net.predict(toInput(fen)).head * Scale
-        val error = (output - expectedEval) * (output - expectedEval)
+        val error = (output - expectedEval).abs
         acc + error
   err / SamplePositions.length
 
@@ -118,7 +120,7 @@ val mkNetwork = () => Net(List(768, 128, 1), _ => Fun.leakyReLU, _ => Random.nex
       mkLinesStream().foldLeft(nn -> 0):
         case (acc -> counter, xs -> ys) =>
           if counter % 10_000 == 0 then
-            println(s"[Epoch $epoch/$Epochs] Processed $counter elements. Error: ${mse(acc).toInt}")
+            println(s"[Epoch $epoch/$Epochs] Processed $counter elements. Error: ${meanError(acc).toInt}")
           acc.parFit(learningRate, xs, List(ys)) -> (counter + 1)
     serialize(next)
     next
