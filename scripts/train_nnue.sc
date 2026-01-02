@@ -47,9 +47,10 @@ val data = lines.map(toInputExpected).toList
 val mkNetwork = () => Net(List(768, 128, 1), _ => Fun.leakyReLU, _ => Random.nextDouble() * 2 - 1)
 val network = (1 to Epochs).foldLeft(mkNetwork()):
   case (nn, epoch) =>
-    val learningRate = LearningRate * math.pow(Alpha, epoch)
+    val learningRate = LearningRate * math.pow(Alpha, epoch - 1)
     println(s"Starting epoch $epoch. Learning rate = $learningRate.")
-    data
+    Random
+      .shuffle(data)
       .foldLeft(nn -> 0):
         case (acc -> counter, xs -> ys) =>
           if counter % (data.length / 20) == 0 then

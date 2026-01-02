@@ -23,7 +23,7 @@ jobs:
           sudo apt-get install shfmt
           shfmt -i 4 -d .
 
-      - uses: VirtusLab/scala-cli-setup@v1.5
+      - uses: VirtusLab/scala-cli-setup@v1.11
       - name: Format Scala
         run: scala-cli fmt --check .
 
