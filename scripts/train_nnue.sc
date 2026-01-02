@@ -22,10 +22,10 @@ val Pieces = List(WP, WN, WB, WR, WQ, WK, BP, BN, BB, BR, BQ, BK)
 val Scale = 2000.0
 
 // Hyperparameters.
-val LearningRate = 1e-4
-val Epochs = 2
-val LearningRateDecayFactor = 0.99
-val Observations = 5_000
+val LearningRate = 1e-3
+val Epochs = 10
+val LearningRateDecayFactor = 0.8
+val Observations = 800_000
 
 val EpdPathFromRoot = "./assets/books/quiet-evaluated-filtered-camelv1.epd"
 
