@@ -25,7 +25,7 @@ val Pieces = List(WP, WN, WB, WR, WQ, WK, BP, BN, BB, BR, BQ, BK)
 val Scale = 2000.0
 
 // Hyperparameters.
-val LearningRate = 5e-3
+val LearningRate = 0.01
 val Epochs = 10
 val LearningRateDecayFactor = 0.85
 val Observations = 800_000
