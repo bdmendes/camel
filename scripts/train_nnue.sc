@@ -25,7 +25,7 @@ val Pieces = List(WP, WN, WB, WR, WQ, WK, BP, BN, BB, BR, BQ, BK)
 val Scale = 2000.0
 
 // Hyperparameters.
-val LearningRate = 3e-3
+val LearningRate = 5e-3
 val Epochs = 10
 val LearningRateDecayFactor = 0.85
 val Observations = 800_000
@@ -109,23 +109,26 @@ def mse(net: Net): Double =
         acc + error
   err / SamplePositions.length
 
-val mkLinesStream = () => Source.fromFile(EpdPathFromRoot).getLines().take(Observations).map(toInputExpected)
-val mkNetwork = () => Net(List(768, 128, 1), _ => Fun.leakyReLU, _ => Random.nextDouble() * 2 - 1)
-
-(1 to Epochs).foldLeft(mkNetwork()):
+(1 to Epochs).foldLeft(Net(List(768, 128, 1), _ => Fun.leakyReLU, _ => Random.nextDouble() * 2 - 1)):
   case (nn, epoch) =>
     val learningRate = LearningRate * math.pow(LearningRateDecayFactor, epoch - 1)
     println(s"Starting epoch $epoch. Learning rate = $learningRate.")
     val (next, _) =
-      mkLinesStream().foldLeft(nn -> 1):
-        case (acc -> counter, xs -> ys) =>
-          val handle =
-            if counter % 10_000 == 0 then
-              println(s"[Epoch $epoch/$Epochs] Processed $counter elements. Error: ${mse(acc).toInt}")
-              // The persistent NN seems to leak some memory, so occasionally recreate it.
-              Net(acc.json())
-            else
-              acc
-          handle.parFit(learningRate, xs, List(ys)) -> (counter + 1)
+      Using.resource(Source.fromFile(EpdPathFromRoot)): src =>
+        src
+          .getLines()
+          .take(Observations)
+          .map(toInputExpected)
+          .foldLeft(nn -> 1):
+            case (acc -> counter, xs -> ys) =>
+              val handle =
+                if counter % 10_000 == 0 then
+                  println(s"[Epoch $epoch/$Epochs] Processed $counter elements. Error: ${mse(acc).toInt}")
+                  // The persistent NN seems to leak some memory, so occasionally recreate it.
+                  Net(acc.json())
+                else
+                  acc
+              handle.parFit(learningRate, xs, List(ys)) -> (counter + 1)
+    end val
     serialize(next)
     next
