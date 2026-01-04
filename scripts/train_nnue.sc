@@ -143,12 +143,13 @@ for epoch <- 1 to NNUE.Epochs do
 
     if batchIdx % 200 == 0 then
       val avg = runningLoss / 200.0
-      runningLoss = 0.0f
+      runningLoss = 0.0
       println(f"[epoch $epoch%2d, batch $batchIdx%6d, lr $lr%2f] loss=$avg%.4f")
   end for
 
-  val serialized = net.json.noSpaces
-  val now = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))
-  Using.resource(new PrintWriter(s"./assets/models/quiet-labeled-$now.nnue")): pw =>
-    pw.write(serialized)
+  if epoch % 20 == 0 || epoch == NNUE.Epochs then
+    val serialized = net.json.noSpaces
+    val now = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))
+    Using.resource(new PrintWriter(s"./assets/models/quiet-labeled-$now.nnue")): pw =>
+      pw.write(serialized)
 end for
