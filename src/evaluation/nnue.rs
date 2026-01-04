@@ -89,26 +89,25 @@ impl NeuralNetwork {
         }
     }
 
-    fn acc_index(piece: Piece, color: Color, square: Square) -> usize {
+    fn input_index(piece: Piece, color: Color, square: Square) -> usize {
         (color as usize) * 64 * 6 + (piece as usize) * 64 + square as usize
     }
 
-    pub fn activate(value: f32) -> f32 {
-        // Leaky ReLU.
-        if value < 0.0 { 0.01 * value } else { value }
+    fn relu(value: f32) -> f32 {
+        value.max(0.0)
     }
 
     fn set(&mut self, piece: Piece, color: Color, square: Square) {
-        let idx = Self::acc_index(piece, color, square);
+        let idx = Self::input_index(piece, color, square);
         for i in 0..HIDDEN_LAYER_SIZE {
-            self.acc[i] += self.params.acc_weights[idx * HIDDEN_LAYER_SIZE + i];
+            self.acc[i] += self.params.acc_weights[i * INPUT_SIZE + idx];
         }
     }
 
     fn clear(&mut self, piece: Piece, color: Color, square: Square) {
-        let idx = Self::acc_index(piece, color, square);
+        let idx = Self::input_index(piece, color, square);
         for i in 0..HIDDEN_LAYER_SIZE {
-            self.acc[i] -= self.params.acc_weights[idx * HIDDEN_LAYER_SIZE + i];
+            self.acc[i] -= self.params.acc_weights[i * INPUT_SIZE + idx];
         }
     }
 
@@ -116,7 +115,7 @@ impl NeuralNetwork {
         let mut eval: f32 = 0.0;
 
         for i in 0..HIDDEN_LAYER_SIZE {
-            let hidden_out = Self::activate(self.acc[i] + self.params.acc_biases[i]);
+            let hidden_out = Self::relu(self.acc[i] + self.params.acc_biases[i]);
             eval += hidden_out * self.params.out_weights[i];
         }
 
@@ -183,9 +182,9 @@ mod tests {
         // Set all accumulator weights to 1, except for the White Queen on E4.
         let mut params = Parameters::filled(1.0, 0.0, 0.0, 0.0);
 
-        let queen_e4_index = NeuralNetwork::acc_index(Piece::Queen, Color::White, Square::E4);
+        let queen_e4_index = NeuralNetwork::input_index(Piece::Queen, Color::White, Square::E4);
         for i in 0..HIDDEN_LAYER_SIZE {
-            params.acc_weights[queen_e4_index * HIDDEN_LAYER_SIZE + i] = 2.0;
+            params.acc_weights[i * INPUT_SIZE + queen_e4_index] = 2.0;
         }
         let mut net = NeuralNetwork::new(params);
 
@@ -222,9 +221,9 @@ mod tests {
         // Set all weights to 1, except for the White Queen on E4.
         let mut params = Parameters::filled(1.0, 0.0, 1.0, 0.0);
 
-        let queen_e4_index = NeuralNetwork::acc_index(Piece::Queen, Color::White, Square::E4);
+        let queen_e4_index = NeuralNetwork::input_index(Piece::Queen, Color::White, Square::E4);
         for i in 0..HIDDEN_LAYER_SIZE {
-            params.acc_weights[queen_e4_index * HIDDEN_LAYER_SIZE + i] = 2.0;
+            params.acc_weights[i * INPUT_SIZE + queen_e4_index] = 2.0;
         }
         let mut net = NeuralNetwork::new(params);
 
