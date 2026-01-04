@@ -22,9 +22,6 @@ import scala.util.Using
 import torch.*
 import torch.nn.functional as F
 
-val EpdPathFromRoot = "./assets/books/quiet-evaluated-filtered-camelv1.epd"
-val Scale = 2000.0f
-
 def toInput(fen: String): Tensor[Float32] =
   val position = new Position(fen)
   val input = mutable.ArraySeq.fill(768)(0.0f)
@@ -42,7 +39,7 @@ end toInput
 def toInputExpected(epdLine: String): (Tensor[Float32], Tensor[Float32]) =
   val parts = epdLine.split(" ")
   val fen = parts.take(6).mkString(" ")
-  val eval = parts.last.drop(1).dropRight(2).toFloat / Scale
+  val eval = parts.last.drop(1).dropRight(2).toFloat / 2000.0f
   toInput(fen) -> torch.Tensor(Seq(eval.max(-1.0f).min(1.0f))).reshape(1, 1)
 
 class NNUE extends nn.Module:
@@ -89,7 +86,7 @@ object NNUE:
     sq.mean
 
   def epdBatches(): Iterator[(Tensor[Float32], Tensor[Float32])] =
-    val src = Source.fromFile(EpdPathFromRoot)
+    val src = Source.fromFile("./assets/books/quiet-evaluated-filtered-camelv1.epd")
 
     new Iterator[(Tensor[Float32], Tensor[Float32])]:
       private val it = src.getLines()
@@ -129,7 +126,7 @@ val net = NNUE()
 
 for epoch <- 1 to NNUE.Epochs do
   var batchIdx = 0
-  var runningLoss = 0.0f
+  var runningLoss = 0.0
   val lr = NNUE.LearningRate * math.pow(NNUE.LearningRateDecay, epoch - 1)
   val optimizer = net.optimizer(lr)
 
@@ -142,10 +139,10 @@ for epoch <- 1 to NNUE.Epochs do
     loss.backward()
     optimizer.step()
 
-    runningLoss += loss.item.toFloat * Scale
+    runningLoss += loss.item.toDouble
 
     if batchIdx % 200 == 0 then
-      val avg = runningLoss / 200.0f
+      val avg = runningLoss / 200.0
       runningLoss = 0.0f
       println(f"[epoch $epoch%2d, batch $batchIdx%6d, lr $lr%2f] loss=$avg%.4f")
   end for
