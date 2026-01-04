@@ -1,6 +1,6 @@
 pub mod nnue;
 
-pub static NNUE_PARAMS_BLOB: &str = include_str!("../../assets/models/quiet-labeled-20250610.nnue");
+pub static NNUE_PARAMS_BLOB: &str = include_str!("../../assets/models/quiet-labeled-20260104-215812.nnue");
 pub const MAX_POSITIONAL_WEIGHT: ValueScore = 200;
 
 pub type ValueScore = i16;
