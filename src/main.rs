@@ -1,9 +1,12 @@
 use std::{process, str::FromStr, thread, time::Instant};
 
 use crate::{
-    core::position::{
-        Position,
-        fen::{KIWIPETE_POSITION, START_POSITION},
+    core::{
+        moves::Move,
+        position::{
+            Position,
+            fen::{KIWIPETE_POSITION, START_POSITION},
+        },
     },
     engine::{
         Engine,
@@ -92,8 +95,9 @@ fn main() {
             Command::Ucinewgame => todo!("clear hash table."),
             Command::List => {
                 let picker = MovePicker::new(&engine.position, false, None, [None, None]);
-                let moves = picker.into_iter().map(|m| format!("{} ", m)).collect::<String>();
-                println!("{}", moves);
+                let moves = picker.into_iter().collect::<Vec<Move>>();
+                let fmt = moves.iter().map(|m| format!("{} ", m)).collect::<String>();
+                println!("{}\n{} moves", fmt, moves.len());
             }
             Command::Move { r#move } => {
                 let picker = MovePicker::new(&engine.position, false, None, [None, None]);

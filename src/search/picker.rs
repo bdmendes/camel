@@ -5,7 +5,7 @@ use crate::core::{
     position::{MoveStage, Position, piece::Piece},
 };
 
-type ScoredMoveVec = SmallVec<[(Move, i8); 32]>;
+type ScoredMoveVec = SmallVec<[(Move, i8); 64]>;
 
 #[rustfmt::skip]
 const QUIET_PSQT: [i8; 64] = [

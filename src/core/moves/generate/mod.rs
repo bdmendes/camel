@@ -13,7 +13,7 @@ pub mod magics;
 pub mod pawns;
 pub mod sliders;
 
-pub type MoveVec = SmallVec<[Move; 32]>;
+pub type MoveVec = SmallVec<[Move; 64]>;
 
 pub fn generate_moves(position: &Position, stage: MoveStage) -> MoveVec {
     let mut moves = MoveVec::new();
