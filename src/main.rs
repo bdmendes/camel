@@ -60,7 +60,11 @@ fn main() {
                 _ => println!("Invalid option."),
             },
             Command::Evaluate => {
-                println!("{}cp", engine.evaluator.lock().unwrap().evaluate(&engine.position))
+                let mut evaluator = engine.evaluator.lock().unwrap();
+                let time = Instant::now();
+                let eval = evaluator.evaluate(&engine.position);
+                let elapsed = Instant::now() - time;
+                println!("{}cp ({}μs)", eval, elapsed.as_micros())
             }
             Command::Perft { depth } => {
                 let status = engine.search_status.clone();
