@@ -66,17 +66,16 @@ fn main() {
                 let mut evaluator = engine.evaluator.lock().unwrap();
                 let time = Instant::now();
                 let eval = evaluator.evaluate(&engine.position);
-                let elapsed = Instant::now() - time;
-                println!("{}cp ({}μs)", eval, elapsed.as_micros())
+                println!("{}cp ({}μs)", eval, time.elapsed().as_micros())
             }
             Command::Perft { depth } => {
                 let status = engine.search_status.clone();
                 status.set(SearchStatusValue::Searching);
                 let _ = thread::spawn(move || {
-                    let now = Instant::now();
+                    let time = Instant::now();
                     let (nodes, _divided) = perft::<true>(&engine.position, depth, &status);
                     status.set(SearchStatusValue::Stopped);
-                    let elapsed = (Instant::now() - now).as_secs_f32();
+                    let elapsed = time.elapsed().as_secs_f32();
                     println!(
                         "{} in {:.2}s ({:.0}Mnps)",
                         nodes,
