@@ -8,13 +8,13 @@ use super::moves::{
     generate::{MoveVec, generate_moves, square_attackers},
     make::make_move,
 };
-use arrayvec::ArrayVec;
 use bitboard::Bitboard;
 use castling_rights::CastlingRights;
 use color::Color;
 use fen::Fen;
 use hash::ZobristHash;
 use piece::Piece;
+use smallvec::SmallVec;
 use square::Square;
 
 pub mod bitboard;
@@ -38,7 +38,7 @@ pub enum PositionDiffEntry {
     Clear(Square, Piece, Color),
 }
 
-pub type PositionDiffVec = ArrayVec<PositionDiffEntry, 64>;
+pub type PositionDiffVec = SmallVec<[PositionDiffEntry; 16]>;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Position {

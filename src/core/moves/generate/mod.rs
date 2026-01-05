@@ -1,11 +1,11 @@
 use super::{Move, MoveFlag, make::make_move};
 use crate::core::position::{MoveStage, Position, bitboard::Bitboard, color::Color, piece::Piece, square::Square};
-use arrayvec::ArrayVec;
 use castle::castle_moves;
 use leapers::{king_attackers, king_regular_moves, knight_attackers, knight_moves};
 use magics::queen_attacks;
 use pawns::{pawn_attackers, pawn_moves};
 use sliders::{bishop_moves, diagonal_attackers, file_attackers, queen_moves, rook_moves};
+use smallvec::SmallVec;
 
 pub mod castle;
 pub mod leapers;
@@ -13,7 +13,7 @@ pub mod magics;
 pub mod pawns;
 pub mod sliders;
 
-pub type MoveVec = ArrayVec<Move, 96>;
+pub type MoveVec = SmallVec<[Move; 64]>;
 
 pub fn generate_moves(position: &Position, stage: MoveStage) -> MoveVec {
     let mut moves = MoveVec::new();

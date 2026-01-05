@@ -1,11 +1,11 @@
-use arrayvec::ArrayVec;
+use smallvec::SmallVec;
 
 use crate::core::{
     moves::{Move, see},
     position::{MoveStage, Position, piece::Piece},
 };
 
-type ScoredMoveVec = ArrayVec<(Move, i8), 96>;
+type ScoredMoveVec = SmallVec<[(Move, i8); 64]>;
 
 #[rustfmt::skip]
 const QUIET_PSQT: [i8; 64] = [
