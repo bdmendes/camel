@@ -43,8 +43,8 @@ def toInputExpected(epdLine: String): (Tensor[Float32], Tensor[Float32]) =
   toInput(fen) -> torch.Tensor(Seq(eval.max(-1.0f).min(1.0f))).reshape(1, 1)
 
 class NNUE extends nn.Module:
-  private val layer1 = register(nn.Linear(768, 128))
-  private val layer2 = register(nn.Linear(128, 1))
+  private val layer1 = register(nn.Linear(768, 32))
+  private val layer2 = register(nn.Linear(32, 1))
 
   def optimizer(learningRate: Double) = optim.Adam(
     params = parameters,
@@ -76,9 +76,9 @@ end NNUE
 
 object NNUE:
   val LearningRate = 0.005
-  val LearningRateDecay = 0.85
-  val Epochs = 50
-  val BatchSize = 256
+  val LearningRateDecay = 0.98
+  val Epochs = 150
+  val BatchSize = 512
 
   def mseLoss(pred: Tensor[Float32], target: Tensor[Float32]): Tensor[Float32] =
     val diff = pred - target
@@ -144,7 +144,7 @@ for epoch <- 1 to NNUE.Epochs do
     if batchIdx % 200 == 0 then
       val avg = runningLoss / 200.0
       runningLoss = 0.0
-      println(f"[epoch $epoch%2d, batch $batchIdx%6d, lr $lr%2f] loss=$avg%.4f")
+      println(f"[epoch $epoch%3d, batch $batchIdx%4d, lr $lr%2f] loss=$avg%.6f")
   end for
 
   if epoch % 20 == 0 || epoch == NNUE.Epochs then

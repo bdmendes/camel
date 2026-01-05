@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 pub const INPUT_SIZE: usize = 768;
 
 // We have a single hidden layer in our network.
-pub const HIDDEN_LAYER_SIZE: usize = 128;
+pub const HIDDEN_LAYER_SIZE: usize = 32;
 
 // The actual NN output is -1 to 1, to improve training dynamics.
 pub const SCALE: f32 = 2000.0;
@@ -55,7 +55,7 @@ impl Parameters {
         }
     }
 
-    fn valid_full_sizes(&self) -> bool {
+    fn valid_size(&self) -> bool {
         self.acc_weights.len() == INPUT_SIZE * HIDDEN_LAYER_SIZE
             && self.acc_biases.len() == HIDDEN_LAYER_SIZE
             && self.out_weights.len() == HIDDEN_LAYER_SIZE
@@ -67,7 +67,7 @@ impl FromStr for Parameters {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match serde_json::from_str::<Self>(s) {
-            Ok(params) if params.valid_full_sizes() => Ok(params),
+            Ok(params) if params.valid_size() => Ok(params),
             Ok(_) => Err("Invalid sizes in NNUE parameters.".to_string()),
             Err(e) => Err(e.to_string()),
         }
