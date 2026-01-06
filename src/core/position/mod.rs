@@ -306,19 +306,37 @@ impl Position {
 
     pub fn diff(&self, other: &Self) -> PositionDiffVec {
         let mut diff = PositionDiffVec::new();
-        for square in Square::list() {
-            let ours = self.piece_color_at(*square);
-            let theirs = other.piece_color_at(*square);
-            match (ours, theirs) {
-                (Some((piece, color)), None) => diff.push(PositionDiffEntry::Set(*square, piece, color)),
-                (None, Some((piece, color))) => diff.push(PositionDiffEntry::Clear(*square, piece, color)),
-                (Some((piece1, color1)), Some((piece2, color2))) if piece1 != piece2 || color1 != color2 => {
-                    diff.push(PositionDiffEntry::Set(*square, piece1, color1));
-                    diff.push(PositionDiffEntry::Clear(*square, piece2, color2));
-                }
-                _ => {}
+
+        let occ_new_white = self.occupancy_bb(Color::White);
+        let occ_old_white = other.occupancy_bb(Color::White);
+        let occ_new_black = self.occupancy_bb(Color::Black);
+        let occ_old_black = other.occupancy_bb(Color::Black);
+
+        for piece in Piece::list() {
+            // We are manually unrolling this loop over the two colors for performance.
+            let piece = *piece;
+            let old_white = other.pieces_bb(piece) & occ_old_white;
+            let new_white = self.pieces_bb(piece) & occ_new_white;
+            let old_black = other.pieces_bb(piece) & occ_old_black;
+            let new_black = self.pieces_bb(piece) & occ_new_black;
+
+            for sq in old_white & !new_white {
+                diff.push(PositionDiffEntry::Clear(sq, piece, Color::White));
+            }
+
+            for sq in old_black & !new_black {
+                diff.push(PositionDiffEntry::Clear(sq, piece, Color::Black));
+            }
+
+            for sq in new_white & !old_white {
+                diff.push(PositionDiffEntry::Set(sq, piece, Color::White));
+            }
+
+            for sq in new_black & !old_black {
+                diff.push(PositionDiffEntry::Set(sq, piece, Color::Black));
             }
         }
+
         diff
     }
 }
@@ -597,9 +615,9 @@ mod tests {
             position2.diff(&position),
             PositionDiffVec::from_iter([
                 PositionDiffEntry::Clear(Square::E2, Piece::Pawn, Color::White),
+                PositionDiffEntry::Clear(Square::D7, Piece::Pawn, Color::Black),
                 PositionDiffEntry::Set(Square::E4, Piece::Pawn, Color::White),
                 PositionDiffEntry::Set(Square::D5, Piece::Pawn, Color::Black),
-                PositionDiffEntry::Clear(Square::D7, Piece::Pawn, Color::Black),
             ])
         );
 
@@ -608,8 +626,20 @@ mod tests {
             position3.diff(&position2),
             PositionDiffVec::from_iter([
                 PositionDiffEntry::Clear(Square::E4, Piece::Pawn, Color::White),
-                PositionDiffEntry::Set(Square::D5, Piece::Pawn, Color::White),
                 PositionDiffEntry::Clear(Square::D5, Piece::Pawn, Color::Black),
+                PositionDiffEntry::Set(Square::D5, Piece::Pawn, Color::White),
+            ])
+        );
+
+        let position4 = position3.make_move_str("g8f6").unwrap();
+        assert_eq!(
+            position4.diff(&position2),
+            PositionDiffVec::from_iter([
+                PositionDiffEntry::Clear(Square::E4, Piece::Pawn, Color::White),
+                PositionDiffEntry::Clear(Square::D5, Piece::Pawn, Color::Black),
+                PositionDiffEntry::Set(Square::D5, Piece::Pawn, Color::White),
+                PositionDiffEntry::Clear(Square::G8, Piece::Knight, Color::Black),
+                PositionDiffEntry::Set(Square::F6, Piece::Knight, Color::Black),
             ])
         );
     }
