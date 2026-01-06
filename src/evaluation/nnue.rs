@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::{
-    core::position::{Position, PositionDiffEntry, color::Color, piece::Piece, square::Square},
+    core::position::{Position, PositionDiffEntry, color::Color, fen::START_POSITION, piece::Piece, square::Square},
     evaluation::ValueScore,
 };
 use rand::Rng;
@@ -75,18 +75,28 @@ impl FromStr for Parameters {
 }
 
 pub struct NeuralNetwork {
-    pub params: Parameters,
-    pub acc: Vec<f32>,
-    pub last_seen: Option<(Position, f32)>,
+    params: Parameters,
+    acc: Vec<f32>,
+    last_seen: Position,
 }
 
 impl NeuralNetwork {
     pub fn new(params: Parameters) -> Self {
-        Self {
+        Self::new_raw(params, Position::from_str(START_POSITION).unwrap())
+    }
+
+    pub fn new_raw(params: Parameters, start_position: Position) -> Self {
+        let mut nnue = Self {
             params,
             acc: vec![0.0; HIDDEN_LAYER_SIZE],
-            last_seen: None,
+            last_seen: start_position,
+        };
+        for square in Square::list() {
+            if let Some((piece, color)) = start_position.piece_color_at(*square) {
+                nnue.set(piece, color, *square);
+            }
         }
+        nnue
     }
 
     fn input_index(piece: Piece, color: Color, square: Square) -> usize {
@@ -124,36 +134,19 @@ impl NeuralNetwork {
 
     fn forward_and_cache(&mut self, position: &Position) -> f32 {
         let res = self.forward();
-        self.last_seen = Some((*position, res));
+        self.last_seen = *position;
         res
     }
 
     fn evaluate_unscaled(&mut self, position: &Position) -> f32 {
-        match self.last_seen {
-            Some((last_seen, score)) if last_seen.hash() == position.hash() => score,
-            Some((last_seen, _)) => {
-                let diff = position.diff(&last_seen);
-                for e in diff {
-                    match e {
-                        PositionDiffEntry::Set(square, piece, color) => {
-                            self.set(piece, color, square);
-                        }
-                        PositionDiffEntry::Clear(square, piece, color) => {
-                            self.clear(piece, color, square);
-                        }
-                    }
-                }
-                self.forward_and_cache(position)
-            }
-            _ => {
-                for square in Square::list() {
-                    if let Some((piece, color)) = position.piece_color_at(*square) {
-                        self.set(piece, color, *square);
-                    }
-                }
-                self.forward_and_cache(position)
+        let diff = position.diff(&self.last_seen);
+        for e in diff {
+            match e {
+                PositionDiffEntry::Set(square, piece, color) => self.set(piece, color, square),
+                PositionDiffEntry::Clear(square, piece, color) => self.clear(piece, color, square),
             }
         }
+        self.forward_and_cache(position)
     }
 
     pub fn evaluate(&mut self, position: &Position) -> ValueScore {
@@ -169,7 +162,7 @@ mod tests {
     fn accumulator1() {
         // Set all accumulator weights to 1, and biases to 0.
         let params = Parameters::filled(1.0, 0.0, 0.0, 0.0);
-        let mut net = NeuralNetwork::new(params);
+        let mut net = NeuralNetwork::new_raw(params, Position::default());
 
         // Independently of the square, all accumulator nodes will be fed with 1.
         net.set(Piece::Queen, Color::White, Square::E4);
@@ -186,7 +179,7 @@ mod tests {
         for i in 0..HIDDEN_LAYER_SIZE {
             params.acc_weights[i * INPUT_SIZE + queen_e4_index] = 2.0;
         }
-        let mut net = NeuralNetwork::new(params);
+        let mut net = NeuralNetwork::new_raw(params, Position::default());
 
         net.set(Piece::Queen, Color::White, Square::E4);
         net.acc.iter().for_each(|&x| assert_eq!(x, 2.0));
@@ -205,7 +198,7 @@ mod tests {
     fn forward() {
         // Set all accumulator weights to 1, and biases to 0.
         let params = Parameters::filled(1.0, 2.0, 1.0, 10.0);
-        let mut net = NeuralNetwork::new(params);
+        let mut net = NeuralNetwork::new_raw(params, Position::default());
 
         // Set the Queen on E4, which will set all accumulators to 1.
         net.set(Piece::Queen, Color::White, Square::E4);
@@ -225,16 +218,14 @@ mod tests {
         for i in 0..HIDDEN_LAYER_SIZE {
             params.acc_weights[i * INPUT_SIZE + queen_e4_index] = 2.0;
         }
-        let mut net = NeuralNetwork::new(params);
-
-        assert_eq!(net.last_seen, None);
+        let mut net = NeuralNetwork::new_raw(params, Position::default());
 
         let mut position = Position::default();
         position.set_square(Square::E4, Piece::Queen, Color::White);
 
         assert_eq!(net.evaluate_unscaled(&position), 2.0 * HIDDEN_LAYER_SIZE as f32);
 
-        assert_eq!(net.last_seen, Some((position, 2.0 * HIDDEN_LAYER_SIZE as f32)));
+        assert_eq!(net.last_seen, position);
 
         assert_eq!(net.evaluate_unscaled(&position), 2.0 * HIDDEN_LAYER_SIZE as f32);
 
