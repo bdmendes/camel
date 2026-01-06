@@ -1,19 +1,21 @@
 use crate::evaluation::ValueScore;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Window {
     alpha: ValueScore,
     beta: ValueScore,
 }
 
-impl Window {
-    pub fn new() -> Self {
-        Window {
+impl Default for Window {
+    fn default() -> Self {
+        Self {
             alpha: ValueScore::MIN + 1,
             beta: ValueScore::MAX,
         }
     }
+}
 
+impl Window {
     pub fn best(&self) -> ValueScore {
         self.alpha
     }
@@ -42,7 +44,7 @@ impl Window {
 
     pub fn feed_cutoff(&mut self, score: ValueScore) -> Option<ValueScore> {
         self.alpha = self.alpha.max(score);
-        (self.alpha >= self.beta).then(|| self.alpha)
+        (self.alpha >= self.beta).then_some(self.alpha)
     }
 }
 
@@ -52,13 +54,13 @@ mod tests {
 
     #[test]
     fn round_trip() {
-        let window = Window::new();
+        let window = Window::default();
         assert_eq!(window, window.reverse().reverse());
     }
 
     #[test]
     fn cutoff() {
-        let mut window = Window::new();
+        let mut window = Window::default();
 
         // We, say white, see a position where we are +300.
         assert_eq!(window.feed_cutoff(300), None);
@@ -74,7 +76,7 @@ mod tests {
 
     #[test]
     fn zero_search() {
-        let mut window = Window::new();
+        let mut window = Window::default();
         assert!(!window.is_null());
 
         // Find a position where we, say white, are +300.
