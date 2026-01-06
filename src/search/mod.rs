@@ -5,6 +5,7 @@ use std::sync::atomic::Ordering;
 
 pub mod perft;
 pub mod picker;
+pub mod pvs;
 
 pub type Depth = u8;
 
