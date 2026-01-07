@@ -164,7 +164,7 @@ mod tests {
 
     #[test]
     fn minify() {
-        assert_eq!(ZobristHash(u64::MAX & !0u64).ms32(), u32::MAX);
+        assert_eq!(ZobristHash(u64::MAX).ms32(), u32::MAX);
         assert_eq!(ZobristHash((u32::MAX as u64) | (1u64 << 32)).ms32(), 1);
     }
 }
