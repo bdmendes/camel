@@ -95,6 +95,14 @@ impl ZobristHash {
     pub fn xor_ep_square(&mut self, square: Square) {
         self.0 ^= ZOBRIST_NUMBERS[2 * 6 * 64 + 1 + 4 + square as usize].0;
     }
+
+    pub fn value(&self) -> u64 {
+        self.0
+    }
+
+    pub fn ms32(&self) -> u32 {
+        (self.0 >> 32) as u32
+    }
 }
 
 #[cfg(test)]
@@ -106,27 +114,27 @@ mod tests {
     #[test]
     fn reflection() {
         let mut hash = ZobristHash(0);
-        assert_eq!(hash.0, 0);
+        assert_eq!(hash.value(), 0);
 
         hash.xor_piece(Piece::Pawn, Square::E4, Color::White);
-        assert_ne!(hash.0, 0);
+        assert_ne!(hash.value(), 0);
         hash.xor_piece(Piece::Pawn, Square::E4, Color::White);
-        assert_eq!(hash.0, 0);
+        assert_eq!(hash.value(), 0);
 
         hash.xor_color();
-        assert_ne!(hash.0, 0);
+        assert_ne!(hash.value(), 0);
         hash.xor_color();
-        assert_eq!(hash.0, 0);
+        assert_eq!(hash.value(), 0);
 
         hash.xor_castle(Color::White, CastlingSide::Kingside);
-        assert_ne!(hash.0, 0);
+        assert_ne!(hash.value(), 0);
         hash.xor_castle(Color::White, CastlingSide::Kingside);
-        assert_eq!(hash.0, 0);
+        assert_eq!(hash.value(), 0);
 
         hash.xor_ep_square(Square::E4);
-        assert_ne!(hash.0, 0);
+        assert_ne!(hash.value(), 0);
         hash.xor_ep_square(Square::E4);
-        assert_eq!(hash.0, 0);
+        assert_eq!(hash.value(), 0);
 
         hash.xor_color();
         hash.xor_castle(Color::White, CastlingSide::Kingside);
@@ -134,7 +142,7 @@ mod tests {
         hash.xor_color();
         hash.xor_castle(Color::White, CastlingSide::Kingside);
         hash.xor_piece(Piece::King, Square::H8, Color::Black);
-        assert_eq!(hash.0, 0);
+        assert_eq!(hash.value(), 0);
     }
 
     #[test]
@@ -146,11 +154,17 @@ mod tests {
             for color in Color::list() {
                 for square in Square::list() {
                     hash.xor_piece(*piece, *square, *color);
-                    assert!(!seen.contains(&hash.0));
-                    seen.insert(hash.0);
+                    assert!(!seen.contains(&hash.value()));
+                    seen.insert(hash.value());
                     hash.xor_piece(*piece, *square, *color);
                 }
             }
         }
+    }
+
+    #[test]
+    fn minify() {
+        assert_eq!(ZobristHash(u64::MAX & !0u64).ms32(), u32::MAX);
+        assert_eq!(ZobristHash((u32::MAX as u64) | (1u64 << 32)).ms32(), 1);
     }
 }
