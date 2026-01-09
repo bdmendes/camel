@@ -11,7 +11,7 @@ pub struct Entry {
     score: ValueScore,
     node_type: NodeType,
     depth: Depth,
-    hash_ms32: u32,
+    hash_ms16: u16,
 }
 
 pub struct ScoreTable {
@@ -41,7 +41,7 @@ impl ScoreTable {
     }
 
     fn index(&self, position: &Position) -> usize {
-        (position.hash().ms32() as usize) % self.entries.len()
+        (position.hash().value() as usize) % self.entries.len()
     }
 
     pub fn probe(&self, position: &Position, depth: Depth) -> Option<Entry> {
@@ -49,7 +49,7 @@ impl ScoreTable {
         unsafe {
             self.entries
                 .get_unchecked(self.index(position))
-                .filter(|e| e.depth >= depth && e.hash_ms32 == position.hash().ms32())
+                .filter(|e| e.depth >= depth && e.hash_ms16 == position.hash().ms16())
         }
     }
 
@@ -64,7 +64,7 @@ impl ScoreTable {
                         score,
                         depth,
                         node_type,
-                        hash_ms32: position.hash().ms32(),
+                        hash_ms16: position.hash().ms16(),
                     });
                 }
             }
@@ -85,7 +85,7 @@ mod tests {
 
     #[test]
     fn index_clear() {
-        let mut table = ScoreTable::new_no_elems(10);
+        let mut table = ScoreTable::new_no_elems(100);
         let position1 = Position::default();
         let position2 = Position::from_str(START_POSITION).unwrap();
 
@@ -99,7 +99,7 @@ mod tests {
             Some(Entry {
                 depth: 3,
                 score: 100,
-                hash_ms32: position1.hash().ms32(),
+                hash_ms16: position1.hash().ms16(),
                 node_type: NodeType::PVNode,
             })
         );
@@ -108,7 +108,7 @@ mod tests {
             Some(Entry {
                 depth: 3,
                 score: 200,
-                hash_ms32: position2.hash().ms32(),
+                hash_ms16: position2.hash().ms16(),
                 node_type: NodeType::PVNode,
             })
         );
@@ -128,7 +128,7 @@ mod tests {
         let expected = Entry {
             depth: 4,
             score: 0,
-            hash_ms32: position.hash().ms32(),
+            hash_ms16: position.hash().ms16(),
             node_type: NodeType::PVNode,
         };
 
@@ -178,11 +178,11 @@ mod tests {
         let position2 = Position::from_str(START_POSITION).unwrap();
 
         table.put(&position1, 3, NodeType::PVNode, 0);
-        assert_eq!(table.probe(&position1, 3).unwrap().hash_ms32, position1.hash().ms32());
+        assert_eq!(table.probe(&position1, 3).unwrap().hash_ms16, position1.hash().ms16());
         assert!(table.probe(&position2, 3).is_none());
 
         table.put(&position2, 3, NodeType::PVNode, 0);
-        assert_eq!(table.probe(&position2, 3).unwrap().hash_ms32, position2.hash().ms32());
+        assert_eq!(table.probe(&position2, 3).unwrap().hash_ms16, position2.hash().ms16());
         assert!(table.probe(&position1, 3).is_none());
     }
 }
