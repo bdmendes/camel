@@ -1,5 +1,5 @@
 use crate::{
-    core::position::Position,
+    core::{moves::Move, position::Position},
     evaluation::ValueScore,
     search::{Depth, pvs::NodeType},
 };
@@ -12,6 +12,7 @@ pub struct Entry {
     node_type: NodeType,
     depth: Depth,
     hash_ms16: u16,
+    mov: Move,
 }
 
 pub struct ScoreTable {
@@ -53,7 +54,7 @@ impl ScoreTable {
         }
     }
 
-    pub fn put(&mut self, position: &Position, depth: Depth, node_type: NodeType, score: ValueScore) {
+    pub fn put(&mut self, position: &Position, depth: Depth, node_type: NodeType, score: ValueScore, mov: Move) {
         let index = self.index(position);
         // SAFETY: index is always in bounds
         unsafe {
@@ -65,6 +66,7 @@ impl ScoreTable {
                         depth,
                         node_type,
                         hash_ms16: position.hash().ms16(),
+                        mov,
                     });
                 }
             }
@@ -80,19 +82,27 @@ impl ScoreTable {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::position::fen::START_POSITION;
+    use crate::core::{
+        moves::MoveFlag,
+        position::{fen::START_POSITION, square::Square},
+    };
     use std::str::FromStr;
 
     #[test]
     fn index_clear() {
-        let mut table = ScoreTable::new_no_elems(100);
-        let position1 = Position::default();
-        let position2 = Position::from_str(START_POSITION).unwrap();
+        let mut table = ScoreTable::new_no_elems(10);
+        let position1 = Position::from_str(START_POSITION).unwrap();
+        let mov1 = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
+        let position2 = Position::from_str(START_POSITION)
+            .unwrap()
+            .make_move_str("e2e4")
+            .unwrap();
+        let mov2 = Move::new(Square::D7, Square::D5, MoveFlag::DoublePawnPush);
 
         assert_ne!(table.index(&position1), table.index(&position2));
 
-        table.put(&position1, 3, NodeType::PVNode, 100);
-        table.put(&position2, 3, NodeType::PVNode, 200);
+        table.put(&position1, 3, NodeType::PVNode, 100, mov1);
+        table.put(&position2, 3, NodeType::PVNode, 200, mov2);
 
         assert_eq!(
             table.probe(&position1, 3),
@@ -101,6 +111,7 @@ mod tests {
                 score: 100,
                 hash_ms16: position1.hash().ms16(),
                 node_type: NodeType::PVNode,
+                mov: mov1
             })
         );
         assert_eq!(
@@ -110,6 +121,7 @@ mod tests {
                 score: 200,
                 hash_ms16: position2.hash().ms16(),
                 node_type: NodeType::PVNode,
+                mov: mov2
             })
         );
 
@@ -121,7 +133,8 @@ mod tests {
     #[test]
     fn upsert() {
         let mut table = ScoreTable::new_no_elems(1);
-        let position = Position::default();
+        let position = Position::from_str(START_POSITION).unwrap();
+        let mov = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
 
         assert_eq!(table.probe(&position, 4), None);
 
@@ -130,16 +143,17 @@ mod tests {
             score: 0,
             hash_ms16: position.hash().ms16(),
             node_type: NodeType::PVNode,
+            mov,
         };
 
         // First insertion.
-        table.put(&position, 4, NodeType::PVNode, 0);
+        table.put(&position, 4, NodeType::PVNode, 0, mov);
         assert_eq!(table.probe(&position, 4), Some(expected));
         assert_eq!(table.probe(&position, 3), Some(expected));
         assert_eq!(table.probe(&position, 5), None);
 
         // PV-nodes are always inserted.
-        table.put(&position, 3, NodeType::PVNode, 30);
+        table.put(&position, 3, NodeType::PVNode, 30, mov);
         assert_eq!(table.probe(&position, 4), None);
         assert_eq!(
             table.probe(&position, 3),
@@ -151,7 +165,7 @@ mod tests {
         );
 
         // Other nodes are only inserted if the depth is higher or equal.
-        table.put(&position, 2, NodeType::AllNode, 0);
+        table.put(&position, 2, NodeType::AllNode, 0, mov);
         assert_eq!(
             table.probe(&position, 2),
             Some(Entry {
@@ -160,7 +174,7 @@ mod tests {
                 ..expected
             })
         );
-        table.put(&position, 3, NodeType::AllNode, 0);
+        table.put(&position, 3, NodeType::AllNode, 0, mov);
         assert_eq!(
             table.probe(&position, 3),
             Some(Entry {
@@ -174,14 +188,19 @@ mod tests {
     #[test]
     fn collision() {
         let mut table = ScoreTable::new_no_elems(1);
-        let position1 = Position::default();
-        let position2 = Position::from_str(START_POSITION).unwrap();
+        let position1 = Position::from_str(START_POSITION).unwrap();
+        let mov1 = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
+        let position2 = Position::from_str(START_POSITION)
+            .unwrap()
+            .make_move_str("e2e4")
+            .unwrap();
+        let mov2 = Move::new(Square::D7, Square::D5, MoveFlag::DoublePawnPush);
 
-        table.put(&position1, 3, NodeType::PVNode, 0);
+        table.put(&position1, 3, NodeType::PVNode, 0, mov1);
         assert_eq!(table.probe(&position1, 3).unwrap().hash_ms16, position1.hash().ms16());
         assert!(table.probe(&position2, 3).is_none());
 
-        table.put(&position2, 3, NodeType::PVNode, 0);
+        table.put(&position2, 3, NodeType::PVNode, 0, mov2);
         assert_eq!(table.probe(&position2, 3).unwrap().hash_ms16, position2.hash().ms16());
         assert!(table.probe(&position1, 3).is_none());
     }
