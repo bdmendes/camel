@@ -67,10 +67,8 @@ impl Move {
 
     pub fn pseudo_legal(&self, position: &Position) -> bool {
         position.color_at(self.from()) == Some(position.side_to_move())
-            && match self.is_capture() {
-                true => position.color_at(self.to()) != Some(position.side_to_move()),
-                false => position.color_at(self.to()).is_none(),
-            }
+            && (self.is_capture() && position.color_at(self.to()) != Some(position.side_to_move())
+                || position.color_at(self.to()).is_none())
     }
 }
 
@@ -152,6 +150,8 @@ mod tests {
     #[case(A6, E2, Capture, false)]
     #[case(E2, A6, Capture, true)]
     #[case(F6, E8, Capture, false)]
+    #[case(A3, A4, Quiet, false)]
+    #[case(A3, A4, Capture, false)]
     fn pseudo_legal(#[case] from: Square, #[case] to: Square, #[case] flag: MoveFlag, #[case] res: bool) {
         let position = Position::from_str(KIWIPETE_POSITION).unwrap();
         let mov = Move::new(from, to, flag);
