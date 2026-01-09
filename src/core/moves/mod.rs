@@ -67,7 +67,10 @@ impl Move {
 
     pub fn pseudo_legal(&self, position: &Position) -> bool {
         position.color_at(self.from()) == Some(position.side_to_move())
-            && (self.is_capture() || position.color_at(self.to()).is_none())
+            && match self.is_capture() {
+                true => position.color_at(self.to()) != Some(position.side_to_move()),
+                false => position.color_at(self.to()).is_none(),
+            }
     }
 }
 
@@ -87,10 +90,13 @@ impl Display for Move {
 mod tests {
     use super::{Move, MoveFlag};
     use crate::core::moves::MoveFlag::*;
+    use crate::core::position::fen::{Fen, KIWIPETE_POSITION};
     use crate::core::position::piece::Piece::*;
     use crate::core::position::square::Square::*;
+    use crate::core::position::{MoveStage, Position};
     use crate::core::position::{piece::Piece, square::Square};
     use rstest::rstest;
+    use std::str::FromStr;
 
     #[rstest]
     #[case(E4, H8, Quiet, true, false, None)]
@@ -131,5 +137,44 @@ mod tests {
 
         let mov1 = Move::new(E7, D8, QueenPromotionCapture);
         assert_eq!(mov1.to_string(), "e7d8q".to_string());
+    }
+
+    #[rstest]
+    #[case(C3, B5, Quiet, true)]
+    #[case(C3, C3, Quiet, false)]
+    #[case(C3, A6, Quiet, false)]
+    #[case(D5, E6, Capture, true)]
+    #[case(D5, C6, EnpassantCapture, true)]
+    #[case(D4, E6, Capture, false)]
+    #[case(E1, G1, KingsideCastle, true)]
+    #[case(E1, C1, QueensideCastle, true)]
+    #[case(C3, E4, Capture, false)]
+    #[case(A6, E2, Capture, false)]
+    #[case(E2, A6, Capture, true)]
+    #[case(F6, E8, Capture, false)]
+    fn pseudo_legal(#[case] from: Square, #[case] to: Square, #[case] flag: MoveFlag, #[case] res: bool) {
+        let position = Position::from_str(KIWIPETE_POSITION).unwrap();
+        let mov = Move::new(from, to, flag);
+        assert_eq!(mov.pseudo_legal(&position), res);
+    }
+
+    #[rstest]
+    #[case("r6r/1b2k1bq/8/8/7B/8/8/R3K2R b KQ - 3 2")]
+    #[case("8/8/8/2k5/2pP4/8/B7/4K3 b - d3 0 3")]
+    #[case("r1bqkbnr/pppppppp/n7/8/8/P7/1PPPPPPP/RNBQKBNR w KQkq - 2 2")]
+    #[case("r3k2r/p1pp1pb1/bn2Qnp1/2qPN3/1p2P3/2N5/PPPBBPPP/R3K2R b KQkq - 3 2")]
+    #[case("2kr3r/p1ppqpb1/bn2Qnp1/3PN3/1p2P3/2N5/PPPBBPPP/R3K2R b KQ - 3 2")]
+    #[case("rnb2k1r/pp1Pbppp/2p5/q7/2B5/8/PPPQNnPP/RNB1K2R w KQ - 3 9")]
+    #[case("2r5/3pk3/8/2P5/8/2K5/8/8 w - - 5 4")]
+    #[case("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")]
+    #[case("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10")]
+    #[case("3k4/3p4/8/K1P4r/8/8/8/8 b - - 0 1")]
+    #[case("8/8/4k3/8/2p5/8/B2P2K1/8 w - - 0 1")]
+    fn legal_are_pseudo_legal(#[case] fen: Fen) {
+        let position = Position::try_from(fen.clone()).unwrap();
+        position
+            .moves(MoveStage::All)
+            .iter()
+            .for_each(|m| assert!(m.pseudo_legal(&position)));
     }
 }
