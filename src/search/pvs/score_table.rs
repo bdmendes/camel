@@ -50,7 +50,7 @@ impl ScoreTable {
         unsafe {
             self.entries
                 .get_unchecked(self.index(position))
-                .filter(|e| e.depth >= depth && e.hash_ms16 == position.hash().ms16())
+                .filter(|e| e.depth >= depth && e.hash_ms16 == position.hash().ms16() && e.mov.pseudo_legal(position))
         }
     }
 

@@ -1,4 +1,4 @@
-use crate::core::position::{piece::Piece, square::Square};
+use crate::core::position::{Position, piece::Piece, square::Square};
 
 use primitive_enum::primitive_enum;
 use std::fmt::Display;
@@ -63,6 +63,11 @@ impl Move {
                 _ => Piece::Queen,
             })
         }
+    }
+
+    pub fn pseudo_legal(&self, position: &Position) -> bool {
+        position.color_at(self.from()) == Some(position.side_to_move())
+            && (self.is_capture() || position.color_at(self.to()).is_none())
     }
 }
 
