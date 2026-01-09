@@ -186,7 +186,7 @@ mod tests {
     }
 
     #[test]
-    fn collision() {
+    fn collision_index() {
         let mut table = ScoreTable::new_no_elems(1);
         let position1 = Position::from_str(START_POSITION).unwrap();
         let mov1 = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
@@ -203,5 +203,21 @@ mod tests {
         table.put(&position2, 3, NodeType::PVNode, 0, mov2);
         assert_eq!(table.probe(&position2, 3).unwrap().hash_ms16, position2.hash().ms16());
         assert!(table.probe(&position1, 3).is_none());
+    }
+
+    #[test]
+    fn collision_hash() {
+        // Let's simulate a 16-bit MSB + modulo index hash collision by inserting a position
+        // with the same hash but a move that is trivially invalid.
+        let mut table = ScoreTable::new_no_elems(1);
+        let position = Position::from_str(START_POSITION).unwrap();
+        let valid_mov = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
+        let invalid_mov = Move::new(Square::E3, Square::E4, MoveFlag::DoublePawnPush);
+
+        table.put(&position, 3, NodeType::PVNode, 0, invalid_mov);
+        assert!(table.probe(&position, 3).is_none());
+
+        table.put(&position, 3, NodeType::PVNode, 0, valid_mov);
+        assert!(table.probe(&position, 3).is_some());
     }
 }
