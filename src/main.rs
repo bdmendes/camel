@@ -92,7 +92,9 @@ fn main() {
                 SearchStatusValue::Stopped | SearchStatusValue::Searching => println!("I am not pondering."),
                 SearchStatusValue::Pondering => engine.search_status.set(SearchStatusValue::Searching),
             },
-            Command::Ucinewgame => todo!("clear hash table."),
+            Command::Ucinewgame => {
+                engine.score_table.lock().unwrap().clear();
+            }
             Command::List => {
                 let picker = MovePicker::new(&engine.position, false, None, [None, None]);
                 let moves = picker.into_iter().collect::<Vec<Move>>();
