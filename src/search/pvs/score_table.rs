@@ -259,4 +259,41 @@ mod tests {
         table.put(&position, 3, 3, NodeType::PVNode, 0, valid_mov);
         assert!(table.probe(&position, 3, 3).is_some());
     }
+
+    #[test]
+    fn mate_scoring() {
+        let position1 = Position::from_str("3k4/8/7R/6R1/8/8/8/4K3 w - - 0 1").unwrap();
+        let mov1 = Move::new(Square::G5, Square::G7, MoveFlag::Quiet);
+
+        let position2 = position1.make_move(mov1);
+        let mov2 = Move::new(Square::D8, Square::E8, MoveFlag::Quiet);
+
+        let position3 = position2.make_move(mov2);
+        let mov3 = Move::new(Square::H6, Square::H8, MoveFlag::Quiet);
+
+        let mut table = ScoreTable::new_no_elems(100);
+
+        // Position 4 (after mov3) is mated at ply 3. It will yield MATE_SCORE + 3.
+        // Position 3 sees mate in 1, and simply inserts the negated child value.
+        // Our table adjusts the value so that it is ply-independent.
+        table.put(&position3, 1, 2, NodeType::PVNode, -(MATE_SCORE + 3), mov3);
+
+        assert_eq!(table.probe(&position3, 1, 2).unwrap().score, -(MATE_SCORE + 3));
+        assert_eq!(table.probe(&position3, 1, 3).unwrap().score, -(MATE_SCORE + 4));
+        assert_eq!(table.probe(&position3, 1, 1).unwrap().score, -(MATE_SCORE + 2));
+
+        // At position 2, we are at the mated side.
+        table.put(&position2, 2, 1, NodeType::PVNode, MATE_SCORE + 3, mov2);
+        assert_eq!(table.probe(&position2, 2, 1).unwrap().score, MATE_SCORE + 3);
+        assert_eq!(table.probe(&position2, 2, 2).unwrap().score, MATE_SCORE + 4);
+        assert_eq!(table.probe(&position2, 2, 0).unwrap().score, MATE_SCORE + 2);
+
+        // At position 1, we find a mate in 3.
+        table.put(&position1, 3, 0, NodeType::PVNode, -(MATE_SCORE + 3), mov1);
+        assert_eq!(table.probe(&position1, 3, 0).unwrap().score, -MATE_SCORE - 3);
+
+        // Depth is irrelevant.
+        assert_eq!(table.probe(&position1, 2, 0).unwrap().score, -MATE_SCORE - 3);
+        assert_eq!(table.probe(&position1, 1, 0).unwrap().score, -MATE_SCORE - 3);
+    }
 }
