@@ -144,7 +144,7 @@ impl TryFrom<Fen> for Position {
         let white_king = (kings & position.occupancy_bb(Color::White)).next();
         let black_king = (kings & position.occupancy_bb(Color::Black)).next();
 
-        if white_king.is_none() || black_king.is_none() {
+        if white_king.is_none() || black_king.is_none() || position.flipped_side().is_check() {
             return Err(());
         }
 
@@ -282,6 +282,7 @@ mod tests {
     #[case("r4rk1/pppqp2p/1b1p2p1/3Nn3/2P1p2/3P2Q1/PP2N2P/R1B2R1K w - - 0 20")]
     #[case("r3r1k1/1pp2pp1/p4nbp/3qN3/3P2P1/1PP4P/1P1NQ3/R4RK1 - - 1 19")]
     #[case("rnbqkbnr/pp4pp/8/3pPp2/8/5N2/PPP2PPP/RNBQKB1R w KQkq 0 6")]
+    #[case("rnbqkbnr/pp2pppp/8/1BpP4/8/8/PPPP1PPP/RNBQK1NR w KQkq - 1 3")]
     fn invalid(#[case] fen: Fen) {
         assert_eq!(Position::try_from(fen.clone()), Err(()));
     }
