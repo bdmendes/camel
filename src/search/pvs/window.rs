@@ -100,6 +100,10 @@ mod tests {
         assert_eq!(window.feed(300), FeedResult::Improvement);
         assert_eq!(window.best(), 300);
 
+        // A position with the same score is not an improvement.
+        assert_eq!(window.feed(300), FeedResult::FailLow);
+        assert_eq!(window.best(), 300);
+
         // Another position is not better than the first one.
         assert_eq!(window.feed(200), FeedResult::FailLow);
         assert_eq!(window.best(), 300);

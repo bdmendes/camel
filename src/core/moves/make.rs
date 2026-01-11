@@ -140,7 +140,7 @@ pub fn make_move<const UPDATE_META: bool>(position: &Position, mov: Move) -> Pos
         position.clear_ep_square();
     };
 
-    position.flip_side_to_move();
+    position.flip_side();
 
     position
 }
