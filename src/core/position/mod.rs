@@ -223,8 +223,7 @@ impl Position {
 
     pub fn flipped_side(&self) -> Self {
         let mut position = *self;
-        position.side_to_move = self.side_to_move.flipped();
-        position.hash.xor_color();
+        position.flip_side();
         position
     }
 
@@ -417,6 +416,17 @@ mod tests {
 
         assert_eq!(position.side_to_move(), Color::White);
         assert_eq!(position.hash(), hash);
+    }
+
+    #[test]
+    fn flipped_side() {
+        let position = Position::from_str(START_POSITION).unwrap();
+
+        assert_eq!(position.flipped_side().side_to_move(), Color::Black);
+        assert_ne!(position.flipped_side().hash(), position.hash());
+
+        assert_eq!(position.flipped_side().flipped_side().side_to_move(), Color::White);
+        assert_eq!(position.flipped_side().flipped_side().hash(), position.hash());
     }
 
     #[test]
@@ -626,17 +636,6 @@ mod tests {
 
         position = position.make_move_str("b7c6").unwrap();
         assert_eq!(position.material(), 3);
-    }
-
-    #[test]
-    fn flipped() {
-        let position = Position::from_str(START_POSITION).unwrap();
-
-        assert_eq!(position.flipped_side().side_to_move(), Color::Black);
-        assert_ne!(position.flipped_side().hash(), position.hash());
-
-        assert_eq!(position.flipped_side().flipped_side().side_to_move(), Color::White);
-        assert_eq!(position.flipped_side().flipped_side().hash(), position.hash());
     }
 
     #[test]
