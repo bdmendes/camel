@@ -137,7 +137,7 @@ impl TryFrom<Fen> for Position {
             _ => return Err(()),
         };
         if side_to_move == Color::Black {
-            position.flip_side_to_move();
+            position.flip_side();
         }
 
         let kings = position.pieces_bb(Piece::King);

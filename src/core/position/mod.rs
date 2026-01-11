@@ -216,9 +216,16 @@ impl Position {
         self.side_to_move
     }
 
-    pub fn flip_side_to_move(&mut self) {
+    pub fn flip_side(&mut self) {
         self.side_to_move = self.side_to_move.flipped();
         self.hash.xor_color();
+    }
+
+    pub fn flipped_side(&self) -> Self {
+        let mut position = *self;
+        position.side_to_move = self.side_to_move.flipped();
+        position.hash.xor_color();
+        position
     }
 
     pub fn ep_square(&self) -> Option<Square> {
@@ -385,15 +392,31 @@ mod tests {
         let hash1 = position.hash();
         assert_eq!(position.side_to_move(), Color::White);
 
-        position.flip_side_to_move();
+        position.flip_side();
         let hash2 = position.hash();
         assert_ne!(hash1, hash2);
         assert_eq!(position.side_to_move(), Color::Black);
 
-        position.flip_side_to_move();
+        position.flip_side();
         let hash3 = position.hash();
         assert_eq!(position.side_to_move(), Color::White);
         assert_eq!(hash1, hash3);
+    }
+
+    #[test]
+    fn flip_side_mut() {
+        let mut position = Position::from_str(START_POSITION).unwrap();
+        let hash = position.hash();
+
+        position.flip_side();
+
+        assert_eq!(position.side_to_move(), Color::Black);
+        assert_ne!(position.hash(), hash);
+
+        position.flip_side();
+
+        assert_eq!(position.side_to_move(), Color::White);
+        assert_eq!(position.hash(), hash);
     }
 
     #[test]
@@ -518,7 +541,7 @@ mod tests {
         position.clear_square(Square::E4);
         assert_eq!(position.hash(), position.hash_from_scratch());
 
-        position.flip_side_to_move();
+        position.flip_side();
         assert_eq!(position.hash(), position.hash_from_scratch());
 
         position.set_castling_rights(position.castling_rights.removed_color(Color::White));
@@ -603,6 +626,17 @@ mod tests {
 
         position = position.make_move_str("b7c6").unwrap();
         assert_eq!(position.material(), 3);
+    }
+
+    #[test]
+    fn flipped() {
+        let position = Position::from_str(START_POSITION).unwrap();
+
+        assert_eq!(position.flipped_side().side_to_move(), Color::Black);
+        assert_ne!(position.flipped_side().hash(), position.hash());
+
+        assert_eq!(position.flipped_side().flipped_side().side_to_move(), Color::White);
+        assert_eq!(position.flipped_side().flipped_side().hash(), position.hash());
     }
 
     #[test]
