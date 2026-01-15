@@ -52,6 +52,10 @@ impl Move {
         !self.is_capture() && self.promotion_piece().is_none()
     }
 
+    pub fn is_reversible(&self, position: &Position) -> bool {
+        self.is_quiet() && position.piece_at(self.from()) != Some(Piece::Pawn)
+    }
+
     pub fn promotion_piece(&self) -> Option<Piece> {
         if ((1 << 15) & self.0) == 0 {
             None
