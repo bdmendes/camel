@@ -12,7 +12,7 @@ use crate::{
         Engine,
         repl::{Command, PositionCommand, repl},
     },
-    search::{SearchStatusValue, perft::perft, picker::MovePicker},
+    search::{SearchStatusValue, perft::perft, picker::MovePicker, pvs::game_history::GameHistory},
 };
 
 pub mod core;
@@ -36,11 +36,9 @@ fn main() {
             Command::Position { subcommand } => match subcommand {
                 PositionCommand::Startpos { moves } => {
                     let mut position = Position::from_str(START_POSITION).unwrap();
-                    let mut history = engine.game_history.lock().unwrap();
-                    let mut valid = true;
-
-                    history.clear();
+                    let mut history = GameHistory::default();
                     history.push(&position, false);
+                    let mut valid = true;
 
                     for mov in &moves {
                         if let Some(m) = position.get_move_str(mov) {
@@ -49,7 +47,6 @@ fn main() {
                             history.push(&position, reversible);
                         } else {
                             println!("Invalid move sequence.");
-                            history.clear();
                             valid = false;
                             break;
                         }
@@ -57,6 +54,7 @@ fn main() {
 
                     if valid {
                         engine.position = position;
+                        *engine.game_history.lock().unwrap() = history;
                     }
                 }
                 PositionCommand::Fen { fen } => {
