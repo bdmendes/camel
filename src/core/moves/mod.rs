@@ -53,7 +53,12 @@ impl Move {
     }
 
     pub fn is_reversible(&self, position: &Position) -> bool {
-        self.is_quiet() && position.piece_at(self.from()) != Some(Piece::Pawn)
+        self.is_quiet()
+            && !matches!(
+                self.flag(),
+                MoveFlag::DoublePawnPush | MoveFlag::KingsideCastle | MoveFlag::QueensideCastle,
+            )
+            && position.piece_at(self.from()) != Some(Piece::Pawn)
     }
 
     pub fn promotion_piece(&self) -> Option<Piece> {
@@ -101,26 +106,27 @@ mod tests {
     use std::str::FromStr;
 
     #[rstest]
-    #[case(E4, H8, Quiet, true, false, None)]
-    #[case(E2, E4, DoublePawnPush, true, false, None)]
-    #[case(E1, G1, KingsideCastle, true, false, None)]
-    #[case(E8, C8, QueensideCastle, true, false, None)]
-    #[case(E4, E5, Capture, false, true, None)]
-    #[case(D5, C6, EnpassantCapture, false, true, None)]
-    #[case(E7, E8, KnightPromotion, false, false, Some(Knight))]
-    #[case(E7, E8, BishopPromotion, false, false, Some(Bishop))]
-    #[case(E7, E8, RookPromotion, false, false, Some(Rook))]
-    #[case(E7, E8, QueenPromotion, false, false, Some(Queen))]
-    #[case(E7, E8, KnightPromotionCapture, false, true, Some(Knight))]
-    #[case(E7, E8, BishopPromotionCapture, false, true, Some(Bishop))]
-    #[case(E7, E8, RookPromotionCapture, false, true, Some(Rook))]
-    #[case(E7, E8, QueenPromotionCapture, false, true, Some(Queen))]
+    #[case(E4, H8, Quiet, true, false, true, None)]
+    #[case(E2, E4, DoublePawnPush, true, false, false, None)]
+    #[case(E1, G1, KingsideCastle, true, false, false, None)]
+    #[case(E8, C8, QueensideCastle, true, false, false, None)]
+    #[case(E4, E5, Capture, false, true, false, None)]
+    #[case(D5, C6, EnpassantCapture, false, true, false, None)]
+    #[case(E7, E8, KnightPromotion, false, false, false, Some(Knight))]
+    #[case(E7, E8, BishopPromotion, false, false, false, Some(Bishop))]
+    #[case(E7, E8, RookPromotion, false, false, false, Some(Rook))]
+    #[case(E7, E8, QueenPromotion, false, false, false, Some(Queen))]
+    #[case(E7, E8, KnightPromotionCapture, false, true, false, Some(Knight))]
+    #[case(E7, E8, BishopPromotionCapture, false, true, false, Some(Bishop))]
+    #[case(E7, E8, RookPromotionCapture, false, true, false, Some(Rook))]
+    #[case(E7, E8, QueenPromotionCapture, false, true, false, Some(Queen))]
     fn pack_unpack(
         #[case] from: Square,
         #[case] to: Square,
         #[case] flag: MoveFlag,
         #[case] quiet: bool,
         #[case] capture: bool,
+        #[case] reversible: bool,
         #[case] promotion_piece: Option<Piece>,
     ) {
         let mov = Move::new(from, to, flag);
@@ -129,6 +135,7 @@ mod tests {
         assert_eq!(mov.flag(), flag);
         assert_eq!(mov.is_quiet(), quiet);
         assert_eq!(mov.is_capture(), capture);
+        assert_eq!(mov.is_reversible(&Position::default()), reversible);
         assert_eq!(mov.promotion_piece(), promotion_piece);
     }
 
