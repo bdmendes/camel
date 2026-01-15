@@ -35,14 +35,27 @@ fn main() {
         match cmd {
             Command::Position { subcommand } => match subcommand {
                 PositionCommand::Startpos { moves } => {
-                    let position = moves
-                        .iter()
-                        .try_fold(Position::from_str(START_POSITION).unwrap(), |current, m| {
-                            current.make_move_str(m)
-                        });
-                    match position {
-                        Some(p) => engine.position = p,
-                        None => println!("Invalid move sequence."),
+                    let mut position = Position::from_str(START_POSITION).unwrap();
+                    let mut history = engine.game_history.lock().unwrap();
+                    let mut valid = true;
+
+                    history.clear();
+                    history.push(&position, false);
+
+                    for mov in &moves {
+                        if let Some(m) = position.get_move_str(mov) {
+                            let reversible = m.is_reversible(&position);
+                            position = position.make_move(m);
+                            history.push(&position, reversible);
+                        } else {
+                            println!("Invalid move sequence.");
+                            history.clear();
+                            valid = false;
+                        }
+                    }
+
+                    if valid {
+                        engine.position = position;
                     }
                 }
                 PositionCommand::Fen { fen } => {

@@ -284,13 +284,12 @@ impl Position {
     }
 
     pub fn make_move_str(&self, mov: &str) -> Option<Self> {
+        self.get_move_str(mov).map(|m| self.make_move(m))
+    }
+
+    pub fn get_move_str(&self, mov: &str) -> Option<Move> {
         let moves = generate_moves(self, MoveStage::All);
-        for m in moves {
-            if mov == m.to_string().as_str() {
-                return Some(self.make_move(m));
-            }
-        }
-        None
+        moves.iter().find(|&m| m.to_string().as_str() == mov).copied()
     }
 
     pub fn is_check(&self) -> bool {

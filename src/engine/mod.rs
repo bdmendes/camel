@@ -11,7 +11,10 @@ use crate::{
     },
     search::{
         SearchStatus,
-        pvs::score_table::{DEFAULT_TABLE_SIZE_MB, ScoreTable},
+        pvs::{
+            game_history::GameHistory,
+            score_table::{DEFAULT_TABLE_SIZE_MB, ScoreTable},
+        },
     },
 };
 
@@ -21,6 +24,7 @@ pub struct Engine {
     pub position: Position,
     pub evaluator: Arc<Mutex<NeuralNetwork>>,
     pub score_table: Arc<Mutex<ScoreTable>>,
+    pub game_history: Arc<Mutex<GameHistory>>,
     pub search_status: SearchStatus,
 }
 
@@ -36,6 +40,7 @@ impl Default for Engine {
                 let table = ScoreTable::new(DEFAULT_TABLE_SIZE_MB);
                 Arc::new(Mutex::new(table))
             },
+            game_history: Arc::new(Mutex::new(GameHistory::default())),
             search_status: SearchStatus::default(),
         }
     }
