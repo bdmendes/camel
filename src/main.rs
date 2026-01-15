@@ -51,6 +51,7 @@ fn main() {
                             println!("Invalid move sequence.");
                             history.clear();
                             valid = false;
+                            break;
                         }
                     }
 
