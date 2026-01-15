@@ -39,7 +39,7 @@ impl GameHistory {
             if entry.hash_ms16 == position.hash().ms16() {
                 count += 1;
             }
-            if entry.is_reversible {
+            if !entry.is_reversible {
                 break;
             }
         }
@@ -94,10 +94,13 @@ mod tests {
         let mut history = GameHistory::default();
         let position = Position::from_str(START_POSITION).unwrap();
 
-        history.push(&position, false);
+        history.push(&position, true);
         assert_eq!(history.seen(&position), 1);
 
         history.push(&position, true);
+        assert_eq!(history.seen(&position), 2);
+
+        history.push(&position, false);
         assert_eq!(history.seen(&position), 1);
     }
 }
