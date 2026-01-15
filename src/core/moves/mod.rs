@@ -97,7 +97,7 @@ impl Display for Move {
 mod tests {
     use super::{Move, MoveFlag};
     use crate::core::moves::MoveFlag::*;
-    use crate::core::position::fen::{Fen, KIWIPETE_POSITION};
+    use crate::core::position::fen::{Fen, KIWIPETE_POSITION, START_POSITION};
     use crate::core::position::piece::Piece::*;
     use crate::core::position::square::Square::*;
     use crate::core::position::{MoveStage, Position};
@@ -107,6 +107,7 @@ mod tests {
 
     #[rstest]
     #[case(E4, H8, Quiet, true, false, true, None)]
+    #[case(E2, E4, Quiet, true, false, false, None)]
     #[case(E2, E4, DoublePawnPush, true, false, false, None)]
     #[case(E1, G1, KingsideCastle, true, false, false, None)]
     #[case(E8, C8, QueensideCastle, true, false, false, None)]
@@ -129,13 +130,14 @@ mod tests {
         #[case] reversible: bool,
         #[case] promotion_piece: Option<Piece>,
     ) {
+        let position = Position::from_str(START_POSITION).unwrap();
         let mov = Move::new(from, to, flag);
         assert_eq!(mov.from(), from);
         assert_eq!(mov.to(), to);
         assert_eq!(mov.flag(), flag);
         assert_eq!(mov.is_quiet(), quiet);
         assert_eq!(mov.is_capture(), capture);
-        assert_eq!(mov.is_reversible(&Position::default()), reversible);
+        assert_eq!(mov.is_reversible(&position), reversible);
         assert_eq!(mov.promotion_piece(), promotion_piece);
     }
 
