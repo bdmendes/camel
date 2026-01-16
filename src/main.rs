@@ -12,7 +12,7 @@ use crate::{
         Engine,
         repl::{Command, PositionCommand, repl},
     },
-    search::{SearchStatusValue, perft::perft, picker::MovePicker, pvs::game_history::GameHistory},
+    search::{game_history::GameHistory, perft::perft, picker::MovePicker, status::SearchStatusValue},
 };
 
 pub mod core;

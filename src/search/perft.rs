@@ -3,7 +3,10 @@ use crate::{
         moves::{Move, generate::generate_moves, make::make_move},
         position::{MoveStage, Position},
     },
-    search::{Depth, SearchStatus, SearchStatusValue},
+    search::{
+        Depth,
+        status::{SearchStatus, SearchStatusValue},
+    },
 };
 
 pub fn perft<const DIVIDE: bool>(position: &Position, depth: Depth, status: &SearchStatus) -> (u64, Vec<(Move, u64)>) {
@@ -17,7 +20,7 @@ pub fn perft<const DIVIDE: bool>(position: &Position, depth: Depth, status: &Sea
         (moves.len() as u64, vec![])
     } else {
         let mut count = 0;
-        let mut divided = vec![];
+        let mut divided = Vec::with_capacity(if DIVIDE { 64 } else { 0 });
         for m in moves {
             let (branch, _) = perft::<false>(&make_move::<true>(position, m), depth - 1, status);
             if DIVIDE {
@@ -35,7 +38,10 @@ mod tests {
     use super::perft;
     use crate::{
         core::position::{Position, fen::Fen},
-        search::{Depth, SearchStatus, SearchStatusValue},
+        search::{
+            Depth,
+            status::{SearchStatus, SearchStatusValue},
+        },
     };
     use rstest::rstest;
 
