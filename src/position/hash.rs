@@ -19,7 +19,10 @@ const ZOBRIST_NUMBERS_SIZE: usize = 2 * 6 * 64 + 1 + 4 + 64;
 static ZOBRIST_NUMBERS: [ZobristHash; ZOBRIST_NUMBERS_SIZE] = {
     let mut rng = StdRng::seed_from_u64(0);
     let mut numbers = [0; ZOBRIST_NUMBERS_SIZE];
-    numbers.iter_mut().take(ZOBRIST_NUMBERS_SIZE).for_each(|n| *n = rng.next_u64());
+    numbers
+        .iter_mut()
+        .take(ZOBRIST_NUMBERS_SIZE)
+        .for_each(|n| *n = rng.next_u64());
     numbers.map(ZobristHash)
 };
 
@@ -35,12 +38,19 @@ impl ZobristHash {
 
         let occupancy_all = occupancy[0] | occupancy[1];
         for square in occupancy_all {
-            let piece =
-                pieces.iter().position(|bb| bb.is_set(square)).map(|idx| Piece::from(idx as u8).unwrap()).unwrap();
+            let piece = pieces
+                .iter()
+                .position(|bb| bb.is_set(square))
+                .map(|idx| Piece::from(idx as u8).unwrap())
+                .unwrap();
             hash.xor_piece(
                 piece,
                 square,
-                if occupancy[Color::White as usize].is_set(square) { Color::White } else { Color::Black },
+                if occupancy[Color::White as usize].is_set(square) {
+                    Color::White
+                } else {
+                    Color::Black
+                },
             );
         }
 

@@ -46,7 +46,14 @@ impl<'a> Searcher<'a> {
         status: SearchStatus,
         duration: Duration,
     ) -> Self {
-        Self { history, table, status, network, initial: Instant::now(), duration }
+        Self {
+            history,
+            table,
+            status,
+            network,
+            initial: Instant::now(),
+            duration,
+        }
     }
 
     pub fn should_stop(&self) -> bool {
@@ -160,7 +167,8 @@ impl<'a> Searcher<'a> {
         }
 
         if !self.should_stop() {
-            self.table.put(position, depth, ply, node_type, window.best(), best_move);
+            self.table
+                .put(position, depth, ply, node_type, window.best(), best_move);
         }
 
         (count, window.best())

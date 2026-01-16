@@ -56,7 +56,11 @@ pub fn make_move<const UPDATE_META: bool>(position: &Position, mov: Move) -> Pos
             let our_king = position.pieces_color_bb(Piece::King, side_to_move).lsb().unwrap();
             position.set_castling_rights(position.castling_rights().removed_side(
                 side_to_move,
-                if mov.from().file() > our_king.file() { CastlingSide::Kingside } else { CastlingSide::Queenside },
+                if mov.from().file() > our_king.file() {
+                    CastlingSide::Kingside
+                } else {
+                    CastlingSide::Queenside
+                },
             ));
         }
         MoveFlag::Quiet | MoveFlag::DoublePawnPush => {

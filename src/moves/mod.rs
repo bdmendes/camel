@@ -176,6 +176,9 @@ mod tests {
     #[case("8/8/4k3/8/2p5/8/B2P2K1/8 w - - 0 1")]
     fn legal_are_pseudo_legal(#[case] fen: Fen) {
         let position = Position::try_from(fen.clone()).unwrap();
-        position.moves(MoveStage::All).iter().for_each(|m| assert!(m.pseudo_legal(&position)));
+        position
+            .moves(MoveStage::All)
+            .iter()
+            .for_each(|m| assert!(m.pseudo_legal(&position)));
     }
 }

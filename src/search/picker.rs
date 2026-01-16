@@ -105,7 +105,11 @@ impl Iterator for MovePicker<'_> {
         }
 
         if self.moves.is_empty() {
-            let generate = if self.captures_only { MoveStage::CapturesAndPromotions } else { MoveStage::All };
+            let generate = if self.captures_only {
+                MoveStage::CapturesAndPromotions
+            } else {
+                MoveStage::All
+            };
             self.moves = self
                 .position
                 .moves(generate)
@@ -240,16 +244,24 @@ mod tests {
         let (_, picker) = mocks();
         let moves = picker.collect::<Vec<_>>();
 
-        let knight_to_corner_idx =
-            moves.iter().position(|mov| mov.from() == Square::B1 && mov.to() == Square::A3).unwrap();
-        let knight_to_center_idx =
-            moves.iter().position(|mov| mov.from() == Square::B1 && mov.to() == Square::C3).unwrap();
+        let knight_to_corner_idx = moves
+            .iter()
+            .position(|mov| mov.from() == Square::B1 && mov.to() == Square::A3)
+            .unwrap();
+        let knight_to_center_idx = moves
+            .iter()
+            .position(|mov| mov.from() == Square::B1 && mov.to() == Square::C3)
+            .unwrap();
         assert!(knight_to_center_idx < knight_to_corner_idx);
 
-        let bishop_retreat_idx =
-            moves.iter().position(|mov| mov.from() == Square::C4 && mov.to() == Square::E2).unwrap();
-        let bishop_to_center_idx =
-            moves.iter().position(|mov| mov.from() == Square::C4 && mov.to() == Square::D5).unwrap();
+        let bishop_retreat_idx = moves
+            .iter()
+            .position(|mov| mov.from() == Square::C4 && mov.to() == Square::E2)
+            .unwrap();
+        let bishop_to_center_idx = moves
+            .iter()
+            .position(|mov| mov.from() == Square::C4 && mov.to() == Square::D5)
+            .unwrap();
         assert!(bishop_to_center_idx < bishop_retreat_idx);
     }
 }
