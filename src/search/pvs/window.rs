@@ -137,12 +137,12 @@ mod tests {
         assert_eq!(window.beta, 500);
 
         // We now fail high outside the window.
-        let mut window2 = window.clone();
+        let mut window2 = window;
         assert_eq!(window2.feed_cache(400, NodeType::CutNode), None);
         assert_eq!(window2.feed_cache(600, NodeType::CutNode), Some(600));
 
         // We now fail low outside the window.
-        let mut window3 = window.clone();
+        let mut window3 = window;
         assert_eq!(window3.feed_cache(400, NodeType::AllNode), None);
         assert_eq!(window3.feed_cache(200, NodeType::AllNode), Some(200));
     }

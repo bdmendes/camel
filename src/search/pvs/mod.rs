@@ -83,10 +83,9 @@ impl Searcher {
 
         if seen <= 1
             && let Some((score, node_type)) = self.table.probe(position, depth, ply)
+            && let Some(next) = window.feed_cache(score, node_type)
         {
-            if let Some(next) = window.feed_cache(score, node_type) {
-                return (1, next);
-            }
+            return (1, next);
         }
 
         // TODO: Implement killers.
