@@ -31,7 +31,7 @@ impl Display for Color {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::position::color::Color;
+    use crate::position::color::Color;
 
     #[test]
     fn flip() {

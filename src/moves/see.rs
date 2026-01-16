@@ -1,4 +1,4 @@
-use crate::core::position::{Position, color::Color, piece::Piece, square::Square};
+use crate::position::{Position, color::Color, piece::Piece, square::Square};
 
 use super::Move;
 
@@ -36,7 +36,7 @@ pub fn see(mov: Move, position: &Position) -> i8 {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::{
+    use crate::{
         moves::see,
         position::{MoveStage, Position, fen::Fen},
     };

@@ -1,5 +1,5 @@
-use crate::core::moves::{Move, MoveFlag};
-use crate::core::position::{
+use crate::moves::{Move, MoveFlag};
+use crate::position::{
     MoveStage, Position, bitboard::Bitboard, castling_rights::CastlingSide, piece::Piece, square::Square,
 };
 
@@ -96,7 +96,7 @@ pub fn castle_moves(position: &Position, stage: MoveStage, moves: &mut MoveVec) 
 #[cfg(test)]
 mod tests {
     use super::castle_moves;
-    use crate::core::{
+    use crate::{
         moves::generate::MoveVec,
         position::{MoveStage, Position},
     };

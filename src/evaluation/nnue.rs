@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
 use crate::{
-    core::position::{Position, PositionDiffEntry, color::Color, fen::START_POSITION, piece::Piece, square::Square},
     evaluation::ValueScore,
+    position::{Position, PositionDiffEntry, color::Color, fen::START_POSITION, piece::Piece, square::Square},
 };
 use rand::Rng;
 use serde::{Deserialize, Serialize};

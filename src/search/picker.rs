@@ -1,6 +1,6 @@
 use smallvec::SmallVec;
 
-use crate::core::{
+use crate::{
     moves::{Move, see},
     position::{MoveStage, Position, piece::Piece},
 };
@@ -125,7 +125,7 @@ impl Iterator for MovePicker<'_> {
 #[cfg(test)]
 mod tests {
     use super::MovePicker;
-    use crate::core::{
+    use crate::{
         moves::{Move, MoveFlag, see},
         position::{MoveStage, Position, fen::START_POSITION, square::Square},
     };

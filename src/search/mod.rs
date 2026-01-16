@@ -8,8 +8,8 @@ pub mod window;
 pub type Depth = u8;
 
 use crate::{
-    core::position::Position,
     evaluation::{ValueScore, nnue::NeuralNetwork},
+    position::Position,
     search::{
         game_history::GameHistory,
         picker::MovePicker,
@@ -171,8 +171,8 @@ impl Searcher {
 mod tests {
     use super::*;
     use crate::{
-        core::position::fen::Fen,
         evaluation::{MAX_POSITIONAL_WEIGHT, NNUE_PARAMS_BLOB, nnue::Parameters},
+        position::fen::Fen,
     };
     use rstest::rstest;
     use std::{str::FromStr, thread::sleep};

@@ -1,9 +1,7 @@
 use crate::{
-    core::{
-        moves::{Move, MoveFlag},
-        position::{Position, square::Square},
-    },
     evaluation::ValueScore,
+    moves::{Move, MoveFlag},
+    position::{Position, square::Square},
     search::{Depth, MATE_SCORE, NodeType},
 };
 
@@ -125,7 +123,7 @@ impl ScoreTable {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{
+    use crate::{
         moves::MoveFlag,
         position::{fen::START_POSITION, square::Square},
     };

@@ -1,8 +1,6 @@
 use crate::{
-    core::{
-        moves::{Move, generate::generate_moves, make::make_move},
-        position::{MoveStage, Position},
-    },
+    moves::{Move, generate::generate_moves, make::make_move},
+    position::{MoveStage, Position},
     search::{
         Depth,
         status::{SearchStatus, SearchStatusValue},
@@ -37,7 +35,7 @@ pub fn perft<const DIVIDE: bool>(position: &Position, depth: Depth, status: &Sea
 mod tests {
     use super::perft;
     use crate::{
-        core::position::{Position, fen::Fen},
+        position::{Position, fen::Fen},
         search::{
             Depth,
             status::{SearchStatus, SearchStatusValue},

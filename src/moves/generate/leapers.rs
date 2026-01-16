@@ -1,6 +1,6 @@
 use crate::{
-    core::moves::{Move, MoveFlag},
-    core::position::{
+    moves::{Move, MoveFlag},
+    position::{
         Position,
         bitboard::Bitboard,
         color::Color,
@@ -97,8 +97,8 @@ mod tests {
 
     use super::{king_attackers, king_regular_moves, knight_attackers, knight_moves};
     use crate::{
-        core::moves::generate::tests::assert_staged_moves,
-        core::position::{Position, bitboard::Bitboard, color::Color, square::Square},
+        moves::generate::tests::assert_staged_moves,
+        position::{Position, bitboard::Bitboard, color::Color, square::Square},
     };
 
     #[test]

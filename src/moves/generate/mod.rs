@@ -1,5 +1,5 @@
 use super::{Move, MoveFlag, make::make_move};
-use crate::core::position::{MoveStage, Position, bitboard::Bitboard, color::Color, piece::Piece, square::Square};
+use crate::position::{MoveStage, Position, bitboard::Bitboard, color::Color, piece::Piece, square::Square};
 use castle::castle_moves;
 use leapers::{king_attackers, king_regular_moves, knight_attackers, knight_moves};
 use magics::queen_attacks;
@@ -78,7 +78,7 @@ pub fn square_attackers(position: &Position, square: Square, color: Color) -> Bi
 mod tests {
     use std::str::FromStr;
 
-    use crate::{core::moves::Move, core::position::Position};
+    use crate::{moves::Move, position::Position};
 
     use super::{MoveStage, MoveVec};
 
