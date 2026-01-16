@@ -66,7 +66,7 @@ fn main() {
                 PositionCommand::Kiwi => engine.position = Position::from_str(KIWIPETE_POSITION).unwrap(),
             },
             Command::Go { .. } => {
-                println!("Search is in alpha!. Please use Camel 1.6.0 in the meantime!");
+                println!("Search is in alpha! Please use Camel 1.6.0 in the meantime!");
                 engine.go();
             }
             Command::Setoption { name, value } => match (name.as_str(), value) {

@@ -55,6 +55,8 @@ impl Engine {
         let status = self.search_status.clone();
         let position = self.position;
 
+        status.set(SearchStatusValue::Searching);
+
         std::thread::spawn(move || {
             let mut history = history.lock().unwrap();
             let mut table = table.lock().unwrap();
@@ -63,7 +65,6 @@ impl Engine {
 
             let mut searcher = Searcher::new(&mut history, &mut table, &mut net, status.clone(), duration);
 
-            status.set(SearchStatusValue::Searching);
             searcher.pvs(&position, 5, 0, NodeType::PVNode, Window::default());
             status.set(SearchStatusValue::Stopped);
             println!("move: {}", table.hash_move(&position).unwrap());
