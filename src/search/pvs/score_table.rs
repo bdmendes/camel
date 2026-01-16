@@ -139,10 +139,7 @@ mod tests {
         let mut table = ScoreTable::new_no_elems(10);
         let position1 = Position::from_str(START_POSITION).unwrap();
         let mov1 = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
-        let position2 = Position::from_str(START_POSITION)
-            .unwrap()
-            .make_move_str("e2e4")
-            .unwrap();
+        let position2 = Position::from_str(START_POSITION).unwrap().make_move_str("e2e4").unwrap();
         let mov2 = Move::new(Square::D7, Square::D5, MoveFlag::DoublePawnPush);
 
         assert_ne!(table.index(&position1), table.index(&position2));
@@ -189,10 +186,7 @@ mod tests {
         let mut table = ScoreTable::new_no_elems(1);
         let position1 = Position::from_str(START_POSITION).unwrap();
         let mov1 = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
-        let position2 = Position::from_str(START_POSITION)
-            .unwrap()
-            .make_move_str("e2e4")
-            .unwrap();
+        let position2 = Position::from_str(START_POSITION).unwrap().make_move_str("e2e4").unwrap();
         let mov2 = Move::new(Square::D7, Square::D5, MoveFlag::DoublePawnPush);
 
         table.put(&position1, 3, 3, NodeType::PVNode, 0, Some(mov1));

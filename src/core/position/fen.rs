@@ -175,11 +175,7 @@ impl TryFrom<Fen> for Position {
                         Color::White => white_king.unwrap().file(),
                         Color::Black => black_king.unwrap().file(),
                     };
-                    let castling_side = if king_file > file {
-                        CastlingSide::Queenside
-                    } else {
-                        CastlingSide::Kingside
-                    };
+                    let castling_side = if king_file > file { CastlingSide::Queenside } else { CastlingSide::Kingside };
                     mark_960(&mut position, castling_side, color);
                     rights = rights.removed_side(color, castling_side);
                 }
@@ -259,10 +255,7 @@ mod tests {
         position.set_square(Square::H7, Piece::Pawn, Color::Black);
 
         assert_eq!(Fen::from(&position), Fen::from_str(START_POSITION).unwrap());
-        assert_eq!(
-            Position::try_from(Fen::from_str(START_POSITION).unwrap()).unwrap(),
-            position
-        );
+        assert_eq!(Position::try_from(Fen::from_str(START_POSITION).unwrap()).unwrap(), position);
     }
 
     #[rstest]
@@ -293,20 +286,14 @@ mod tests {
             Fen::from_str("rn2k1r1/ppp1pp1p/3p2p1/5bn1/P7/2N2B2/1PPPPP2/2BNK1RR w Gkq - 4 11").unwrap(),
         )
         .unwrap();
-        assert_eq!(
-            position1.castling_rights(),
-            CastlingRights::new(true, false, true, true)
-        );
+        assert_eq!(position1.castling_rights(), CastlingRights::new(true, false, true, true));
         assert!(position1.is_chess_960());
 
         let position2 = Position::try_from(
             Fen::from_str("b1qbrknr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/BNQBRKR1 b Ekq - 3 3").unwrap(),
         )
         .unwrap();
-        assert_eq!(
-            position2.castling_rights(),
-            CastlingRights::new(false, true, true, true)
-        );
+        assert_eq!(position2.castling_rights(), CastlingRights::new(false, true, true, true));
         assert!(position2.is_chess_960());
     }
 }

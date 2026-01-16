@@ -15,10 +15,7 @@ pub enum FeedResult {
 
 impl Default for Window {
     fn default() -> Self {
-        Self {
-            alpha: ValueScore::MIN + 1,
-            beta: ValueScore::MAX,
-        }
+        Self { alpha: ValueScore::MIN + 1, beta: ValueScore::MAX }
     }
 }
 
@@ -28,17 +25,11 @@ impl Window {
     }
 
     pub fn reverse(&self) -> Self {
-        Window {
-            alpha: -self.beta,
-            beta: -self.alpha,
-        }
+        Window { alpha: -self.beta, beta: -self.alpha }
     }
 
     pub fn reverse_null(&self) -> Self {
-        Window {
-            alpha: -self.alpha - 1,
-            beta: -self.alpha,
-        }
+        Window { alpha: -self.alpha - 1, beta: -self.alpha }
     }
 
     pub fn is_null(&self) -> bool {
@@ -52,11 +43,7 @@ impl Window {
     pub fn feed(&mut self, score: ValueScore) -> FeedResult {
         if score > self.alpha {
             self.alpha = score;
-            if self.alpha >= self.beta {
-                FeedResult::FailHigh
-            } else {
-                FeedResult::Improvement
-            }
+            if self.alpha >= self.beta { FeedResult::FailHigh } else { FeedResult::Improvement }
         } else {
             FeedResult::FailLow
         }
@@ -158,13 +145,7 @@ mod tests {
         // Try another move, assuming it won't be the best ("principal variation").
         // Any move that refutes this assumption suffices.
         let null_window = window.reverse_null();
-        assert_eq!(
-            null_window,
-            Window {
-                alpha: -301,
-                beta: -300
-            }
-        );
+        assert_eq!(null_window, Window { alpha: -301, beta: -300 });
         assert!(null_window.is_null());
 
         // We'll require a research with a non-null window if our assumption was incorrect.

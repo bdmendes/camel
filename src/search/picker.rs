@@ -197,10 +197,7 @@ mod tests {
     fn queen_promotion_first() {
         let position = Position::from_str("8/5P2/8/7p/8/1Kp5/2N3kP/8 w - - 1 51").unwrap();
         let mut picker = MovePicker::new(&position, false, None, [None, None]);
-        assert_eq!(
-            picker.next(),
-            Some(Move::new(Square::F7, Square::F8, MoveFlag::QueenPromotion))
-        );
+        assert_eq!(picker.next(), Some(Move::new(Square::F7, Square::F8, MoveFlag::QueenPromotion)));
         assert!(picker.next().unwrap().promotion_piece().is_none());
     }
 
@@ -221,18 +218,9 @@ mod tests {
     #[test]
     fn winning_captures_first() {
         let (_, mut picker) = mocks();
-        assert_eq!(
-            picker.next(),
-            Some(Move::new(Square::C1, Square::G5, MoveFlag::Capture))
-        );
-        assert_eq!(
-            picker.next(),
-            Some(Move::new(Square::H6, Square::G7, MoveFlag::Capture))
-        );
-        assert_eq!(
-            picker.next(),
-            Some(Move::new(Square::C4, Square::E6, MoveFlag::Capture))
-        );
+        assert_eq!(picker.next(), Some(Move::new(Square::C1, Square::G5, MoveFlag::Capture)));
+        assert_eq!(picker.next(), Some(Move::new(Square::H6, Square::G7, MoveFlag::Capture)));
+        assert_eq!(picker.next(), Some(Move::new(Square::C4, Square::E6, MoveFlag::Capture)));
         assert!(!picker.next().unwrap().is_capture());
     }
 
@@ -243,14 +231,8 @@ mod tests {
         for _ in 0..(number_of_moves - 2) {
             picker.next();
         }
-        assert_eq!(
-            picker.next(),
-            Some(Move::new(Square::C4, Square::A6, MoveFlag::Capture))
-        );
-        assert_eq!(
-            picker.next(),
-            Some(Move::new(Square::D1, Square::D6, MoveFlag::Capture))
-        );
+        assert_eq!(picker.next(), Some(Move::new(Square::C4, Square::A6, MoveFlag::Capture)));
+        assert_eq!(picker.next(), Some(Move::new(Square::D1, Square::D6, MoveFlag::Capture)));
         assert!(picker.next().is_none());
     }
 
@@ -270,24 +252,16 @@ mod tests {
         let (_, picker) = mocks();
         let moves = picker.collect::<Vec<_>>();
 
-        let knight_to_corner_idx = moves
-            .iter()
-            .position(|mov| mov.from() == Square::B1 && mov.to() == Square::A3)
-            .unwrap();
-        let knight_to_center_idx = moves
-            .iter()
-            .position(|mov| mov.from() == Square::B1 && mov.to() == Square::C3)
-            .unwrap();
+        let knight_to_corner_idx =
+            moves.iter().position(|mov| mov.from() == Square::B1 && mov.to() == Square::A3).unwrap();
+        let knight_to_center_idx =
+            moves.iter().position(|mov| mov.from() == Square::B1 && mov.to() == Square::C3).unwrap();
         assert!(knight_to_center_idx < knight_to_corner_idx);
 
-        let bishop_retreat_idx = moves
-            .iter()
-            .position(|mov| mov.from() == Square::C4 && mov.to() == Square::E2)
-            .unwrap();
-        let bishop_to_center_idx = moves
-            .iter()
-            .position(|mov| mov.from() == Square::C4 && mov.to() == Square::D5)
-            .unwrap();
+        let bishop_retreat_idx =
+            moves.iter().position(|mov| mov.from() == Square::C4 && mov.to() == Square::E2).unwrap();
+        let bishop_to_center_idx =
+            moves.iter().position(|mov| mov.from() == Square::C4 && mov.to() == Square::D5).unwrap();
         assert!(bishop_to_center_idx < bishop_retreat_idx);
     }
 }

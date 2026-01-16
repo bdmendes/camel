@@ -18,10 +18,7 @@ pub type MoveVec = SmallVec<[Move; 64]>;
 pub fn generate_moves(position: &Position, stage: MoveStage) -> MoveVec {
     let mut moves = MoveVec::new();
 
-    let our_king = position
-        .pieces_color_bb(Piece::King, position.side_to_move())
-        .lsb()
-        .unwrap();
+    let our_king = position.pieces_color_bb(Piece::King, position.side_to_move()).lsb().unwrap();
     let king_attackers = square_attackers(position, our_king, position.side_to_move().flipped());
     let king_ray = queen_attacks(position, our_king);
     let between_attacker = Bitboard::between(our_king, king_attackers.msb().unwrap_or(our_king));
@@ -88,14 +85,10 @@ mod tests {
     fn assert_eq_vec_move(moves: &[Move], expected: &[&str]) {
         assert_eq!(moves.len(), expected.len());
         let mov_strs = moves.iter().map(|m| m.to_string()).collect::<Vec<String>>();
-        moves.iter().map(|m| m.to_string()).for_each(|m| {
-            assert!(
-                expected.contains(&m.as_str()),
-                "got: {:?}, expected: {:?}",
-                mov_strs,
-                expected
-            )
-        });
+        moves
+            .iter()
+            .map(|m| m.to_string())
+            .for_each(|m| assert!(expected.contains(&m.as_str()), "got: {:?}, expected: {:?}", mov_strs, expected));
     }
 
     pub fn assert_staged_moves(

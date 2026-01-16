@@ -14,16 +14,12 @@ fn make_castle<const UPDATE_META: bool>(position: &mut Position, side_to_move: C
     let ours = position.occupancy_bb(side_to_move);
     let rooks = position.pieces_bb(Piece::Rook) & ours & COLOR_CASTLE_RANKS[side_to_move as usize];
     let (rook, to_king, to_rook) = match castling_side {
-        CastlingSide::Kingside => (
-            rooks.msb(),
-            TO_KING_KINGSIDE[side_to_move as usize],
-            TO_ROOK_KINGSIDE[side_to_move as usize],
-        ),
-        CastlingSide::Queenside => (
-            rooks.lsb(),
-            TO_KING_QUEENSIDE[side_to_move as usize],
-            TO_ROOK_QUEENSIDE[side_to_move as usize],
-        ),
+        CastlingSide::Kingside => {
+            (rooks.msb(), TO_KING_KINGSIDE[side_to_move as usize], TO_ROOK_KINGSIDE[side_to_move as usize])
+        }
+        CastlingSide::Queenside => {
+            (rooks.lsb(), TO_KING_QUEENSIDE[side_to_move as usize], TO_ROOK_QUEENSIDE[side_to_move as usize])
+        }
     };
 
     position.clear_square(rook.unwrap());
@@ -60,11 +56,7 @@ pub fn make_move<const UPDATE_META: bool>(position: &Position, mov: Move) -> Pos
             let our_king = position.pieces_color_bb(Piece::King, side_to_move).lsb().unwrap();
             position.set_castling_rights(position.castling_rights().removed_side(
                 side_to_move,
-                if mov.from().file() > our_king.file() {
-                    CastlingSide::Kingside
-                } else {
-                    CastlingSide::Queenside
-                },
+                if mov.from().file() > our_king.file() { CastlingSide::Kingside } else { CastlingSide::Queenside },
             ));
         }
         MoveFlag::Quiet | MoveFlag::DoublePawnPush => {
@@ -158,21 +150,9 @@ mod tests {
         "e1g1",
         "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQ1RK1 b - - 2 8"
     )]
-    #[case(
-        "r3k2r/1b4bq/8/8/8/8/7B/R3K2R w KQkq - 0 1",
-        "h2b8",
-        "rB2k2r/1b4bq/8/8/8/8/8/R3K2R b KQkq - 1 1"
-    )]
-    #[case(
-        "rB2k2r/1b4bq/8/8/8/8/8/R3K2R b KQkq - 1 1",
-        "a8b8",
-        "1r2k2r/1b4bq/8/8/8/8/8/R3K2R w KQk - 0 2"
-    )]
-    #[case(
-        "r3k2r/8/3Q4/8/8/8/8/R2qK2R w KQkq - 1 2",
-        "e1d1",
-        "r3k2r/8/3Q4/8/8/8/8/R2K3R b kq - 0 2"
-    )]
+    #[case("r3k2r/1b4bq/8/8/8/8/7B/R3K2R w KQkq - 0 1", "h2b8", "rB2k2r/1b4bq/8/8/8/8/8/R3K2R b KQkq - 1 1")]
+    #[case("rB2k2r/1b4bq/8/8/8/8/8/R3K2R b KQkq - 1 1", "a8b8", "1r2k2r/1b4bq/8/8/8/8/8/R3K2R w KQk - 0 2")]
+    #[case("r3k2r/8/3Q4/8/8/8/8/R2qK2R w KQkq - 1 2", "e1d1", "r3k2r/8/3Q4/8/8/8/8/R2K3R b kq - 0 2")]
     #[case(
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
         "e2e4",

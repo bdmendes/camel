@@ -139,9 +139,6 @@ mod tests {
     #[test]
     fn king_attack() {
         let position = Position::from_str("8/pp3Qpk/7p/3p3K/1nPP1q2/4nNPP/PP6/5R2 w - - 1 34").unwrap();
-        assert_eq!(
-            king_attackers(&position, Color::White, Square::G6),
-            Bitboard::from_square(Square::H5)
-        );
+        assert_eq!(king_attackers(&position, Color::White, Square::G6), Bitboard::from_square(Square::H5));
     }
 }
