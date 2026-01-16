@@ -1,4 +1,4 @@
-use crate::core::position::Position;
+use crate::position::Position;
 
 pub struct GameHistory {
     data: Vec<Entry>,
@@ -45,7 +45,7 @@ impl GameHistory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::position::fen::START_POSITION;
+    use crate::position::fen::START_POSITION;
     use std::str::FromStr;
 
     #[test]

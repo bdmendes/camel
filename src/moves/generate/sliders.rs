@@ -1,6 +1,6 @@
 use crate::{
-    core::moves::{Move, MoveFlag},
-    core::position::{
+    moves::{Move, MoveFlag},
+    position::{
         MoveStage, Position,
         bitboard::Bitboard,
         color::Color,
@@ -118,11 +118,11 @@ pub fn queen_moves(position: &Position, stage: MoveStage, moves: &mut MoveVec) {
 #[cfg(test)]
 mod tests {
     use crate::{
-        core::moves::generate::{
+        moves::generate::{
             sliders::{diagonal_attackers, file_attackers},
             tests::assert_staged_moves,
         },
-        core::position::{Position, bitboard::Bitboard, color::Color, square::Square},
+        position::{Position, bitboard::Bitboard, color::Color, square::Square},
     };
     use std::str::FromStr;
 

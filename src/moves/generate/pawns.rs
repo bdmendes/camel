@@ -1,6 +1,6 @@
 use crate::{
-    core::moves::{Move, MoveFlag},
-    core::position::{
+    moves::{Move, MoveFlag},
+    position::{
         MoveStage, Position,
         bitboard::Bitboard,
         color::Color,
@@ -147,7 +147,7 @@ mod tests {
     use std::str::FromStr;
 
     use super::*;
-    use crate::core::moves::generate::tests::assert_staged_moves;
+    use crate::moves::generate::tests::assert_staged_moves;
 
     fn pawn_attacks(position: &Position, color: Color) -> Bitboard {
         let (west_attacks, east_attacks) = pawn_attacks_sided(position, color);

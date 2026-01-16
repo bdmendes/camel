@@ -4,11 +4,11 @@ use std::{
 };
 
 use crate::{
-    core::position::{Position, fen::START_POSITION},
     evaluation::{
         NNUE_PARAMS_BLOB,
         nnue::{NeuralNetwork, Parameters},
     },
+    position::{Position, fen::START_POSITION},
     search::{
         game_history::GameHistory,
         score_table::{DEFAULT_TABLE_SIZE_MB, ScoreTable},

@@ -1,4 +1,4 @@
-use crate::core::position::{
+use crate::position::{
     Position, bitboard::Bitboard, castling_rights::CastlingSide, color::Color, piece::Piece, square::Square,
 };
 
@@ -141,7 +141,7 @@ pub fn make_move<const UPDATE_META: bool>(position: &Position, mov: Move) -> Pos
 mod tests {
     use rstest::rstest;
 
-    use crate::core::{moves::make::make_move, position::MoveStage, position::Position};
+    use crate::{moves::make::make_move, position::MoveStage, position::Position};
     use std::str::FromStr;
 
     #[rstest]

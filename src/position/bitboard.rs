@@ -198,7 +198,7 @@ impl Display for Bitboard {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::position::{bitboard::Bitboard, square::Square};
+    use crate::position::{bitboard::Bitboard, square::Square};
 
     #[test]
     fn from_square() {

@@ -1,23 +1,22 @@
 use std::{process, str::FromStr, thread, time::Instant};
 
 use crate::{
-    core::{
-        moves::Move,
-        position::{
-            Position,
-            fen::{KIWIPETE_POSITION, START_POSITION},
-        },
-    },
     engine::{
         Engine,
         repl::{Command, PositionCommand, repl},
     },
+    moves::Move,
+    position::{
+        Position,
+        fen::{KIWIPETE_POSITION, START_POSITION},
+    },
     search::{game_history::GameHistory, perft::perft, picker::MovePicker, status::SearchStatusValue},
 };
 
-pub mod core;
 pub mod engine;
 pub mod evaluation;
+pub mod moves;
+pub mod position;
 pub mod search;
 
 fn main() {

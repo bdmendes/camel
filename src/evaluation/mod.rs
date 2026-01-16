@@ -8,11 +8,11 @@ pub type ValueScore = i16;
 #[cfg(test)]
 mod tests {
     use crate::{
-        core::position::{MoveStage, Position, fen::START_POSITION},
         evaluation::{
             MAX_POSITIONAL_WEIGHT, NNUE_PARAMS_BLOB, ValueScore,
             nnue::{NeuralNetwork, Parameters},
         },
+        position::{MoveStage, Position, fen::START_POSITION},
     };
     use rstest::rstest;
     use std::{

@@ -341,7 +341,7 @@ impl Position {
 mod tests {
     use std::str::FromStr;
 
-    use crate::core::{
+    use crate::{
         moves::{Move, MoveFlag},
         position::{
             Piece, PositionDiffEntry, PositionDiffVec, bitboard::Bitboard, castling_rights::CastlingSide, color::Color,

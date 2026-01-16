@@ -1,4 +1,4 @@
-use crate::core::position::{Position, piece::Piece, square::Square};
+use crate::position::{Position, piece::Piece, square::Square};
 
 use primitive_enum::primitive_enum;
 use std::fmt::Display;
@@ -87,12 +87,12 @@ impl Display for Move {
 #[cfg(test)]
 mod tests {
     use super::{Move, MoveFlag};
-    use crate::core::moves::MoveFlag::*;
-    use crate::core::position::fen::{Fen, KIWIPETE_POSITION, START_POSITION};
-    use crate::core::position::piece::Piece::*;
-    use crate::core::position::square::Square::*;
-    use crate::core::position::{MoveStage, Position};
-    use crate::core::position::{piece::Piece, square::Square};
+    use crate::moves::MoveFlag::*;
+    use crate::position::fen::{Fen, KIWIPETE_POSITION, START_POSITION};
+    use crate::position::piece::Piece::*;
+    use crate::position::square::Square::*;
+    use crate::position::{MoveStage, Position};
+    use crate::position::{piece::Piece, square::Square};
     use rstest::rstest;
     use std::str::FromStr;
 
