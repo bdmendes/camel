@@ -93,6 +93,7 @@ impl Searcher {
 
         let mut count = 0;
         let mut best_move = None;
+        let is_check = position.is_check();
 
         for mov in picker {
             let next_position = position.make_move(mov);
@@ -119,10 +120,10 @@ impl Searcher {
         }
 
         if count == 0 {
-            return (1, MATE_SCORE + ply as ValueScore);
+            return (1, if is_check { MATE_SCORE + ply as ValueScore } else { 0 });
         }
 
-        if best_move.is_some() {
+        if best_move.is_none() {
             node_type = NodeType::AllNode;
         }
 
@@ -146,23 +147,23 @@ mod tests {
     #[test]
     fn should_stop() {
         let status = SearchStatus::new(SearchStatusValue::Searching);
-        let mut seacher = Searcher::new(
+        let mut searcher = Searcher::new(
             GameHistory::default(),
             ScoreTable::new_no_elems(1),
             NeuralNetwork::new(Parameters::random()),
             status.clone(),
-            Duration::from_secs(1),
+            Duration::from_millis(200),
         );
 
-        assert!(!seacher.should_stop());
+        assert!(!searcher.should_stop());
 
-        sleep(Duration::from_secs(1));
-        assert!(seacher.should_stop());
+        sleep(Duration::from_millis(200));
+        assert!(searcher.should_stop());
 
-        seacher.initial = Instant::now();
-        assert!(!seacher.should_stop());
+        searcher.initial = Instant::now();
+        assert!(!searcher.should_stop());
 
         status.set(SearchStatusValue::Stopped);
-        assert!(seacher.should_stop());
+        assert!(searcher.should_stop());
     }
 }
