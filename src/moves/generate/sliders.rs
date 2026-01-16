@@ -190,7 +190,11 @@ mod tests {
         assert_staged_moves(
             "4k1nr/p1q1ppb1/6p1/nrpPP2p/1pp2Pb1/5N2/PP2B1PP/RNBQ1RK1 w k - 2 16",
             bishop_moves,
-            [vec!["c1d2", "c1e3", "e2d3", "e2c4"], vec!["e2c4"], vec!["c1d2", "c1e3", "e2d3"]],
+            [
+                vec!["c1d2", "c1e3", "e2d3", "e2c4"],
+                vec!["e2c4"],
+                vec!["c1d2", "c1e3", "e2d3"],
+            ],
         );
     }
 
@@ -200,7 +204,9 @@ mod tests {
             "4kr2/2q1ppb1/5n2/nppPPpNp/1pp3b1/2N5/1P2B1PP/R1BQ1RK1 w - - 0 21",
             rook_moves,
             [
-                vec!["a1b1", "a1a2", "a1a3", "a1a4", "f1e1", "f1f2", "f1f3", "f1f4", "f1f5", "a1a5"],
+                vec![
+                    "a1b1", "a1a2", "a1a3", "a1a4", "f1e1", "f1f2", "f1f3", "f1f4", "f1f5", "a1a5",
+                ],
                 vec!["f1f5", "a1a5"],
                 vec!["a1b1", "a1a2", "a1a3", "a1a4", "f1e1", "f1f2", "f1f3", "f1f4"],
             ],

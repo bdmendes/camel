@@ -57,7 +57,11 @@ impl Square {
     }
 
     pub fn shifted(self, direction: Direction) -> Self {
-        if direction >= 0 { self << direction as u8 } else { self >> (-direction) as u8 }
+        if direction >= 0 {
+            self << direction as u8
+        } else {
+            self >> (-direction) as u8
+        }
     }
 
     pub fn mirror(self) -> Self {

@@ -40,8 +40,11 @@ static BETWEEN: [Bitboard; 64 * 64] = {
 
                 // Same rank
                 if from_rank == to_rank {
-                    let (start, end) =
-                        if from_file < to_file { (from_file + 1, to_file) } else { (to_file + 1, from_file) };
+                    let (start, end) = if from_file < to_file {
+                        (from_file + 1, to_file)
+                    } else {
+                        (to_file + 1, from_file)
+                    };
                     let mut file = start;
                     while file < end {
                         bb |= 1 << (from_rank * 8 + file);
@@ -50,8 +53,11 @@ static BETWEEN: [Bitboard; 64 * 64] = {
                 }
                 // Same file
                 else if from_file == to_file {
-                    let (start, end) =
-                        if from_rank < to_rank { (from_rank + 1, to_rank) } else { (to_rank + 1, from_rank) };
+                    let (start, end) = if from_rank < to_rank {
+                        (from_rank + 1, to_rank)
+                    } else {
+                        (to_rank + 1, from_rank)
+                    };
                     let mut rank = start;
                     while rank < end {
                         bb |= 1 << (rank * 8 + from_file);

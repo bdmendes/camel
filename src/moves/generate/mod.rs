@@ -18,7 +18,10 @@ pub type MoveVec = SmallVec<[Move; 64]>;
 pub fn generate_moves(position: &Position, stage: MoveStage) -> MoveVec {
     let mut moves = MoveVec::new();
 
-    let our_king = position.pieces_color_bb(Piece::King, position.side_to_move()).lsb().unwrap();
+    let our_king = position
+        .pieces_color_bb(Piece::King, position.side_to_move())
+        .lsb()
+        .unwrap();
     let king_attackers = square_attackers(position, our_king, position.side_to_move().flipped());
     let king_ray = queen_attacks(position, our_king);
     let between_attacker = Bitboard::between(our_king, king_attackers.msb().unwrap_or(our_king));

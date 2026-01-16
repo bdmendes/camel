@@ -11,13 +11,18 @@ struct Entry {
 
 impl Default for GameHistory {
     fn default() -> Self {
-        Self { data: Vec::with_capacity(64) }
+        Self {
+            data: Vec::with_capacity(64),
+        }
     }
 }
 
 impl GameHistory {
     pub fn push(&mut self, position: &Position, is_reversible: bool) {
-        self.data.push(Entry { hash_ms16: position.hash().ms16(), is_reversible })
+        self.data.push(Entry {
+            hash_ms16: position.hash().ms16(),
+            is_reversible,
+        })
     }
 
     pub fn pop(&mut self) {

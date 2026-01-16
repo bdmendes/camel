@@ -96,7 +96,9 @@ fn main() {
                 _ => engine.search_status.set(SearchStatusValue::Stopped),
             },
             Command::Ponderhit => match engine.search_status.get() {
-                SearchStatusValue::Stopped | SearchStatusValue::Searching => println!("I am not pondering."),
+                SearchStatusValue::Stopped | SearchStatusValue::Searching => {
+                    println!("I am not pondering.")
+                }
                 SearchStatusValue::Pondering => engine.search_status.set(SearchStatusValue::Searching),
             },
             Command::Ucinewgame => {

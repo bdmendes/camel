@@ -152,7 +152,10 @@ impl Position {
     }
 
     pub fn piece_at(&self, square: Square) -> Option<Piece> {
-        self.pieces.iter().position(|bb| bb.is_set(square)).map(|idx| Piece::from(idx as u8).unwrap())
+        self.pieces
+            .iter()
+            .position(|bb| bb.is_set(square))
+            .map(|idx| Piece::from(idx as u8).unwrap())
     }
 
     pub fn piece_color_at(&self, square: Square) -> Option<(Piece, Color)> {
@@ -448,29 +451,81 @@ mod tests {
         let hash1 = position.hash();
         assert!(position.castling_rights().has_color(Color::White));
         assert!(position.castling_rights().has_color(Color::Black));
-        assert!(position.castling_rights().has_side(Color::White, CastlingSide::Kingside));
-        assert!(position.castling_rights().has_side(Color::White, CastlingSide::Queenside));
-        assert!(position.castling_rights().has_side(Color::Black, CastlingSide::Kingside));
-        assert!(position.castling_rights().has_side(Color::Black, CastlingSide::Queenside));
+        assert!(
+            position
+                .castling_rights()
+                .has_side(Color::White, CastlingSide::Kingside)
+        );
+        assert!(
+            position
+                .castling_rights()
+                .has_side(Color::White, CastlingSide::Queenside)
+        );
+        assert!(
+            position
+                .castling_rights()
+                .has_side(Color::Black, CastlingSide::Kingside)
+        );
+        assert!(
+            position
+                .castling_rights()
+                .has_side(Color::Black, CastlingSide::Queenside)
+        );
 
         position.set_castling_rights(position.castling_rights().removed_color(Color::White));
         let hash2 = position.hash();
         assert!(!position.castling_rights().has_color(Color::White));
         assert!(position.castling_rights().has_color(Color::Black));
-        assert!(!position.castling_rights().has_side(Color::White, CastlingSide::Kingside));
-        assert!(!position.castling_rights().has_side(Color::White, CastlingSide::Queenside));
-        assert!(position.castling_rights().has_side(Color::Black, CastlingSide::Kingside));
-        assert!(position.castling_rights().has_side(Color::Black, CastlingSide::Queenside));
+        assert!(
+            !position
+                .castling_rights()
+                .has_side(Color::White, CastlingSide::Kingside)
+        );
+        assert!(
+            !position
+                .castling_rights()
+                .has_side(Color::White, CastlingSide::Queenside)
+        );
+        assert!(
+            position
+                .castling_rights()
+                .has_side(Color::Black, CastlingSide::Kingside)
+        );
+        assert!(
+            position
+                .castling_rights()
+                .has_side(Color::Black, CastlingSide::Queenside)
+        );
         assert_ne!(hash1, hash2);
 
-        position.set_castling_rights(position.castling_rights().removed_side(Color::Black, CastlingSide::Kingside));
+        position.set_castling_rights(
+            position
+                .castling_rights()
+                .removed_side(Color::Black, CastlingSide::Kingside),
+        );
         let hash3 = position.hash();
         assert!(!position.castling_rights().has_color(Color::White));
         assert!(position.castling_rights().has_color(Color::Black));
-        assert!(!position.castling_rights().has_side(Color::White, CastlingSide::Kingside));
-        assert!(!position.castling_rights().has_side(Color::White, CastlingSide::Queenside));
-        assert!(!position.castling_rights().has_side(Color::Black, CastlingSide::Kingside));
-        assert!(position.castling_rights().has_side(Color::Black, CastlingSide::Queenside));
+        assert!(
+            !position
+                .castling_rights()
+                .has_side(Color::White, CastlingSide::Kingside)
+        );
+        assert!(
+            !position
+                .castling_rights()
+                .has_side(Color::White, CastlingSide::Queenside)
+        );
+        assert!(
+            !position
+                .castling_rights()
+                .has_side(Color::Black, CastlingSide::Kingside)
+        );
+        assert!(
+            position
+                .castling_rights()
+                .has_side(Color::Black, CastlingSide::Queenside)
+        );
         assert_ne!(hash2, hash3);
         assert_ne!(hash1, hash3);
     }
@@ -495,10 +550,18 @@ mod tests {
         position.set_castling_rights(position.castling_rights.removed_color(Color::White));
         assert_eq!(position.hash(), position.hash_from_scratch());
 
-        position.set_castling_rights(position.castling_rights.removed_side(Color::White, CastlingSide::Kingside));
+        position.set_castling_rights(
+            position
+                .castling_rights
+                .removed_side(Color::White, CastlingSide::Kingside),
+        );
         assert_eq!(position.hash(), position.hash_from_scratch());
 
-        position.set_castling_rights(position.castling_rights.removed_side(Color::Black, CastlingSide::Kingside));
+        position.set_castling_rights(
+            position
+                .castling_rights
+                .removed_side(Color::Black, CastlingSide::Kingside),
+        );
         assert_eq!(position.hash(), position.hash_from_scratch());
 
         position.set_ep_square(Square::C6);

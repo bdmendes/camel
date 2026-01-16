@@ -60,7 +60,11 @@ mod tests {
     #[case("2r1r1k1/1p2bppp/p3p1n1/q2pPP2/3P2P1/2NBRQ2/PP5P/5R1K b - - 0 19", "c8c3", -1)]
     fn see_sequence(#[case] fen: Fen, #[case] mov: &str, #[case] value: i8) {
         let position = Position::try_from(fen).unwrap();
-        let mov = *position.moves(MoveStage::CapturesAndPromotions).iter().find(|m| m.to_string() == mov).unwrap();
+        let mov = *position
+            .moves(MoveStage::CapturesAndPromotions)
+            .iter()
+            .find(|m| m.to_string() == mov)
+            .unwrap();
         assert_eq!(see::see(mov, &position), value);
     }
 }

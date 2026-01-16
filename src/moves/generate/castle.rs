@@ -10,7 +10,10 @@ const FINAL_KING_SQUARES: [Square; 4] = [Square::G1, Square::C1, Square::G8, Squ
 const FLAG_FROM_SIDE: [MoveFlag; 2] = [MoveFlag::KingsideCastle, MoveFlag::QueensideCastle];
 
 fn castle_side(position: &Position, side: CastlingSide, moves: &mut MoveVec) {
-    let king = position.pieces_color_bb(Piece::King, position.side_to_move()).lsb().unwrap();
+    let king = position
+        .pieces_color_bb(Piece::King, position.side_to_move())
+        .lsb()
+        .unwrap();
     let rook = {
         let our_rooks = position.pieces_color_bb(Piece::Rook, position.side_to_move())
             & COLOR_CASTLE_RANKS[position.side_to_move() as usize];
@@ -84,11 +87,17 @@ pub fn castle_moves(position: &Position, stage: MoveStage, moves: &mut MoveVec) 
         return;
     }
 
-    if position.castling_rights().has_side(position.side_to_move(), CastlingSide::Kingside) {
+    if position
+        .castling_rights()
+        .has_side(position.side_to_move(), CastlingSide::Kingside)
+    {
         castle_side(position, CastlingSide::Kingside, moves);
     }
 
-    if position.castling_rights().has_side(position.side_to_move(), CastlingSide::Queenside) {
+    if position
+        .castling_rights()
+        .has_side(position.side_to_move(), CastlingSide::Queenside)
+    {
         castle_side(position, CastlingSide::Queenside, moves);
     }
 }
