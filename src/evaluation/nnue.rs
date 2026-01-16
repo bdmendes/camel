@@ -55,6 +55,15 @@ impl Parameters {
         }
     }
 
+    pub fn blank() -> Self {
+        Self {
+            acc_weights: vec![],
+            acc_biases: vec![],
+            out_weights: vec![],
+            out_bias: 0.0,
+        }
+    }
+
     fn valid_size(&self) -> bool {
         self.acc_weights.len() == INPUT_SIZE * HIDDEN_LAYER_SIZE
             && self.acc_biases.len() == HIDDEN_LAYER_SIZE
@@ -97,6 +106,10 @@ impl NeuralNetwork {
             }
         }
         nnue
+    }
+
+    pub fn blank() -> Self {
+        Self::new_raw(Parameters::blank(), Position::default())
     }
 
     fn input_index(piece: Piece, color: Color, square: Square) -> usize {

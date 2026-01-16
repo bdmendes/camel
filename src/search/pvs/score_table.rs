@@ -12,11 +12,11 @@ const MAX_PLY_DIFF: ValueScore = Depth::MAX as ValueScore;
 
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
 pub struct Entry {
-    score: ValueScore,
-    node_type: NodeType,
-    depth: Depth,
-    hash_ms16: u16,
-    mov: Move,
+    pub score: ValueScore,
+    pub node_type: NodeType,
+    pub mov: Move,
+    pub depth: Depth,
+    pub hash_ms16: u16,
 }
 
 pub struct ScoreTable {
@@ -103,6 +103,16 @@ impl ScoreTable {
                     });
                 }
             }
+        }
+    }
+
+    pub fn hash_move(&self, position: &Position) -> Option<Move> {
+        // SAFETY: index is always in bounds
+        unsafe {
+            self.entries
+                .get_unchecked(self.index(position))
+                .filter(|e| e.hash_ms16 == position.hash().ms16() && e.mov.pseudo_legal(position))
+                .map(|m| m.mov)
         }
     }
 
@@ -295,5 +305,21 @@ mod tests {
         // Depth is irrelevant.
         assert_eq!(table.probe(&position1, 2, 0).unwrap().score, -MATE_SCORE - 3);
         assert_eq!(table.probe(&position1, 1, 0).unwrap().score, -MATE_SCORE - 3);
+    }
+
+    #[test]
+    pub fn hash_move() {
+        let mut table = ScoreTable::new_no_elems(1);
+        let position = Position::from_str(START_POSITION).unwrap();
+        let mov = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
+
+        table.put(&position, 3, 3, NodeType::PVNode, 0, mov);
+        assert_eq!(table.hash_move(&position), Some(mov));
+
+        let position2 = position.make_move_str("e2e4").unwrap();
+        let mov2 = Move::new(Square::D7, Square::D5, MoveFlag::Quiet);
+
+        table.put(&position2, 3, 3, NodeType::PVNode, 0, mov2);
+        assert_eq!(table.hash_move(&position), None);
     }
 }

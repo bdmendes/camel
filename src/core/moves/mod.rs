@@ -32,6 +32,10 @@ impl Move {
         Move((from as u16) | ((to as u16) << 6) | ((flag as u16) << 12))
     }
 
+    pub fn blank() -> Self {
+        Move::new(Square::A1, Square::A1, MoveFlag::Quiet)
+    }
+
     pub fn from(&self) -> Square {
         Square::from((self.0 & 0x3F) as u8).unwrap()
     }
