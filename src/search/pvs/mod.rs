@@ -57,13 +57,19 @@ impl Searcher {
             return (1, window.best());
         }
 
-        let standing_pat = self.network.evaluate(position) * position.side_to_move().sign() as ValueScore;
+        let is_check = position.is_check();
+
+        let standing_pat = if !is_check {
+            self.network.evaluate(position) * position.side_to_move().sign() as ValueScore
+        } else {
+            ValueScore::MIN + 1
+        };
+
         if matches!(window.feed(standing_pat), FeedResult::FailHigh) {
             return (1, window.best());
         }
 
         let mut count = 0;
-        let is_check = position.is_check();
         let picker = MovePicker::new(position, !is_check, None, [None, None]);
 
         for mov in picker {
@@ -76,7 +82,9 @@ impl Searcher {
         }
 
         if count == 0 {
-            (1, if is_check { MATE_SCORE + ply as ValueScore } else { window.best() })
+            // We cannot detect stalemate here since our picker does not yield negative captures.
+            let score = if is_check { MATE_SCORE + ply as ValueScore } else { standing_pat };
+            (1, score)
         } else {
             (count, window.best())
         }
@@ -214,5 +222,23 @@ mod tests {
         let position = Position::try_from(fen.clone()).unwrap();
         let score = searcher.quiesce(&position, 0, Window::default()).1 * position.side_to_move().sign() as ValueScore;
         assert!((100 * material - score).abs() <= MAX_POSITIONAL_WEIGHT);
+    }
+
+    #[rstest]
+    #[case("k5R1/3n4/K7/4B3/8/8/8/8 b - - 0 1", 2)]
+    #[case("k5RR/2bn4/K7/4B3/8/8/8/8 b - - 0 1", 4)]
+    #[case("kb4RR/3n4/K7/4B3/8/8/8/8 w - - 1 2", 3)]
+    fn quiesce_mates_through_captures(#[case] fen: Fen, #[case] plies: u8) {
+        let mut searcher = Searcher::new(
+            GameHistory::default(),
+            ScoreTable::new_no_elems(1),
+            NeuralNetwork::new(Parameters::from_str(NNUE_PARAMS_BLOB).unwrap()),
+            SearchStatus::new(SearchStatusValue::Searching),
+            Duration::from_hours(1),
+        );
+
+        let position = Position::try_from(fen.clone()).unwrap();
+        let score = searcher.quiesce(&position, 0, Window::default()).1;
+        assert_eq!(score.abs(), (MATE_SCORE + plies as i16).abs());
     }
 }
