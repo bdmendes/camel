@@ -3,14 +3,14 @@ use std::time::{Duration, Instant};
 use primitive_enum::primitive_enum;
 
 use crate::{
-    core::{moves::Move, position::Position},
+    core::position::Position,
     evaluation::{ValueScore, nnue::NeuralNetwork},
     search::{
         Depth, SearchStatus, SearchStatusValue,
         picker::MovePicker,
         pvs::{
             game_history::GameHistory,
-            score_table::{Entry, ScoreTable},
+            score_table::ScoreTable,
             window::{FeedResult, Window},
         },
     },
@@ -76,11 +76,14 @@ impl Searcher {
             return (1, self.network.evaluate(position));
         }
 
-        if self.history.seen(position) >= 3 {
+        let seen = self.history.seen(position);
+        if seen >= 3 {
             return (1, 0);
         }
 
-        if let Some(Entry { score, node_type, .. }) = self.table.probe(position, depth, ply) {
+        if seen <= 1
+            && let Some((score, node_type)) = self.table.probe(position, depth, ply)
+        {
             if let Some(_) = window.feed_cache(score, node_type) {
                 return (1, score);
             }
@@ -90,7 +93,7 @@ impl Searcher {
         let picker = MovePicker::new(position, false, self.table.hash_move(position), [None, None]);
 
         let mut count = 0;
-        let mut best_move = Move::blank();
+        let mut best_move = None;
         let initial_best = window.best();
 
         for mov in picker {
@@ -106,10 +109,11 @@ impl Searcher {
             match window.feed(-score) {
                 FeedResult::Improvement => {
                     node_type = NodeType::PVNode;
-                    best_move = mov;
+                    best_move = Some(mov);
                 }
                 FeedResult::FailHigh => {
                     node_type = NodeType::CutNode;
+                    best_move = Some(mov);
                     break;
                 }
                 FeedResult::FailLow => {}
@@ -137,6 +141,8 @@ impl Searcher {
 mod tests {
     use std::thread::sleep;
 
+    use crate::evaluation::nnue::Parameters;
+
     use super::*;
 
     #[test]
@@ -145,7 +151,7 @@ mod tests {
         let mut seacher = Searcher::new(
             GameHistory::default(),
             ScoreTable::new_no_elems(1),
-            NeuralNetwork::blank(),
+            NeuralNetwork::new(Parameters::random()),
             status.clone(),
             Duration::from_secs(1),
         );
