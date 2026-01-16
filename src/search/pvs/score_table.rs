@@ -19,9 +19,9 @@ const NULL_MOVE: Move = Move::new(Square::A1, Square::A1, MoveFlag::Quiet);
 struct Entry {
     score: ValueScore,
     node_type: NodeType,
-    mov: Move,
     depth: Depth,
     hash_ms16: u16,
+    mov: Move,
 }
 
 pub struct ScoreTable {

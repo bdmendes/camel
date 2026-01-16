@@ -84,8 +84,8 @@ impl Searcher {
         if seen <= 1
             && let Some((score, node_type)) = self.table.probe(position, depth, ply)
         {
-            if let Some(_) = window.feed_cache(score, node_type) {
-                return (1, score);
+            if let Some(next) = window.feed_cache(score, node_type) {
+                return (1, next);
             }
         }
 
@@ -94,7 +94,6 @@ impl Searcher {
 
         let mut count = 0;
         let mut best_move = None;
-        let initial_best = window.best();
 
         for mov in picker {
             let next_position = position.make_move(mov);
@@ -124,7 +123,7 @@ impl Searcher {
             return (1, MATE_SCORE + ply as ValueScore);
         }
 
-        if initial_best == window.best() {
+        if best_move.is_some() {
             node_type = NodeType::AllNode;
         }
 
