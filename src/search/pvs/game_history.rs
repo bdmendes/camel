@@ -103,4 +103,18 @@ mod tests {
         history.push(&position, false);
         assert_eq!(history.seen(&position), 1);
     }
+
+    #[test]
+    fn clear() {
+        let mut history = GameHistory::default();
+        let position = Position::from_str(START_POSITION).unwrap();
+
+        history.push(&position, true);
+        history.push(&position, true);
+        assert_eq!(history.data.len(), 2);
+
+        history.clear();
+        assert_eq!(history.data.len(), 0);
+        assert_eq!(history.seen(&position), 0);
+    }
 }
