@@ -88,12 +88,7 @@ fn main() {
                     let (nodes, _divided) = perft::<true>(&engine.position, depth, &status);
                     status.set(SearchStatusValue::Stopped);
                     let elapsed = time.elapsed().as_secs_f32();
-                    println!(
-                        "{} in {:.2}s ({:.0}Mnps)",
-                        nodes,
-                        elapsed,
-                        (nodes as f32 / 1_000_000.0 / elapsed)
-                    );
+                    println!("{} in {:.2}s ({:.0}Mnps)", nodes, elapsed, (nodes as f32 / 1_000_000.0 / elapsed));
                 });
             }
             Command::Stop => match engine.search_status.get() {

@@ -41,11 +41,7 @@ impl Square {
     pub const EAST: Direction = 1;
 
     pub fn from_file_rank(file: u8, rank: u8) -> Option<Self> {
-        if file >= 8 || rank >= 8 {
-            None
-        } else {
-            Square::from(rank * 8 + file)
-        }
+        if file >= 8 || rank >= 8 { None } else { Square::from(rank * 8 + file) }
     }
 
     pub const fn color(self) -> Color {
@@ -61,11 +57,7 @@ impl Square {
     }
 
     pub fn shifted(self, direction: Direction) -> Self {
-        if direction >= 0 {
-            self << direction as u8
-        } else {
-            self >> (-direction) as u8
-        }
+        if direction >= 0 { self << direction as u8 } else { self >> (-direction) as u8 }
     }
 
     pub fn mirror(self) -> Self {

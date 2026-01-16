@@ -32,18 +32,11 @@ pub struct Parameters {
 impl Parameters {
     pub fn random() -> Self {
         let mut rng = rand::rng();
-        let acc_weights = (0..INPUT_SIZE * HIDDEN_LAYER_SIZE)
-            .map(|_| rng.random_range(-1.0..1.0))
-            .collect();
+        let acc_weights = (0..INPUT_SIZE * HIDDEN_LAYER_SIZE).map(|_| rng.random_range(-1.0..1.0)).collect();
         let acc_biases = (0..HIDDEN_LAYER_SIZE).map(|_| rng.random_range(-1.0..1.0)).collect();
         let out_weights = (0..HIDDEN_LAYER_SIZE).map(|_| rng.random_range(-1.0..1.0)).collect();
         let out_bias = rng.random_range(-1.0..1.0);
-        Self {
-            acc_weights,
-            acc_biases,
-            out_weights,
-            out_bias,
-        }
+        Self { acc_weights, acc_biases, out_weights, out_bias }
     }
 
     pub fn filled(acc_weight_val: f32, acc_bias_val: f32, out_weight_val: f32, out_bias_val: f32) -> Self {
@@ -86,11 +79,7 @@ impl NeuralNetwork {
     }
 
     pub fn new_raw(params: Parameters, start_position: Position) -> Self {
-        let mut nnue = Self {
-            params,
-            acc: vec![0.0; HIDDEN_LAYER_SIZE],
-            last_seen: start_position,
-        };
+        let mut nnue = Self { params, acc: vec![0.0; HIDDEN_LAYER_SIZE], last_seen: start_position };
         for square in Square::list() {
             if let Some((piece, color)) = start_position.piece_color_at(*square) {
                 nnue.set(piece, color, *square);

@@ -4,18 +4,8 @@ use crate::search::Depth;
 
 // The UCI protocol omits the prefix "--" from most flags and uses some redundant keywords.
 // To simplify modelling with clap, we'll preprocess the input string.
-const RELAXED_FLAGS: &[&str] = &[
-    "name",
-    "value",
-    "depth",
-    "wtime",
-    "btime",
-    "winc",
-    "binc",
-    "ponder",
-    "movestogo",
-    "movetime",
-];
+const RELAXED_FLAGS: &[&str] =
+    &["name", "value", "depth", "wtime", "btime", "winc", "binc", "ponder", "movestogo", "movetime"];
 const OMITTED_FLAGS: &[&str] = &["infinite", "moves"];
 
 #[derive(Parser, Debug)]

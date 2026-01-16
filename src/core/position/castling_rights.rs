@@ -115,22 +115,10 @@ mod tests {
     fn removed() {
         let castling_rights = CastlingRights::new(true, false, false, true);
 
-        assert_ne!(
-            castling_rights,
-            castling_rights.removed_side(Color::White, CastlingSide::Kingside)
-        );
-        assert_eq!(
-            castling_rights,
-            castling_rights.removed_side(Color::White, CastlingSide::Queenside)
-        );
-        assert_eq!(
-            castling_rights,
-            castling_rights.removed_side(Color::Black, CastlingSide::Kingside)
-        );
-        assert_ne!(
-            castling_rights,
-            castling_rights.removed_side(Color::Black, CastlingSide::Queenside)
-        );
+        assert_ne!(castling_rights, castling_rights.removed_side(Color::White, CastlingSide::Kingside));
+        assert_eq!(castling_rights, castling_rights.removed_side(Color::White, CastlingSide::Queenside));
+        assert_eq!(castling_rights, castling_rights.removed_side(Color::Black, CastlingSide::Kingside));
+        assert_ne!(castling_rights, castling_rights.removed_side(Color::Black, CastlingSide::Queenside));
 
         assert!(!castling_rights.removed_color(Color::White).has_color(Color::White));
         assert!(!castling_rights.removed_color(Color::Black).has_color(Color::Black));

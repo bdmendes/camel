@@ -49,11 +49,7 @@ mod tests {
     fn eval_in_range(#[case] position: &str, #[case] expected: ValueScore) {
         let position = Position::from_str(position).unwrap();
 
-        assert_eq!(
-            position.moves(MoveStage::CapturesAndPromotions).len(),
-            0,
-            "position is not quiet"
-        );
+        assert_eq!(position.moves(MoveStage::CapturesAndPromotions).len(), 0, "position is not quiet");
 
         // Coincidentally, this also tests that the evaluate method
         // correctly updates the NNUE parameters in-between unrelated positions.

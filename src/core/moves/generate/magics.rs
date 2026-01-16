@@ -62,12 +62,8 @@ fn find_magic(square: Square, piece: Piece) -> SquareMagic {
         .map(|b| (*b, slider_attacks_from_square(square, directions, *b, false)))
         .collect::<Vec<_>>();
 
-    let mut magic_tentative = SquareMagic {
-        shift,
-        mask: blockers_mask.raw(),
-        magic: 0,
-        attacks: vec![Bitboard::empty(); 1 << shift],
-    };
+    let mut magic_tentative =
+        SquareMagic { shift, mask: blockers_mask.raw(), magic: 0, attacks: vec![Bitboard::empty(); 1 << shift] };
 
     for seed in 0.. {
         magic_tentative.magic = sparse_random(seed);
@@ -86,9 +82,7 @@ fn find_magic(square: Square, piece: Piece) -> SquareMagic {
 
         if !found_collision {
             let largest_used_index = used.iter().rposition(|&used| used).unwrap();
-            magic_tentative
-                .attacks
-                .resize(largest_used_index + 1, Bitboard::empty());
+            magic_tentative.attacks.resize(largest_used_index + 1, Bitboard::empty());
             return magic_tentative;
         }
     }

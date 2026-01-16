@@ -40,11 +40,8 @@ static BETWEEN: [Bitboard; 64 * 64] = {
 
                 // Same rank
                 if from_rank == to_rank {
-                    let (start, end) = if from_file < to_file {
-                        (from_file + 1, to_file)
-                    } else {
-                        (to_file + 1, from_file)
-                    };
+                    let (start, end) =
+                        if from_file < to_file { (from_file + 1, to_file) } else { (to_file + 1, from_file) };
                     let mut file = start;
                     while file < end {
                         bb |= 1 << (from_rank * 8 + file);
@@ -53,11 +50,8 @@ static BETWEEN: [Bitboard; 64 * 64] = {
                 }
                 // Same file
                 else if from_file == to_file {
-                    let (start, end) = if from_rank < to_rank {
-                        (from_rank + 1, to_rank)
-                    } else {
-                        (to_rank + 1, from_rank)
-                    };
+                    let (start, end) =
+                        if from_rank < to_rank { (from_rank + 1, to_rank) } else { (to_rank + 1, from_rank) };
                     let mut rank = start;
                     while rank < end {
                         bb |= 1 << (rank * 8 + from_file);
@@ -194,11 +188,7 @@ impl Display for Bitboard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for rank in (0..8).rev() {
             for file in 0..8 {
-                f.write_char(if self.is_set(Square::from_file_rank(file, rank).unwrap()) {
-                    '1'
-                } else {
-                    '0'
-                })?;
+                f.write_char(if self.is_set(Square::from_file_rank(file, rank).unwrap()) { '1' } else { '0' })?;
             }
             f.write_char('\n')?;
         }
@@ -272,10 +262,7 @@ mod tests {
     fn shift() {
         let bb = Bitboard::from_square(Square::E4) | Bitboard::from_square(Square::D4);
 
-        assert_eq!(
-            bb.shifted(Square::NORTH),
-            Bitboard::from_square(Square::E5) | Bitboard::from_square(Square::D5)
-        );
+        assert_eq!(bb.shifted(Square::NORTH), Bitboard::from_square(Square::E5) | Bitboard::from_square(Square::D5));
 
         assert_eq!(
             bb.shifted(2 * Square::SOUTH + Square::WEST),
