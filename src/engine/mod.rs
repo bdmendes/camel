@@ -10,11 +10,11 @@ use crate::{
         nnue::{NeuralNetwork, Parameters},
     },
     search::{
-        SearchStatus,
         pvs::{
             game_history::GameHistory,
             score_table::{DEFAULT_TABLE_SIZE_MB, ScoreTable},
         },
+        status::SearchStatus,
     },
 };
 

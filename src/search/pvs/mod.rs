@@ -6,13 +6,14 @@ use crate::{
     core::position::Position,
     evaluation::{ValueScore, nnue::NeuralNetwork},
     search::{
-        Depth, SearchStatus, SearchStatusValue,
+        Depth,
         picker::MovePicker,
         pvs::{
             game_history::GameHistory,
             score_table::ScoreTable,
             window::{FeedResult, Window},
         },
+        status::{SearchStatus, SearchStatusValue},
     },
 };
 
