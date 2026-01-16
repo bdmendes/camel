@@ -1,4 +1,4 @@
-use crate::{evaluation::ValueScore, search::pvs::NodeType};
+use crate::{evaluation::ValueScore, search::NodeType};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Window {

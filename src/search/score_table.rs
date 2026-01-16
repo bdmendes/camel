@@ -4,10 +4,7 @@ use crate::{
         position::{Position, square::Square},
     },
     evaluation::ValueScore,
-    search::{
-        Depth,
-        pvs::{MATE_SCORE, NodeType},
-    },
+    search::{Depth, MATE_SCORE, NodeType},
 };
 
 pub const DEFAULT_TABLE_SIZE_MB: usize = 256;
