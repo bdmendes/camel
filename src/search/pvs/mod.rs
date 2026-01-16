@@ -48,7 +48,7 @@ impl Searcher {
         Self { history, table, status, network, initial: Instant::now(), duration }
     }
 
-    fn should_stop(&self) -> bool {
+    pub fn should_stop(&self) -> bool {
         self.status.get() == SearchStatusValue::Stopped || self.initial.elapsed() >= self.duration
     }
 

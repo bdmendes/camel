@@ -250,7 +250,7 @@ mod tests {
     }
 
     #[test]
-    pub fn hash_move() {
+    fn hash_move() {
         let mut table = ScoreTable::new_no_elems(1);
         let position = Position::from_str(START_POSITION).unwrap();
         let mov = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
@@ -266,7 +266,7 @@ mod tests {
     }
 
     #[test]
-    pub fn null_move() {
+    fn null_move() {
         let mut table = ScoreTable::new_no_elems(1);
         let position = Position::from_str(START_POSITION).unwrap();
 
