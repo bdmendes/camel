@@ -28,7 +28,7 @@ primitive_enum! { MoveFlag u8;
 pub struct Move(u16);
 
 impl Move {
-    pub fn new(from: Square, to: Square, flag: MoveFlag) -> Self {
+    pub const fn new(from: Square, to: Square, flag: MoveFlag) -> Self {
         Move((from as u16) | ((to as u16) << 6) | ((flag as u16) << 12))
     }
 
