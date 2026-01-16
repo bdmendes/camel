@@ -29,20 +29,20 @@ primitive_enum! { NodeType u8;
     CutNode,
 }
 
-pub struct Searcher {
-    history: GameHistory,
-    table: ScoreTable,
-    network: NeuralNetwork,
+pub struct Searcher<'a> {
+    history: &'a mut GameHistory,
+    table: &'a mut ScoreTable,
+    network: &'a mut NeuralNetwork,
     status: SearchStatus,
     initial: Instant,
     duration: Duration,
 }
 
-impl Searcher {
+impl<'a> Searcher<'a> {
     pub fn new(
-        history: GameHistory,
-        table: ScoreTable,
-        network: NeuralNetwork,
+        history: &'a mut GameHistory,
+        table: &'a mut ScoreTable,
+        network: &'a mut NeuralNetwork,
         status: SearchStatus,
         duration: Duration,
     ) -> Self {
@@ -177,27 +177,33 @@ mod tests {
     use rstest::rstest;
     use std::{str::FromStr, thread::sleep};
 
+    fn with_searcher<F>(table_size: usize, body: F)
+    where
+        F: Fn(&mut Searcher),
+    {
+        let mut history = GameHistory::default();
+        let mut table = ScoreTable::new_no_elems(table_size);
+        let mut net = NeuralNetwork::new(Parameters::from_str(NNUE_PARAMS_BLOB).unwrap());
+        let status = SearchStatus::new(SearchStatusValue::Searching);
+        let mut searcher = Searcher::new(&mut history, &mut table, &mut net, status, Duration::from_hours(1));
+        body(&mut searcher);
+    }
+
     #[test]
     fn should_stop() {
-        let status = SearchStatus::new(SearchStatusValue::Searching);
-        let mut searcher = Searcher::new(
-            GameHistory::default(),
-            ScoreTable::new_no_elems(1),
-            NeuralNetwork::new(Parameters::random()),
-            status.clone(),
-            Duration::from_millis(200),
-        );
+        with_searcher(1, |searcher| {
+            searcher.duration = Duration::from_millis(200);
+            assert!(!searcher.should_stop());
 
-        assert!(!searcher.should_stop());
+            sleep(Duration::from_millis(200));
+            assert!(searcher.should_stop());
 
-        sleep(Duration::from_millis(200));
-        assert!(searcher.should_stop());
+            searcher.initial = Instant::now();
+            assert!(!searcher.should_stop());
 
-        searcher.initial = Instant::now();
-        assert!(!searcher.should_stop());
-
-        status.set(SearchStatusValue::Stopped);
-        assert!(searcher.should_stop());
+            searcher.status.set(SearchStatusValue::Stopped);
+            assert!(searcher.should_stop());
+        });
     }
 
     #[rstest]
@@ -212,17 +218,12 @@ mod tests {
     #[case("8/6pk/p7/5q2/8/6Q1/3rrNPP/R5K1 b - - 5 30", -5)]
     #[case("r1bqkb1r/ppp1pppp/1n3n2/3P4/8/2N2Q2/PPPPBPPP/R1B1K1NR b KQkq - 6 5", 0)]
     fn quiesce_captures(#[case] fen: Fen, #[case] material: i16) {
-        let mut searcher = Searcher::new(
-            GameHistory::default(),
-            ScoreTable::new_no_elems(1),
-            NeuralNetwork::new(Parameters::from_str(NNUE_PARAMS_BLOB).unwrap()),
-            SearchStatus::new(SearchStatusValue::Searching),
-            Duration::from_hours(1),
-        );
-
-        let position = Position::try_from(fen.clone()).unwrap();
-        let score = searcher.quiesce(&position, 0, Window::default()).1 * position.side_to_move().sign() as ValueScore;
-        assert!((100 * material - score).abs() <= MAX_POSITIONAL_WEIGHT);
+        with_searcher(1, |searcher| {
+            let position = Position::try_from(fen.clone()).unwrap();
+            let score =
+                searcher.quiesce(&position, 0, Window::default()).1 * position.side_to_move().sign() as ValueScore;
+            assert!((100 * material - score).abs() <= MAX_POSITIONAL_WEIGHT);
+        });
     }
 
     #[rstest]
@@ -230,16 +231,10 @@ mod tests {
     #[case("k5RR/2bn4/K7/4B3/8/8/8/8 b - - 0 1", 4)]
     #[case("kb4RR/3n4/K7/4B3/8/8/8/8 w - - 1 2", 3)]
     fn quiesce_mates_through_captures(#[case] fen: Fen, #[case] plies: u8) {
-        let mut searcher = Searcher::new(
-            GameHistory::default(),
-            ScoreTable::new_no_elems(1),
-            NeuralNetwork::new(Parameters::from_str(NNUE_PARAMS_BLOB).unwrap()),
-            SearchStatus::new(SearchStatusValue::Searching),
-            Duration::from_hours(1),
-        );
-
-        let position = Position::try_from(fen.clone()).unwrap();
-        let score = searcher.quiesce(&position, 0, Window::default()).1;
-        assert_eq!(score.abs(), (MATE_SCORE + plies as i16).abs());
+        with_searcher(1, |searcher| {
+            let position = Position::try_from(fen.clone()).unwrap();
+            let score = searcher.quiesce(&position, 0, Window::default()).1;
+            assert_eq!(score.abs(), (MATE_SCORE + plies as i16).abs());
+        });
     }
 }
