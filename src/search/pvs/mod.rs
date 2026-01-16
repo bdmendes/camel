@@ -63,7 +63,8 @@ impl Searcher {
         }
 
         let mut count = 0;
-        let picker = MovePicker::new(position, true, None, [None, None]);
+        let is_check = position.is_check();
+        let picker = MovePicker::new(position, !is_check, None, [None, None]);
 
         for mov in picker {
             let next_position = position.make_move(mov);
@@ -75,7 +76,7 @@ impl Searcher {
         }
 
         if count == 0 {
-            (1, if position.is_check() { MATE_SCORE + ply as ValueScore } else { window.best() })
+            (1, if is_check { MATE_SCORE + ply as ValueScore } else { window.best() })
         } else {
             (count, window.best())
         }
