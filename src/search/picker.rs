@@ -27,7 +27,7 @@ enum PickerStage {
 
 pub struct MovePicker<'a> {
     position: &'a Position,
-    quiesce: bool,
+    captures_only: bool,
     hash_move: Option<Move>,
     killer_moves: [Option<Move>; 2],
     stage: PickerStage,
@@ -38,13 +38,13 @@ pub struct MovePicker<'a> {
 impl<'a> MovePicker<'a> {
     pub fn new(
         position: &'a Position,
-        quiesce: bool,
+        captures_only: bool,
         hash_move: Option<Move>,
         killer_moves: [Option<Move>; 2],
     ) -> Self {
         Self {
             position,
-            quiesce,
+            captures_only,
             hash_move,
             killer_moves,
             stage: PickerStage::HashMove,
@@ -105,11 +105,7 @@ impl Iterator for MovePicker<'_> {
         }
 
         if self.moves.is_empty() {
-            let generate = if self.quiesce && !self.position.is_check() {
-                MoveStage::CapturesAndPromotions
-            } else {
-                MoveStage::All
-            };
+            let generate = if self.captures_only { MoveStage::CapturesAndPromotions } else { MoveStage::All };
             self.moves = self
                 .position
                 .moves(generate)
@@ -175,7 +171,7 @@ mod tests {
     }
 
     #[test]
-    fn quiesce_only_winning_captures() {
+    fn captures_only_winning_captures() {
         let position =
             Position::from_str("r1bq1rk1/pp2bppp/2n1p3/2Pp4/2P1n3/P3PN2/1P1NBPPP/R1BQ1RK1 b - - 0 10").unwrap();
         let picker = MovePicker::new(&position, true, None, [None, None]);
@@ -183,14 +179,6 @@ mod tests {
             assert!(mov.is_capture());
             assert!(see::see(mov, &position) >= 0);
         }
-    }
-
-    #[test]
-    fn quiesce_check() {
-        let position = Position::from_str("8/6pp/p1n1k3/8/1ppKN3/5P1P/PP4P1/8 w - - 1 34").unwrap();
-        let picker = MovePicker::new(&position, true, None, [None, None]);
-        let moves = position.moves(MoveStage::All);
-        assert_eq!(picker.collect::<Vec<_>>().len(), moves.len());
     }
 
     #[test]

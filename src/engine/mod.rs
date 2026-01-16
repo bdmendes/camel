@@ -45,5 +45,3 @@ impl Default for Engine {
         }
     }
 }
-
-impl Engine {}

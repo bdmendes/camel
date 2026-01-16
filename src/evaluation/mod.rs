@@ -1,7 +1,7 @@
 pub mod nnue;
 
 pub static NNUE_PARAMS_BLOB: &str = include_str!("../../assets/models/quiet-labeled-20260105-194731.nnue");
-pub const MAX_POSITIONAL_WEIGHT: ValueScore = 200;
+pub const MAX_POSITIONAL_WEIGHT: ValueScore = 320;
 
 pub type ValueScore = i16;
 
