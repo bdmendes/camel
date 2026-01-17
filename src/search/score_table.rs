@@ -49,26 +49,27 @@ impl ScoreTable {
         (position.hash().value() as usize) % self.entries.len()
     }
 
-    pub fn probe(&self, position: &Position, depth: Depth, ply: Depth) -> Option<(ValueScore, NodeType)> {
+    fn get_unsafe(&self, index: usize) -> &Option<Entry> {
         // SAFETY: index is always in bounds
-        unsafe {
-            self.entries
-                .get_unchecked(self.index(position))
-                .filter(|e| {
-                    e.depth >= depth
-                        && e.hash_ms16 == position.hash().ms16()
-                        && (e.mov == NULL_MOVE || e.mov.pseudo_legal(position))
-                })
-                .map(|e| {
-                    if e.score <= MATE_SCORE + MAX_PLY_DIFF {
-                        (e.score + ply as ValueScore, e.node_type)
-                    } else if e.score >= -MATE_SCORE - MAX_PLY_DIFF {
-                        (e.score - ply as ValueScore, e.node_type)
-                    } else {
-                        (e.score, e.node_type)
-                    }
-                })
-        }
+        unsafe { self.entries.get_unchecked(index) }
+    }
+
+    pub fn probe(&self, position: &Position, depth: Depth, ply: Depth) -> Option<(ValueScore, NodeType)> {
+        self.get_unsafe(self.index(position))
+            .filter(|e| {
+                e.depth >= depth
+                    && e.hash_ms16 == position.hash().ms16()
+                    && (e.mov == NULL_MOVE || e.mov.pseudo_legal(position))
+            })
+            .map(|e| {
+                if e.score <= MATE_SCORE + MAX_PLY_DIFF {
+                    (e.score + ply as ValueScore, e.node_type)
+                } else if e.score >= -MATE_SCORE - MAX_PLY_DIFF {
+                    (e.score - ply as ValueScore, e.node_type)
+                } else {
+                    (e.score, e.node_type)
+                }
+            })
     }
 
     pub fn put(
@@ -105,13 +106,9 @@ impl ScoreTable {
     }
 
     pub fn hash_move(&self, position: &Position) -> Option<Move> {
-        // SAFETY: index is always in bounds
-        unsafe {
-            self.entries
-                .get_unchecked(self.index(position))
-                .filter(|e| e.hash_ms16 == position.hash().ms16() && e.mov != NULL_MOVE && e.mov.pseudo_legal(position))
-                .map(|m| m.mov)
-        }
+        self.get_unsafe(self.index(position))
+            .filter(|e| e.hash_ms16 == position.hash().ms16() && e.mov != NULL_MOVE && e.mov.pseudo_legal(position))
+            .map(|m| m.mov)
     }
 
     pub fn hashfull_millis(&self) -> usize {

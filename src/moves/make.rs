@@ -1,5 +1,3 @@
-use std::mem;
-
 use crate::position::{
     Position, bitboard::Bitboard, castling_rights::CastlingSide, color::Color, piece::Piece, square::Square,
 };
@@ -17,8 +15,7 @@ static CANDIDATE_EP: [Square; 128] = {
     let mut idx = 8;
     while idx < 128 {
         let to = if idx < 64 { idx - 8 } else { (idx - 64) + 8 };
-        // SAFETY: we know all the values of Square.
-        arr[idx] = unsafe { mem::transmute::<u8, Square>(to as u8 % 64) };
+        arr[idx] = Square::from_unsafe(to as u8 % 64);
         idx += 1;
     }
     arr

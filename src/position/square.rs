@@ -41,7 +41,7 @@ impl Square {
     pub const WEST: Direction = -1;
     pub const EAST: Direction = 1;
 
-    pub fn from_unsafe(index: u8) -> Square {
+    pub const fn from_unsafe(index: u8) -> Square {
         // SAFETY: we know all the values of Square.
         unsafe { mem::transmute::<u8, Square>(index) }
     }
