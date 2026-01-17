@@ -1,3 +1,5 @@
+use std::mem;
+
 use crate::position::{
     Position, bitboard::Bitboard, castling_rights::CastlingSide, color::Color, piece::Piece, square::Square,
 };
@@ -9,6 +11,18 @@ const TO_KING_KINGSIDE: [Square; 2] = [Square::G1, Square::G8];
 const TO_KING_QUEENSIDE: [Square; 2] = [Square::C1, Square::C8];
 const TO_ROOK_KINGSIDE: [Square; 2] = [Square::F1, Square::F8];
 const TO_ROOK_QUEENSIDE: [Square; 2] = [Square::D1, Square::D8];
+
+static CANDIDATE_EP: [Square; 128] = {
+    let mut arr = [Square::A1; 128];
+    let mut idx = 8;
+    while idx < 128 {
+        let to = if idx < 64 { idx - 8 } else { (idx - 64) + 8 };
+        // SAFETY: we know all the values of Square.
+        arr[idx] = unsafe { mem::transmute::<u8, Square>(to as u8 % 64) };
+        idx += 1;
+    }
+    arr
+};
 
 fn make_castle<const UPDATE_META: bool>(position: &mut Position, side_to_move: Color, castling_side: CastlingSide) {
     let ours = position.occupancy_bb(side_to_move);
@@ -71,10 +85,9 @@ pub fn make_move<const UPDATE_META: bool>(position: &Position, mov: Move) -> Pos
         }
         MoveFlag::EnpassantCapture => {
             position.set_square_low::<UPDATE_META, false>(mov.to(), piece, side_to_move);
-            position.clear_square_low::<UPDATE_META>(match side_to_move {
-                Color::White => position.ep_square().unwrap() >> 8,
-                Color::Black => position.ep_square().unwrap() << 8,
-            });
+            position.clear_square_low::<UPDATE_META>(
+                CANDIDATE_EP[side_to_move as usize * 64 + position.ep_square().unwrap() as usize],
+            );
         }
         MoveFlag::KnightPromotion => {
             position.set_square_low::<UPDATE_META, false>(mov.to(), Piece::Knight, side_to_move);
@@ -123,10 +136,7 @@ pub fn make_move<const UPDATE_META: bool>(position: &Position, mov: Move) -> Pos
     });
 
     if mov.flag() == MoveFlag::DoublePawnPush {
-        let candidate_ep = match side_to_move {
-            Color::White => mov.to() >> 8,
-            Color::Black => mov.to() << 8,
-        };
+        let candidate_ep = CANDIDATE_EP[side_to_move as usize * 64 + mov.to() as usize];
         if !pawn_attackers(&position, side_to_move.flipped(), candidate_ep).is_empty() {
             position.set_ep_square(candidate_ep);
         } else {
