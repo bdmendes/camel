@@ -116,12 +116,12 @@ impl Bitboard {
 
     pub fn lsb(&self) -> Option<Square> {
         let lsb = self.0.trailing_zeros();
-        Square::from(lsb as u8)
+        (lsb < 64).then(|| Square::from_unsafe(lsb as u8))
     }
 
     pub fn msb(&self) -> Option<Square> {
         let msb = 63_u32.wrapping_sub(self.0.leading_zeros());
-        Square::from(msb as u8)
+        (msb < 64).then(|| Square::from_unsafe(msb as u8))
     }
 
     pub const fn from_square(square: Square) -> Self {
