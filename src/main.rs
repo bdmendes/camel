@@ -85,7 +85,7 @@ fn main() {
                 status.set(SearchStatusValue::Searching);
                 let _ = thread::spawn(move || {
                     let time = Instant::now();
-                    let (nodes, _divided) = perft::<true>(&engine.position, depth, &status);
+                    let nodes = perft::<true>(&engine.position, depth, &status, &mut Vec::with_capacity(64));
                     status.set(SearchStatusValue::Stopped);
                     let elapsed = time.elapsed().as_secs_f32();
                     println!("{} in {:.2}s ({:.0}Mnps)", nodes, elapsed, (nodes as f32 / 1_000_000.0 / elapsed));
