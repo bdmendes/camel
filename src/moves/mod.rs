@@ -55,7 +55,7 @@ impl Move {
     pub fn is_reversible(&self, position: &Position) -> bool {
         self.is_quiet()
             && !matches!(self.flag(), MoveFlag::DoublePawnPush | MoveFlag::KingsideCastle | MoveFlag::QueensideCastle)
-            && position.piece_at(self.from()) != Some(Piece::Pawn)
+            && !position.pieces_bb(Piece::Pawn).is_set(self.from())
     }
 
     pub fn promotion_piece(&self) -> Option<Piece> {
@@ -72,10 +72,10 @@ impl Move {
     }
 
     pub fn pseudo_legal(&self, position: &Position) -> bool {
-        position.color_at(self.from()) == Some(position.side_to_move())
-            && (self.is_capture() && position.color_at(self.to()) != Some(position.side_to_move())
-                || position.color_at(self.to()).is_none()
-                || position.is_chess_960()
+        position.occupancy_bb(position.side_to_move()).is_set(self.from())
+            && (self.is_capture() && !position.occupancy_bb(position.side_to_move()).is_set(self.to())
+                || !position.occupancy_bb_all().is_set(self.to())
+                || position.pieces_bb(Piece::King).is_set(self.from())
                     && matches!(self.flag(), MoveFlag::KingsideCastle | MoveFlag::QueensideCastle))
     }
 }
@@ -167,6 +167,7 @@ mod tests {
     #[rstest]
     #[case(G1, G1, MoveFlag::KingsideCastle, true)]
     #[case(G1, H1, MoveFlag::KingsideCastle, true)]
+    #[case(H1, G1, MoveFlag::KingsideCastle, false)]
     #[case(G1, E1, MoveFlag::Capture, false)]
     #[case(G1, E1, MoveFlag::Quiet, false)]
     fn pseudo_legal_chess960(#[case] from: Square, #[case] to: Square, #[case] flag: MoveFlag, #[case] res: bool) {
