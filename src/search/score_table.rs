@@ -50,7 +50,6 @@ impl ScoreTable {
     }
 
     fn get_unsafe(&self, index: usize) -> &Option<Entry> {
-        // SAFETY: index is always in bounds
         unsafe { self.entries.get_unchecked(index) }
     }
 
@@ -82,7 +81,6 @@ impl ScoreTable {
         mov: Option<Move>,
     ) {
         let index = self.index(position);
-        // SAFETY: index is always in bounds
         unsafe {
             match self.entries.get_unchecked_mut(index) {
                 Some(existing) if existing.depth > depth && node_type != NodeType::PVNode => {}

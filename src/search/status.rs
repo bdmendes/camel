@@ -22,7 +22,6 @@ impl SearchStatus {
     }
 
     pub fn get(&self) -> SearchStatusValue {
-        // SAFETY: We only access the wrapped val in this context.
         unsafe { mem::transmute(self.0.load(Ordering::Acquire)) }
     }
 

@@ -23,6 +23,9 @@ pub fn perft(position: &Position, depth: Depth, status: &SearchStatus, divided: 
         }
     }
 
+    if depth == 0 {
+        return 1;
+    }
     let moves = generate_moves(position, MoveStage::All);
     let mut count = 0;
     for m in moves {
@@ -48,6 +51,7 @@ mod tests {
 
     #[rstest]
     // Peter Jones Gist (https://gist.github.com/peterellisjones/8c46c28141c162d1d8a0f0badbc9cff9/)
+    #[case("r6r/1b2k1bq/8/8/7B/8/8/R3K2R b KQ - 3 2", 0, 1)]
     #[case("r6r/1b2k1bq/8/8/7B/8/8/R3K2R b KQ - 3 2", 1, 8)]
     #[case("8/8/8/2k5/2pP4/8/B7/4K3 b - d3 0 3", 1, 8)]
     #[case("r1bqkbnr/pppppppp/n7/8/8/P7/1PPPPPPP/RNBQKBNR w KQkq - 2 2", 1, 19)]
