@@ -34,8 +34,7 @@ fn bitsets(bitboard: Bitboard) -> Vec<Bitboard> {
     bitsets
 }
 
-fn sparse_random(seed: u64) -> u64 {
-    let mut rng = StdRng::seed_from_u64(seed);
+fn sparse_random(rng: &mut StdRng) -> u64 {
     let r1 = rng.next_u64();
     let r2 = rng.next_u64();
     let r3 = rng.next_u64();
@@ -69,8 +68,10 @@ fn find_magic(square: Square, piece: Piece) -> SquareMagic {
         attacks: vec![Bitboard::empty(); 1 << shift],
     };
 
-    for seed in 0.. {
-        magic_tentative.magic = sparse_random(seed);
+    let mut rng = StdRng::seed_from_u64(0);
+
+    loop {
+        magic_tentative.magic = sparse_random(&mut rng);
         let mut used = [false; 4096];
         let mut found_collision = false;
 
@@ -92,13 +93,11 @@ fn find_magic(square: Square, piece: Piece) -> SquareMagic {
             return magic_tentative;
         }
     }
-
-    panic!("Could not find any valid magic using u64 seeds.");
 }
 
 fn find_magics(piece: Piece) -> [SquareMagic; 64] {
     (0..64)
-        .map(|square| thread::spawn(move || find_magic(Square::from(square).unwrap(), piece)))
+        .map(|square| thread::spawn(move || find_magic(Square::from_unsafe(square), piece)))
         .collect::<Vec<_>>()
         .into_iter()
         .map(|h| h.join().unwrap())

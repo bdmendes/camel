@@ -7,28 +7,34 @@ use crate::{
     },
 };
 
-pub fn perft<const DIVIDE: bool>(position: &Position, depth: Depth, status: &SearchStatus) -> (u64, Vec<(Move, u64)>) {
-    if depth == 0 || status.get() == SearchStatusValue::Stopped {
-        return (1, vec![]);
-    }
-
-    let moves = generate_moves(position, MoveStage::All);
-
-    if depth == 1 {
-        (moves.len() as u64, vec![])
-    } else {
-        let mut count = 0;
-        let mut divided = Vec::with_capacity(if DIVIDE { 64 } else { 0 });
-        for m in moves {
-            let (branch, _) = perft::<false>(&make_move::<true>(position, m), depth - 1, status);
-            if DIVIDE {
-                println!("{}: {}", m, branch);
-                divided.push((m, branch));
-            }
-            count += branch;
+pub fn perft(position: &Position, depth: Depth, status: &SearchStatus, divided: &mut Vec<(Move, usize)>) -> usize {
+    fn go(position: &Position, depth: Depth, status: &SearchStatus) -> usize {
+        if depth == 0 || status.get() == SearchStatusValue::Stopped {
+            return 1;
         }
-        (count, divided)
+        let moves = generate_moves(position, MoveStage::All);
+        if depth == 1 {
+            moves.len()
+        } else {
+            moves
+                .iter()
+                .map(|&m| go(&make_move::<true>(position, m), depth - 1, status))
+                .sum()
+        }
     }
+
+    if depth == 0 {
+        return 1;
+    }
+    let moves = generate_moves(position, MoveStage::All);
+    let mut count = 0;
+    for m in moves {
+        let branch = go(&make_move::<true>(position, m), depth - 1, status);
+        println!("{}: {}", m, branch);
+        divided.push((m, branch));
+        count += branch;
+    }
+    count
 }
 
 #[cfg(test)]
@@ -45,6 +51,7 @@ mod tests {
 
     #[rstest]
     // Peter Jones Gist (https://gist.github.com/peterellisjones/8c46c28141c162d1d8a0f0badbc9cff9/)
+    #[case("r6r/1b2k1bq/8/8/7B/8/8/R3K2R b KQ - 3 2", 0, 1)]
     #[case("r6r/1b2k1bq/8/8/7B/8/8/R3K2R b KQ - 3 2", 1, 8)]
     #[case("8/8/8/2k5/2pP4/8/B7/4K3 b - d3 0 3", 1, 8)]
     #[case("r1bqkbnr/pppppppp/n7/8/8/P7/1PPPPPPP/RNBQKBNR w KQkq - 2 2", 1, 19)]
@@ -86,9 +93,10 @@ mod tests {
     #[case("qbn1brkr/ppp1p1p1/2n4p/3p1p2/P7/6PP/QPPPPP2/1BNNBRKR w HFhf - 0 9", 5, 13203304)]
     #[case("qnnbbrkr/1p2ppp1/2pp3p/p7/1P5P/2NP4/P1P1PPP1/Q1NBBRKR w HFhf - 0 9", 5, 11110203)]
     #[case("qn1rbbkr/ppp2p1p/1n1pp1p1/8/3P4/P6P/1PP1PPPK/QNNRBB1R w hd - 2 9", 5, 19836606)]
-    fn perft_test(#[case] fen: Fen, #[case] depth: Depth, #[case] nodes: u64) {
+    fn node_count(#[case] fen: Fen, #[case] depth: Depth, #[case] nodes: usize) {
         let position = Position::try_from(fen.clone()).unwrap();
-        let (count, _) = perft::<true>(&position, depth, &SearchStatus::new(SearchStatusValue::Searching));
+        let count =
+            perft(&position, depth, &SearchStatus::new(SearchStatusValue::Searching), &mut Vec::with_capacity(64));
         assert_eq!(count, nodes);
     }
 }

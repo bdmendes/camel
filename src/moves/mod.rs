@@ -33,11 +33,11 @@ impl Move {
     }
 
     pub fn from(&self) -> Square {
-        Square::from((self.0 & 0x3F) as u8).unwrap()
+        Square::from_unsafe((self.0 & 0x3F) as u8)
     }
 
     pub fn to(&self) -> Square {
-        Square::from(((self.0 & 0xFC0) >> 6) as u8).unwrap()
+        Square::from_unsafe(((self.0 & 0xFC0) >> 6) as u8)
     }
 
     pub fn flag(&self) -> MoveFlag {

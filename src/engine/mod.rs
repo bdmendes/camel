@@ -1,6 +1,7 @@
 use std::{
     str::FromStr,
     sync::{Arc, Mutex},
+    thread,
     time::Duration,
 };
 
@@ -57,7 +58,7 @@ impl Engine {
 
         status.set(SearchStatusValue::Searching);
 
-        std::thread::spawn(move || {
+        thread::spawn(move || {
             let mut history = history.lock().unwrap();
             let mut table = table.lock().unwrap();
             let mut net = net.lock().unwrap();

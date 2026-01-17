@@ -18,22 +18,14 @@ fn castle_side(position: &Position, side: CastlingSide, moves: &mut MoveVec) {
         let our_rooks = position.pieces_color_bb(Piece::Rook, position.side_to_move())
             & COLOR_CASTLE_RANKS[position.side_to_move() as usize];
         match side {
-            CastlingSide::Kingside => our_rooks.msb(),
-            CastlingSide::Queenside => our_rooks.lsb(),
+            CastlingSide::Kingside => our_rooks.msb().filter(|sq| sq.file() > king.file()),
+            CastlingSide::Queenside => our_rooks.lsb().filter(|sq| sq.file() < king.file()),
         }
     };
 
     // The main move generator already verifies check before and after the move.
     // We only need to check for empty range and if the king goes through check.
     if let Some(rook) = rook {
-        let invalid_rook = match side {
-            CastlingSide::Kingside => rook.file() < king.file(),
-            CastlingSide::Queenside => rook.file() > king.file(),
-        };
-        if invalid_rook {
-            return;
-        }
-
         let king_rook_range = Bitboard::between(king, rook);
         if !(position.occupancy_bb_all() & king_rook_range).is_empty() {
             return;
@@ -43,20 +35,12 @@ fn castle_side(position: &Position, side: CastlingSide, moves: &mut MoveVec) {
         if position.is_chess_960() {
             // In chess960, the king and rook jump over each other,
             // so we must check each path manually.
-            let final_king_range_including = Bitboard::between(
-                king,
-                match side {
-                    CastlingSide::Kingside => final_king_square << 1,
-                    CastlingSide::Queenside => final_king_square >> 1,
-                },
-            );
-            let final_rook_range_including = Bitboard::between(
-                rook,
-                match side {
-                    CastlingSide::Kingside => final_king_square >> 2,
-                    CastlingSide::Queenside => final_king_square << 2,
-                },
-            );
+            let (king_final, rook_final) = match side {
+                CastlingSide::Kingside => (final_king_square << 1, final_king_square >> 2),
+                CastlingSide::Queenside => (final_king_square >> 1, final_king_square << 2),
+            };
+            let final_king_range_including = Bitboard::between(king, king_final);
+            let final_rook_range_including = Bitboard::between(rook, rook_final);
             if !(position.occupancy_bb_all()
                 & !Bitboard::from_square(king)
                 & !Bitboard::from_square(rook)
