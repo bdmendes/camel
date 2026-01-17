@@ -27,9 +27,7 @@ impl SearchStatus {
     }
 
     pub fn set(&self, value: SearchStatusValue) {
-        // SAFETY: We only access the wrapped val in this context.
-        let inner: u8 = unsafe { mem::transmute(value) };
-        self.0.store(inner, Ordering::Release);
+        self.0.store(value as u8, Ordering::Release);
     }
 }
 
