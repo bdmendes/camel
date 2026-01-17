@@ -55,7 +55,7 @@ impl Move {
     pub fn is_reversible(&self, position: &Position) -> bool {
         self.is_quiet()
             && !matches!(self.flag(), MoveFlag::DoublePawnPush | MoveFlag::KingsideCastle | MoveFlag::QueensideCastle)
-            && position.piece_at(self.from()) != Some(Piece::Pawn)
+            && !position.pieces_bb(Piece::Pawn).is_set(self.from())
     }
 
     pub fn promotion_piece(&self) -> Option<Piece> {
