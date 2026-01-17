@@ -54,7 +54,7 @@ impl Move {
 
     pub fn is_reversible(&self, position: &Position) -> bool {
         self.is_quiet()
-            && !matches!(self.flag(), MoveFlag::DoublePawnPush | MoveFlag::KingsideCastle | MoveFlag::QueensideCastle,)
+            && !matches!(self.flag(), MoveFlag::DoublePawnPush | MoveFlag::KingsideCastle | MoveFlag::QueensideCastle)
             && position.piece_at(self.from()) != Some(Piece::Pawn)
     }
 
@@ -74,7 +74,9 @@ impl Move {
     pub fn pseudo_legal(&self, position: &Position) -> bool {
         position.color_at(self.from()) == Some(position.side_to_move())
             && (self.is_capture() && position.color_at(self.to()) != Some(position.side_to_move())
-                || position.color_at(self.to()).is_none())
+                || position.color_at(self.to()).is_none()
+                || position.is_chess_960()
+                    && matches!(self.flag(), MoveFlag::KingsideCastle | MoveFlag::QueensideCastle))
     }
 }
 
@@ -158,6 +160,17 @@ mod tests {
     #[case(A3, A4, Capture, false)]
     fn pseudo_legal(#[case] from: Square, #[case] to: Square, #[case] flag: MoveFlag, #[case] res: bool) {
         let position = Position::from_str(KIWIPETE_POSITION).unwrap();
+        let mov = Move::new(from, to, flag);
+        assert_eq!(mov.pseudo_legal(&position), res);
+    }
+
+    #[rstest]
+    #[case(G1, G1, MoveFlag::KingsideCastle, true)]
+    #[case(G1, H1, MoveFlag::KingsideCastle, true)]
+    #[case(G1, E1, MoveFlag::Capture, false)]
+    #[case(G1, E1, MoveFlag::Quiet, false)]
+    fn pseudo_legal_chess960(#[case] from: Square, #[case] to: Square, #[case] flag: MoveFlag, #[case] res: bool) {
+        let position = Position::from_str("brqnn1kr/ppppppbp/6p1/8/8/6P1/PPPPPPBP/BRQNN1KR w HBhb - 2 3").unwrap();
         let mov = Move::new(from, to, flag);
         assert_eq!(mov.pseudo_legal(&position), res);
     }
