@@ -1,7 +1,7 @@
 use crate::position::{Position, piece::Piece, square::Square};
 
 use primitive_enum::primitive_enum;
-use std::fmt::Display;
+use std::{fmt::Display, mem};
 
 pub mod generate;
 pub mod make;
@@ -41,7 +41,7 @@ impl Move {
     }
 
     pub fn flag(&self) -> MoveFlag {
-        MoveFlag::from(((self.0 & 0xF000) >> 12) as u8).unwrap()
+        unsafe { mem::transmute::<u8, MoveFlag>(((self.0 & 0xF000) >> 12) as u8) }
     }
 
     pub fn is_capture(&self) -> bool {
@@ -54,7 +54,10 @@ impl Move {
 
     pub fn is_reversible(&self, position: &Position) -> bool {
         self.is_quiet()
-            && !matches!(self.flag(), MoveFlag::DoublePawnPush | MoveFlag::KingsideCastle | MoveFlag::QueensideCastle)
+            && !matches!(
+                self.flag(),
+                MoveFlag::DoublePawnPush | MoveFlag::KingsideCastle | MoveFlag::QueensideCastle
+            )
             && !position.pieces_bb(Piece::Pawn).is_set(self.from())
     }
 
@@ -82,7 +85,13 @@ impl Move {
 
 impl Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}{}{}", self.from(), self.to(), self.promotion_piece().map_or(String::new(), |p| p.to_string()))
+        write!(
+            f,
+            "{}{}{}",
+            self.from(),
+            self.to(),
+            self.promotion_piece().map_or(String::new(), |p| p.to_string())
+        )
     }
 }
 

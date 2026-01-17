@@ -268,7 +268,10 @@ mod tests {
     fn shift() {
         let bb = Bitboard::from_square(Square::E4) | Bitboard::from_square(Square::D4);
 
-        assert_eq!(bb.shifted(Square::NORTH), Bitboard::from_square(Square::E5) | Bitboard::from_square(Square::D5));
+        assert_eq!(
+            bb.shifted(Square::NORTH),
+            Bitboard::from_square(Square::E5) | Bitboard::from_square(Square::D5)
+        );
 
         assert_eq!(
             bb.shifted(2 * Square::SOUTH + Square::WEST),
