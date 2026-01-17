@@ -35,20 +35,12 @@ fn castle_side(position: &Position, side: CastlingSide, moves: &mut MoveVec) {
         if position.is_chess_960() {
             // In chess960, the king and rook jump over each other,
             // so we must check each path manually.
-            let final_king_range_including = Bitboard::between(
-                king,
-                match side {
-                    CastlingSide::Kingside => final_king_square << 1,
-                    CastlingSide::Queenside => final_king_square >> 1,
-                },
-            );
-            let final_rook_range_including = Bitboard::between(
-                rook,
-                match side {
-                    CastlingSide::Kingside => final_king_square >> 2,
-                    CastlingSide::Queenside => final_king_square << 2,
-                },
-            );
+            let (king_final, rook_final) = match side {
+                CastlingSide::Kingside => (final_king_square << 1, final_king_square >> 2),
+                CastlingSide::Queenside => (final_king_square >> 1, final_king_square << 2),
+            };
+            let final_king_range_including = Bitboard::between(king, king_final);
+            let final_rook_range_including = Bitboard::between(rook, rook_final);
             if !(position.occupancy_bb_all()
                 & !Bitboard::from_square(king)
                 & !Bitboard::from_square(rook)
