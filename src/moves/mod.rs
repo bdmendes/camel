@@ -72,10 +72,10 @@ impl Move {
     }
 
     pub fn pseudo_legal(&self, position: &Position) -> bool {
-        position.color_at(self.from()) == Some(position.side_to_move())
-            && (self.is_capture() && position.color_at(self.to()) != Some(position.side_to_move())
-                || position.color_at(self.to()).is_none()
-                || position.piece_at(self.from()) == Some(Piece::King)
+        position.occupancy_bb(position.side_to_move()).is_set(self.from())
+            && (self.is_capture() && !position.occupancy_bb(position.side_to_move()).is_set(self.to())
+                || !position.occupancy_bb_all().is_set(self.to())
+                || position.pieces_bb(Piece::King).is_set(self.from())
                     && matches!(self.flag(), MoveFlag::KingsideCastle | MoveFlag::QueensideCastle))
     }
 }
