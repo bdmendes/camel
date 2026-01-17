@@ -145,7 +145,7 @@ pub fn make_move<const UPDATE_META: bool>(position: &Position, mov: Move) -> Pos
 mod tests {
     use rstest::rstest;
 
-    use crate::{moves::make::make_move, position::MoveStage, position::Position};
+    use crate::{moves::make::make_move, position::Position};
     use std::str::FromStr;
 
     #[rstest]
@@ -164,8 +164,7 @@ mod tests {
     )]
     fn make(#[case] position: &str, #[case] mov: &str, #[case] expected: &str) {
         let position = Position::from_str(position).unwrap();
-        let moves = position.moves(MoveStage::All);
-        let mov = moves.iter().find(|m| m.to_string().as_str() == mov).unwrap();
-        assert_eq!(make_move::<true>(&position, *mov).fen().as_str(), expected);
+        let mov = position.get_move_str(mov).unwrap();
+        assert_eq!(make_move::<true>(&position, mov).fen().as_str(), expected);
     }
 }

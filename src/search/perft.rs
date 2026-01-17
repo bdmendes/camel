@@ -86,7 +86,7 @@ mod tests {
     #[case("qbn1brkr/ppp1p1p1/2n4p/3p1p2/P7/6PP/QPPPPP2/1BNNBRKR w HFhf - 0 9", 5, 13203304)]
     #[case("qnnbbrkr/1p2ppp1/2pp3p/p7/1P5P/2NP4/P1P1PPP1/Q1NBBRKR w HFhf - 0 9", 5, 11110203)]
     #[case("qn1rbbkr/ppp2p1p/1n1pp1p1/8/3P4/P6P/1PP1PPPK/QNNRBB1R w hd - 2 9", 5, 19836606)]
-    fn perft_test(#[case] fen: Fen, #[case] depth: Depth, #[case] nodes: u64) {
+    fn node_count(#[case] fen: Fen, #[case] depth: Depth, #[case] nodes: u64) {
         let position = Position::try_from(fen.clone()).unwrap();
         let (count, _) = perft::<true>(&position, depth, &SearchStatus::new(SearchStatusValue::Searching));
         assert_eq!(count, nodes);
