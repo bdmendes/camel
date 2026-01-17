@@ -18,22 +18,14 @@ fn castle_side(position: &Position, side: CastlingSide, moves: &mut MoveVec) {
         let our_rooks = position.pieces_color_bb(Piece::Rook, position.side_to_move())
             & COLOR_CASTLE_RANKS[position.side_to_move() as usize];
         match side {
-            CastlingSide::Kingside => our_rooks.msb(),
-            CastlingSide::Queenside => our_rooks.lsb(),
+            CastlingSide::Kingside => our_rooks.msb().filter(|sq| sq.file() > king.file()),
+            CastlingSide::Queenside => our_rooks.lsb().filter(|sq| sq.file() < king.file()),
         }
     };
 
     // The main move generator already verifies check before and after the move.
     // We only need to check for empty range and if the king goes through check.
     if let Some(rook) = rook {
-        let invalid_rook = match side {
-            CastlingSide::Kingside => rook.file() < king.file(),
-            CastlingSide::Queenside => rook.file() > king.file(),
-        };
-        if invalid_rook {
-            return;
-        }
-
         let king_rook_range = Bitboard::between(king, rook);
         if !(position.occupancy_bb_all() & king_rook_range).is_empty() {
             return;
