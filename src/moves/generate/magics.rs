@@ -97,7 +97,7 @@ fn find_magic(square: Square, piece: Piece) -> SquareMagic {
 
 fn find_magics(piece: Piece) -> [SquareMagic; 64] {
     (0..64)
-        .map(|square| thread::spawn(move || find_magic(Square::from(square).unwrap(), piece)))
+        .map(|square| thread::spawn(move || find_magic(Square::from_unsafe(square), piece)))
         .collect::<Vec<_>>()
         .into_iter()
         .map(|h| h.join().unwrap())

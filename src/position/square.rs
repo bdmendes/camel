@@ -1,6 +1,7 @@
 use primitive_enum::primitive_enum;
 use std::{
     fmt::Display,
+    mem,
     ops::{Shl, Shr},
     str::FromStr,
 };
@@ -40,6 +41,11 @@ impl Square {
     pub const WEST: Direction = -1;
     pub const EAST: Direction = 1;
 
+    pub fn from_unsafe(index: u8) -> Square {
+        // SAFETY: we know all the values of Square.
+        unsafe { mem::transmute::<u8, Square>(index) }
+    }
+
     pub fn from_file_rank(file: u8, rank: u8) -> Option<Self> {
         if file >= 8 || rank >= 8 { None } else { Square::from(rank * 8 + file) }
     }
@@ -65,7 +71,7 @@ impl Square {
     }
 
     pub fn mirror(self) -> Self {
-        Square::from(self as u8 ^ 0b111000).unwrap()
+        Square::from_unsafe(self as u8 ^ 0b111000)
     }
 }
 
@@ -73,7 +79,7 @@ impl Shr<u8> for Square {
     type Output = Square;
 
     fn shr(self, rhs: u8) -> Self::Output {
-        Square::from((self as u8).saturating_sub(rhs)).unwrap()
+        Square::from_unsafe((self as u8).saturating_sub(rhs))
     }
 }
 
@@ -81,7 +87,7 @@ impl Shl<u8> for Square {
     type Output = Square;
 
     fn shl(self, lhs: u8) -> Self::Output {
-        Square::from((self as u8).saturating_add(lhs).min(63)).unwrap()
+        Square::from_unsafe((self as u8).saturating_add(lhs).min(63))
     }
 }
 

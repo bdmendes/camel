@@ -58,7 +58,7 @@ pub fn slider_attacks_from_square(
 
             bb |= 1 << target_square;
 
-            if on_edge || occupancy.is_set(Square::from(target_square as u8).unwrap()) {
+            if on_edge || occupancy.is_set(Square::from_unsafe(target_square as u8)) {
                 break;
             }
 

@@ -1,4 +1,4 @@
-use std::mem::transmute;
+use std::mem;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU8;
 use std::sync::atomic::Ordering;
@@ -23,12 +23,12 @@ impl SearchStatus {
 
     pub fn get(&self) -> SearchStatusValue {
         // SAFETY: We only access the wrapped val in this context.
-        unsafe { transmute(self.0.load(Ordering::Acquire)) }
+        unsafe { mem::transmute(self.0.load(Ordering::Acquire)) }
     }
 
     pub fn set(&self, value: SearchStatusValue) {
         // SAFETY: We only access the wrapped val in this context.
-        let inner: u8 = unsafe { transmute(value) };
+        let inner: u8 = unsafe { mem::transmute(value) };
         self.0.store(inner, Ordering::Release);
     }
 }
