@@ -7,7 +7,7 @@ use crate::{
     },
 };
 
-pub fn perft(position: &Position, depth: Depth, status: &SearchStatus, divided: &mut Vec<(Move, usize)>) -> usize {
+pub fn perft(position: &Position, depth: Depth, status: &SearchStatus) -> (usize, Vec<(Move, usize)>) {
     fn go(position: &Position, depth: Depth, status: &SearchStatus) -> usize {
         if depth == 0 || status.get() == SearchStatusValue::Stopped {
             return 1;
@@ -24,8 +24,9 @@ pub fn perft(position: &Position, depth: Depth, status: &SearchStatus, divided: 
     }
 
     if depth == 0 {
-        return 1;
+        return (1, vec![]);
     }
+    let mut divided = Vec::with_capacity(64);
     let moves = generate_moves(position, MoveStage::All);
     let mut count = 0;
     for m in moves {
@@ -34,7 +35,7 @@ pub fn perft(position: &Position, depth: Depth, status: &SearchStatus, divided: 
         divided.push((m, branch));
         count += branch;
     }
-    count
+    (count, divided)
 }
 
 #[cfg(test)]
@@ -95,8 +96,7 @@ mod tests {
     #[case("qn1rbbkr/ppp2p1p/1n1pp1p1/8/3P4/P6P/1PP1PPPK/QNNRBB1R w hd - 2 9", 5, 19836606)]
     fn node_count(#[case] fen: Fen, #[case] depth: Depth, #[case] nodes: usize) {
         let position = Position::try_from(fen.clone()).unwrap();
-        let count =
-            perft(&position, depth, &SearchStatus::new(SearchStatusValue::Searching), &mut Vec::with_capacity(64));
+        let (count, _) = perft(&position, depth, &SearchStatus::new(SearchStatusValue::Searching));
         assert_eq!(count, nodes);
     }
 }
