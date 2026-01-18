@@ -79,11 +79,9 @@ fn main() {
             Command::Setoption { name, value } => match (name.as_str(), value) {
                 ("Hash", number) => {
                     if let Some(size_mb) = number.and_then(|n| n.parse::<usize>().ok()) {
-                        engine
-                            .score_table
-                            .lock()
-                            .unwrap()
-                            .resize(size_mb.clamp(MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB));
+                        let mut table = engine.score_table.lock().unwrap();
+                        table.clear();
+                        table.resize(size_mb.clamp(MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB));
                     }
                 }
                 ("UCI_Chess960", _) => (),
