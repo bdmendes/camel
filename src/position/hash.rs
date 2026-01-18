@@ -20,7 +20,7 @@ pub struct ZobristHash(u64);
 
 #[ctor]
 static ZOBRIST_NUMBERS: Vec<ZobristHash> =
-    { load_zobrist_numbers(include_str!("../../assets/dump/20260118-203201.zobrist")).unwrap() };
+    { serde_json::from_str(include_str!("../../assets/dump/20260118-203201.zobrist")).unwrap() };
 
 impl ZobristHash {
     pub fn new(
@@ -115,10 +115,6 @@ pub fn save_zobrist_numbers(path: &str) -> io::Result<()> {
     let json = serde_json::to_string(&gen_zobrist_numbers()).unwrap();
     let mut output = File::create(path)?;
     output.write_all(json.as_bytes())
-}
-
-pub fn load_zobrist_numbers(json: &str) -> serde_json::Result<Vec<ZobristHash>> {
-    serde_json::from_str(json)
 }
 
 #[cfg(test)]

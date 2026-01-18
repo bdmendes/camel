@@ -1,5 +1,6 @@
 use super::{Square, square::Direction};
 use derive_more::derive::{BitAnd, BitOr, Not, Shl, ShlAssign, Shr, ShrAssign};
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Write};
 
 const FILE_MASK: [Bitboard; 8] = {
@@ -94,7 +95,23 @@ static BETWEEN: [Bitboard; 64 * 64] = {
     ret_arr
 };
 
-#[derive(Default, Copy, Clone, Debug, PartialEq, Eq, BitOr, BitAnd, Shl, Shr, ShlAssign, ShrAssign, Not)]
+#[derive(
+    Default,
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    BitOr,
+    BitAnd,
+    Shl,
+    Shr,
+    ShlAssign,
+    ShrAssign,
+    Not,
+    Serialize,
+    Deserialize,
+)]
 pub struct Bitboard(u64);
 
 impl Bitboard {
