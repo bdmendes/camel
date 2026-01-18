@@ -19,12 +19,8 @@ use super::{
 pub struct ZobristHash(u64);
 
 #[ctor]
-static ZOBRIST_NUMBERS: [ZobristHash; 2 * 6 * 64 + 1 + 4 + 64] = {
-    let mut rng = StdRng::seed_from_u64(0);
-    let mut numbers = [0; 2 * 6 * 64 + 1 + 4 + 64];
-    numbers.iter_mut().for_each(|n| *n = rng.next_u64());
-    numbers.map(ZobristHash)
-};
+static ZOBRIST_NUMBERS: Vec<ZobristHash> =
+    { load_zobrist_numbers(include_str!("../../assets/dump/20260118-203201.zobrist")).unwrap() };
 
 impl ZobristHash {
     pub fn new(

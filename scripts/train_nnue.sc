@@ -150,6 +150,6 @@ for epoch <- 1 to NNUE.Epochs do
   if epoch % 20 == 0 || epoch == NNUE.Epochs then
     val serialized = net.json.noSpaces
     val now = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))
-    Using.resource(new PrintWriter(s"./assets/models/quiet-labeled-$now.nnue")): pw =>
+    Using.resource(new PrintWriter(s"./assets/dump/quiet-labeled-$now.nnue")): pw =>
       pw.write(serialized)
 end for
