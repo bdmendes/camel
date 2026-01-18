@@ -5,7 +5,7 @@ use crate::{
         Engine,
         repl::{Command, DumpCommand, PositionCommand, repl},
     },
-    moves::Move,
+    moves::{Move, generate::magics::save_magics},
     position::{
         Position,
         fen::{KIWIPETE_POSITION, START_POSITION},
@@ -142,9 +142,13 @@ fn main() {
                         Ok(_) => println!("Saved Zobrist hashes in the current directory."),
                         Err(e) => println!("An error occurred: {}", e),
                     },
-                    DumpCommand::Magics => {
-                        println!("todo.");
-                    }
+                    DumpCommand::Magics => match save_magics(
+                        format!("{}.rmagics", time_str).as_str(),
+                        format!("{}.bmagics", time_str).as_str(),
+                    ) {
+                        Ok(_) => println!("Saved rook and bishop magics in the current directory."),
+                        Err(e) => println!("An error occurred: {}", e),
+                    },
                 };
             }
             Command::Quit => process::exit(0),

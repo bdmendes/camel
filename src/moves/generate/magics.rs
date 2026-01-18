@@ -2,15 +2,22 @@ use super::sliders::{BISHOP_MOVE_DIRECTIONS, ROOK_MOVE_DIRECTIONS, slider_attack
 use crate::position::{Position, bitboard::Bitboard, piece::Piece, square::Square};
 use ctor::ctor;
 use rand::{RngCore, SeedableRng, rngs::StdRng};
-use std::thread;
+use serde::{Deserialize, Serialize};
+use std::{
+    fs::File,
+    io::{self, Write},
+    thread,
+};
 
 #[ctor]
-static BISHOP_MAGICS: [SquareMagic; 64] = { find_magics(Piece::Bishop) };
+static BISHOP_MAGICS: Vec<SquareMagic> =
+    { serde_json::from_str(include_str!("../../../assets/dump/20260118-214612.bmagics")).unwrap() };
 
 #[ctor]
-static ROOK_MAGICS: [SquareMagic; 64] = { find_magics(Piece::Rook) };
+static ROOK_MAGICS: Vec<SquareMagic> =
+    { serde_json::from_str(include_str!("../../../assets/dump/20260118-214612.rmagics")).unwrap() };
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 struct SquareMagic {
     shift: u8,
     mask: u64,
@@ -95,15 +102,23 @@ fn find_magic(square: Square, piece: Piece) -> SquareMagic {
     }
 }
 
-fn find_magics(piece: Piece) -> [SquareMagic; 64] {
+fn find_magics(piece: Piece) -> Vec<SquareMagic> {
     (0..64)
         .map(|square| thread::spawn(move || find_magic(Square::from_unsafe(square), piece)))
         .collect::<Vec<_>>()
         .into_iter()
         .map(|h| h.join().unwrap())
         .collect::<Vec<_>>()
-        .try_into()
-        .unwrap()
+}
+
+pub fn save_magics(rook_path: &str, bishop_path: &str) -> io::Result<()> {
+    let rook_json = serde_json::to_string(&find_magics(Piece::Rook)).unwrap();
+    let mut rook_output = File::create(rook_path)?;
+    rook_output.write_all(rook_json.as_bytes())?;
+
+    let bishop_json = serde_json::to_string(&find_magics(Piece::Bishop)).unwrap();
+    let mut bishop_output = File::create(bishop_path)?;
+    bishop_output.write_all(bishop_json.as_bytes())
 }
 
 pub fn bishop_attacks(position: &Position, square: Square) -> Bitboard {
