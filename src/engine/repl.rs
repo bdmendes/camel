@@ -4,7 +4,7 @@ use crate::search::Depth;
 
 // The UCI protocol omits the prefix "--" from most flags and uses some redundant keywords.
 // To simplify modelling with clap, we'll preprocess the input string.
-const RELAXED_FLAGS: &[&str] = &[
+const UCI_FLAGS: &[&str] = &[
     "name",
     "value",
     "depth",
@@ -91,6 +91,11 @@ pub enum Command {
         /// "on" or "off".
         value: String,
     },
+    /// Serialize auxiliary engine data structures to disk.
+    Dump {
+        #[command(subcommand)]
+        subcommand: DumpCommand,
+    },
     /// Quit the process.
     Quit,
 }
@@ -108,6 +113,14 @@ pub enum PositionCommand {
     Kiwi,
 }
 
+#[derive(Subcommand, Debug)]
+pub enum DumpCommand {
+    /// The random numbers for each square, used for Zobrist hashing.
+    Zobrist,
+    /// The magic numbers, including masks, used for slider move generation.
+    Magics,
+}
+
 fn parse(input: &String) -> Result<Command, Error> {
     let mut input = input.to_owned();
 
@@ -115,7 +128,7 @@ fn parse(input: &String) -> Result<Command, Error> {
         input = input.replace(ommited, "");
     }
 
-    for relaxed in RELAXED_FLAGS {
+    for relaxed in UCI_FLAGS {
         input = input.replace(format!(" {}", relaxed).as_str(), format!(" --{}", relaxed).as_str());
     }
 

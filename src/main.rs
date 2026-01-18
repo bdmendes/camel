@@ -3,12 +3,13 @@ use std::{process, str::FromStr, thread, time::Instant};
 use crate::{
     engine::{
         Engine,
-        repl::{Command, PositionCommand, repl},
+        repl::{Command, DumpCommand, PositionCommand, repl},
     },
     moves::Move,
     position::{
         Position,
         fen::{KIWIPETE_POSITION, START_POSITION},
+        hash::save_zobrist_numbers,
     },
     search::{game_history::GameHistory, perft::perft, picker::MovePicker, status::SearchStatusValue},
 };
@@ -134,6 +135,18 @@ fn main() {
                 println!("uciok");
             }
             Command::Debug { .. } => (),
+            Command::Dump { subcommand } => {
+                let time_str = chrono::Local::now().format("%Y%m%d-%H%M%S");
+                match subcommand {
+                    DumpCommand::Zobrist => match save_zobrist_numbers(format!("{}.zobrist", time_str).as_str()) {
+                        Ok(_) => println!("Saved Zobrist hashes in the current directory."),
+                        Err(e) => println!("An error occurred: {}", e),
+                    },
+                    DumpCommand::Magics => {
+                        println!("todo.");
+                    }
+                };
+            }
             Command::Quit => process::exit(0),
         }
     });

@@ -1,5 +1,11 @@
+use std::{
+    fs::File,
+    io::{self, Write},
+};
+
 use ctor::ctor;
 use rand::{RngCore, SeedableRng, rngs::StdRng};
+use serde::{Deserialize, Serialize};
 
 use super::{
     bitboard::Bitboard,
@@ -9,20 +15,14 @@ use super::{
     square::Square,
 };
 
-#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct ZobristHash(u64);
 
-// 2 colors, 6 pieces, 64 squares + 1 color + 4 castling rights + 64 ep squares
-const ZOBRIST_NUMBERS_SIZE: usize = 2 * 6 * 64 + 1 + 4 + 64;
-
 #[ctor]
-static ZOBRIST_NUMBERS: [ZobristHash; ZOBRIST_NUMBERS_SIZE] = {
+static ZOBRIST_NUMBERS: [ZobristHash; 2 * 6 * 64 + 1 + 4 + 64] = {
     let mut rng = StdRng::seed_from_u64(0);
-    let mut numbers = [0; ZOBRIST_NUMBERS_SIZE];
-    numbers
-        .iter_mut()
-        .take(ZOBRIST_NUMBERS_SIZE)
-        .for_each(|n| *n = rng.next_u64());
+    let mut numbers = [0; 2 * 6 * 64 + 1 + 4 + 64];
+    numbers.iter_mut().for_each(|n| *n = rng.next_u64());
     numbers.map(ZobristHash)
 };
 
@@ -103,6 +103,26 @@ impl ZobristHash {
     pub fn ms16(&self) -> u16 {
         (self.0 >> 48) as u16
     }
+}
+
+pub fn gen_zobrist_numbers() -> Vec<ZobristHash> {
+    let mut rng = StdRng::seed_from_u64(0);
+
+    // 2 colors, 6 pieces, 64 squares + 1 color + 4 castling rights + 64 ep squares
+    let mut numbers = vec![ZobristHash(0); 2 * 6 * 64 + 1 + 4 + 64];
+    numbers.iter_mut().for_each(|n| *n = ZobristHash(rng.next_u64()));
+
+    numbers
+}
+
+pub fn save_zobrist_numbers(path: &str) -> io::Result<()> {
+    let json = serde_json::to_string(&gen_zobrist_numbers()).unwrap();
+    let mut output = File::create(path)?;
+    output.write_all(json.as_bytes())
+}
+
+pub fn load_zobrist_numbers(json: &str) -> serde_json::Result<Vec<ZobristHash>> {
+    serde_json::from_str(json)
 }
 
 #[cfg(test)]
