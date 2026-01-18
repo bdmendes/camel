@@ -4,6 +4,7 @@ version = "2.0.0-alpha"
 edition = "2024"
 
 [dependencies]
+chrono = "0.4.43"
 clap = { version = "4.5.53", features = ["derive"] }
 ctor = "0.6.3"
 derive_more = { version = "2.1.1", features = ["full"] }
