@@ -6,6 +6,8 @@ use crate::{
 };
 
 pub const DEFAULT_TABLE_SIZE_MB: usize = 256;
+pub const MIN_TABLE_SIZE_MB: usize = 1;
+pub const MAX_TABLE_SIZE_MB: usize = 2048;
 
 const MAX_PLY_DIFF: ValueScore = Depth::MAX as ValueScore;
 const NULL_MOVE: Move = Move::new(Square::A1, Square::A1, MoveFlag::Quiet);

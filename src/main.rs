@@ -11,7 +11,13 @@ use crate::{
         fen::{KIWIPETE_POSITION, START_POSITION},
         hash::save_zobrist_numbers,
     },
-    search::{game_history::GameHistory, perft::perft, picker::MovePicker, status::SearchStatusValue},
+    search::{
+        game_history::GameHistory,
+        perft::perft,
+        picker::MovePicker,
+        score_table::{DEFAULT_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB, MIN_TABLE_SIZE_MB},
+        status::SearchStatusValue,
+    },
 };
 
 pub mod engine;
@@ -71,6 +77,13 @@ fn main() {
                 engine.go();
             }
             Command::Setoption { name, value } => match (name.as_str(), value) {
+                ("Hash", number) => {
+                    if let Some(size_mb) = number.and_then(|n| n.parse::<usize>().ok()) {
+                        let mut table = engine.score_table.lock().unwrap();
+                        table.clear();
+                        table.resize(size_mb.clamp(MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB));
+                    }
+                }
                 ("UCI_Chess960", _) => (),
                 ("Ponder", _) => (),
                 _ => println!("Invalid option."),
@@ -125,10 +138,10 @@ fn main() {
                 println!("id name Camel {}", env!("CARGO_PKG_VERSION"));
                 println!("id author Bruno Mendes");
 
-                //println!(
-                //    "option name Hash type spin default {} min {} max {}",
-                //    DEFAULT_TABLE_SIZE_MB, MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB
-                //);
+                println!(
+                    "option name Hash type spin default {} min {} max {}",
+                    DEFAULT_TABLE_SIZE_MB, MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB
+                );
                 println!("option name UCI_Chess960 type check default true");
                 println!("option name Ponder type check default true");
 
