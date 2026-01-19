@@ -41,36 +41,31 @@ fn main() {
         match cmd {
             Command::Position { subcommand } => match subcommand {
                 PositionCommand::Startpos { moves } => {
-                    let mut position = Position::from_str(START_POSITION).unwrap();
-                    let mut history = GameHistory::default();
-                    history.push(&position, false);
-                    let mut valid = true;
-
-                    for mov in &moves {
-                        if let Some(m) = position.get_move_str(mov) {
-                            let reversible = m.is_reversible(&position);
-                            position = position.make_move(m);
-                            history.push(&position, reversible);
-                        } else {
-                            println!("Invalid move sequence.");
-                            valid = false;
-                            break;
-                        }
-                    }
-
-                    if valid {
+                    if let Some((history, position)) = GameHistory::from_moves(
+                        &Position::from_str(START_POSITION).unwrap(),
+                        moves.iter().map(|s| s.as_str()).collect(),
+                    ) {
                         engine.position = position;
                         *engine.game_history.lock().unwrap() = history;
+                    } else {
+                        println!("Invalid move sequence.");
                     }
                 }
                 PositionCommand::Fen { fen } => {
                     let flattened = fen.join(" ");
                     match Position::from_str(&flattened) {
-                        Ok(position) => engine.position = position,
+                        Ok(position) => {
+                            engine.position = position;
+                            *engine.game_history.lock().unwrap() = GameHistory::single(&position);
+                        }
                         Err(_) => println!("Invalid FEN: {}", flattened),
                     }
                 }
-                PositionCommand::Kiwi => engine.position = Position::from_str(KIWIPETE_POSITION).unwrap(),
+                PositionCommand::Kiwi => {
+                    let position = Position::from_str(KIWIPETE_POSITION).unwrap();
+                    engine.position = position;
+                    *engine.game_history.lock().unwrap() = GameHistory::single(&position);
+                }
             },
             Command::Go { .. } => {
                 println!("Search is in alpha! Please use Camel 1.6.0 in the meantime!");

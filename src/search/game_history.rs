@@ -18,6 +18,27 @@ impl Default for GameHistory {
 }
 
 impl GameHistory {
+    pub fn single(position: &Position) -> GameHistory {
+        let mut history = GameHistory::default();
+        history.push(position, false);
+        history
+    }
+
+    pub fn from_moves(position: &Position, moves: Vec<&str>) -> Option<(GameHistory, Position)> {
+        let mut history = GameHistory::single(position);
+        let mut position = *position;
+        for mov in &moves {
+            if let Some(m) = position.get_move_str(mov) {
+                let reversible = m.is_reversible(&position);
+                position = position.make_move(m);
+                history.push(&position, reversible);
+            } else {
+                return None;
+            }
+        }
+        Some((history, position))
+    }
+
     pub fn push(&mut self, position: &Position, is_reversible: bool) {
         self.data.push(Entry {
             hash_ms16: position.hash().ms16(),
