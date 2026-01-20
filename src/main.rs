@@ -43,7 +43,7 @@ fn main() {
                 PositionCommand::Startpos { moves } => {
                     if let Some((history, position)) = GameHistory::from_moves(
                         &Position::from_str(START_POSITION).unwrap(),
-                        &moves.iter().map(|s| s.as_str()).collect(),
+                        &moves.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
                     ) {
                         engine.position = position;
                         *engine.game_history.lock().unwrap() = history;

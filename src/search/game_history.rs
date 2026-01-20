@@ -24,7 +24,7 @@ impl GameHistory {
         history
     }
 
-    pub fn from_moves(position: &Position, moves: &Vec<&str>) -> Option<(GameHistory, Position)> {
+    pub fn from_moves(position: &Position, moves: &[&str]) -> Option<(GameHistory, Position)> {
         let mut history = GameHistory::single(position);
         let mut position = *position;
         for mov in moves {
