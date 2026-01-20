@@ -138,6 +138,7 @@ fn main() {
                     "option name Hash type spin default {} min {} max {}",
                     DEFAULT_TABLE_SIZE_MB, MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB
                 );
+                println!("option name ClearHash type button");
                 println!("option name UCI_Chess960 type check default true");
                 println!("option name Ponder type check default true");
 
