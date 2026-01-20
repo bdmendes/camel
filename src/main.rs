@@ -79,6 +79,7 @@ fn main() {
                         table.resize(size_mb.clamp(MIN_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB));
                     }
                 }
+                ("ClearHash", None) => engine.score_table.lock().unwrap().clear(),
                 ("UCI_Chess960", _) => (),
                 ("Ponder", _) => (),
                 _ => println!("Invalid option."),
