@@ -24,10 +24,10 @@ impl GameHistory {
         history
     }
 
-    pub fn from_moves(position: &Position, moves: Vec<&str>) -> Option<(GameHistory, Position)> {
+    pub fn from_moves(position: &Position, moves: &Vec<&str>) -> Option<(GameHistory, Position)> {
         let mut history = GameHistory::single(position);
         let mut position = *position;
-        for mov in &moves {
+        for mov in moves {
             if let Some(m) = position.get_move_str(mov) {
                 let reversible = m.is_reversible(&position);
                 position = position.make_move(m);
@@ -70,9 +70,30 @@ impl GameHistory {
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
+
     use super::*;
-    use crate::position::fen::START_POSITION;
+    use crate::position::fen::{Fen, START_POSITION};
     use std::str::FromStr;
+
+    #[rstest]
+    #[case("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "e2e4", true)]
+    #[case("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "e2e4 d7d5", true)]
+    #[case("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "e2e4 d7d5 g1f3", true)]
+    #[case("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "e2e5 d7d5 g1f3", false)]
+    #[case("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "e2e4 d7d5 g1f4", false)]
+    #[case("rn1q1rk1/pp1bbppp/2p1pn2/8/2QP4/2N2NP1/PP2PPBP/R1B2RK1 b - -", "d8b6 e2e4", true)]
+    #[case("rn1q1rk1/pp1bbppp/2p1pn2/8/2QP4/2N2NP1/PP2PPBP/R1B2RK1 b - -", "d8b6 e2e5", false)]
+    #[case("rn1q1rk1/pp1bbppp/2p1pn2/8/2QP4/2N2NP1/PP2PPBP/R1B2RK1 b - -", "d8b6 e2e5 f8e8", false)]
+    fn from_moves(#[case] fen: Fen, #[case] moves: &str, #[case] valid: bool) {
+        let moves = moves.split(" ").collect::<Vec<_>>();
+        let position = Position::try_from(fen).unwrap();
+        let history = GameHistory::from_moves(&position, &moves);
+        assert_eq!(history.is_some(), valid);
+        if let Some((history, _)) = history {
+            assert_eq!(history.data.len(), moves.len() + 1);
+        }
+    }
 
     #[test]
     fn push_pop() {
