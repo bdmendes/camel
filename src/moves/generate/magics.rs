@@ -139,11 +139,13 @@ pub fn queen_attacks(position: &Position, square: Square) -> Bitboard {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
+    use std::{io::BufReader, str::FromStr};
+
+    use tempfile::NamedTempFile;
 
     use super::bitsets;
     use crate::{
-        moves::generate::magics::{bishop_attacks, rook_attacks},
+        moves::generate::magics::{SquareMagic, bishop_attacks, rook_attacks, save_magics},
         position::{Position, bitboard::Bitboard, square::Square},
     };
 
@@ -195,5 +197,17 @@ mod tests {
                 | Bitboard::from_square(Square::F8)
                 | Bitboard::from_square(Square::E8)
         );
+    }
+
+    #[test]
+    fn serialize_deserialize() {
+        let rook_file = NamedTempFile::new().unwrap();
+        let rook_path = rook_file.path().to_str().unwrap();
+        let bishop_file = NamedTempFile::new().unwrap();
+        let bishop_path = bishop_file.path().to_str().unwrap();
+
+        save_magics(rook_path, bishop_path).unwrap();
+        let _: Vec<SquareMagic> = serde_json::from_reader(BufReader::new(rook_file)).unwrap();
+        let _: Vec<SquareMagic> = serde_json::from_reader(BufReader::new(bishop_file)).unwrap();
     }
 }

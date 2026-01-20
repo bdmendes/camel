@@ -119,9 +119,21 @@ pub fn save_zobrist_numbers(path: &str) -> io::Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use tempfile::NamedTempFile;
+
     use super::ZobristHash;
-    use crate::position::{castling_rights::CastlingSide, color::Color, piece::Piece, square::Square};
-    use std::collections::HashSet;
+    use crate::position::{
+        castling_rights::CastlingSide, color::Color, hash::save_zobrist_numbers, piece::Piece, square::Square,
+    };
+    use std::{collections::HashSet, io::BufReader};
+
+    #[test]
+    fn serialize_deserialize() {
+        let file = NamedTempFile::new().unwrap();
+        let path = file.path().to_str().unwrap();
+        save_zobrist_numbers(path).unwrap();
+        let _: Vec<ZobristHash> = serde_json::from_reader(BufReader::new(file)).unwrap();
+    }
 
     #[test]
     fn reflection() {
