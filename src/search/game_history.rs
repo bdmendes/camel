@@ -86,7 +86,7 @@ mod tests {
     #[case("rn1q1rk1/pp1bbppp/2p1pn2/8/2QP4/2N2NP1/PP2PPBP/R1B2RK1 b - -", "d8b6 e2e5", false)]
     #[case("rn1q1rk1/pp1bbppp/2p1pn2/8/2QP4/2N2NP1/PP2PPBP/R1B2RK1 b - -", "d8b6 e2e5 f8e8", false)]
     fn from_moves(#[case] fen: Fen, #[case] moves: &str, #[case] valid: bool) {
-        let moves = moves.split(" ").collect::<Vec<_>>();
+        let moves = moves.split_whitespace().collect::<Vec<_>>();
         let position = Position::try_from(fen).unwrap();
         let history = GameHistory::from_moves(&position, &moves);
         assert_eq!(history.is_some(), valid);
