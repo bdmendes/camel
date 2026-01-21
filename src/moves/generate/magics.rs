@@ -10,12 +10,20 @@ use std::{
 };
 
 #[ctor]
-static BISHOP_MAGICS: Vec<SquareMagic> =
-    { serde_json::from_str(include_str!("../../../assets/dump/20260118-214612.bmagics")).unwrap() };
+static BISHOP_MAGICS: [SquareMagic; 64] = {
+    serde_json::from_str::<Vec<SquareMagic>>(include_str!("../../../assets/dump/20260118-214612.bmagics"))
+        .unwrap()
+        .try_into()
+        .unwrap()
+};
 
 #[ctor]
-static ROOK_MAGICS: Vec<SquareMagic> =
-    { serde_json::from_str(include_str!("../../../assets/dump/20260118-214612.rmagics")).unwrap() };
+static ROOK_MAGICS: [SquareMagic; 64] = {
+    serde_json::from_str::<Vec<SquareMagic>>(include_str!("../../../assets/dump/20260118-214612.rmagics"))
+        .unwrap()
+        .try_into()
+        .unwrap()
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct SquareMagic {
