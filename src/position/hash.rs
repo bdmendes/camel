@@ -18,9 +18,16 @@ use super::{
 #[derive(PartialEq, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct ZobristHash(u64);
 
+// 2 colors, 6 pieces, 64 squares + 1 color + 4 castling rights + 64 ep squares
+const ZOBRIST_NUMBERS_SIZE: usize = 2 * 6 * 64 + 1 + 4 + 64;
+
 #[ctor]
-static ZOBRIST_NUMBERS: Vec<ZobristHash> =
-    { serde_json::from_str(include_str!("../../assets/dump/20260118-203201.zobrist")).unwrap() };
+static ZOBRIST_NUMBERS: [ZobristHash; ZOBRIST_NUMBERS_SIZE] = {
+    serde_json::from_str::<Vec<ZobristHash>>(include_str!("../../assets/dump/20260118-203201.zobrist"))
+        .unwrap()
+        .try_into()
+        .unwrap()
+};
 
 impl ZobristHash {
     pub fn new(
@@ -103,11 +110,8 @@ impl ZobristHash {
 
 pub fn gen_zobrist_numbers() -> Vec<ZobristHash> {
     let mut rng = StdRng::seed_from_u64(0);
-
-    // 2 colors, 6 pieces, 64 squares + 1 color + 4 castling rights + 64 ep squares
-    let mut numbers = vec![ZobristHash(0); 2 * 6 * 64 + 1 + 4 + 64];
+    let mut numbers = vec![ZobristHash(0); ZOBRIST_NUMBERS_SIZE];
     numbers.iter_mut().for_each(|n| *n = ZobristHash(rng.next_u64()));
-
     numbers
 }
 
