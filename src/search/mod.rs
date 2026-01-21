@@ -140,7 +140,7 @@ impl<'a> Searcher<'a> {
             self.history.push(&next_position, mov.is_reversible(position));
             let (nodes, score) =
                 self.pvs(&next_position, depth - 1, ply.saturating_add(1), node_type, window.reverse());
-            self.history.pop();
+            self.history.pop(next_position.side_to_move());
 
             count += nodes;
 

@@ -3,7 +3,6 @@ use crate::position::{Position, color::Color, hash::ZobristHash};
 pub struct GameHistory {
     hashes: [Vec<ZobristHash>; 2],
     barriers: [Vec<usize>; 2],
-    side_to_move: Color,
 }
 
 impl GameHistory {
@@ -12,7 +11,6 @@ impl GameHistory {
         let mut history = Self {
             hashes: [Vec::with_capacity(32), Vec::with_capacity(32)],
             barriers: [Vec::with_capacity(16), Vec::with_capacity(16)],
-            side_to_move: position.side_to_move(),
         };
         history.hashes[sign].push(position.hash());
         history.barriers[sign].push(0);
@@ -49,11 +47,10 @@ impl GameHistory {
             barriers.push(hashes.len());
         }
         hashes.push(position.hash());
-        self.side_to_move = position.side_to_move();
     }
 
-    pub fn pop(&mut self) {
-        let sign = self.side_to_move as usize;
+    pub fn pop(&mut self, color: Color) {
+        let sign = color as usize;
         let (hashes, barriers) = (&mut self.hashes[sign], &mut self.barriers[sign]);
         if barriers.last().unwrap() + 1 == hashes.len() {
             barriers.pop();
@@ -65,9 +62,14 @@ impl GameHistory {
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
+    use std::{panic::catch_unwind, str::FromStr};
 
     use crate::{
-        position::{Position, fen::Fen},
+        position::{
+            Position,
+            color::Color,
+            fen::{Fen, START_POSITION},
+        },
         search::game_history::GameHistory,
     };
 
@@ -88,5 +90,82 @@ mod tests {
         if let Some((history, _)) = history {
             assert_eq!(history.hashes[0].len() + history.hashes[1].len(), moves.len() + 1);
         }
+    }
+
+    #[test]
+    fn push_pop_barrier() {
+        let position = Position::from_str(START_POSITION).unwrap();
+        let mut history = GameHistory::new(&position);
+
+        assert_eq!(history.seen(&position), 1);
+        assert_eq!(history.seen(&position.make_move_str("e2e4").unwrap()), 0);
+
+        history.push(&position, true);
+        assert_eq!(history.seen(&position), 2);
+        history.push(&position, true);
+        assert_eq!(history.seen(&position), 3);
+
+        history.push(&position, false);
+        assert_eq!(history.seen(&position), 1);
+
+        history.pop(Color::White);
+        assert_eq!(history.seen(&position), 3);
+        history.pop(Color::White);
+        assert_eq!(history.seen(&position), 2);
+        history.pop(Color::White);
+        assert_eq!(history.seen(&position), 1);
+        history.pop(Color::White);
+        assert_eq!(history.seen(&position), 0);
+
+        assert!(catch_unwind(move || history.pop(Color::White)).is_err());
+    }
+
+    #[test]
+    fn mixed_positions() {
+        let position = Position::from_str(START_POSITION).unwrap();
+        let position2 = position.make_move_str("d2d4").unwrap();
+        let position3 = position2.make_move_str("g8f6").unwrap();
+        let position4 = position3.make_move_str("c2c4").unwrap();
+        let position5 = position4.make_move_str("g7g6").unwrap();
+        let mut history = GameHistory::new(&position);
+
+        assert_eq!(history.seen(&position), 1);
+        assert_eq!(history.seen(&position2), 0);
+
+        history.push(&position2, false);
+        assert_eq!(history.seen(&position), 1);
+        assert_eq!(history.seen(&position2), 1);
+
+        history.push(&position3, true);
+        assert_eq!(history.seen(&position), 1);
+        assert_eq!(history.seen(&position2), 1);
+        assert_eq!(history.seen(&position3), 1);
+
+        history.push(&position4, false);
+        assert_eq!(history.seen(&position), 1);
+        assert_eq!(history.seen(&position2), 0);
+        assert_eq!(history.seen(&position3), 1);
+        assert_eq!(history.seen(&position4), 1);
+
+        history.push(&position5, false);
+        assert_eq!(history.seen(&position), 0);
+        assert_eq!(history.seen(&position2), 0);
+        assert_eq!(history.seen(&position3), 0);
+        assert_eq!(history.seen(&position4), 1);
+        assert_eq!(history.seen(&position5), 1);
+
+        history.pop(position5.side_to_move());
+        assert_eq!(history.seen(&position), 1);
+        assert_eq!(history.seen(&position2), 0);
+        assert_eq!(history.seen(&position3), 1);
+        assert_eq!(history.seen(&position4), 1);
+        assert_eq!(history.seen(&position5), 0);
+
+        history.pop(position4.side_to_move());
+        assert_eq!(history.seen(&position), 1);
+        assert_eq!(history.seen(&position2), 1);
+        assert_eq!(history.seen(&position3), 1);
+        assert_eq!(history.seen(&position4), 0);
+        assert_eq!(history.seen(&position5), 0);
     }
 }
