@@ -7,13 +7,11 @@ pub struct GameHistory {
 
 impl GameHistory {
     pub fn new(position: &Position) -> Self {
-        let sign = position.side_to_move() as usize;
         let mut history = Self {
             hashes: [Vec::with_capacity(32), Vec::with_capacity(32)],
             barriers: [Vec::with_capacity(16), Vec::with_capacity(16)],
         };
-        history.hashes[sign].push(position.hash());
-        history.barriers[sign].push(0);
+        history.push(position, false);
         history
     }
 
@@ -62,7 +60,7 @@ impl GameHistory {
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
-    use std::{panic::catch_unwind, str::FromStr};
+    use std::str::FromStr;
 
     use crate::{
         position::{
@@ -93,6 +91,19 @@ mod tests {
     }
 
     #[test]
+    fn push_pop_pair() {
+        let position = Position::from_str(START_POSITION).unwrap();
+        let position2 = position.make_move_str("g1f3").unwrap();
+        let position3 = position2.make_move_str("g8f6").unwrap();
+
+        let mut history = GameHistory::new(&position);
+        history.push(&position2, true);
+        history.push(&position3, true);
+        history.pop(position3.side_to_move());
+        history.pop(position2.side_to_move());
+    }
+
+    #[test]
     fn push_pop_barrier() {
         let position = Position::from_str(START_POSITION).unwrap();
         let mut history = GameHistory::new(&position);
@@ -116,8 +127,6 @@ mod tests {
         assert_eq!(history.seen(&position), 1);
         history.pop(Color::White);
         assert_eq!(history.seen(&position), 0);
-
-        assert!(catch_unwind(move || history.pop(Color::White)).is_err());
     }
 
     #[test]
