@@ -185,10 +185,7 @@ mod tests {
     use rstest::rstest;
     use std::{str::FromStr, thread::sleep};
 
-    fn with_searcher<F>(table_size: usize, body: F)
-    where
-        F: Fn(&mut Searcher),
-    {
+    fn with_searcher(table_size: usize, body: impl Fn(&mut Searcher)) {
         let mut history = GameHistory::new(&Position::from_str(START_POSITION).unwrap());
         let mut table = ScoreTable::new_no_elems(table_size);
         let mut net = NeuralNetwork::new(Parameters::from_str(NNUE_PARAMS_BLOB).unwrap());
