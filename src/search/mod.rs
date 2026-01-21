@@ -140,7 +140,7 @@ impl<'a> Searcher<'a> {
             self.history.push(&next_position, mov.is_reversible(position));
             let (nodes, score) =
                 self.pvs(&next_position, depth - 1, ply.saturating_add(1), node_type, window.reverse());
-            self.history.pop();
+            self.history.pop(next_position.side_to_move());
 
             count += nodes;
 
@@ -180,16 +180,13 @@ mod tests {
     use super::*;
     use crate::{
         evaluation::{MAX_POSITIONAL_WEIGHT, NNUE_PARAMS_BLOB, nnue::Parameters},
-        position::fen::Fen,
+        position::fen::{Fen, START_POSITION},
     };
     use rstest::rstest;
     use std::{str::FromStr, thread::sleep};
 
-    fn with_searcher<F>(table_size: usize, body: F)
-    where
-        F: Fn(&mut Searcher),
-    {
-        let mut history = GameHistory::default();
+    fn with_searcher(table_size: usize, body: impl Fn(&mut Searcher)) {
+        let mut history = GameHistory::new(&Position::from_str(START_POSITION).unwrap());
         let mut table = ScoreTable::new_no_elems(table_size);
         let mut net = NeuralNetwork::new(Parameters::from_str(NNUE_PARAMS_BLOB).unwrap());
         let status = SearchStatus::new(SearchStatusValue::Searching);

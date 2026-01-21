@@ -56,7 +56,7 @@ fn main() {
                     match Position::from_str(&flattened) {
                         Ok(position) => {
                             engine.position = position;
-                            *engine.game_history.lock().unwrap() = GameHistory::single(&position);
+                            *engine.game_history.lock().unwrap() = GameHistory::new(&position);
                         }
                         Err(_) => println!("Invalid FEN: {}", flattened),
                     }
@@ -64,7 +64,7 @@ fn main() {
                 PositionCommand::Kiwi => {
                     let position = Position::from_str(KIWIPETE_POSITION).unwrap();
                     engine.position = position;
-                    *engine.game_history.lock().unwrap() = GameHistory::single(&position);
+                    *engine.game_history.lock().unwrap() = GameHistory::new(&position);
                 }
             },
             Command::Go { .. } => {
