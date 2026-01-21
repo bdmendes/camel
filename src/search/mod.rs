@@ -180,7 +180,7 @@ mod tests {
     use super::*;
     use crate::{
         evaluation::{MAX_POSITIONAL_WEIGHT, NNUE_PARAMS_BLOB, nnue::Parameters},
-        position::fen::Fen,
+        position::fen::{Fen, START_POSITION},
     };
     use rstest::rstest;
     use std::{str::FromStr, thread::sleep};
@@ -189,7 +189,7 @@ mod tests {
     where
         F: Fn(&mut Searcher),
     {
-        let mut history = GameHistory::default();
+        let mut history = GameHistory::new(&Position::from_str(START_POSITION).unwrap());
         let mut table = ScoreTable::new_no_elems(table_size);
         let mut net = NeuralNetwork::new(Parameters::from_str(NNUE_PARAMS_BLOB).unwrap());
         let status = SearchStatus::new(SearchStatusValue::Searching);

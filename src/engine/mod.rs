@@ -32,8 +32,9 @@ pub struct Engine {
 
 impl Default for Engine {
     fn default() -> Self {
+        let start_position = Position::from_str(START_POSITION).unwrap();
         Self {
-            position: Position::from_str(START_POSITION).unwrap(),
+            position: start_position,
             evaluator: {
                 let params = Parameters::from_str(NNUE_PARAMS_BLOB).unwrap();
                 Arc::new(Mutex::new(NeuralNetwork::new(params)))
@@ -42,7 +43,7 @@ impl Default for Engine {
                 let table = ScoreTable::new(DEFAULT_TABLE_SIZE_MB);
                 Arc::new(Mutex::new(table))
             },
-            game_history: Arc::new(Mutex::new(GameHistory::default())),
+            game_history: Arc::new(Mutex::new(GameHistory::new(&start_position))),
             search_status: SearchStatus::default(),
         }
     }
