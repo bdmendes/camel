@@ -31,16 +31,16 @@ impl GameHistory {
     }
 
     pub fn seen(&self, position: &Position) -> usize {
-        let sign = position.side_to_move() as usize;
-        let (hashes, barriers) = (&self.hashes[sign], &self.barriers[sign]);
+        let handle = position.side_to_move() as usize;
+        let (hashes, barriers) = (&self.hashes[handle], &self.barriers[handle]);
         let first_idx = *barriers.last().unwrap_or(&0);
         let hash = position.hash();
         hashes[first_idx..].iter().filter(|&&h| h == hash).count()
     }
 
     pub fn push(&mut self, position: &Position, reversible: bool) {
-        let sign = position.side_to_move() as usize;
-        let (hashes, barriers) = (&mut self.hashes[sign], &mut self.barriers[sign]);
+        let handle = position.side_to_move() as usize;
+        let (hashes, barriers) = (&mut self.hashes[handle], &mut self.barriers[handle]);
         if !reversible || hashes.is_empty() {
             barriers.push(hashes.len());
         }
@@ -48,8 +48,8 @@ impl GameHistory {
     }
 
     pub fn pop(&mut self, color: Color) {
-        let sign = color as usize;
-        let (hashes, barriers) = (&mut self.hashes[sign], &mut self.barriers[sign]);
+        let handle = color as usize;
+        let (hashes, barriers) = (&mut self.hashes[handle], &mut self.barriers[handle]);
         if barriers.last().unwrap() + 1 == hashes.len() {
             barriers.pop();
         }
