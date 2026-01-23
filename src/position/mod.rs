@@ -341,7 +341,7 @@ impl Position {
     }
 
     pub fn is_draw(&self) -> bool {
-        if self.halfmove_clock() >= 50 {
+        if self.halfmove_clock() >= 100 {
             return true;
         }
 
@@ -684,8 +684,9 @@ mod tests {
 
     #[rstest]
     #[case("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", false)]
-    #[case("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 50 32", true)]
-    #[case("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 32 50", false)]
+    #[case("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 50 32", false)]
+    #[case("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 100 32", true)]
+    #[case("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 32 100", false)]
     #[case("8/8/4k3/8/5B2/5B2/8/4K3 w - - 0 1", false)] // 2B
     #[case("8/8/4k3/8/8/5B2/8/4K3 w - - 0 1", true)] // 1B
     #[case("8/8/4k3/8/5N2/8/8/4K3 b - - 0 1", true)] // 1N
