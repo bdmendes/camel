@@ -1,5 +1,6 @@
 use std::{
     fmt::{Display, Write},
+    mem,
     str::FromStr,
 };
 
@@ -155,7 +156,7 @@ impl Position {
         self.pieces
             .iter()
             .position(|bb| bb.is_set(square))
-            .map(|idx| Piece::from(idx as u8).unwrap())
+            .map(|idx| unsafe { mem::transmute::<u8, Piece>(idx as u8) })
     }
 
     pub fn piece_color_at(&self, square: Square) -> Option<(Piece, Color)> {
