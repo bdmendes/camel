@@ -115,7 +115,7 @@ impl<'a> Searcher<'a> {
         }
 
         let seen = self.history.seen(position);
-        if seen >= 3 {
+        if ply > 0 && (seen >= 3 || position.is_draw()) {
             return (1, 0);
         }
 

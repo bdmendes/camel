@@ -1,5 +1,6 @@
 use std::{
     fmt::{Display, Write},
+    mem,
     str::FromStr,
 };
 
@@ -155,7 +156,7 @@ impl Position {
         self.pieces
             .iter()
             .position(|bb| bb.is_set(square))
-            .map(|idx| Piece::from(idx as u8).unwrap())
+            .map(|idx| unsafe { mem::transmute::<u8, Piece>(idx as u8) })
     }
 
     pub fn piece_color_at(&self, square: Square) -> Option<(Piece, Color)> {
@@ -338,17 +339,30 @@ impl Position {
 
         diff
     }
+
+    pub fn is_draw(&self) -> bool {
+        if self.halfmove_clock() >= 100 {
+            return true;
+        }
+
+        let non_kings = self.occupancy_bb_all().count_ones() - 2;
+        (non_kings == 2 && self.pieces_bb(Piece::Knight).count_ones() == 2)
+            || (non_kings == 1
+                && (!self.pieces_bb(Piece::Bishop).is_empty() || !self.pieces_bb(Piece::Knight).is_empty()))
+            || non_kings == 0
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use std::str::FromStr;
 
     use crate::{
         moves::{Move, MoveFlag},
         position::{
             Piece, PositionDiffEntry, PositionDiffVec, bitboard::Bitboard, castling_rights::CastlingSide, color::Color,
-            square::Square,
+            fen::Fen, square::Square,
         },
     };
 
@@ -666,6 +680,24 @@ mod tests {
                 PositionDiffEntry::Set(Square::F6, Piece::Knight, Color::Black),
             ])
         );
+    }
+
+    #[rstest]
+    #[case("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", false)]
+    #[case("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 50 32", false)]
+    #[case("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 100 32", true)]
+    #[case("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 32 100", false)]
+    #[case("8/8/4k3/8/5B2/5B2/8/4K3 w - - 0 1", false)] // 2B
+    #[case("8/8/4k3/8/8/5B2/8/4K3 w - - 0 1", true)] // 1B
+    #[case("8/8/4k3/8/5N2/8/8/4K3 b - - 0 1", true)] // 1N
+    #[case("8/8/4k3/8/5N2/5B2/8/4K3 b - - 0 1", false)] // B+N
+    #[case("8/8/4k3/8/5NN1/8/8/4K3 b - - 0 1", true)] // 2N
+    #[case("8/8/4k3/8/5Q2/8/8/4K3 w - - 0 1", false)] // 1Q
+    #[case("8/8/4k3/8/5R2/8/8/4K3 w - - 0 1", false)] // 1R
+    #[case("8/8/8/4p3/8/4k3/8/4K3 w - - 0 1", false)] // 1P
+    fn is_draw(#[case] fen: Fen, #[case] result: bool) {
+        let position = Position::try_from(fen).unwrap();
+        assert_eq!(position.is_draw(), result);
     }
 
     #[test]
