@@ -338,17 +338,30 @@ impl Position {
 
         diff
     }
+
+    pub fn is_draw(&self) -> bool {
+        if self.halfmove_clock() >= 50 {
+            return true;
+        }
+
+        let non_kings = self.occupancy_bb_all().count_ones() - 2;
+        (non_kings == 2 && self.pieces_bb(Piece::Knight).count_ones() == 2)
+            || (non_kings == 1
+                && (!self.pieces_bb(Piece::Bishop).is_empty() || !self.pieces_bb(Piece::Knight).is_empty()))
+            || non_kings == 0
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use std::str::FromStr;
 
     use crate::{
         moves::{Move, MoveFlag},
         position::{
             Piece, PositionDiffEntry, PositionDiffVec, bitboard::Bitboard, castling_rights::CastlingSide, color::Color,
-            square::Square,
+            fen::Fen, square::Square,
         },
     };
 
@@ -666,6 +679,23 @@ mod tests {
                 PositionDiffEntry::Set(Square::F6, Piece::Knight, Color::Black),
             ])
         );
+    }
+
+    #[rstest]
+    #[case("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", false)]
+    #[case("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 50 32", true)]
+    #[case("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 32 50", false)]
+    #[case("8/8/4k3/8/5B2/5B2/8/4K3 w - - 0 1", false)] // 2B
+    #[case("8/8/4k3/8/8/5B2/8/4K3 w - - 0 1", true)] // 1B
+    #[case("8/8/4k3/8/5N2/8/8/4K3 b - - 0 1", true)] // 1N
+    #[case("8/8/4k3/8/5N2/5B2/8/4K3 b - - 0 1", false)] // B+N
+    #[case("8/8/4k3/8/5NN1/8/8/4K3 b - - 0 1", true)] // 2K
+    #[case("8/8/4k3/8/5Q2/8/8/4K3 w - - 0 1", false)] // 1Q
+    #[case("8/8/4k3/8/5R2/8/8/4K3 w - - 0 1", false)] // 1R
+    #[case("8/8/8/4p3/8/4k3/8/4K3 w - - 0 1", false)] // 1P
+    fn is_draw(#[case] fen: Fen, #[case] result: bool) {
+        let position = Position::try_from(fen).unwrap();
+        assert_eq!(position.is_draw(), result);
     }
 
     #[test]
