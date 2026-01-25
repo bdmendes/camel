@@ -112,10 +112,18 @@ impl ScoreTable {
 
     pub fn pv(&self, position: &Position) -> Vec<Move> {
         let mut moves = Vec::with_capacity(16);
+        let hash = position.hash();
+        let mut seen = 1;
         let mut position = *position;
         while let Some(mov) = self.hash_move(&position) {
             moves.push(mov);
             position = position.make_move(mov);
+            if hash == position.hash() {
+                seen += 1;
+                if seen == 3 {
+                    break;
+                }
+            }
         }
         moves
     }
@@ -303,5 +311,24 @@ mod tests {
         table.put(&position2, 3, 1, NodeType::PVNode, 0, Some(position2.get_move_str("d7d5").unwrap()));
         assert_eq!(table.pv_str(&position1), vec!["e2e4", "d7d5"]);
         assert_eq!(table.pv_str(&position2), vec!["d7d5"]);
+    }
+
+    #[test]
+    fn pv_cycle() {
+        let mut table = ScoreTable::new_no_elems(100);
+        let position1 = Position::from_str(START_POSITION).unwrap();
+        let position2 = position1.make_move_str("g1f3").unwrap();
+        let position3 = position2.make_move_str("g8f6").unwrap();
+        let position4 = position3.make_move_str("f3g1").unwrap();
+
+        table.put(&position1, 4, 0, NodeType::PVNode, 0, Some(position1.get_move_str("g1f3").unwrap()));
+        table.put(&position2, 3, 1, NodeType::PVNode, 0, Some(position2.get_move_str("g8f6").unwrap()));
+        table.put(&position3, 2, 2, NodeType::PVNode, 0, Some(position3.get_move_str("f3g1").unwrap()));
+        table.put(&position4, 1, 3, NodeType::PVNode, 0, Some(position4.get_move_str("f6g8").unwrap()));
+
+        assert_eq!(
+            table.pv_str(&position1),
+            vec!["g1f3", "g8f6", "f3g1", "f6g8", "g1f3", "g8f6", "f3g1", "f6g8"]
+        );
     }
 }
