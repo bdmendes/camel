@@ -249,4 +249,20 @@ mod tests {
             assert_eq!(score.abs(), (MATE_SCORE + plies as i16).abs());
         });
     }
+
+    #[rstest]
+    #[case("6k1/6p1/8/6KQ/1r6/q2b4/8/8 w - - 0 1", "h5e8")]
+    #[case("5rk1/2Q3pp/p7/3Pp3/1P2P1P1/8/P4qPK/R6R b - - 2 30", "f2h4")]
+    #[case("2k5/pp2n2Q/8/P2p4/6q1/P1p5/2P2P1P/5R1K b - - 2 22", "g4f3")]
+    fn pvs_finds_perpetual(#[case] fen: Fen, #[case] mov: &str) {
+        with_searcher(1, |searcher| {
+            let position = Position::try_from(fen.clone()).unwrap();
+            searcher.history.push(&position, true);
+            searcher.history.push(&position, true);
+
+            let score = searcher.pvs(&position, 5, 0, NodeType::PVNode, Window::default()).1;
+            assert_eq!(score, 0);
+            assert_eq!(searcher.table.hash_move(&position), Some(position.get_move_str(mov).unwrap()));
+        });
+    }
 }
