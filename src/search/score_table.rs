@@ -110,6 +110,21 @@ impl ScoreTable {
             .map(|m| m.mov)
     }
 
+    pub fn pv(&self, position: &Position) -> Vec<Move> {
+        let mut moves = Vec::with_capacity(16);
+        let mut position = *position;
+        while let Some(mov) = self.hash_move(&position) {
+            moves.push(mov);
+            position = position.make_move(mov);
+        }
+        moves
+    }
+
+    pub fn pv_str(&self, position: &Position) -> Vec<String> {
+        let pv = self.pv(position);
+        pv.iter().map(|m| m.to_string()).collect()
+    }
+
     pub fn hashfull_millis(&self) -> usize {
         // The table is sparse, so sampling a bit from the start suffices.
         self.entries.iter().take(10_000).filter(|e| e.is_some()).count() / 10
@@ -271,5 +286,22 @@ mod tests {
         table.put(&position, 3, 3, NodeType::PVNode, 0, NULL_MOVE);
         assert_eq!(table.hash_move(&position), None);
         assert!(table.probe(&position, 3, 3).is_some());
+    }
+
+    #[test]
+    fn pv() {
+        let mut table = ScoreTable::new_no_elems(100);
+        let position1 = Position::from_str(START_POSITION).unwrap();
+
+        assert_eq!(table.pv(&position1), vec![]);
+
+        table.put(&position1, 4, 0, NodeType::PVNode, 0, Some(position1.get_move_str("e2e4").unwrap()));
+        assert_eq!(table.pv_str(&position1), vec!["e2e4"]);
+
+        let position2 = position1.make_move_str("e2e4").unwrap();
+
+        table.put(&position2, 3, 1, NodeType::PVNode, 0, Some(position2.get_move_str("d7d5").unwrap()));
+        assert_eq!(table.pv_str(&position1), vec!["e2e4", "d7d5"]);
+        assert_eq!(table.pv_str(&position2), vec!["d7d5"]);
     }
 }
