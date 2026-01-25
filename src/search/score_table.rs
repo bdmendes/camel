@@ -120,9 +120,9 @@ impl ScoreTable {
             position = position.make_move(mov);
             if hash == position.hash() {
                 seen += 1;
-                if seen == 3 {
-                    break;
-                }
+            }
+            if seen == 3 || moves.len() >= 16 {
+                break;
             }
         }
         moves
