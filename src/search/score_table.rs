@@ -4,7 +4,7 @@ use crate::{
     evaluation::ValueScore,
     moves::Move,
     position::Position,
-    search::{Depth, MATE_SCORE, NULL_MOVE, NodeType},
+    search::{Depth, MATE_SCORE, NodeType},
 };
 
 pub const DEFAULT_TABLE_SIZE_MB: usize = 256;
@@ -58,11 +58,7 @@ impl ScoreTable {
 
     pub fn probe(&self, position: &Position, depth: Depth, ply: Depth) -> Option<(ValueScore, NodeType)> {
         self.get_unsafe(self.index(position))
-            .filter(|e| {
-                e.depth >= depth
-                    && e.hash_ms16 == position.hash().ms16()
-                    && (e.mov == NULL_MOVE || e.mov.pseudo_legal(position))
-            })
+            .filter(|e| e.depth >= depth && e.hash_ms16 == position.hash().ms16() && e.mov.pseudo_legal(position))
             .map(|e| {
                 if e.score <= MATE_SCORE + MAX_PLY_DIFF {
                     (e.score + ply as ValueScore, e.node_type)
@@ -108,7 +104,7 @@ impl ScoreTable {
 
     pub fn hash_move(&self, position: &Position) -> Option<Move> {
         self.get_unsafe(self.index(position))
-            .filter(|e| e.hash_ms16 == position.hash().ms16() && e.mov != NULL_MOVE && e.mov.pseudo_legal(position))
+            .filter(|e| e.hash_ms16 == position.hash().ms16() && e.mov.pseudo_legal(position))
             .map(|m| m.mov)
     }
 
@@ -145,7 +141,6 @@ mod tests {
     use crate::{
         moves::MoveFlag,
         position::{fen::START_POSITION, square::Square},
-        search::NULL_MOVE,
     };
     use std::str::FromStr;
 
@@ -284,16 +279,6 @@ mod tests {
 
         table.put(&position2, 3, 3, NodeType::PVNode, 0, mov2);
         assert_eq!(table.hash_move(&position), None);
-    }
-
-    #[test]
-    fn null_move() {
-        let mut table = ScoreTable::new_no_elems(1);
-        let position = Position::from_str(START_POSITION).unwrap();
-
-        table.put(&position, 3, 3, NodeType::PVNode, 0, NULL_MOVE);
-        assert_eq!(table.hash_move(&position), None);
-        assert!(table.probe(&position, 3, 3).is_some());
     }
 
     #[test]
