@@ -251,7 +251,7 @@ mod tests {
     #[case("5rk1/2Q3pp/p7/3Pp3/1P2P1P1/8/P4qPK/R6R b - - 2 30", "f2h4")]
     #[case("2k5/pp2n2Q/8/P2p4/6q1/P1p5/2P2P1P/5R1K b - - 2 22", "g4f3")]
     fn pvs_finds_perpetual(#[case] fen: Fen, #[case] mov: &str) {
-        with_searcher(1, |searcher| {
+        with_searcher(10_000, |searcher| {
             let position = Position::try_from(fen.clone()).unwrap();
             searcher.history.push(&position, true);
             searcher.history.push(&position, true);
@@ -259,6 +259,25 @@ mod tests {
             let score = searcher.pvs(&position, 5, 0, Window::default()).1;
             assert_eq!(score, 0);
             assert_eq!(searcher.table.hash_move(&position), Some(position.get_move_str(mov).unwrap()));
+        });
+    }
+
+    #[rstest]
+    // Basic endgames
+    #[case("5k2/8/6P1/6K1/8/8/8/8 w - - 0 1", "g5f6 f8e8 g6g7")]
+    #[case("6Q1/5K2/7k/8/8/8/8/8 b - - 0 4", "h6h5 g8g3 h5h6 g3h4")]
+    fn pvs_tactics(#[case] fen: Fen, #[case] moves: &str) {
+        with_searcher(10_000, |searcher| {
+            let position = Position::try_from(fen.clone()).unwrap();
+            let moves = moves.split_whitespace().collect::<Vec<_>>();
+            searcher.pvs(&position, 10, 0, NodeType::PVNode, Window::default());
+            let pv = searcher
+                .table
+                .pv_str(&position)
+                .into_iter()
+                .take(moves.len())
+                .collect::<Vec<_>>();
+            assert_eq!(pv, moves);
         });
     }
 }
