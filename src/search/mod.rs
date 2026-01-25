@@ -9,7 +9,8 @@ pub type Depth = u8;
 
 use crate::{
     evaluation::{ValueScore, nnue::NeuralNetwork},
-    position::Position,
+    moves::{Move, MoveFlag},
+    position::{Position, square::Square},
     search::{
         game_history::GameHistory,
         picker::MovePicker,
@@ -22,6 +23,7 @@ use primitive_enum::primitive_enum;
 use std::time::{Duration, Instant};
 
 const MATE_SCORE: ValueScore = ValueScore::MIN + 1;
+const NULL_MOVE: Move = Move::new(Square::A1, Square::A1, MoveFlag::Quiet);
 
 primitive_enum! { NodeType u8;
     PVNode,
@@ -130,7 +132,8 @@ impl<'a> Searcher<'a> {
         let picker = MovePicker::new(position, false, self.table.hash_move(position), [None, None]);
 
         let mut count = 0;
-        let mut best_move = None;
+        let mut best_move = NULL_MOVE;
+        let original_best = window.best();
         let is_check = position.is_check();
 
         for mov in picker {
@@ -147,14 +150,18 @@ impl<'a> Searcher<'a> {
             match window.feed(-score) {
                 FeedResult::Improvement => {
                     node_type = NodeType::PVNode;
-                    best_move = Some(mov);
+                    best_move = mov;
                 }
                 FeedResult::FailHigh => {
                     node_type = NodeType::CutNode;
-                    best_move = Some(mov);
+                    best_move = mov;
                     break;
                 }
-                FeedResult::FailLow => {}
+                FeedResult::FailLow => {
+                    if best_move == NULL_MOVE {
+                        best_move = mov;
+                    }
+                }
             }
         }
 
@@ -162,7 +169,7 @@ impl<'a> Searcher<'a> {
             return (1, if is_check { MATE_SCORE + ply as ValueScore } else { 0 });
         }
 
-        if best_move.is_none() {
+        if window.best() == original_best {
             node_type = NodeType::AllNode;
         }
 
