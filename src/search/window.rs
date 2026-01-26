@@ -1,9 +1,11 @@
-use crate::{evaluation::ValueScore, search::NodeType};
+use crate::{evaluation::ValueScore, moves::Move, search::NodeType};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Window {
     alpha: ValueScore,
     beta: ValueScore,
+    best_score: ValueScore,
+    best_move: Option<Move>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -18,19 +20,27 @@ impl Default for Window {
         Self {
             alpha: ValueScore::MIN + 1,
             beta: ValueScore::MAX,
+            best_score: ValueScore::MIN,
+            best_move: None,
         }
     }
 }
 
 impl Window {
     pub fn best(&self) -> ValueScore {
-        self.alpha
+        self.best_score
+    }
+
+    pub fn best_move(&self) -> Option<Move> {
+        self.best_move
     }
 
     pub fn reverse(&self) -> Self {
         Window {
             alpha: -self.beta,
             beta: -self.alpha,
+            best_score: ValueScore::MIN,
+            best_move: None,
         }
     }
 
@@ -38,6 +48,8 @@ impl Window {
         Window {
             alpha: -self.alpha - 1,
             beta: -self.alpha,
+            best_score: ValueScore::MIN,
+            best_move: None,
         }
     }
 
@@ -50,6 +62,7 @@ impl Window {
     }
 
     pub fn feed(&mut self, score: ValueScore) -> FeedResult {
+        self.best_score = self.best_score.max(score);
         if score > self.alpha {
             self.alpha = score;
             if self.alpha >= self.beta {
@@ -66,10 +79,12 @@ impl Window {
         match node_type {
             NodeType::PVNode => Some(score),
             NodeType::CutNode => {
+                self.best_score = self.best_score.max(score);
                 self.alpha = self.alpha.max(score);
                 (self.alpha >= self.beta).then_some(self.alpha)
             }
             NodeType::AllNode => {
+                self.best_score = self.best_score.max(score);
                 self.beta = self.beta.min(score);
                 (self.alpha >= self.beta).then_some(self.beta)
             }
@@ -82,38 +97,34 @@ mod tests {
     use super::*;
 
     #[test]
-    fn round_trip() {
-        let mut window = Window::default();
-        assert_eq!(window, window.reverse());
-        assert_eq!(window, window.reverse().reverse());
-
-        window.feed(300);
-        assert_ne!(window, window.reverse());
-        assert_eq!(window, window.reverse().reverse());
-    }
-
-    #[test]
-    fn feed() {
+    fn feed_reverse() {
         let mut window = Window::default();
 
         // We, say white, see a position where we are +300.
         assert_eq!(window.feed(300), FeedResult::Improvement);
+        assert_eq!(window.alpha, 300);
         assert_eq!(window.best(), 300);
 
         // A position with the same score is not an improvement.
         assert_eq!(window.feed(300), FeedResult::FailLow);
+        assert_eq!(window.alpha, 300);
         assert_eq!(window.best(), 300);
 
         // Another position is not better than the first one.
         assert_eq!(window.feed(200), FeedResult::FailLow);
+        assert_eq!(window.alpha, 300);
         assert_eq!(window.best(), 300);
 
         // Let's backtrack and analyze another move. Black to play.
         window = window.reverse();
+        assert_eq!(window.alpha, ValueScore::MIN + 1);
+        assert_eq!(window.beta, -300);
+        assert_eq!(window.best(), ValueScore::MIN);
 
         // We discovered a position where black is +200.
         // We can prune this branch, as it's for sure not the best.
         assert_eq!(window.feed(200), FeedResult::FailHigh);
+        assert_eq!(window.alpha, 200);
         assert_eq!(window.best(), 200);
     }
 
@@ -123,17 +134,17 @@ mod tests {
 
         // An exact score is immediately returned.
         assert_eq!(window.feed_cache(300, NodeType::PVNode), Some(300));
-        assert_eq!(window.best(), ValueScore::MIN + 1);
+        assert_eq!(window.alpha, ValueScore::MIN + 1);
 
         // We failed high at this node, so we know that this is a lowerbound of the score.
         assert_eq!(window.feed_cache(300, NodeType::CutNode), None);
-        assert_eq!(window.best(), 300);
+        assert_eq!(window.alpha, 300);
         assert_eq!(window.feed_cache(200, NodeType::CutNode), None);
-        assert_eq!(window.best(), 300);
+        assert_eq!(window.alpha, 300);
 
         // We failed low at this node, so we know that this is an upperbound of the score.
         assert_eq!(window.feed_cache(500, NodeType::AllNode), None);
-        assert_eq!(window.best(), 300);
+        assert_eq!(window.alpha, 300);
         assert_eq!(window.beta, 500);
 
         // We now fail high outside the window.
@@ -162,7 +173,9 @@ mod tests {
             null_window,
             Window {
                 alpha: -301,
-                beta: -300
+                beta: -300,
+                best_score: ValueScore::MIN,
+                best_move: None,
             }
         );
         assert!(null_window.is_null());
