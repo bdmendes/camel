@@ -32,6 +32,9 @@ pub enum Command {
         #[arg(long)]
         depth: Option<Depth>,
 
+        #[arg(long, default_value_t = false)]
+        ponder: bool,
+
         /// The remaining time for white, in milliseconds.
         #[arg(long)]
         wtime: Option<u32>,
@@ -168,6 +171,7 @@ mod tests {
     #[case("go")]
     #[case("go infinite")]
     #[case("go depth 6")]
+    #[case("go ponder")]
     #[case("go depth 8 movetime 6000")]
     #[case("go wtime 53000 btime 50000 winc 3000 binc 3000")]
     #[case("stop")]
