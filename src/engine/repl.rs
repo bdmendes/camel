@@ -28,12 +28,13 @@ pub enum Command {
     },
     /// Search from the current position.
     Go {
+        /// Search in pondering mode, i.e. with no time limit.
+        #[arg(long, default_value_t = false)]
+        ponder: bool,
+
         /// A fixed depth to search to.
         #[arg(long)]
         depth: Option<Depth>,
-
-        #[arg(long, default_value_t = false)]
-        ponder: bool,
 
         /// The remaining time for white, in milliseconds.
         #[arg(long)]
