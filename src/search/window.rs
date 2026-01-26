@@ -20,7 +20,7 @@ impl Default for Window {
         Self {
             alpha: ValueScore::MIN + 1,
             beta: ValueScore::MAX,
-            best_score: ValueScore::MIN,
+            best_score: ValueScore::MIN + 1,
             best_move: None,
         }
     }
@@ -39,7 +39,7 @@ impl Window {
         Window {
             alpha: -self.beta,
             beta: -self.alpha,
-            best_score: ValueScore::MIN,
+            best_score: ValueScore::MIN + 1,
             best_move: None,
         }
     }
@@ -48,7 +48,7 @@ impl Window {
         Window {
             alpha: -self.alpha - 1,
             beta: -self.alpha,
-            best_score: ValueScore::MIN,
+            best_score: ValueScore::MIN + 1,
             best_move: None,
         }
     }
@@ -61,9 +61,13 @@ impl Window {
         null_score > self.alpha && null_score < self.beta
     }
 
-    pub fn feed(&mut self, score: ValueScore) -> FeedResult {
-        self.best_score = self.best_score.max(score);
-        if score > self.alpha {
+    pub fn feed(&mut self, score: ValueScore, mov: Option<Move>) -> FeedResult {
+        if score > self.best_score {
+            self.best_score = score;
+            self.best_move = mov;
+        }
+
+        if score >= self.alpha {
             self.alpha = score;
             if self.alpha >= self.beta {
                 FeedResult::FailHigh
@@ -79,12 +83,10 @@ impl Window {
         match node_type {
             NodeType::PVNode => Some(score),
             NodeType::CutNode => {
-                self.best_score = self.best_score.max(score);
                 self.alpha = self.alpha.max(score);
                 (self.alpha >= self.beta).then_some(self.alpha)
             }
             NodeType::AllNode => {
-                self.best_score = self.best_score.max(score);
                 self.beta = self.beta.min(score);
                 (self.alpha >= self.beta).then_some(self.beta)
             }
@@ -94,6 +96,8 @@ impl Window {
 
 #[cfg(test)]
 mod tests {
+    use crate::{moves::MoveFlag, position::square::Square};
+
     use super::*;
 
     #[test]
@@ -101,17 +105,17 @@ mod tests {
         let mut window = Window::default();
 
         // We, say white, see a position where we are +300.
-        assert_eq!(window.feed(300), FeedResult::Improvement);
+        assert_eq!(window.feed(300, None), FeedResult::Improvement);
         assert_eq!(window.alpha, 300);
         assert_eq!(window.best(), 300);
 
-        // A position with the same score is not an improvement.
-        assert_eq!(window.feed(300), FeedResult::FailLow);
+        // A position with the same score is considered an improvement.
+        assert_eq!(window.feed(300, None), FeedResult::Improvement);
         assert_eq!(window.alpha, 300);
         assert_eq!(window.best(), 300);
 
         // Another position is not better than the first one.
-        assert_eq!(window.feed(200), FeedResult::FailLow);
+        assert_eq!(window.feed(200, None), FeedResult::FailLow);
         assert_eq!(window.alpha, 300);
         assert_eq!(window.best(), 300);
 
@@ -119,13 +123,29 @@ mod tests {
         window = window.reverse();
         assert_eq!(window.alpha, ValueScore::MIN + 1);
         assert_eq!(window.beta, -300);
-        assert_eq!(window.best(), ValueScore::MIN);
+        assert_eq!(window.best(), ValueScore::MIN + 1);
 
         // We discovered a position where black is +200.
         // We can prune this branch, as it's for sure not the best.
-        assert_eq!(window.feed(200), FeedResult::FailHigh);
+        assert_eq!(window.feed(200, None), FeedResult::FailHigh);
         assert_eq!(window.alpha, 200);
         assert_eq!(window.best(), 200);
+    }
+
+    #[test]
+    fn feed_moves() {
+        let mut window = Window::default();
+        let mov = Move::new(Square::E2, Square::E4, MoveFlag::Quiet);
+
+        window.feed(300, None);
+        assert_eq!(window.best_move(), None);
+
+        window.feed(400, Some(mov));
+        assert_eq!(window.best_move(), Some(mov));
+
+        let mov2 = Move::new(Square::D2, Square::D4, MoveFlag::Quiet);
+        window.feed(350, Some(mov2));
+        assert_eq!(window.best_move(), Some(mov));
     }
 
     #[test]
@@ -135,17 +155,21 @@ mod tests {
         // An exact score is immediately returned.
         assert_eq!(window.feed_cache(300, NodeType::PVNode), Some(300));
         assert_eq!(window.alpha, ValueScore::MIN + 1);
+        assert_eq!(window.best(), ValueScore::MIN + 1);
 
         // We failed high at this node, so we know that this is a lowerbound of the score.
         assert_eq!(window.feed_cache(300, NodeType::CutNode), None);
         assert_eq!(window.alpha, 300);
+        assert_eq!(window.best(), ValueScore::MIN + 1);
         assert_eq!(window.feed_cache(200, NodeType::CutNode), None);
         assert_eq!(window.alpha, 300);
+        assert_eq!(window.best(), ValueScore::MIN + 1);
 
         // We failed low at this node, so we know that this is an upperbound of the score.
         assert_eq!(window.feed_cache(500, NodeType::AllNode), None);
         assert_eq!(window.alpha, 300);
         assert_eq!(window.beta, 500);
+        assert_eq!(window.best(), ValueScore::MIN + 1);
 
         // We now fail high outside the window.
         let mut window2 = window;
@@ -164,7 +188,7 @@ mod tests {
         assert!(!window.is_null());
 
         // Find a position where we, say white, are +300.
-        window.feed(300);
+        window.feed(300, None);
 
         // Try another move, assuming it won't be the best ("principal variation").
         // Any move that refutes this assumption suffices.
@@ -174,7 +198,7 @@ mod tests {
             Window {
                 alpha: -301,
                 beta: -300,
-                best_score: ValueScore::MIN,
+                best_score: ValueScore::MIN + 1,
                 best_move: None,
             }
         );
