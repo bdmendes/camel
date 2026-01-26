@@ -28,6 +28,10 @@ pub enum Command {
     },
     /// Search from the current position.
     Go {
+        /// Search in pondering mode, i.e. with no time limit.
+        #[arg(long, default_value_t = false)]
+        ponder: bool,
+
         /// A fixed depth to search to.
         #[arg(long)]
         depth: Option<Depth>,
@@ -168,6 +172,7 @@ mod tests {
     #[case("go")]
     #[case("go infinite")]
     #[case("go depth 6")]
+    #[case("go ponder")]
     #[case("go depth 8 movetime 6000")]
     #[case("go wtime 53000 btime 50000 winc 3000 binc 3000")]
     #[case("stop")]

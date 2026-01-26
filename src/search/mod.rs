@@ -57,7 +57,9 @@ impl<'a> Searcher<'a> {
     }
 
     pub fn should_stop(&self) -> bool {
-        self.status.get() == SearchStatusValue::Stopped || self.initial.elapsed() >= self.duration
+        let status = self.status.get();
+        status == SearchStatusValue::Stopped
+            || (status != SearchStatusValue::Pondering && self.initial.elapsed() >= self.duration)
     }
 
     pub fn quiesce(&mut self, position: &Position, ply: Depth, mut window: Window) -> (usize, ValueScore) {
@@ -206,6 +208,12 @@ mod tests {
             assert!(!searcher.should_stop());
 
             sleep(Duration::from_millis(200));
+            assert!(searcher.should_stop());
+
+            searcher.status.set(SearchStatusValue::Pondering);
+            assert!(!searcher.should_stop());
+
+            searcher.status.set(SearchStatusValue::Searching);
             assert!(searcher.should_stop());
 
             searcher.initial = Instant::now();
