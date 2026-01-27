@@ -263,14 +263,16 @@ mod tests {
     }
 
     #[rstest]
-    // Basic endgames
-    #[case("5k2/8/6P1/6K1/8/8/8/8 w - - 0 1", "g5f6 f8e8 g6g7")]
-    #[case("6Q1/5K2/7k/8/8/8/8/8 b - - 0 4", "h6h5 g8g3 h5h6 g3h4")]
-    fn pvs_tactics(#[case] fen: Fen, #[case] moves: &str) {
+    #[case("5k2/8/6P1/6K1/8/8/8/8 w - - 0 1", "g5f6 f8e8 g6g7", 11)]
+    #[case("6Q1/5K2/7k/8/8/8/8/8 b - - 0 4", "h6h5 g8g3 h5h6 g3h4", 4)]
+    #[case("8/5pp1/6p1/5P1P/8/K7/8/k7 w - - 0 1", "f5f6 g7f6 h5h6", 6)]
+    #[case("1k6/6R1/3K4/8/8/8/8/8 w - - 6 4", "d6c6 b8a8 c6b6 a8b8 g7g8", 5)]
+    #[case("2k5/4B3/1K6/8/4B3/8/8/8 w - - 12 7", "e4f5 c8b8 e7d6 b8a8 f5e4", 3)]
+    fn pvs_tactics(#[case] fen: Fen, #[case] moves: &str, #[case] depth: Depth) {
         with_searcher(10_000, |searcher| {
             let position = Position::try_from(fen.clone()).unwrap();
             let moves = moves.split_whitespace().collect::<Vec<_>>();
-            searcher.pvs(&position, 10, 0, NodeType::PVNode, Window::default());
+            searcher.pvs(&position, depth, 0, Window::default());
             let pv = searcher
                 .table
                 .pv_str(&position)
