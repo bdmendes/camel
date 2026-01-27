@@ -97,7 +97,13 @@ impl<'a> Searcher<'a> {
         }
     }
 
-    pub fn pvs(&mut self, position: &Position, depth: Depth, ply: Depth, mut window: Window) -> (usize, ValueScore) {
+    pub fn pvs(
+        &mut self,
+        position: &Position,
+        mut depth: Depth,
+        ply: Depth,
+        mut window: Window,
+    ) -> (usize, ValueScore) {
         if self.should_stop() {
             return (1, window.best());
         }
@@ -125,11 +131,17 @@ impl<'a> Searcher<'a> {
         let mut node_type = NodeType::AllNode;
         let is_check = position.is_check();
 
+        if is_check {
+            // Check extensions help tactical sequences and do not bloat the search too much.
+            depth = depth.saturating_add(1);
+        }
+
         for mov in picker {
             let next_position = position.make_move(mov);
 
             self.history.push(&next_position, mov.is_reversible(position));
-            let (nodes, score) = self.pvs(&next_position, depth - 1, ply.saturating_add(1), window.reverse());
+            let (nodes, score) =
+                self.pvs(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse());
             self.history.pop(next_position.side_to_move());
 
             count += nodes;
