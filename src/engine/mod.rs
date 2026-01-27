@@ -12,7 +12,7 @@ use crate::{
     },
     position::{Position, fen::START_POSITION},
     search::{
-        NodeType, Searcher,
+        Searcher,
         game_history::GameHistory,
         score_table::{DEFAULT_TABLE_SIZE_MB, ScoreTable},
         status::{SearchStatus, SearchStatusValue},
@@ -67,7 +67,7 @@ impl Engine {
 
             let mut searcher = Searcher::new(&mut history, &mut table, &mut net, status.clone(), duration);
 
-            searcher.pvs(&position, 5, 0, NodeType::PVNode, Window::default());
+            searcher.pvs(&position, 5, 0, Window::default());
             status.set(SearchStatusValue::Stopped);
             println!("move: {}", table.hash_move(&position).unwrap());
             println!(
