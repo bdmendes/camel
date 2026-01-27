@@ -97,14 +97,7 @@ impl<'a> Searcher<'a> {
         }
     }
 
-    pub fn pvs(
-        &mut self,
-        position: &Position,
-        depth: Depth,
-        ply: Depth,
-        mut node_type: NodeType,
-        mut window: Window,
-    ) -> (usize, ValueScore) {
+    pub fn pvs(&mut self, position: &Position, depth: Depth, ply: Depth, mut window: Window) -> (usize, ValueScore) {
         if self.should_stop() {
             return (1, window.best());
         }
@@ -129,16 +122,14 @@ impl<'a> Searcher<'a> {
         let picker = MovePicker::new(position, false, self.table.hash_move(position), [None, None]);
 
         let mut count = 0;
-        let mut improved = false;
+        let mut node_type = NodeType::AllNode;
         let is_check = position.is_check();
 
         for mov in picker {
             let next_position = position.make_move(mov);
-            // TODO: Determine children node type.
 
             self.history.push(&next_position, mov.is_reversible(position));
-            let (nodes, score) =
-                self.pvs(&next_position, depth - 1, ply.saturating_add(1), node_type, window.reverse());
+            let (nodes, score) = self.pvs(&next_position, depth - 1, ply.saturating_add(1), window.reverse());
             self.history.pop(next_position.side_to_move());
 
             count += nodes;
@@ -146,7 +137,6 @@ impl<'a> Searcher<'a> {
             match window.feed(-score, Some(mov)) {
                 FeedResult::Improvement => {
                     node_type = NodeType::PVNode;
-                    improved = true;
                 }
                 FeedResult::FailHigh => {
                     node_type = NodeType::CutNode;
@@ -158,10 +148,6 @@ impl<'a> Searcher<'a> {
 
         if count == 0 {
             return (1, if is_check { MATE_SCORE + ply as ValueScore } else { 0 });
-        }
-
-        if node_type == NodeType::PVNode && !improved {
-            node_type = NodeType::AllNode;
         }
 
         if !self.should_stop() {
@@ -257,7 +243,7 @@ mod tests {
             searcher.history.push(&position, true);
             searcher.history.push(&position, true);
 
-            let score = searcher.pvs(&position, 5, 0, NodeType::PVNode, Window::default()).1;
+            let score = searcher.pvs(&position, 5, 0, Window::default()).1;
             assert_eq!(score, 0);
             assert_eq!(searcher.table.hash_move(&position), Some(position.get_move_str(mov).unwrap()));
         });
