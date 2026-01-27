@@ -21,7 +21,7 @@ use crate::{
 use primitive_enum::primitive_enum;
 use std::time::{Duration, Instant};
 
-const MATE_SCORE: ValueScore = ValueScore::MIN + 1;
+const MATE_SCORE: ValueScore = ValueScore::MIN + 2;
 
 primitive_enum! { NodeType u8;
     PVNode,
@@ -69,14 +69,11 @@ impl<'a> Searcher<'a> {
 
         let is_check = position.is_check();
 
-        let standing_pat = if !is_check {
-            self.network.evaluate(position) * position.side_to_move().sign() as ValueScore
-        } else {
-            ValueScore::MIN + 1
-        };
-
-        if matches!(window.feed(standing_pat), FeedResult::FailHigh) {
-            return (1, window.best());
+        if !is_check {
+            let standing_pat = self.network.evaluate(position) * position.side_to_move().sign() as ValueScore;
+            if matches!(window.feed(standing_pat, None), FeedResult::FailHigh) {
+                return (1, window.best());
+            }
         }
 
         let mut count = 0;
@@ -86,14 +83,14 @@ impl<'a> Searcher<'a> {
             let next_position = position.make_move(mov);
             let (nodes, score) = self.quiesce(&next_position, ply.saturating_add(1), window.reverse());
             count += nodes;
-            if matches!(window.feed(-score), FeedResult::FailHigh) {
+            if matches!(window.feed(-score, None), FeedResult::FailHigh) {
                 break;
             }
         }
 
         if count == 0 {
             // We cannot detect stalemate here since our picker does not yield negative captures.
-            let score = if is_check { MATE_SCORE + ply as ValueScore } else { standing_pat };
+            let score = if is_check { MATE_SCORE + ply as ValueScore } else { window.best() };
             (1, score)
         } else {
             (count, window.best())
@@ -132,8 +129,7 @@ impl<'a> Searcher<'a> {
         let picker = MovePicker::new(position, false, self.table.hash_move(position), [None, None]);
 
         let mut count = 0;
-        let mut best_move = None;
-        let original_best = window.best();
+        let mut improved = false;
         let is_check = position.is_check();
 
         for mov in picker {
@@ -147,21 +143,16 @@ impl<'a> Searcher<'a> {
 
             count += nodes;
 
-            match window.feed(-score) {
+            match window.feed(-score, Some(mov)) {
                 FeedResult::Improvement => {
                     node_type = NodeType::PVNode;
-                    best_move = Some(mov);
+                    improved = true;
                 }
                 FeedResult::FailHigh => {
                     node_type = NodeType::CutNode;
-                    best_move = Some(mov);
                     break;
                 }
-                FeedResult::FailLow => {
-                    if best_move.is_none() {
-                        best_move = Some(mov);
-                    }
-                }
+                FeedResult::FailLow => {}
             }
         }
 
@@ -169,13 +160,13 @@ impl<'a> Searcher<'a> {
             return (1, if is_check { MATE_SCORE + ply as ValueScore } else { 0 });
         }
 
-        if window.best() == original_best {
+        if node_type == NodeType::PVNode && !improved {
             node_type = NodeType::AllNode;
         }
 
         if !self.should_stop() {
             self.table
-                .put(position, depth, ply, node_type, window.best(), best_move.unwrap());
+                .put(position, depth, ply, node_type, window.best(), window.best_move().unwrap());
         }
 
         (count, window.best())
