@@ -118,6 +118,7 @@ impl<'a> Searcher<'a> {
         }
 
         if seen <= 1
+            && ply > 0
             && let Some((score, node_type)) = self.table.probe(position, depth, ply)
             && let Some(next) = window.feed_cache(score, node_type)
         {
