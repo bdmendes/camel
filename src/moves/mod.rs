@@ -76,10 +76,16 @@ impl Move {
 
     pub fn pseudo_legal(&self, position: &Position) -> bool {
         position.occupancy_bb(position.side_to_move()).is_set(self.from())
-            && (self.is_capture() && !position.occupancy_bb(position.side_to_move()).is_set(self.to())
-                || !position.occupancy_bb_all().is_set(self.to())
-                || position.pieces_bb(Piece::King).is_set(self.from())
-                    && matches!(self.flag(), MoveFlag::KingsideCastle | MoveFlag::QueensideCastle))
+            && if self.is_capture() {
+                position
+                    .occupancy_bb(position.side_to_move().flipped())
+                    .is_set(self.to())
+                    || self.flag() == MoveFlag::EnpassantCapture
+            } else {
+                !position.occupancy_bb_all().is_set(self.to())
+                    || position.pieces_bb(Piece::King).is_set(self.from())
+                        && matches!(self.flag(), MoveFlag::KingsideCastle | MoveFlag::QueensideCastle)
+            }
     }
 }
 
@@ -167,6 +173,7 @@ mod tests {
     #[case(F6, E8, Capture, false)]
     #[case(A3, A4, Quiet, false)]
     #[case(A3, A4, Capture, false)]
+    #[case(F3, G3, Capture, false)]
     fn pseudo_legal(#[case] from: Square, #[case] to: Square, #[case] flag: MoveFlag, #[case] res: bool) {
         let position = Position::from_str(KIWIPETE_POSITION).unwrap();
         let mov = Move::new(from, to, flag);
