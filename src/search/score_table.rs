@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{
     evaluation::ValueScore,
     moves::Move,
-    position::Position,
+    position::{MoveStage, Position},
     search::{Depth, MATE_SCORE, NodeType},
 };
 
@@ -113,7 +113,10 @@ impl ScoreTable {
         let mut seen = HashMap::new();
         let mut position = *position;
 
-        while let Some(mov) = self.hash_move(&position) {
+        while let Some(mov) = self
+            .hash_move(&position)
+            .filter(|m| position.moves(MoveStage::All).contains(m))
+        {
             moves.push(mov);
             position = position.make_move(mov);
             let count = seen.entry(position.hash().value()).and_modify(|e| *e += 1).or_insert(1);
@@ -315,5 +318,18 @@ mod tests {
             table.pv_str(&position1),
             vec!["g1f3", "g8f6", "f3g1", "f6g8", "g1f3", "g8f6", "f3g1", "f6g8", "g1f3"]
         );
+    }
+
+    #[test]
+    fn pv_illegal_pseudo_legal() {
+        let mut table = ScoreTable::new_no_elems(1);
+        let position = Position::from_str("r3k2r/ppp2pp1/1n2p1b1/6qp/8/1BNP1Q1P/PPP2P2/R4RK1 w kq - 0 17").unwrap();
+        let mov = Move::new(Square::G1, Square::G2, MoveFlag::Quiet);
+        assert!(mov.pseudo_legal(&position));
+
+        // Simulate a collision where the probed move is also pseudo-legal.
+        table.put(&position, 1, 0, NodeType::PVNode, 0, mov);
+        assert_eq!(table.hash_move(&position), Some(mov));
+        assert!(table.pv(&position).is_empty());
     }
 }
