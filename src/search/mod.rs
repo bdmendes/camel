@@ -284,7 +284,7 @@ mod tests {
     #[case("r5rk/1p1nq2p/3pnp1p/1pp5/4PP1P/P2PQ3/BPP2PR1/2K3R1 w - -", "g2g8 a8g8 g1g8 h8g8 f4f5", 4)]
     #[case("r5k1/2qn1pp1/bpp2n1p/p2pB3/8/2PQ3P/PPB1NPP1/R4RK1 b - - 0 18", "c7e5", 2)]
     #[case("8/p4pp1/1pp4p/2Pp4/1P1K1k2/P4P1P/8/8 w - - 0 34", "c5b6 a7b6 a3a4", 3)]
-    #[case("8/8/3p1p2/p2PpP2/1p2P1rk/2P5/PP2B1K1/8 w - - 0 42", "e2g4 h4g4 c3c4", 9)] // what's up here?
+    #[case("8/8/3p1p2/p2PpP2/1p2P1rk/2P5/PP2B1K1/8 w - - 0 42", "e2g4 h4g4 c3c4", 8)]
     fn pvs_tactics(#[case] fen: Fen, #[case] moves: &str, #[case] depth: Depth) {
         with_searcher(10_000, |searcher| {
             let position = Position::try_from(fen.clone()).unwrap();
