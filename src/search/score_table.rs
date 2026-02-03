@@ -82,7 +82,8 @@ impl ScoreTable {
         let index = self.index(position);
         unsafe {
             match self.entries.get_unchecked_mut(index) {
-                Some(existing) if existing.depth > depth && node_type != NodeType::PVNode => {}
+                Some(existing)
+                    if existing.depth > depth || (existing.depth == depth && node_type != NodeType::PVNode) => {}
                 slot => {
                     *slot = Some(Entry {
                         score: if score <= MATE_SCORE + MAX_PLY_DIFF {
@@ -180,21 +181,22 @@ mod tests {
         assert_eq!(table.probe(&position, 4, 4), None);
 
         // First insertion.
-        table.put(&position, 4, 4, NodeType::PVNode, 0, mov);
-        assert_eq!(table.probe(&position, 4, 4), Some((0, NodeType::PVNode)));
-        assert_eq!(table.probe(&position, 3, 3), Some((0, NodeType::PVNode)));
+        table.put(&position, 4, 4, NodeType::AllNode, 0, mov);
+        assert_eq!(table.probe(&position, 4, 4), Some((0, NodeType::AllNode)));
+        assert_eq!(table.probe(&position, 3, 3), Some((0, NodeType::AllNode)));
         assert_eq!(table.probe(&position, 5, 5), None);
 
-        // PV-nodes are always inserted.
+        // PV-nodes are inserted at equal depth.
         table.put(&position, 3, 3, NodeType::PVNode, 30, mov);
-        assert_eq!(table.probe(&position, 4, 4), None);
+        assert_eq!(table.probe(&position, 3, 3), Some((0, NodeType::AllNode)));
+        table.put(&position, 4, 4, NodeType::PVNode, 30, mov);
         assert_eq!(table.probe(&position, 3, 3), Some((30, NodeType::PVNode)));
 
-        // Other nodes are only inserted if the depth is higher or equal.
-        table.put(&position, 2, 2, NodeType::AllNode, 0, mov);
-        assert_eq!(table.probe(&position, 2, 2), Some((30, NodeType::PVNode)));
-        table.put(&position, 3, 3, NodeType::AllNode, 0, mov);
-        assert_eq!(table.probe(&position, 3, 3), Some((0, NodeType::AllNode)));
+        // Other nodes are only inserted if the depth is higher.
+        table.put(&position, 4, 4, NodeType::CutNode, 0, mov);
+        assert_eq!(table.probe(&position, 4, 4), Some((30, NodeType::PVNode)));
+        table.put(&position, 5, 5, NodeType::CutNode, 0, mov);
+        assert_eq!(table.probe(&position, 4, 4), Some((0, NodeType::CutNode)));
     }
 
     #[test]
