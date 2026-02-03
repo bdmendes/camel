@@ -89,7 +89,7 @@ impl<'a> Searcher<'a> {
         }
 
         if count == 0 {
-            // We cannot detect stalemate here since our picker does not yield negative captures.
+            // We cannot detect stalemate here since the quiesce picker does not yield all moves when not in check.
             let score = if is_check { MATE_SCORE + ply as ValueScore } else { window.best() };
             (1, score)
         } else {
