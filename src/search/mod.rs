@@ -312,6 +312,14 @@ mod tests {
     #[case("r1bqr1k1/pp1nb1p1/4p2p/3p1p2/3P4/P1N1PNP1/1PQ2PP1/3RKB1R w K - 0 1", "c3b5", 5)]
     #[case("r1b2rk1/pp2bppp/2n1pn2/q5B1/2BP4/2N2N2/PP2QPPP/2R2RK1 b - - 0 1", "c6d4 f3d4 a5g5", 6)]
     #[case("k4r2/1R4pb/1pQp1n1p/3P4/5p1P/3P2P1/r1q1R2K/8 w - - 0 1", "b7b6 c2c6 e2a2 c6a4 a2a4", 3)]
+    #[case("r1bq1r2/pp4k1/4p2p/3pPp1Q/3N1R1P/2PB4/6P1/6K1 w - - 0 1", "f4g4 d8g5 h4g5", 3)]
+    #[case("6k1/6p1/p7/3Pn3/5p2/4rBqP/P4RP1/5QK1 b - - 0 1", "e3e1", 2)]
+    #[case("r3r1k1/pp1q1pp1/4b1p1/3p2B1/3Q1R2/8/PPP3PP/4R1K1 w - - 0 1", "d4g7 g8g7 g5f6", 5)]
+    #[case("r3q1kr/ppp5/3p2pQ/8/3PP1b1/5R2/PPP3P1/5RK1 w - - 0 1", "f3f8 e8f8 f1f8 a8f8 h6g6", 3)]
+    #[case("8/8/2R5/1p2qp1k/1P2r3/2PQ2P1/5K2/8 w - - 0 1", "d3d1 h5g5 d1d2", 4)]
+    #[case("r1b2rk1/2p1qnbp/p1pp2p1/5p2/2PQP3/1PN2N1P/PB3PP1/3R1RK1 w - - 0 1", "c3d5", 2)]
+    #[case("6r1/3Pn1qk/p1p1P1rp/2Q2p2/2P5/1P4P1/P3R2P/5RK1 b - - 0 1", "g6g3 g1h1", 3)]
+    #[case("r1brnbk1/ppq2pp1/4p2p/4N3/3P4/P1PB1Q2/3B1PPP/R3R1K1 w - - 0 1", "e5f7", 3)]
     fn alphabeta_tactics(#[case] fen: Fen, #[case] moves: &str, #[case] depth: Depth) {
         with_searcher(10_000, |searcher| {
             let position = Position::try_from(fen.clone()).unwrap();
