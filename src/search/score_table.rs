@@ -7,7 +7,7 @@ use crate::{
     search::{Depth, MATE_SCORE, NodeType},
 };
 
-pub const DEFAULT_TABLE_SIZE_MB: usize = 256;
+pub const DEFAULT_TABLE_SIZE_MB: usize = 64;
 pub const MIN_TABLE_SIZE_MB: usize = 1;
 pub const MAX_TABLE_SIZE_MB: usize = 2048;
 
