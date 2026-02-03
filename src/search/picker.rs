@@ -19,64 +19,61 @@ const QUIET_PSQT: [i8; 64] = [
     0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PickerStage {
-    HashMove,
-    OtherMoves,
-}
-
-pub struct MovePicker<'a> {
-    position: &'a Position,
-    captures_only: bool,
-    hash_move: Option<Move>,
-    killer_moves: [Option<Move>; 2],
-    stage: PickerStage,
+pub struct MovePicker {
     moves: ScoredMoveVec,
     current: usize,
 }
 
-impl<'a> MovePicker<'a> {
+impl MovePicker {
     pub fn new(
-        position: &'a Position,
+        position: &Position,
         captures_only: bool,
         hash_move: Option<Move>,
         killer_moves: [Option<Move>; 2],
     ) -> Self {
-        Self {
-            position,
-            captures_only,
-            hash_move,
-            killer_moves,
-            stage: PickerStage::HashMove,
-            moves: ScoredMoveVec::new(),
-            current: 0,
-        }
-    }
-
-    fn move_value(&self, mov: Move) -> i8 {
-        if mov.promotion_piece() == Some(Piece::Queen) {
-            72 + mov.is_capture() as i8
-        } else if mov.promotion_piece().is_some() {
-            -72
-        } else if mov.is_capture() {
-            let mvv_lva = self.position.piece_at(mov.to()).unwrap_or(Piece::Pawn).value()
-                - self.position.piece_at(mov.from()).unwrap().value();
-            if mvv_lva >= 0 {
-                36 + mvv_lva
+        let move_value = |mov: Move| -> i8 {
+            if Some(mov) == hash_move {
+                i8::MAX
+            } else if mov.promotion_piece() == Some(Piece::Queen) {
+                72 + mov.is_capture() as i8
+            } else if mov.promotion_piece().is_some() {
+                -72
+            } else if mov.is_capture() {
+                let mvv_lva = position.piece_at(mov.to()).unwrap_or(Piece::Pawn).value()
+                    - position.piece_at(mov.from()).unwrap().value();
+                if mvv_lva >= 0 {
+                    36 + mvv_lva
+                } else {
+                    let see = see::see(mov, position);
+                    if see >= 0 { 36 + see } else { -36 + see }
+                }
+            } else if Some(mov) == killer_moves[0] || Some(mov) == killer_moves[1] {
+                0
+            } else if position.piece_at(mov.from()).unwrap().value() <= 3 {
+                -9 + QUIET_PSQT[mov.to() as usize] - QUIET_PSQT[mov.from() as usize]
             } else {
-                let see = see::see(mov, self.position);
-                if see >= 0 { 36 + see } else { -36 + see }
+                -9
             }
-        } else if Some(mov) == self.killer_moves[0] || Some(mov) == self.killer_moves[1] {
-            0
-        } else if self.position.piece_at(mov.from()).unwrap().value() <= 3 {
-            -9 + QUIET_PSQT[mov.to() as usize] - QUIET_PSQT[mov.from() as usize]
-        } else {
-            -9
-        }
-    }
+        };
 
-    fn find_next_max_and_swap(&mut self) -> Option<Move> {
+        let generate = if captures_only { MoveStage::CapturesAndPromotions } else { MoveStage::All };
+        let mut moves = position
+            .moves(generate)
+            .iter()
+            .map(|&mov| (mov, move_value(mov)))
+            .collect::<ScoredMoveVec>();
+        if generate == MoveStage::CapturesAndPromotions {
+            moves.retain(|(_, score)| *score >= 0);
+        }
+
+        Self { moves, current: 0 }
+    }
+}
+
+impl Iterator for MovePicker {
+    type Item = Move;
+
+    fn next(&mut self) -> Option<Self::Item> {
         if self.current >= self.moves.len() {
             return None;
         }
@@ -95,37 +92,6 @@ impl<'a> MovePicker<'a> {
     }
 }
 
-impl Iterator for MovePicker<'_> {
-    type Item = Move;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.stage == PickerStage::HashMove {
-            self.stage = PickerStage::OtherMoves;
-            return self.hash_move.or_else(|| self.next());
-        }
-
-        if self.moves.is_empty() {
-            let generate = if self.captures_only {
-                MoveStage::CapturesAndPromotions
-            } else {
-                MoveStage::All
-            };
-            self.moves = self
-                .position
-                .moves(generate)
-                .iter()
-                .filter(|mov| Some(**mov) != self.hash_move)
-                .map(|&mov| (mov, self.move_value(mov)))
-                .collect();
-            if generate == MoveStage::CapturesAndPromotions {
-                self.moves.retain(|(_, score)| *score >= 0);
-            }
-        }
-
-        self.find_next_max_and_swap()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::MovePicker;
@@ -133,20 +99,16 @@ mod tests {
         moves::{Move, MoveFlag, see},
         position::{MoveStage, Position, fen::START_POSITION, square::Square},
     };
-    use std::{str::FromStr, sync::OnceLock};
+    use std::str::FromStr;
 
-    static MOCK_POSITION: OnceLock<Position> = OnceLock::new();
-
-    fn mocks<'a>() -> (&'a Position, MovePicker<'a>) {
-        let position = MOCK_POSITION.get_or_init(|| {
-            Position::from_str("3rk1nr/1p3pbp/p1npb1pP/4p1q1/P1B1P3/8/1PP2PP1/RNBQNRK1 w k - 2 15").unwrap()
-        });
+    fn mocks() -> (Position, MovePicker, [Option<Move>; 2]) {
+        let position = Position::from_str("3rk1nr/1p3pbp/p1npb1pP/4p1q1/P1B1P3/8/1PP2PP1/RNBQNRK1 w k - 2 15").unwrap();
         let killers = [
             Some(Move::new(Square::E1, Square::F3, MoveFlag::Quiet)),
             Some(Move::new(Square::C1, Square::E3, MoveFlag::Quiet)),
         ];
-        let picker = MovePicker::new(position, false, None, killers);
-        (position, picker)
+        let picker = MovePicker::new(&position, false, None, killers);
+        (position, picker, killers)
     }
 
     #[test]
@@ -163,7 +125,6 @@ mod tests {
         let hash_move = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
         let mut picker = MovePicker::new(&position, false, Some(hash_move), [None, None]);
         assert_eq!(picker.next(), Some(hash_move));
-        assert!(picker.moves.is_empty());
     }
 
     #[test]
@@ -217,7 +178,7 @@ mod tests {
 
     #[test]
     fn winning_captures_first() {
-        let (_, mut picker) = mocks();
+        let (_, mut picker, _) = mocks();
         assert_eq!(picker.next(), Some(Move::new(Square::C1, Square::G5, MoveFlag::Capture)));
         assert_eq!(picker.next(), Some(Move::new(Square::H6, Square::G7, MoveFlag::Capture)));
         assert_eq!(picker.next(), Some(Move::new(Square::C4, Square::E6, MoveFlag::Capture)));
@@ -226,7 +187,7 @@ mod tests {
 
     #[test]
     fn losing_captures_last() {
-        let (position, mut picker) = mocks();
+        let (position, mut picker, _) = mocks();
         let number_of_moves = position.moves(MoveStage::All).len();
         for _ in 0..(number_of_moves - 2) {
             picker.next();
@@ -238,8 +199,7 @@ mod tests {
 
     #[test]
     fn killers_after_winning_captures() {
-        let (_, mut picker) = mocks();
-        let killers = picker.killer_moves;
+        let (_, mut picker, killers) = mocks();
         assert!(picker.next().unwrap().is_capture());
         assert!(picker.next().unwrap().is_capture());
         assert!(picker.next().unwrap().is_capture());
@@ -249,7 +209,7 @@ mod tests {
 
     #[test]
     fn quiet_center_heuristic() {
-        let (_, picker) = mocks();
+        let (_, picker, _) = mocks();
         let moves = picker.collect::<Vec<_>>();
 
         let knight_to_corner_idx = moves
