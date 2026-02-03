@@ -167,6 +167,14 @@ mod tests {
     }
 
     #[test]
+    fn discard_illegal_hash_move() {
+        let position = Position::from_str("r1b2rk1/1p1n1ppp/4p3/p1P1bq2/3P4/1Q2BN2/2N2PPP/R3R1K1 b - -").unwrap();
+        let hash_move = Move::new(Square::E5, Square::F6, MoveFlag::EnpassantCapture);
+        let mut picker = MovePicker::new(&position, false, Some(hash_move), [None, None]);
+        assert_ne!(picker.next(), Some(hash_move));
+    }
+
+    #[test]
     fn no_repeated_hash() {
         let position = Position::from_str(START_POSITION).unwrap();
         let moves = position.moves(MoveStage::All);
