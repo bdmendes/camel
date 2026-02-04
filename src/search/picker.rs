@@ -1,7 +1,7 @@
 use smallvec::SmallVec;
 
 use crate::{
-    moves::{Move, see},
+    moves::Move,
     position::{MoveStage, Position, piece::Piece},
 };
 
@@ -39,14 +39,8 @@ impl MovePicker {
             } else if mov.promotion_piece().is_some() {
                 -72
             } else if mov.is_capture() {
-                let mvv_lva = position.piece_at(mov.to()).unwrap_or(Piece::Pawn).value()
-                    - position.piece_at(mov.from()).unwrap().value();
-                if mvv_lva >= 0 {
-                    36 + mvv_lva
-                } else {
-                    let see = see::see(mov, position);
-                    if see >= 0 { 36 + see } else { -36 + see }
-                }
+                36 + position.piece_at(mov.to()).unwrap_or(Piece::Pawn).value()
+                    - position.piece_at(mov.from()).unwrap().value()
             } else if Some(mov) == killer_moves[0] || Some(mov) == killer_moves[1] {
                 0
             } else if position.piece_at(mov.from()).unwrap().value() <= 3 {
@@ -96,7 +90,7 @@ impl Iterator for MovePicker {
 mod tests {
     use super::MovePicker;
     use crate::{
-        moves::{Move, MoveFlag, see},
+        moves::{Move, MoveFlag},
         position::{MoveStage, Position, fen::START_POSITION, square::Square},
     };
     use std::str::FromStr;
@@ -144,17 +138,6 @@ mod tests {
     }
 
     #[test]
-    fn captures_only_winning_captures() {
-        let position =
-            Position::from_str("r1bq1rk1/pp2bppp/2n1p3/2Pp4/2P1n3/P3PN2/1P1NBPPP/R1BQ1RK1 b - - 0 10").unwrap();
-        let picker = MovePicker::new(&position, true, None, [None, None]);
-        for mov in picker {
-            assert!(mov.is_capture());
-            assert!(see::see(mov, &position) >= 0);
-        }
-    }
-
-    #[test]
     fn queen_promotion_first() {
         let position = Position::from_str("8/5P2/8/7p/8/1Kp5/2N3kP/8 w - - 1 51").unwrap();
         let mut picker = MovePicker::new(&position, false, None, [None, None]);
@@ -182,29 +165,19 @@ mod tests {
         assert_eq!(picker.next(), Some(Move::new(Square::C1, Square::G5, MoveFlag::Capture)));
         assert_eq!(picker.next(), Some(Move::new(Square::H6, Square::G7, MoveFlag::Capture)));
         assert_eq!(picker.next(), Some(Move::new(Square::C4, Square::E6, MoveFlag::Capture)));
-        assert!(!picker.next().unwrap().is_capture());
     }
 
     #[test]
-    fn losing_captures_last() {
-        let (position, mut picker, _) = mocks();
-        let number_of_moves = position.moves(MoveStage::All).len();
-        for _ in 0..(number_of_moves - 2) {
-            picker.next();
-        }
-        assert_eq!(picker.next(), Some(Move::new(Square::C4, Square::A6, MoveFlag::Capture)));
-        assert_eq!(picker.next(), Some(Move::new(Square::D1, Square::D6, MoveFlag::Capture)));
-        assert!(picker.next().is_none());
-    }
-
-    #[test]
-    fn killers_after_winning_captures() {
+    fn killers_after_captures() {
         let (_, mut picker, killers) = mocks();
         assert!(picker.next().unwrap().is_capture());
         assert!(picker.next().unwrap().is_capture());
         assert!(picker.next().unwrap().is_capture());
+        assert!(picker.next().unwrap().is_capture());
+        assert!(picker.next().unwrap().is_capture());
         assert!(killers.contains(&picker.next()));
         assert!(killers.contains(&picker.next()));
+        assert!(!picker.next().unwrap().is_capture());
     }
 
     #[test]
