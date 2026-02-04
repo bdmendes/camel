@@ -1,4 +1,5 @@
 pub mod game_history;
+pub mod heuristics;
 pub mod perft;
 pub mod picker;
 pub mod score_table;
@@ -12,6 +13,7 @@ use crate::{
     position::Position,
     search::{
         game_history::GameHistory,
+        heuristics::maybe_zug,
         picker::MovePicker,
         score_table::ScoreTable,
         status::{SearchStatus, SearchStatusValue},
@@ -22,6 +24,8 @@ use primitive_enum::primitive_enum;
 use std::time::{Duration, Instant};
 
 const MATE_SCORE: ValueScore = ValueScore::MIN + 2;
+const NULL_MOVE_MIN_DEPTH: Depth = 5;
+const NULL_MOVE_REDUCTION: Depth = 3;
 
 primitive_enum! { NodeType u8;
     PVNode,
@@ -89,7 +93,6 @@ impl<'a> Searcher<'a> {
         }
 
         if count == 0 {
-            // We cannot detect stalemate here since the quiesce picker does not yield all moves when not in check.
             let score = if is_check { MATE_SCORE + ply as ValueScore } else { window.best() };
             (1, score)
         } else {
@@ -117,23 +120,30 @@ impl<'a> Searcher<'a> {
             return (1, 0);
         }
 
-        if seen <= 1
-            && ply > 0
+        if ply > 0
             && let Some((score, node_type)) = self.table.probe(position, depth, ply)
             && let Some(next) = window.feed_cache(score, node_type)
         {
             return (1, next);
         }
 
-        // TODO: Implement killers.
+        let is_check = position.is_check();
+
+        if ply > 0 && !is_check && depth > NULL_MOVE_MIN_DEPTH && !maybe_zug(position) {
+            let next = position.flipped_side();
+            let (nodes, score) =
+                self.alphabeta(&next, depth - NULL_MOVE_REDUCTION, ply.saturating_add(1), window.reverse_null());
+            if window.cuts_off(-score) {
+                return (nodes + 1, -score);
+            }
+        }
+
         let picker = MovePicker::new(position, false, self.table.hash_move(position), [None, None]);
 
         let mut count = 0;
         let mut node_type = NodeType::AllNode;
-        let is_check = position.is_check();
 
         if is_check {
-            // Check extensions help tactical sequences and do not bloat the search too much.
             depth = depth.saturating_add(1);
         }
 
