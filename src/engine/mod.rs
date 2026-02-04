@@ -67,7 +67,7 @@ impl Engine {
 
             let mut searcher = Searcher::new(&mut history, &mut table, &mut net, status.clone(), duration);
 
-            searcher.pvs(&position, 5, 0, Window::default());
+            searcher.alphabeta(&position, 5, 0, Window::default());
             status.set(SearchStatusValue::Stopped);
             println!("move: {}", table.hash_move(&position).unwrap());
             println!(
