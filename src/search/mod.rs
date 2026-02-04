@@ -277,11 +277,11 @@ mod tests {
     #[case("6Q1/5K2/7k/8/8/8/8/8 b - - 0 4", "h6h5 g8g3 h5h6 g3h4", 4)]
     #[case("8/5pp1/6p1/5P1P/8/K7/8/k7 w - - 0 1", "f5f6 g7f6 h5h6", 6)]
     #[case("1k6/6R1/3K4/8/8/8/8/8 w - - 6 4", "d6c6 b8a8 c6b6 a8b8 g7g8", 5)]
-    #[case("2k5/4B3/1K6/8/4B3/8/8/8 w - - 12 7", "e4f5 c8b8 e7d6 b8a8 f5e4", 3)]
+    #[case("2k5/4B3/1K6/8/4B3/8/8/8 w - - 12 7", "e4f5 c8b8 e7d6 b8a8 f5e4", 4)]
     #[case("8/1p1b1k1r/p1pB2q1/2Pp3p/3PpPpQ/2P3P1/P5K1/4R3 w - - 0 45", "h4e7 f7g8 e7f8", 2)]
     #[case("1r4k1/2RQ1rp1/4p2p/pp1p4/8/7P/5PPK/4q3 w - - 0 38", "d7f7 g8h7 f7g7", 2)]
     #[case("2Q5/p3qkpp/5pb1/8/1p1R4/5P1P/PP4P1/7K b - - 0 35", "e7e1 h1h2 e1e5", 2)]
-    #[case("5r1k/6pp/5q2/8/1Q6/8/6PP/2R3K1 b - - 2 46", "f6f2 g1h1 f2f1 c1f1 f8f1", 3)]
+    #[case("5r1k/6pp/5q2/8/1Q6/8/6PP/2R3K1 b - - 2 46", "f6f2 g1h1 f2f1 c1f1 f8f1", 4)]
     #[case("r4rk1/pp2pp1p/6p1/1N2q3/2nN2Q1/8/P4PPP/4RK1R b - - 3 18", "c4d2 f1g1 e5e1", 2)]
     #[case("1rbk4/1p1p1Qpp/p2R4/P7/1P2r3/2q3P1/5K1P/3R4 w - - 0 28", "d6d7 c8d7 f7d7", 2)]
     #[case("7k/pp4p1/2p4p/6q1/8/2N1r2P/PPPQ2P1/R6K b - - 2 26", "e3h3 g2h3 g5d2", 2)]
@@ -308,39 +308,41 @@ mod tests {
     #[case("r1b2rk1/ppbn1ppp/4p3/1QP4q/3P4/N4N2/5PPP/R1B2RK1 w - - 0 1", "c5c6", 2)]
     #[case("r2qkb1r/1ppb1ppp/p7/4p3/P1Q1P3/2P5/5PPP/R1B2KNR b kq - 0 1", "d7b5 c4b5 a6b5", 3)]
     #[case("5rk1/1b3p1p/pp3p2/3n1N2/1P6/P1qB1PP1/3Q3P/4R1K1 w - - 0 1", "d2h6 c3e1 d3f1 e1e3 f5e3", 5)]
-    #[case("1r1r2k1/4pp1p/2p1b1p1/p3R3/RqBP4/4P3/1PQ2PPP/6K1 b - - 0 1", "b4e1 c4f1 e6b3", 3)]
+    #[case("1r1r2k1/4pp1p/2p1b1p1/p3R3/RqBP4/4P3/1PQ2PPP/6K1 b - - 0 1", "b4e1 c4f1 e6b3", 4)]
     #[case("r2q2k1/pp1rbppp/4pn2/2P5/1P3B2/6P1/P3QPBP/1R3RK1 w - - 0 1", "c5c6 b7c6 g2c6", 4)]
     #[case("1r3r2/4q1kp/b1pp2p1/5p2/pPn1N3/6P1/P3PPBP/2QRR1K1 w - - 0 1", "e4d6 c4d6 c1c6", 4)]
-    #[case("6k1/p4p1p/1p3np1/2q5/4p3/4P1N1/PP3PPP/3Q2K1 w - - 0 1", "d1d8 g8g7 d8f6 g7f6 g3e4", 3)]
+    #[case("6k1/p4p1p/1p3np1/2q5/4p3/4P1N1/PP3PPP/3Q2K1 w - - 0 1", "d1d8 g8g7 d8f6 g7f6 g3e4", 4)]
     #[case("7k/1b1r2p1/p6p/1p2qN2/3bP3/3Q4/P5PP/1B1R3K b - - 0 1", "d4g1", 2)]
-    #[case("r3r2k/2R3pp/pp1q1p2/8/3P3R/7P/PP3PP1/3Q2K1 w - - 0 1", "h4h7 h8h7 d1h5 h7g8 h5f7", 3)]
+    #[case("r3r2k/2R3pp/pp1q1p2/8/3P3R/7P/PP3PP1/3Q2K1 w - - 0 1", "h4h7 h8h7 d1h5 h7g8 h5f7", 4)]
     #[case("3r4/2p1rk2/1pQq1pp1/7p/1P1P4/P4P2/6PP/R1R3K1 b - - 0 1", "e7e1", 2)]
     #[case("2r5/2rk2pp/1pn1pb2/pN1p4/P2P4/1N2B3/nPR1KPPP/3R4 b - - 0 1", "c6d4", 2)]
     #[case("r1br2k1/pp2bppp/2nppn2/8/2P1PB2/2N2P2/PqN1B1PP/R2Q1R1K w - - 0 1", "c3a4 b2a1", 2)]
     #[case("3rb1k1/pq3pbp/4n1p1/3p4/2N5/2P2QB1/PP3PPP/1B1R2K1 b - - 0 1", "d5c4 d1d8", 2)]
     #[case("7k/2p1b1pp/8/1p2P3/1P3r2/2P3Q1/1P5P/R4qBK b - - 0 1", "f1a1", 2)]
-    #[case("r1bqr1k1/pp1nb1p1/4p2p/3p1p2/3P4/P1N1PNP1/1PQ2PP1/3RKB1R w K - 0 1", "c3b5", 5)]
+    #[case("r1bqr1k1/pp1nb1p1/4p2p/3p1p2/3P4/P1N1PNP1/1PQ2PP1/3RKB1R w K - 0 1", "c3b5", 6)]
     #[case("r1b2rk1/pp2bppp/2n1pn2/q5B1/2BP4/2N2N2/PP2QPPP/2R2RK1 b - - 0 1", "c6d4 f3d4 a5g5", 6)]
-    #[case("k4r2/1R4pb/1pQp1n1p/3P4/5p1P/3P2P1/r1q1R2K/8 w - - 0 1", "b7b6 c2c6 e2a2 c6a4 a2a4", 3)]
-    #[case("r1bq1r2/pp4k1/4p2p/3pPp1Q/3N1R1P/2PB4/6P1/6K1 w - - 0 1", "f4g4 d8g5 h4g5", 3)]
+    #[case("k4r2/1R4pb/1pQp1n1p/3P4/5p1P/3P2P1/r1q1R2K/8 w - - 0 1", "b7b6 c2c6 e2a2 c6a4 a2a4", 4)]
+    #[case("r1bq1r2/pp4k1/4p2p/3pPp1Q/3N1R1P/2PB4/6P1/6K1 w - - 0 1", "f4g4 d8g5 h4g5", 4)]
     #[case("6k1/6p1/p7/3Pn3/5p2/4rBqP/P4RP1/5QK1 b - - 0 1", "e3e1", 2)]
-    #[case("r3r1k1/pp1q1pp1/4b1p1/3p2B1/3Q1R2/8/PPP3PP/4R1K1 w - - 0 1", "d4g7 g8g7 g5f6", 5)]
-    #[case("r3q1kr/ppp5/3p2pQ/8/3PP1b1/5R2/PPP3P1/5RK1 w - - 0 1", "f3f8 e8f8 f1f8 a8f8 h6g6", 3)]
+    #[case("r3r1k1/pp1q1pp1/4b1p1/3p2B1/3Q1R2/8/PPP3PP/4R1K1 w - - 0 1", "d4g7 g8g7 g5f6", 6)]
+    #[case("r3q1kr/ppp5/3p2pQ/8/3PP1b1/5R2/PPP3P1/5RK1 w - - 0 1", "f3f8 e8f8 f1f8 a8f8 h6g6", 4)]
     #[case("8/8/2R5/1p2qp1k/1P2r3/2PQ2P1/5K2/8 w - - 0 1", "d3d1 h5g5 d1d2", 4)]
     #[case("r1b2rk1/2p1qnbp/p1pp2p1/5p2/2PQP3/1PN2N1P/PB3PP1/3R1RK1 w - - 0 1", "c3d5", 2)]
-    #[case("6r1/3Pn1qk/p1p1P1rp/2Q2p2/2P5/1P4P1/P3R2P/5RK1 b - - 0 1", "g6g3 g1h1", 3)]
+    #[case("6r1/3Pn1qk/p1p1P1rp/2Q2p2/2P5/1P4P1/P3R2P/5RK1 b - - 0 1", "g6g3 g1h1", 4)]
     #[case("r1brnbk1/ppq2pp1/4p2p/4N3/3P4/P1PB1Q2/3B1PPP/R3R1K1 w - - 0 1", "e5f7", 3)]
-    #[case("1r1r1qk1/p2n1p1p/bp1Pn1pQ/2pNp3/2P2P1N/1P5B/P6P/3R1RK1 w - - 0 1", "d5e7", 3)]
+    #[case("1r1r1qk1/p2n1p1p/bp1Pn1pQ/2pNp3/2P2P1N/1P5B/P6P/3R1RK1 w - - 0 1", "d5e7", 4)]
     #[case("1k1r2r1/ppq5/1bp4p/3pQ3/8/2P2N2/PP4P1/R4R1K b - - 0 1", "c7e5 f3e5 g8g5", 5)]
     #[case("3r2k1/p2q4/1p4p1/3rRp1p/5P1P/6PK/P3R3/3Q4 w - - 0 1", "e5d5 d7d5 e2e8", 3)]
     #[case("6k1/5ppp/1q6/2b5/8/2R1pPP1/1P2Q2P/7K w - - 0 1", "e2e3", 3)]
     #[case("2kr3r/pppq1ppp/3p1n2/bQ2p3/1n1PP3/1PN1BN1P/1PP2PP1/2KR3R b - - 0 1", "b4a2", 2)]
-    #[case("2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 1", "b5a7 c5a7 h3a3", 8)]
-    fn alphabeta_tactics(#[case] fen: Fen, #[case] moves: &str, #[case] depth: Depth) {
-        with_searcher(10_000, |searcher| {
+    #[case("2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 1", "b5a7 c5a7 h3a3", 9)]
+    fn alphabeta_iter_tactics(#[case] fen: Fen, #[case] moves: &str, #[case] depth: Depth) {
+        with_searcher(1_000_000, |searcher| {
             let position = Position::try_from(fen.clone()).unwrap();
             let moves = moves.split_whitespace().collect::<Vec<_>>();
-            searcher.alphabeta(&position, depth, 0, Window::default());
+            for d in 1..=depth {
+                searcher.alphabeta(&position, d, 0, Window::default());
+            }
             let pv = searcher
                 .table
                 .pv_str(&position)
