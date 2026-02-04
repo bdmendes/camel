@@ -97,7 +97,7 @@ impl<'a> Searcher<'a> {
         }
     }
 
-    pub fn pvs(
+    pub fn alphabeta(
         &mut self,
         position: &Position,
         mut depth: Depth,
@@ -142,7 +142,7 @@ impl<'a> Searcher<'a> {
 
             self.history.push(&next_position, mov.is_reversible(position));
             let (nodes, score) =
-                self.pvs(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse());
+                self.alphabeta(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse());
             self.history.pop(next_position.side_to_move());
 
             count += nodes;
@@ -250,13 +250,13 @@ mod tests {
     #[case("6k1/6p1/8/6KQ/1r6/q2b4/8/8 w - - 0 1", "h5e8")]
     #[case("5rk1/2Q3pp/p7/3Pp3/1P2P1P1/8/P4qPK/R6R b - - 2 30", "f2h4")]
     #[case("2k5/pp2n2Q/8/P2p4/6q1/P1p5/2P2P1P/5R1K b - - 2 22", "g4f3")]
-    fn pvs_finds_perpetual(#[case] fen: Fen, #[case] mov: &str) {
+    fn alphabeta_finds_perpetual(#[case] fen: Fen, #[case] mov: &str) {
         with_searcher(10_000, |searcher| {
             let position = Position::try_from(fen.clone()).unwrap();
             searcher.history.push(&position, true);
             searcher.history.push(&position, true);
 
-            let score = searcher.pvs(&position, 5, 0, Window::default()).1;
+            let score = searcher.alphabeta(&position, 5, 0, Window::default()).1;
             assert_eq!(score, 0);
             assert_eq!(searcher.table.hash_move(&position), Some(position.get_move_str(mov).unwrap()));
         });
@@ -285,11 +285,11 @@ mod tests {
     #[case("r5k1/2qn1pp1/bpp2n1p/p2pB3/8/2PQ3P/PPB1NPP1/R4RK1 b - - 0 18", "c7e5", 2)]
     #[case("8/p4pp1/1pp4p/2Pp4/1P1K1k2/P4P1P/8/8 w - - 0 34", "c5b6 a7b6 a3a4", 3)]
     #[case("8/8/3p1p2/p2PpP2/1p2P1rk/2P5/PP2B1K1/8 w - - 0 42", "e2g4 h4g4 c3c4", 8)]
-    fn pvs_tactics(#[case] fen: Fen, #[case] moves: &str, #[case] depth: Depth) {
+    fn alphabeta_tactics(#[case] fen: Fen, #[case] moves: &str, #[case] depth: Depth) {
         with_searcher(10_000, |searcher| {
             let position = Position::try_from(fen.clone()).unwrap();
             let moves = moves.split_whitespace().collect::<Vec<_>>();
-            searcher.pvs(&position, depth, 0, Window::default());
+            searcher.alphabeta(&position, depth, 0, Window::default());
             let pv = searcher
                 .table
                 .pv_str(&position)

@@ -44,21 +44,8 @@ impl Window {
         }
     }
 
-    pub fn reverse_null(&self) -> Self {
-        Window {
-            alpha: -self.alpha - 1,
-            beta: -self.alpha,
-            best_score: ValueScore::MIN + 1,
-            best_move: None,
-        }
-    }
-
     pub fn is_null(&self) -> bool {
         self.alpha == self.beta - 1
-    }
-
-    pub fn requires_full_search(&self, null_score: ValueScore) -> bool {
-        null_score > self.alpha && null_score < self.beta
     }
 
     pub fn feed(&mut self, score: ValueScore, mov: Option<Move>) -> FeedResult {
@@ -180,32 +167,5 @@ mod tests {
         let mut window3 = window;
         assert_eq!(window3.feed_cache(400, NodeType::AllNode), None);
         assert_eq!(window3.feed_cache(200, NodeType::AllNode), Some(200));
-    }
-
-    #[test]
-    fn zero_search() {
-        let mut window = Window::default();
-        assert!(!window.is_null());
-
-        // Find a position where we, say white, are +300.
-        window.feed(300, None);
-
-        // Try another move, assuming it won't be the best ("principal variation").
-        // Any move that refutes this assumption suffices.
-        let null_window = window.reverse_null();
-        assert_eq!(
-            null_window,
-            Window {
-                alpha: -301,
-                beta: -300,
-                best_score: ValueScore::MIN + 1,
-                best_move: None,
-            }
-        );
-        assert!(null_window.is_null());
-
-        // We'll require a research with a non-null window if our assumption was incorrect.
-        assert!(window.requires_full_search(350));
-        assert!(!window.requires_full_search(250));
     }
 }
