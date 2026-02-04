@@ -44,8 +44,21 @@ impl Window {
         }
     }
 
+    pub fn reverse_null(&self) -> Self {
+        Window {
+            alpha: -self.beta,
+            beta: -self.beta + 1,
+            best_score: ValueScore::MIN + 1,
+            best_move: None,
+        }
+    }
+
     pub fn is_null(&self) -> bool {
         self.alpha == self.beta - 1
+    }
+
+    pub fn cuts_off(&self, score: ValueScore) -> bool {
+        score >= self.beta
     }
 
     pub fn feed(&mut self, score: ValueScore, mov: Option<Move>) -> FeedResult {
@@ -111,6 +124,8 @@ mod tests {
         assert_eq!(window.alpha, ValueScore::MIN + 1);
         assert_eq!(window.beta, -300);
         assert_eq!(window.best(), ValueScore::MIN + 1);
+        assert!(window.cuts_off(-200));
+        assert!(!window.cuts_off(-400));
 
         // We discovered a position where black is +200.
         // We can prune this branch, as it's for sure not the best.
@@ -167,5 +182,23 @@ mod tests {
         let mut window3 = window;
         assert_eq!(window3.feed_cache(400, NodeType::AllNode), None);
         assert_eq!(window3.feed_cache(200, NodeType::AllNode), Some(200));
+    }
+
+    #[test]
+    fn zero_search() {
+        let window = Window::default();
+        assert!(!window.is_null());
+
+        let null_window = window.reverse_null();
+        assert_eq!(
+            null_window,
+            Window {
+                alpha: -ValueScore::MAX,
+                beta: -ValueScore::MAX + 1,
+                best_score: ValueScore::MIN + 1,
+                best_move: None,
+            }
+        );
+        assert!(null_window.is_null());
     }
 }

@@ -1,4 +1,5 @@
 pub mod game_history;
+pub mod heuristics;
 pub mod perft;
 pub mod picker;
 pub mod score_table;
@@ -12,6 +13,7 @@ use crate::{
     position::Position,
     search::{
         game_history::GameHistory,
+        heuristics::maybe_zug,
         picker::MovePicker,
         score_table::ScoreTable,
         status::{SearchStatus, SearchStatusValue},
@@ -22,6 +24,8 @@ use primitive_enum::primitive_enum;
 use std::time::{Duration, Instant};
 
 const MATE_SCORE: ValueScore = ValueScore::MIN + 2;
+const NULL_MOVE_MIN_DEPTH: Depth = 5;
+const NULL_MOVE_REDUCTION: Depth = 3;
 
 primitive_enum! { NodeType u8;
     PVNode,
@@ -89,7 +93,6 @@ impl<'a> Searcher<'a> {
         }
 
         if count == 0 {
-            // We cannot detect stalemate here since the quiesce picker does not yield all moves when not in check.
             let score = if is_check { MATE_SCORE + ply as ValueScore } else { window.best() };
             (1, score)
         } else {
@@ -117,23 +120,30 @@ impl<'a> Searcher<'a> {
             return (1, 0);
         }
 
-        if seen <= 1
-            && ply > 0
+        if ply > 0
             && let Some((score, node_type)) = self.table.probe(position, depth, ply)
             && let Some(next) = window.feed_cache(score, node_type)
         {
             return (1, next);
         }
 
-        // TODO: Implement killers.
+        let is_check = position.is_check();
+
+        if ply > 0 && !is_check && depth > NULL_MOVE_MIN_DEPTH && !maybe_zug(position) {
+            let next = position.flipped_side();
+            let (nodes, score) =
+                self.alphabeta(&next, depth - NULL_MOVE_REDUCTION, ply.saturating_add(1), window.reverse_null());
+            if window.cuts_off(-score) {
+                return (nodes + 1, -score);
+            }
+        }
+
         let picker = MovePicker::new(position, false, self.table.hash_move(position), [None, None]);
 
         let mut count = 0;
         let mut node_type = NodeType::AllNode;
-        let is_check = position.is_check();
 
         if is_check {
-            // Check extensions help tactical sequences and do not bloat the search too much.
             depth = depth.saturating_add(1);
         }
 
@@ -285,6 +295,47 @@ mod tests {
     #[case("r5k1/2qn1pp1/bpp2n1p/p2pB3/8/2PQ3P/PPB1NPP1/R4RK1 b - - 0 18", "c7e5", 2)]
     #[case("8/p4pp1/1pp4p/2Pp4/1P1K1k2/P4P1P/8/8 w - - 0 34", "c5b6 a7b6 a3a4", 3)]
     #[case("8/8/3p1p2/p2PpP2/1p2P1rk/2P5/PP2B1K1/8 w - - 0 42", "e2g4 h4g4 c3c4", 8)]
+    #[case("5rk1/1ppb3p/p1pb4/6q1/3P1p1r/2P1R2P/PP1BQ1P1/5RKN w - - 0 1", "e3g3", 2)]
+    #[case("r1bq2rk/pp3pbp/2p1p1pQ/7P/3P4/2PB1N2/PP3PPR/2KR4 w - - 0 1", "h6h7 h8h7 h5g6", 2)]
+    #[case("7k/p7/1R5K/6r1/6p1/6P1/8/8 w - -", "b6b7", 3)]
+    #[case("rnbqkb1r/pppp1ppp/8/4P3/6n1/7P/PPPNPPP1/R1BQKBNR b KQkq - 0 1", "g4e3", 3)]
+    #[case("r4q1k/p2bR1rp/2p2Q1N/5p2/5p2/2P5/PP3PPP/R5K1 w - - 0 1", "e7f7", 2)]
+    #[case("2br2k1/2q3rn/p2NppQ1/2p1P3/Pp5R/4P3/1P3PPP/3R2K1 w - -", "h4h7", 2)]
+    #[case("5rk1/pp4p1/2n1p2p/2Npq3/2p5/6P1/P3P1BP/R4Q1K w - -", "f1f8 g8f8 c5d7", 2)]
+    #[case("r4rk1/ppp2ppp/2n5/2bqp3/8/P2PB3/1PP1NPPP/R2Q1RK1 w - -", "e2c3", 2)]
+    #[case("1k5r/pppbn1pp/4q1r1/1P3p2/2NPp3/1QP5/P4PPP/R1B1R1K1 w - - 0 1", "c4e5", 2)]
+    #[case("R7/P4k2/8/8/8/8/r7/6K1 w - - 0 1", "a8h8 a2a1 g1f2 a1a2", 7)]
+    #[case("r1b2rk1/ppbn1ppp/4p3/1QP4q/3P4/N4N2/5PPP/R1B2RK1 w - - 0 1", "c5c6", 2)]
+    #[case("r2qkb1r/1ppb1ppp/p7/4p3/P1Q1P3/2P5/5PPP/R1B2KNR b kq - 0 1", "d7b5 c4b5 a6b5", 3)]
+    #[case("5rk1/1b3p1p/pp3p2/3n1N2/1P6/P1qB1PP1/3Q3P/4R1K1 w - - 0 1", "d2h6 c3e1 d3f1 e1e3 f5e3", 5)]
+    #[case("1r1r2k1/4pp1p/2p1b1p1/p3R3/RqBP4/4P3/1PQ2PPP/6K1 b - - 0 1", "b4e1 c4f1 e6b3", 3)]
+    #[case("r2q2k1/pp1rbppp/4pn2/2P5/1P3B2/6P1/P3QPBP/1R3RK1 w - - 0 1", "c5c6 b7c6 g2c6", 4)]
+    #[case("1r3r2/4q1kp/b1pp2p1/5p2/pPn1N3/6P1/P3PPBP/2QRR1K1 w - - 0 1", "e4d6 c4d6 c1c6", 4)]
+    #[case("6k1/p4p1p/1p3np1/2q5/4p3/4P1N1/PP3PPP/3Q2K1 w - - 0 1", "d1d8 g8g7 d8f6 g7f6 g3e4", 3)]
+    #[case("7k/1b1r2p1/p6p/1p2qN2/3bP3/3Q4/P5PP/1B1R3K b - - 0 1", "d4g1", 2)]
+    #[case("r3r2k/2R3pp/pp1q1p2/8/3P3R/7P/PP3PP1/3Q2K1 w - - 0 1", "h4h7 h8h7 d1h5 h7g8 h5f7", 3)]
+    #[case("3r4/2p1rk2/1pQq1pp1/7p/1P1P4/P4P2/6PP/R1R3K1 b - - 0 1", "e7e1", 2)]
+    #[case("2r5/2rk2pp/1pn1pb2/pN1p4/P2P4/1N2B3/nPR1KPPP/3R4 b - - 0 1", "c6d4", 2)]
+    #[case("r1br2k1/pp2bppp/2nppn2/8/2P1PB2/2N2P2/PqN1B1PP/R2Q1R1K w - - 0 1", "c3a4 b2a1", 2)]
+    #[case("3rb1k1/pq3pbp/4n1p1/3p4/2N5/2P2QB1/PP3PPP/1B1R2K1 b - - 0 1", "d5c4 d1d8", 2)]
+    #[case("7k/2p1b1pp/8/1p2P3/1P3r2/2P3Q1/1P5P/R4qBK b - - 0 1", "f1a1", 2)]
+    #[case("r1bqr1k1/pp1nb1p1/4p2p/3p1p2/3P4/P1N1PNP1/1PQ2PP1/3RKB1R w K - 0 1", "c3b5", 5)]
+    #[case("r1b2rk1/pp2bppp/2n1pn2/q5B1/2BP4/2N2N2/PP2QPPP/2R2RK1 b - - 0 1", "c6d4 f3d4 a5g5", 6)]
+    #[case("k4r2/1R4pb/1pQp1n1p/3P4/5p1P/3P2P1/r1q1R2K/8 w - - 0 1", "b7b6 c2c6 e2a2 c6a4 a2a4", 3)]
+    #[case("r1bq1r2/pp4k1/4p2p/3pPp1Q/3N1R1P/2PB4/6P1/6K1 w - - 0 1", "f4g4 d8g5 h4g5", 3)]
+    #[case("6k1/6p1/p7/3Pn3/5p2/4rBqP/P4RP1/5QK1 b - - 0 1", "e3e1", 2)]
+    #[case("r3r1k1/pp1q1pp1/4b1p1/3p2B1/3Q1R2/8/PPP3PP/4R1K1 w - - 0 1", "d4g7 g8g7 g5f6", 5)]
+    #[case("r3q1kr/ppp5/3p2pQ/8/3PP1b1/5R2/PPP3P1/5RK1 w - - 0 1", "f3f8 e8f8 f1f8 a8f8 h6g6", 3)]
+    #[case("8/8/2R5/1p2qp1k/1P2r3/2PQ2P1/5K2/8 w - - 0 1", "d3d1 h5g5 d1d2", 4)]
+    #[case("r1b2rk1/2p1qnbp/p1pp2p1/5p2/2PQP3/1PN2N1P/PB3PP1/3R1RK1 w - - 0 1", "c3d5", 2)]
+    #[case("6r1/3Pn1qk/p1p1P1rp/2Q2p2/2P5/1P4P1/P3R2P/5RK1 b - - 0 1", "g6g3 g1h1", 3)]
+    #[case("r1brnbk1/ppq2pp1/4p2p/4N3/3P4/P1PB1Q2/3B1PPP/R3R1K1 w - - 0 1", "e5f7", 3)]
+    #[case("1r1r1qk1/p2n1p1p/bp1Pn1pQ/2pNp3/2P2P1N/1P5B/P6P/3R1RK1 w - - 0 1", "d5e7", 3)]
+    #[case("1k1r2r1/ppq5/1bp4p/3pQ3/8/2P2N2/PP4P1/R4R1K b - - 0 1", "c7e5 f3e5 g8g5", 5)]
+    #[case("3r2k1/p2q4/1p4p1/3rRp1p/5P1P/6PK/P3R3/3Q4 w - - 0 1", "e5d5 d7d5 e2e8", 3)]
+    #[case("6k1/5ppp/1q6/2b5/8/2R1pPP1/1P2Q2P/7K w - - 0 1", "e2e3", 3)]
+    #[case("2kr3r/pppq1ppp/3p1n2/bQ2p3/1n1PP3/1PN1BN1P/1PP2PP1/2KR3R b - - 0 1", "b4a2", 2)]
+    #[case("2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 1", "b5a7 c5a7 h3a3", 8)]
     fn alphabeta_tactics(#[case] fen: Fen, #[case] moves: &str, #[case] depth: Depth) {
         with_searcher(10_000, |searcher| {
             let position = Position::try_from(fen.clone()).unwrap();
