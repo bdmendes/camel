@@ -73,6 +73,7 @@ impl Engine {
                 if searcher.should_stop() {
                     break;
                 }
+                let pv = searcher.pv(&position);
                 println!(
                     "info depth {} score cp {} time {} nodes {} nps {} pv {}",
                     d,
@@ -80,7 +81,7 @@ impl Engine {
                     time.elapsed().as_millis(),
                     nodes,
                     (nodes as f64 / time.elapsed().as_secs_f64()) as u64,
-                    searcher.pv(&position).join(" ")
+                    pv[..(d as usize).min(pv.len())].join(" ")
                 );
             }
 
