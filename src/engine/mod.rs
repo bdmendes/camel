@@ -65,6 +65,8 @@ impl Engine {
             let mut net = net.lock().unwrap();
             let duration = Duration::from_hours(1);
 
+            table.prepare_new_search();
+
             let mut searcher = Searcher::new(&mut history, &mut table, &mut net, status.clone(), duration);
 
             for d in 1..=Depth::MAX {
@@ -74,13 +76,15 @@ impl Engine {
                     break;
                 }
                 let pv = searcher.pv(&position);
+                let elapsed = time.elapsed();
                 println!(
-                    "info depth {} score cp {} time {} nodes {} nps {} pv {}",
+                    "info depth {} score cp {} time {} nodes {} nps {} hashfull {} pv {}",
                     d,
                     score,
-                    time.elapsed().as_millis(),
+                    elapsed.as_millis(),
                     nodes,
                     (nodes as f64 / time.elapsed().as_secs_f64()) as u64,
+                    searcher.hashfull_millis(),
                     pv[..(d as usize).min(pv.len())].join(" ")
                 );
             }

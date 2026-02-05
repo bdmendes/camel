@@ -64,6 +64,10 @@ impl<'a> Searcher<'a> {
         self.table.pv(position).into_iter().map(|mov| mov.to_string()).collect()
     }
 
+    pub fn hashfull_millis(&self) -> usize {
+        self.table.hashfull_millis()
+    }
+
     pub fn should_stop(&self) -> bool {
         let status = self.status.get();
         status == SearchStatusValue::Stopped
