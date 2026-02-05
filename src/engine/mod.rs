@@ -2,17 +2,17 @@ use std::{
     str::FromStr,
     sync::{Arc, Mutex},
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use crate::{
     evaluation::{
-        NNUE_PARAMS_BLOB, ValueScore,
+        NNUE_PARAMS_BLOB,
         nnue::{NeuralNetwork, Parameters},
     },
     position::{Position, fen::START_POSITION},
     search::{
-        Searcher,
+        Depth, Searcher,
         game_history::GameHistory,
         score_table::{DEFAULT_TABLE_SIZE_MB, ScoreTable},
         status::{SearchStatus, SearchStatusValue},
@@ -67,13 +67,24 @@ impl Engine {
 
             let mut searcher = Searcher::new(&mut history, &mut table, &mut net, status.clone(), duration);
 
-            searcher.alphabeta(&position, 5, 0, Window::default());
+            for d in 1..=Depth::MAX {
+                let time = Instant::now();
+                let (nodes, score) = searcher.alphabeta(&position, d, 0, Window::default());
+                if searcher.should_stop() {
+                    break;
+                }
+                println!(
+                    "info depth {} cp {} time {} nodes {} pv {}",
+                    d,
+                    score,
+                    time.elapsed().as_millis(),
+                    nodes,
+                    searcher.pv(&position).join(" ")
+                );
+            }
+
             status.set(SearchStatusValue::Stopped);
-            println!("move: {}", table.hash_move(&position).unwrap());
-            println!(
-                "eval: {}",
-                table.probe(&position, 5, 0).unwrap().0 * position.side_to_move().sign() as ValueScore
-            );
+            println!("bestmove {}", table.hash_move(&position).unwrap());
         });
     }
 }

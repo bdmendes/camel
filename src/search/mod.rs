@@ -60,6 +60,10 @@ impl<'a> Searcher<'a> {
         }
     }
 
+    pub fn pv(&self, position: &Position) -> Vec<String> {
+        self.table.pv(position).into_iter().map(|mov| mov.to_string()).collect()
+    }
+
     pub fn should_stop(&self) -> bool {
         let status = self.status.get();
         status == SearchStatusValue::Stopped
