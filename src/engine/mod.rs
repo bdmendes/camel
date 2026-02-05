@@ -74,11 +74,12 @@ impl Engine {
                     break;
                 }
                 println!(
-                    "info depth {} cp {} time {} nodes {} pv {}",
+                    "info depth {} score cp {} time {} nodes {} nps {} pv {}",
                     d,
                     score,
                     time.elapsed().as_millis(),
                     nodes,
+                    (nodes as f64 / time.elapsed().as_secs_f64()) as u64,
                     searcher.pv(&position).join(" ")
                 );
             }
