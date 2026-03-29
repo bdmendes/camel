@@ -4,7 +4,7 @@ use crate::{
     evaluation::ValueScore,
     position::{Position, PositionDiffEntry, color::Color, fen::START_POSITION, piece::Piece, square::Square},
 };
-use rand::Rng;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 
 // 2 sides, 6 pieces, 64 squares.
