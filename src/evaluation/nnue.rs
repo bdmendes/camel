@@ -153,7 +153,7 @@ impl NeuralNetwork {
     }
 
     pub fn evaluate(&mut self, position: &Position) -> ValueScore {
-        (self.evaluate_unscaled(position) * SCALE) as ValueScore
+        (self.evaluate_unscaled(position) * SCALE).round() as ValueScore
     }
 }
 
