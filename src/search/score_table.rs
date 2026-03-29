@@ -248,6 +248,37 @@ mod tests {
     }
 
     #[test]
+    fn collision_old_age() {
+        let mut table = ScoreTable::new_no_elems(1);
+        let position1 = Position::from_str(START_POSITION).unwrap();
+        let mov1 = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
+        let position2 = Position::from_str(START_POSITION)
+            .unwrap()
+            .make_move_str("e2e4")
+            .unwrap();
+        let mov2 = Move::new(Square::D7, Square::D5, MoveFlag::DoublePawnPush);
+
+        table.put(&position1, 3, 3, NodeType::PVNode, 0, mov1);
+        assert!(table.probe(&position1, 3, 3).is_some());
+        assert!(table.probe(&position2, 3, 3).is_none());
+
+        // Insert a shallower entry with the same age.
+        table.put(&position2, 2, 2, NodeType::PVNode, 0, mov2);
+        assert!(table.probe(&position1, 3, 3).is_some());
+        assert!(table.probe(&position2, 2, 2).is_none());
+
+        // Signaling a new search should not have any side effect.
+        table.prepare_new_search();
+        assert!(table.probe(&position1, 3, 3).is_some());
+        assert!(table.probe(&position2, 2, 2).is_none());
+
+        // In a new search, all old entries may be overwritten, even if they are deeper.
+        table.put(&position2, 2, 2, NodeType::PVNode, 0, mov2);
+        assert!(table.probe(&position1, 3, 3).is_none());
+        assert!(table.probe(&position2, 2, 2).is_some());
+    }
+
+    #[test]
     fn mate_scoring() {
         let position1 = Position::from_str("3k4/8/7R/6R1/8/8/8/4K3 w - - 0 1").unwrap();
         let mov1 = Move::new(Square::G5, Square::G7, MoveFlag::Quiet);
