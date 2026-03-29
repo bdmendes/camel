@@ -4,7 +4,7 @@ use std::{
 };
 
 use ctor::ctor;
-use rand::{RngCore, SeedableRng, rngs::StdRng};
+use rand::{Rng, SeedableRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
 
 use super::{

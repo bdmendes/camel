@@ -1,7 +1,7 @@
 use super::sliders::{BISHOP_MOVE_DIRECTIONS, ROOK_MOVE_DIRECTIONS, slider_attacks_from_square};
 use crate::position::{Position, bitboard::Bitboard, piece::Piece, square::Square};
 use ctor::ctor;
-use rand::{RngCore, SeedableRng, rngs::StdRng};
+use rand::{Rng, SeedableRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
 use std::{
     fs::File,
