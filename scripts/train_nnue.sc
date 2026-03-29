@@ -1,3 +1,4 @@
+#!/usr/bin/env -S scala-cli shebang
 //> using scala "3.3.7"
 //> using jvm 21
 //> using javaOpt "-Xms2G"
@@ -22,29 +23,28 @@ import scala.util.Using
 import torch.*
 import torch.nn.functional as F
 
-def toInput(fen: String): Tensor[Float32] =
+def toInput(fen: String): Tensor[Float64] =
   val position = new Position(fen)
-  val input = mutable.ArraySeq.fill(768)(0.0f)
-  Seq(WP, WN, WB, WR, WQ, WK, BP, BN, BB, BR, BQ, BK)
-    .zipWithIndex
+  val input = mutable.ArraySeq.fill(768)(0.0d)
+  Seq(WP, WN, WB, WR, WQ, WK, BP, BN, BB, BR, BQ, BK).zipWithIndex
     .foreach: (piece, idx) =>
       val bb = position.getBitboard(piece)
       while bb.getValue() != 0 do
         val sq = bb.trailingZeros()
         bb.popLastBit()
-        input.update(idx * 64 + sq, 1.0f)
+        input.update(idx * 64 + sq, 1.0d)
   torch.Tensor(input.toSeq)
 end toInput
 
-def toInputExpected(epdLine: String): (Tensor[Float32], Tensor[Float32]) =
+def toInputExpected(epdLine: String): (Tensor[Float64], Tensor[Float64]) =
   val parts = epdLine.split(" ")
   val fen = parts.take(6).mkString(" ")
-  val eval = parts.last.drop(1).dropRight(2).toFloat / 2000.0f
-  toInput(fen) -> torch.Tensor(Seq(eval.max(-1.0f).min(1.0f))).reshape(1, 1)
+  val eval = parts.last.drop(1).dropRight(2).toDouble / 1200.0d
+  toInput(fen) -> torch.Tensor(Seq(eval.max(-1.0d).min(1.0d))).reshape(1, 1)
 
 class NNUE extends nn.Module:
-  private val layer1 = register(nn.Linear(768, 32))
-  private val layer2 = register(nn.Linear(32, 1))
+  private val layer1 = register(nn.Linear[Float64](768, 64))
+  private val layer2 = register(nn.Linear[Float64](64, 1))
 
   def optimizer(learningRate: Double) = optim.Adam(
     params = parameters,
@@ -55,7 +55,7 @@ class NNUE extends nn.Module:
     amsgrad = false
   )
 
-  def apply(input: Tensor[Float32]): Tensor[Float32] =
+  def apply(input: Tensor[Float64]): Tensor[Float64] =
     val acc = F.relu(layer1(input))
     layer2(acc)
 
@@ -63,7 +63,7 @@ class NNUE extends nn.Module:
     val accWeights = layer1.weight.flatten.toArray.map(_.toDouble).toList
     val accBiases = layer1.bias.toArray.map(_.toDouble).toList
     val outWeights = layer2.weight.flatten.toArray.map(_.toDouble).toList
-    val outBias = layer2.bias.toArray.headOption.map(_.toDouble).getOrElse(0.0)
+    val outBias = layer2.bias.toArray.headOption.map(_.toDouble).getOrElse(0.0d)
 
     Json.obj(
       "acc_weights" -> Json.arr(accWeights.map(Json.fromDoubleOrNull)*),
@@ -80,21 +80,23 @@ object NNUE:
   val Epochs = 150
   val BatchSize = 512
 
-  def mseLoss(pred: Tensor[Float32], target: Tensor[Float32]): Tensor[Float32] =
+  def mseLoss(pred: Tensor[Float64], target: Tensor[Float64]): Tensor[Float64] =
     val diff = pred - target
     val sq = diff * diff
     sq.mean
 
-  def epdBatches(): Iterator[(Tensor[Float32], Tensor[Float32])] =
-    val src = Source.fromFile("./assets/books/quiet-evaluated-filtered-camelv1.epd")
+  def epdBatches(): Iterator[(Tensor[Float64], Tensor[Float64])] =
+    val src =
+      Source.fromFile("./assets/books/quiet-evaluated-filtered-camelv1.epd")
 
-    new Iterator[(Tensor[Float32], Tensor[Float32])]:
+    new Iterator[(Tensor[Float64], Tensor[Float64])]:
       private val it = src.getLines()
-      private val xsBuf = ArrayBuffer.empty[Tensor[Float32]]
-      private val ysBuf = ArrayBuffer.empty[Tensor[Float32]]
-      private var nextBatch: Option[(Tensor[Float32], Tensor[Float32])] = fetch()
+      private val xsBuf = ArrayBuffer.empty[Tensor[Float64]]
+      private val ysBuf = ArrayBuffer.empty[Tensor[Float64]]
+      private var nextBatch: Option[(Tensor[Float64], Tensor[Float64])] =
+        fetch()
 
-      private def fetch(): Option[(Tensor[Float32], Tensor[Float32])] =
+      private def fetch(): Option[(Tensor[Float64], Tensor[Float64])] =
         xsBuf.clear()
         ysBuf.clear()
 
@@ -114,7 +116,7 @@ object NNUE:
       end fetch
 
       override def hasNext: Boolean = nextBatch.nonEmpty
-      override def next(): (Tensor[Float32], Tensor[Float32]) =
+      override def next(): (Tensor[Float64], Tensor[Float64]) =
         val out = nextBatch.get
         nextBatch = fetch()
         out
@@ -142,14 +144,15 @@ for epoch <- 1 to NNUE.Epochs do
     runningLoss += loss.item.toDouble
 
     if batchIdx % 200 == 0 then
-      val avg = runningLoss / 200.0
-      runningLoss = 0.0
+      val avg = runningLoss / 200.0d
+      runningLoss = 0.0d
       println(f"[epoch $epoch%3d, batch $batchIdx%4d, lr $lr%2f] loss=$avg%.6f")
   end for
 
   if epoch % 20 == 0 || epoch == NNUE.Epochs then
     val serialized = net.json.noSpaces
-    val now = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))
+    val now =
+      LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))
     Using.resource(new PrintWriter(s"./assets/dump/$now.nnue")): pw =>
       pw.write(serialized)
 end for
