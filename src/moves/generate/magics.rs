@@ -10,7 +10,7 @@ use std::{
 };
 
 #[ctor]
-static BISHOP_MAGICS: [SquareMagic; 64] = {
+static BISHOP_MAGICS: [SquareMagic; 64] = unsafe {
     serde_json::from_str::<Vec<SquareMagic>>(include_str!("../../../assets/dump/20260118-214612.bmagics"))
         .unwrap()
         .try_into()
@@ -18,7 +18,7 @@ static BISHOP_MAGICS: [SquareMagic; 64] = {
 };
 
 #[ctor]
-static ROOK_MAGICS: [SquareMagic; 64] = {
+static ROOK_MAGICS: [SquareMagic; 64] = unsafe {
     serde_json::from_str::<Vec<SquareMagic>>(include_str!("../../../assets/dump/20260118-214612.rmagics"))
         .unwrap()
         .try_into()
