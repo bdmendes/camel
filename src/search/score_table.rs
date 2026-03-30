@@ -20,21 +20,29 @@ struct Entry {
     depth: Depth,
     hash_ms16: u16,
     mov: Move,
+    age: u16,
 }
 
 pub struct ScoreTable {
     entries: Vec<Option<Entry>>,
+    age: u16,
 }
 
 impl ScoreTable {
     pub fn new(size_mb: usize) -> Self {
-        let mut table = Self { entries: Vec::new() };
+        let mut table = Self {
+            entries: Vec::new(),
+            age: 0,
+        };
         table.resize(size_mb);
         table
     }
 
     pub fn new_no_elems(no_elems: usize) -> Self {
-        let mut table = Self { entries: Vec::new() };
+        let mut table = Self {
+            entries: Vec::new(),
+            age: 0,
+        };
         table.entries.resize(no_elems, None);
         table
     }
@@ -46,6 +54,10 @@ impl ScoreTable {
 
     pub fn clear(&mut self) {
         self.entries.fill(None);
+    }
+
+    pub fn prepare_new_search(&mut self) {
+        self.age = self.age.wrapping_add(1);
     }
 
     fn index(&self, position: &Position) -> usize {
@@ -83,7 +95,8 @@ impl ScoreTable {
         unsafe {
             match self.entries.get_unchecked_mut(index) {
                 Some(existing)
-                    if existing.depth > depth || (existing.depth == depth && node_type != NodeType::PVNode) => {}
+                    if self.age == existing.age
+                        && (existing.depth > depth || (existing.depth == depth && node_type != NodeType::PVNode)) => {}
                 slot => {
                     *slot = Some(Entry {
                         score: if score <= MATE_SCORE + MAX_PLY_DIFF {
@@ -97,6 +110,7 @@ impl ScoreTable {
                         node_type,
                         hash_ms16: position.hash().ms16(),
                         mov,
+                        age: self.age,
                     });
                 }
             }
@@ -231,6 +245,37 @@ mod tests {
 
         table.put(&position, 3, 3, NodeType::PVNode, 0, valid_mov);
         assert!(table.probe(&position, 3, 3).is_some());
+    }
+
+    #[test]
+    fn collision_old_age() {
+        let mut table = ScoreTable::new_no_elems(1);
+        let position1 = Position::from_str(START_POSITION).unwrap();
+        let mov1 = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
+        let position2 = Position::from_str(START_POSITION)
+            .unwrap()
+            .make_move_str("e2e4")
+            .unwrap();
+        let mov2 = Move::new(Square::D7, Square::D5, MoveFlag::DoublePawnPush);
+
+        table.put(&position1, 3, 3, NodeType::PVNode, 0, mov1);
+        assert!(table.probe(&position1, 3, 3).is_some());
+        assert!(table.probe(&position2, 3, 3).is_none());
+
+        // Insert a shallower entry with the same age.
+        table.put(&position2, 2, 2, NodeType::PVNode, 0, mov2);
+        assert!(table.probe(&position1, 3, 3).is_some());
+        assert!(table.probe(&position2, 2, 2).is_none());
+
+        // Signaling a new search should not have any side effect.
+        table.prepare_new_search();
+        assert!(table.probe(&position1, 3, 3).is_some());
+        assert!(table.probe(&position2, 2, 2).is_none());
+
+        // In a new search, all old entries may be overwritten, even if they are deeper.
+        table.put(&position2, 2, 2, NodeType::PVNode, 0, mov2);
+        assert!(table.probe(&position1, 3, 3).is_none());
+        assert!(table.probe(&position2, 2, 2).is_some());
     }
 
     #[test]

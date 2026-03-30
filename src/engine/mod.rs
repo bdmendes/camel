@@ -2,18 +2,19 @@ use std::{
     str::FromStr,
     sync::{Arc, Mutex},
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use crate::{
     evaluation::{
-        NNUE_PARAMS_BLOB, ValueScore,
+        NNUE_PARAMS_BLOB,
         nnue::{NeuralNetwork, Parameters},
     },
     position::{Position, fen::START_POSITION},
     search::{
-        Searcher,
+        Depth, Searcher,
         game_history::GameHistory,
+        picker::MovePicker,
         score_table::{DEFAULT_TABLE_SIZE_MB, ScoreTable},
         status::{SearchStatus, SearchStatusValue},
         window::Window,
@@ -50,7 +51,7 @@ impl Default for Engine {
 }
 
 impl Engine {
-    pub fn go(&self) {
+    pub fn go(&self, depth: Option<Depth>) {
         let history = self.game_history.clone();
         let table = self.score_table.clone();
         let net = self.evaluator.clone();
@@ -65,15 +66,38 @@ impl Engine {
             let mut net = net.lock().unwrap();
             let duration = Duration::from_hours(1);
 
+            table.prepare_new_search();
+
             let mut searcher = Searcher::new(&mut history, &mut table, &mut net, status.clone(), duration);
 
-            searcher.alphabeta(&position, 5, 0, Window::default());
+            for d in 1..=depth.unwrap_or(Depth::MAX) {
+                let time = Instant::now();
+                let (nodes, score) = searcher.alphabeta(&position, d, 0, Window::default());
+                if searcher.should_stop() {
+                    break;
+                }
+                let pv = searcher.pv(&position);
+                let elapsed = time.elapsed();
+                println!(
+                    "info depth {} score cp {} time {} nodes {} nps {} hashfull {} pv {}",
+                    d,
+                    score,
+                    elapsed.as_millis(),
+                    nodes,
+                    (nodes as f64 / elapsed.as_secs_f64()) as u64,
+                    searcher.hashfull_millis(),
+                    pv[..(d as usize).min(pv.len())].join(" ")
+                );
+            }
+
             status.set(SearchStatusValue::Stopped);
-            println!("move: {}", table.hash_move(&position).unwrap());
-            println!(
-                "eval: {}",
-                table.probe(&position, 5, 0).unwrap().0 * position.side_to_move().sign() as ValueScore
-            );
+
+            if let Some(best_move) = table.hash_move(&position).or_else(|| {
+                let mut picker = MovePicker::new(&position, false, None, [None, None]);
+                picker.next()
+            }) {
+                println!("bestmove {}", best_move);
+            }
         });
     }
 }

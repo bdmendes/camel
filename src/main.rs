@@ -67,9 +67,9 @@ fn main() {
                     *engine.game_history.lock().unwrap() = GameHistory::new(&position);
                 }
             },
-            Command::Go { .. } => {
+            Command::Go { depth, .. } => {
                 println!("Search is in alpha! Please use Camel 1.6.0 in the meantime!");
-                engine.go();
+                engine.go(depth);
             }
             Command::Setoption { name, value } => match (name.as_str(), value) {
                 ("Hash", number) => {
