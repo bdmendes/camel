@@ -22,7 +22,7 @@ pub struct ZobristHash(u64);
 const ZOBRIST_NUMBERS_SIZE: usize = 2 * 6 * 64 + 1 + 4 + 64;
 
 #[ctor]
-static ZOBRIST_NUMBERS: [ZobristHash; ZOBRIST_NUMBERS_SIZE] = {
+static ZOBRIST_NUMBERS: [ZobristHash; ZOBRIST_NUMBERS_SIZE] = unsafe {
     serde_json::from_str::<Vec<ZobristHash>>(include_str!("../../assets/dump/20260118-203201.zobrist"))
         .unwrap()
         .try_into()
