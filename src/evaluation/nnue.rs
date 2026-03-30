@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use crate::{
     evaluation::ValueScore,
-    position::{Position, PositionDiffEntry, color::Color, fen::START_POSITION, piece::Piece, square::Square},
+    position::{color::Color, fen::START_POSITION, piece::Piece, square::Square, Position, PositionDiffEntry},
 };
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
@@ -14,7 +14,7 @@ pub const INPUT_SIZE: usize = 768;
 pub const HIDDEN_LAYER_SIZE: usize = 32;
 
 // The actual NN output is cp / SCALE, clamped to [-1, 1].
-// 1200 is a resonable "I'm more than a queen up", corresponding to a completely won position.
+// 1200 is a reasonable "I'm more than a queen up", corresponding to a completely won position.
 pub const SCALE: f64 = 1200.0;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
