@@ -13,20 +13,23 @@ pub const INPUT_SIZE: usize = 768;
 // We have a single hidden layer in our network.
 pub const HIDDEN_LAYER_SIZE: usize = 32;
 
-// The actual NN output is -1 to 1, to improve training dynamics.
-pub const SCALE: f32 = 2000.0;
+// The actual NN output is cp / SCALE, clamped to [-1, 1].
+// 1200 is a resonable "I'm more than a queen up", corresponding to a completely won position.
+pub const SCALE: f64 = 1200.0;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Parameters {
     // The "accumulator" is the cached input of the hidden layer.
     // In practice, it will be 0 (empty) or 1 (set) times the weights.
-    pub acc_weights: Vec<f32>,
-    pub acc_biases: Vec<f32>,
+    // f64 is unusual but crucial to minimize the floating point
+    // drift effect and stabilize search.
+    pub acc_weights: Vec<f64>,
+    pub acc_biases: Vec<f64>,
 
     // The output of the hidden layer is fed to the "output"
     // parameters to generate the final static evaluation.
-    pub out_weights: Vec<f32>,
-    pub out_bias: f32,
+    pub out_weights: Vec<f64>,
+    pub out_bias: f64,
 }
 
 impl Parameters {
@@ -46,7 +49,7 @@ impl Parameters {
         }
     }
 
-    pub fn filled(acc_weight_val: f32, acc_bias_val: f32, out_weight_val: f32, out_bias_val: f32) -> Self {
+    pub fn filled(acc_weight_val: f64, acc_bias_val: f64, out_weight_val: f64, out_bias_val: f64) -> Self {
         Self {
             acc_weights: vec![acc_weight_val; INPUT_SIZE * HIDDEN_LAYER_SIZE],
             acc_biases: vec![acc_bias_val; HIDDEN_LAYER_SIZE],
@@ -76,7 +79,7 @@ impl FromStr for Parameters {
 
 pub struct NeuralNetwork {
     params: Parameters,
-    acc: Vec<f32>,
+    acc: Vec<f64>,
     last_seen: Position,
 }
 
@@ -103,7 +106,7 @@ impl NeuralNetwork {
         (color as usize) * 64 * 6 + (piece as usize) * 64 + square as usize
     }
 
-    fn relu(value: f32) -> f32 {
+    fn relu(value: f64) -> f64 {
         value.max(0.0)
     }
 
@@ -121,8 +124,8 @@ impl NeuralNetwork {
         }
     }
 
-    fn forward(&self) -> f32 {
-        let mut eval: f32 = 0.0;
+    fn forward(&self) -> f64 {
+        let mut eval: f64 = 0.0;
 
         for i in 0..HIDDEN_LAYER_SIZE {
             let hidden_out = Self::relu(self.acc[i] + self.params.acc_biases[i]);
@@ -132,13 +135,13 @@ impl NeuralNetwork {
         eval + self.params.out_bias
     }
 
-    fn forward_and_cache(&mut self, position: &Position) -> f32 {
+    fn forward_and_cache(&mut self, position: &Position) -> f64 {
         let res = self.forward();
         self.last_seen = *position;
         res
     }
 
-    fn evaluate_unscaled(&mut self, position: &Position) -> f32 {
+    fn evaluate_unscaled(&mut self, position: &Position) -> f64 {
         let diff = position.diff(&self.last_seen);
         for e in diff {
             match e {
@@ -150,7 +153,7 @@ impl NeuralNetwork {
     }
 
     pub fn evaluate(&mut self, position: &Position) -> ValueScore {
-        (self.evaluate_unscaled(position) * SCALE) as ValueScore
+        (self.evaluate_unscaled(position) * SCALE).round() as ValueScore
     }
 }
 
@@ -202,11 +205,11 @@ mod tests {
 
         // Set the Queen on E4, which will set all accumulators to 1.
         net.set(Piece::Queen, Color::White, Square::E4);
-        assert_eq!(net.forward(), HIDDEN_LAYER_SIZE as f32 * 3.0 + 10.0);
+        assert_eq!(net.forward(), HIDDEN_LAYER_SIZE as f64 * 3.0 + 10.0);
 
         // Set the Rook on E4, which will add 1 to all accumulators.
         net.set(Piece::Rook, Color::White, Square::E4);
-        assert_eq!(net.forward(), HIDDEN_LAYER_SIZE as f32 * 4.0 + 10.0);
+        assert_eq!(net.forward(), HIDDEN_LAYER_SIZE as f64 * 4.0 + 10.0);
     }
 
     #[test]
@@ -223,16 +226,16 @@ mod tests {
         let mut position = Position::default();
         position.set_square(Square::E4, Piece::Queen, Color::White);
 
-        assert_eq!(net.evaluate_unscaled(&position), 2.0 * HIDDEN_LAYER_SIZE as f32);
+        assert_eq!(net.evaluate_unscaled(&position), 2.0 * HIDDEN_LAYER_SIZE as f64);
 
         assert_eq!(net.last_seen, position);
 
-        assert_eq!(net.evaluate_unscaled(&position), 2.0 * HIDDEN_LAYER_SIZE as f32);
+        assert_eq!(net.evaluate_unscaled(&position), 2.0 * HIDDEN_LAYER_SIZE as f64);
 
         position.clear_square(Square::E4);
         assert_eq!(net.evaluate_unscaled(&position), 0.0);
 
         position.set_square(Square::E4, Piece::Rook, Color::White);
-        assert_eq!(net.evaluate_unscaled(&position), HIDDEN_LAYER_SIZE as f32);
+        assert_eq!(net.evaluate_unscaled(&position), HIDDEN_LAYER_SIZE as f64);
     }
 }
