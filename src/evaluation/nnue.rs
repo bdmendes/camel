@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use crate::{
     evaluation::ValueScore,
-    position::{color::Color, fen::START_POSITION, piece::Piece, square::Square, Position, PositionDiffEntry},
+    position::{Position, PositionDiffEntry, color::Color, fen::START_POSITION, piece::Piece, square::Square},
 };
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
