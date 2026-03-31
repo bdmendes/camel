@@ -31,10 +31,6 @@ impl Window {
         self.best_score
     }
 
-    pub fn alpha(&self) -> ValueScore {
-        self.alpha
-    }
-
     pub fn best_move(&self) -> Option<Move> {
         self.best_move
     }
@@ -72,6 +68,10 @@ impl Window {
 
     pub fn cuts_off(&self, score: ValueScore) -> bool {
         score >= self.beta
+    }
+
+    pub fn improves(&self, score: ValueScore) -> bool {
+        score >= self.alpha
     }
 
     pub fn feed(&mut self, score: ValueScore, mov: Option<Move>) -> FeedResult {
@@ -121,6 +121,8 @@ mod tests {
         assert_eq!(window.feed(300, None), FeedResult::Improvement);
         assert_eq!(window.alpha, 300);
         assert_eq!(window.best(), 300);
+        assert!(window.improves(400));
+        assert!(!window.improves(200));
 
         // A position with the same score is considered an improvement.
         assert_eq!(window.feed(300, None), FeedResult::Improvement);

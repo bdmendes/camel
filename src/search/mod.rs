@@ -175,7 +175,7 @@ impl<'a> Searcher<'a> {
                     window.reverse_null_around_alpha(),
                 );
 
-                if -null_score > window.alpha() {
+                if window.improves(-null_score) && !window.cuts_off(-null_score) {
                     let (full_nodes, full_score) =
                         self.pvs(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse());
                     (null_nodes + full_nodes, full_score)
