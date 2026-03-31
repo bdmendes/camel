@@ -123,7 +123,9 @@ fn main() {
             Command::Move { r#move } => {
                 let picker = MovePicker::new(&engine.position, false, None, [None, None]);
                 if let Some(mov) = picker.into_iter().find(|&m| m.to_string() == r#move) {
+                    let reversible = mov.is_reversible(&engine.position);
                     engine.position = engine.position.make_move(mov);
+                    engine.game_history.lock().unwrap().push(&engine.position, reversible);
                 } else {
                     println!("{} is not a valid move in the current position.", r#move);
                 }
