@@ -44,10 +44,19 @@ impl Window {
         }
     }
 
-    pub fn reverse_null(&self) -> Self {
+    pub fn reverse_null_around_beta(&self) -> Self {
         Window {
             alpha: -self.beta,
             beta: -self.beta + 1,
+            best_score: ValueScore::MIN + 1,
+            best_move: None,
+        }
+    }
+
+    pub fn reverse_null_around_alpha(&self) -> Self {
+        Window {
+            alpha: -self.alpha - 1,
+            beta: -self.alpha,
             best_score: ValueScore::MIN + 1,
             best_move: None,
         }
@@ -59,6 +68,10 @@ impl Window {
 
     pub fn cuts_off(&self, score: ValueScore) -> bool {
         score >= self.beta
+    }
+
+    pub fn improves(&self, score: ValueScore) -> bool {
+        score >= self.alpha
     }
 
     pub fn feed(&mut self, score: ValueScore, mov: Option<Move>) -> FeedResult {
@@ -108,6 +121,8 @@ mod tests {
         assert_eq!(window.feed(300, None), FeedResult::Improvement);
         assert_eq!(window.alpha, 300);
         assert_eq!(window.best(), 300);
+        assert!(window.improves(400));
+        assert!(!window.improves(200));
 
         // A position with the same score is considered an improvement.
         assert_eq!(window.feed(300, None), FeedResult::Improvement);
@@ -185,16 +200,34 @@ mod tests {
     }
 
     #[test]
-    fn zero_search() {
+    fn zero_search_beta_surpass() {
         let window = Window::default();
         assert!(!window.is_null());
 
-        let null_window = window.reverse_null();
+        let null_window = window.reverse_null_around_beta();
         assert_eq!(
             null_window,
             Window {
                 alpha: -ValueScore::MAX,
                 beta: -ValueScore::MAX + 1,
+                best_score: ValueScore::MIN + 1,
+                best_move: None,
+            }
+        );
+        assert!(null_window.is_null());
+    }
+
+    #[test]
+    fn zero_search_alpha_surpass() {
+        let window = Window::default();
+        assert!(!window.is_null());
+
+        let null_window = window.reverse_null_around_alpha();
+        assert_eq!(
+            null_window,
+            Window {
+                alpha: -(ValueScore::MIN + 1) - 1,
+                beta: -(ValueScore::MIN + 1),
                 best_score: ValueScore::MIN + 1,
                 best_move: None,
             }

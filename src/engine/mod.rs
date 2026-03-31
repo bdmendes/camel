@@ -72,7 +72,7 @@ impl Engine {
 
             for d in 1..=depth.unwrap_or(Depth::MAX) {
                 let time = Instant::now();
-                let (nodes, score) = searcher.alphabeta(&position, d, 0, Window::default());
+                let (nodes, score) = searcher.pvs(&position, d, 0, Window::default());
                 if searcher.should_stop() {
                     break;
                 }
