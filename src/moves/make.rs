@@ -80,7 +80,7 @@ pub fn make_move<const UPDATE_META: bool>(position: &Position, mov: Move) -> Pos
         }
         MoveFlag::Capture
             if UPDATE_META
-                && position.piece_at(mov.to()) == Some(Piece::Rook)
+                && position.pieces_bb(Piece::Rook).is_set(mov.to())
                 && COLOR_CASTLE_RANKS[side_to_move.flipped() as usize].is_set(mov.to()) =>
         {
             position.set_square(mov.to(), piece, side_to_move);
