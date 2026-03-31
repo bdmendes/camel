@@ -78,6 +78,25 @@ pub fn make_move<const UPDATE_META: bool>(position: &Position, mov: Move) -> Pos
                 },
             ));
         }
+        MoveFlag::Capture
+            if UPDATE_META
+                && position.piece_at(mov.to()) == Some(Piece::Rook)
+                && COLOR_CASTLE_RANKS[side_to_move.flipped() as usize].is_set(mov.to()) =>
+        {
+            position.set_square(mov.to(), piece, side_to_move);
+            let their_king = position
+                .pieces_color_bb(Piece::King, side_to_move.flipped())
+                .lsb()
+                .unwrap();
+            position.set_castling_rights(position.castling_rights().removed_side(
+                side_to_move.flipped(),
+                if mov.to().file() > their_king.file() {
+                    CastlingSide::Kingside
+                } else {
+                    CastlingSide::Queenside
+                },
+            ));
+        }
         MoveFlag::Quiet | MoveFlag::DoublePawnPush => {
             position.set_square_low::<UPDATE_META, false>(mov.to(), piece, side_to_move);
         }
@@ -181,6 +200,7 @@ mod tests {
         "e2e4",
         "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
     )]
+    #[case("2rk4/8/8/3b4/8/8/8/4K2R b K - 0 1", "d5h1", "2rk4/8/8/8/8/8/8/4K2b w - - 0 2")]
     fn make(#[case] position: &str, #[case] mov: &str, #[case] expected: &str) {
         let position = Position::from_str(position).unwrap();
         let mov = position.get_move_str(mov).unwrap();
