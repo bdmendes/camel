@@ -108,7 +108,7 @@ impl<'a> Searcher<'a> {
         }
     }
 
-    pub fn alphabeta(
+    pub fn pvs(
         &mut self,
         position: &Position,
         mut depth: Depth,
@@ -139,8 +139,12 @@ impl<'a> Searcher<'a> {
 
         if ply > 0 && !is_check && depth > NULL_MOVE_MIN_DEPTH && !maybe_zug(position) {
             let next = position.flipped_side();
-            let (nodes, score) =
-                self.alphabeta(&next, depth - NULL_MOVE_REDUCTION, ply.saturating_add(1), window.reverse_null());
+            let (nodes, score) = self.pvs(
+                &next,
+                depth - NULL_MOVE_REDUCTION,
+                ply.saturating_add(1),
+                window.reverse_null_around_beta(),
+            );
             if window.cuts_off(-score) {
                 return (nodes + 1, -score);
             }
@@ -150,30 +154,49 @@ impl<'a> Searcher<'a> {
 
         let mut count = 0;
         let mut node_type = NodeType::AllNode;
+        let null_search = window.is_null();
 
         if is_check {
             depth = depth.saturating_add(1);
         }
 
-        for mov in picker {
+        for (i, mov) in picker.enumerate() {
             let next_position = position.make_move(mov);
 
             self.history.push(&next_position, mov.is_reversible(position));
-            let (nodes, score) =
-                self.alphabeta(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse());
+
+            let (nodes, score) = if i == 0 {
+                self.pvs(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse())
+            } else {
+                let (null_nodes, null_score) = self.pvs(
+                    &next_position,
+                    depth.saturating_sub(1),
+                    ply.saturating_add(1),
+                    window.reverse_null_around_alpha(),
+                );
+
+                if -null_score > window.alpha() {
+                    let (full_nodes, full_score) =
+                        self.pvs(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse());
+                    (null_nodes + full_nodes, full_score)
+                } else {
+                    (null_nodes, null_score)
+                }
+            };
+
             self.history.pop(next_position.side_to_move());
 
             count += nodes;
 
             match window.feed(-score, Some(mov)) {
-                FeedResult::Improvement => {
+                FeedResult::Improvement if !null_search => {
                     node_type = NodeType::PVNode;
                 }
                 FeedResult::FailHigh => {
                     node_type = NodeType::CutNode;
                     break;
                 }
-                FeedResult::FailLow => {}
+                _ => {}
             }
         }
 
@@ -274,7 +297,7 @@ mod tests {
             searcher.history.push(&position, true);
             searcher.history.push(&position, true);
 
-            let score = searcher.alphabeta(&position, 5, 0, Window::default()).1;
+            let score = searcher.pvs(&position, 5, 0, Window::default()).1;
             assert_eq!(score, 0);
             assert_eq!(searcher.table.hash_move(&position), Some(position.get_move_str(mov).unwrap()));
         });
@@ -366,7 +389,7 @@ mod tests {
             let position = Position::try_from(fen.clone()).unwrap();
             let moves = moves.split_whitespace().collect::<Vec<_>>();
             for d in 1..=depth {
-                searcher.alphabeta(&position, d, 0, Window::default());
+                searcher.pvs(&position, d, 0, Window::default());
             }
             let pv = searcher
                 .table

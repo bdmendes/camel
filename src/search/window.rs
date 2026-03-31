@@ -31,6 +31,10 @@ impl Window {
         self.best_score
     }
 
+    pub fn alpha(&self) -> ValueScore {
+        self.alpha
+    }
+
     pub fn best_move(&self) -> Option<Move> {
         self.best_move
     }
@@ -44,10 +48,19 @@ impl Window {
         }
     }
 
-    pub fn reverse_null(&self) -> Self {
+    pub fn reverse_null_around_beta(&self) -> Self {
         Window {
             alpha: -self.beta,
             beta: -self.beta + 1,
+            best_score: ValueScore::MIN + 1,
+            best_move: None,
+        }
+    }
+
+    pub fn reverse_null_around_alpha(&self) -> Self {
+        Window {
+            alpha: -self.alpha - 1,
+            beta: -self.alpha,
             best_score: ValueScore::MIN + 1,
             best_move: None,
         }
@@ -185,16 +198,34 @@ mod tests {
     }
 
     #[test]
-    fn zero_search() {
+    fn zero_search_beta_surpass() {
         let window = Window::default();
         assert!(!window.is_null());
 
-        let null_window = window.reverse_null();
+        let null_window = window.reverse_null_around_beta();
         assert_eq!(
             null_window,
             Window {
                 alpha: -ValueScore::MAX,
                 beta: -ValueScore::MAX + 1,
+                best_score: ValueScore::MIN + 1,
+                best_move: None,
+            }
+        );
+        assert!(null_window.is_null());
+    }
+
+    #[test]
+    fn zero_search_alpha_surpass() {
+        let window = Window::default();
+        assert!(!window.is_null());
+
+        let null_window = window.reverse_null_around_alpha();
+        assert_eq!(
+            null_window,
+            Window {
+                alpha: -(ValueScore::MIN + 1) - 1,
+                beta: -(ValueScore::MIN + 1),
                 best_score: ValueScore::MIN + 1,
                 best_move: None,
             }
