@@ -71,7 +71,7 @@ impl Window {
     }
 
     pub fn improves(&self, score: ValueScore) -> bool {
-        score >= self.alpha
+        score > self.alpha
     }
 
     pub fn feed(&mut self, score: ValueScore, mov: Option<Move>) -> FeedResult {
@@ -80,7 +80,7 @@ impl Window {
             self.best_move = mov;
         }
 
-        if score >= self.alpha {
+        if score > self.alpha {
             self.alpha = score;
             if self.alpha >= self.beta {
                 FeedResult::FailHigh
@@ -122,10 +122,10 @@ mod tests {
         assert_eq!(window.alpha, 300);
         assert_eq!(window.best(), 300);
         assert!(window.improves(400));
-        assert!(!window.improves(200));
+        assert!(!window.improves(300));
 
-        // A position with the same score is considered an improvement.
-        assert_eq!(window.feed(300, None), FeedResult::Improvement);
+        // A position with the same score is not considered an improvement.
+        assert_eq!(window.feed(300, None), FeedResult::FailLow);
         assert_eq!(window.alpha, 300);
         assert_eq!(window.best(), 300);
 

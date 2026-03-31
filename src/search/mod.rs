@@ -141,7 +141,7 @@ impl<'a> Searcher<'a> {
             let next = position.flipped_side();
             let (nodes, score) = self.pvs(
                 &next,
-                depth - NULL_MOVE_REDUCTION,
+                depth - NULL_MOVE_REDUCTION - 1,
                 ply.saturating_add(1),
                 window.reverse_null_around_beta(),
             );
