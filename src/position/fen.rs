@@ -144,7 +144,7 @@ impl TryFrom<Fen> for Position {
         let white_king = (kings & position.occupancy_bb(Color::White)).next();
         let black_king = (kings & position.occupancy_bb(Color::Black)).next();
 
-        if white_king.is_none() || black_king.is_none() || position.flipped_side().is_check() {
+        if white_king.is_none() || black_king.is_none() || position.make_null_move().is_check() {
             return Err(());
         }
 
