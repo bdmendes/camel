@@ -10,8 +10,8 @@ pub type Depth = u8;
 pub const MAX_DEPTH: Depth = 2_u8.pow(6) - 1;
 
 use crate::{
-    evaluation::{ValueScore, nnue::NeuralNetwork},
-    position::Position,
+    evaluation::{MAX_POSITIONAL_WEIGHT, ValueScore, nnue::NeuralNetwork},
+    position::{Position, piece::Piece},
     search::{
         game_history::GameHistory,
         heuristics::maybe_zug,
@@ -82,17 +82,27 @@ impl<'a> Searcher<'a> {
 
         let is_check = position.is_check();
 
-        if !is_check {
+        let standing_path = if !is_check {
             let standing_pat = self.network.evaluate(position) * position.side_to_move().sign() as ValueScore;
             if matches!(window.feed(standing_pat, None), FeedResult::FailHigh) {
                 return (1, window.best());
             }
-        }
+            Some(standing_pat)
+        } else {
+            None
+        };
 
         let mut count = 0;
         let picker = MovePicker::new(position, !is_check, None, [None, None]);
 
         for mov in picker {
+            if let Some(standing_path) = standing_path {
+                let captured = position.piece_at(mov.to()).unwrap_or(Piece::Pawn);
+                if standing_path + (captured.value() as i16) * 100 + MAX_POSITIONAL_WEIGHT < window.best() {
+                    continue;
+                }
+            }
+
             let next_position = position.make_move(mov);
             let (nodes, score) = self.quiesce(&next_position, ply.saturating_add(1), window.reverse());
             count += nodes;
