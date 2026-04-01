@@ -103,8 +103,8 @@ impl ZobristHash {
         self.0
     }
 
-    pub fn ms16(&self) -> u16 {
-        (self.0 >> 48) as u16
+    pub fn ms32(&self) -> u32 {
+        (self.0 >> 32) as u32
     }
 }
 
@@ -192,7 +192,7 @@ mod tests {
 
     #[test]
     fn minify() {
-        assert_eq!(ZobristHash(u64::MAX).ms16(), u16::MAX);
-        assert_eq!(ZobristHash((u32::MAX as u64) | (1u64 << 48)).ms16(), 1);
+        assert_eq!(ZobristHash(u64::MAX).ms32(), u32::MAX);
+        assert_eq!(ZobristHash((u32::MAX as u64) | (1u64 << 32)).ms32(), 1);
     }
 }
