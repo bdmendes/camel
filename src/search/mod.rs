@@ -138,7 +138,7 @@ impl<'a> Searcher<'a> {
         let is_check = position.is_check();
 
         if ply > 0 && !is_check && depth > NULL_MOVE_MIN_DEPTH && !maybe_zug(position) {
-            let next = position.flipped_side();
+            let next = position.make_null_move();
             let (nodes, score) = self.pvs(
                 &next,
                 depth - NULL_MOVE_REDUCTION - 1,

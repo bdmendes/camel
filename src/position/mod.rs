@@ -216,9 +216,10 @@ impl Position {
         self.hash.xor_color();
     }
 
-    pub fn flipped_side(&self) -> Self {
+    pub fn make_null_move(&self) -> Self {
         let mut position = *self;
         position.flip_side();
+        position.clear_ep_square();
         position
     }
 
@@ -410,7 +411,7 @@ mod tests {
     }
 
     #[test]
-    fn flip_side_mut() {
+    fn flip_side() {
         let mut position = Position::from_str(START_POSITION).unwrap();
         let hash = position.hash();
 
@@ -426,14 +427,21 @@ mod tests {
     }
 
     #[test]
-    fn flipped_side() {
+    fn make_null() {
         let position = Position::from_str(START_POSITION).unwrap();
 
-        assert_eq!(position.flipped_side().side_to_move(), Color::Black);
-        assert_ne!(position.flipped_side().hash(), position.hash());
+        assert_eq!(position.make_null_move().side_to_move(), Color::Black);
+        assert_ne!(position.make_null_move().hash(), position.hash());
 
-        assert_eq!(position.flipped_side().flipped_side().side_to_move(), Color::White);
-        assert_eq!(position.flipped_side().flipped_side().hash(), position.hash());
+        assert_eq!(position.make_null_move().make_null_move().side_to_move(), Color::White);
+        assert_eq!(position.make_null_move().make_null_move().hash(), position.hash());
+    }
+
+    #[test]
+    fn make_null_reset_ep() {
+        let position = Position::from_str("rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3").unwrap();
+        assert_eq!(position.ep_square(), Some(Square::F6));
+        assert_eq!(position.make_null_move().ep_square(), None);
     }
 
     #[test]
