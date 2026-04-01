@@ -55,7 +55,14 @@ pub fn make_move<const UPDATE_META: bool>(position: &Position, mov: Move) -> Pos
     position.clear_square_low::<UPDATE_META>(mov.from());
 
     match mov.flag() {
-        MoveFlag::Quiet | MoveFlag::Capture if UPDATE_META => {
+        MoveFlag::Quiet
+        | MoveFlag::Capture
+        | MoveFlag::KnightPromotionCapture
+        | MoveFlag::BishopPromotionCapture
+        | MoveFlag::RookPromotionCapture
+        | MoveFlag::QueenPromotionCapture
+            if UPDATE_META =>
+        {
             if piece == Piece::King && position.castling_rights().has_color(side_to_move) {
                 position.set_castling_rights(position.castling_rights().removed_color(side_to_move));
             }
@@ -93,7 +100,7 @@ pub fn make_move<const UPDATE_META: bool>(position: &Position, mov: Move) -> Pos
                 ));
             }
 
-            position.set_square(mov.to(), piece, side_to_move);
+            position.set_square(mov.to(), mov.promotion_piece().unwrap_or(piece), side_to_move);
         }
         MoveFlag::Quiet | MoveFlag::DoublePawnPush => {
             position.set_square_low::<UPDATE_META, false>(mov.to(), piece, side_to_move);
@@ -200,6 +207,7 @@ mod tests {
     )]
     #[case("2rk4/8/8/3b4/8/8/8/4K2R b K - 0 1", "d5h1", "2rk4/8/8/8/8/8/8/4K2b w - - 0 2")]
     #[case("4k2r/8/8/8/8/8/8/4K2R w Kk - 0 1", "h1h8", "4k2R/8/8/8/8/8/8/4K3 b - - 0 1")]
+    #[case("4k2r/6P1/8/8/8/8/8/4K3 w k - 0 1", "g7h8q", "4k2Q/8/8/8/8/8/8/4K3 b - - 0 1")]
     fn make(#[case] position: &str, #[case] mov: &str, #[case] expected: &str) {
         let position = Position::from_str(position).unwrap();
         let mov = position.get_move_str(mov).unwrap();
