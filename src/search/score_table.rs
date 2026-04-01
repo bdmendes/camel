@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, mem};
 
 use crate::{
     evaluation::ValueScore,
@@ -16,23 +16,49 @@ const MAX_PLY_DIFF: ValueScore = Depth::MAX as ValueScore;
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
 struct Entry {
     score: ValueScore,
-    node_type: NodeType,
-    depth: Depth,
-    hash_ms16: u16,
     mov: Move,
-    age: u16,
+    data: u32, // hash_ms (23 bits), depth (6 bits), node_type (2 bits), age (1 bit)
+}
+
+impl Entry {
+    fn new(score: ValueScore, mov: Move, node_type: NodeType, depth: Depth, hash_ms32: u32, age: bool) -> Self {
+        Self {
+            score,
+            mov,
+            data: (hash_ms32 & 0xFFFFFE00)
+                | ((depth as u32 & 0x3F) << 3)
+                | ((node_type as u32 & 0x3) << 1)
+                | (age as u32),
+        }
+    }
+
+    fn age(&self) -> bool {
+        (self.data & 0x1) != 0
+    }
+
+    fn node_type(&self) -> NodeType {
+        unsafe { mem::transmute::<u8, NodeType>(((self.data >> 1) & 0x3) as u8) }
+    }
+
+    fn depth(&self) -> Depth {
+        ((self.data >> 3) & 0x3F) as Depth
+    }
+
+    fn same_hash(&self, other_ms32: u32) -> bool {
+        (self.data & 0xFFFFFE00) == (other_ms32 & 0xFFFFFE00)
+    }
 }
 
 pub struct ScoreTable {
     entries: Vec<Option<Entry>>,
-    age: u16,
+    age: bool,
 }
 
 impl ScoreTable {
     pub fn new(size_mb: usize) -> Self {
         let mut table = Self {
             entries: Vec::new(),
-            age: 0,
+            age: false,
         };
         table.resize(size_mb);
         table
@@ -41,7 +67,7 @@ impl ScoreTable {
     pub fn new_no_elems(no_elems: usize) -> Self {
         let mut table = Self {
             entries: Vec::new(),
-            age: 0,
+            age: false,
         };
         table.entries.resize(no_elems, None);
         table
@@ -57,7 +83,7 @@ impl ScoreTable {
     }
 
     pub fn prepare_new_search(&mut self) {
-        self.age = self.age.wrapping_add(1);
+        self.age = !self.age;
     }
 
     fn index(&self, position: &Position) -> usize {
@@ -70,14 +96,14 @@ impl ScoreTable {
 
     pub fn probe(&self, position: &Position, depth: Depth, ply: Depth) -> Option<(ValueScore, NodeType)> {
         self.get_unsafe(self.index(position))
-            .filter(|e| e.depth >= depth && e.hash_ms16 == position.hash().ms16() && e.mov.pseudo_legal(position))
+            .filter(|e| e.depth() >= depth && e.same_hash(position.hash().ms32()) && e.mov.pseudo_legal(position))
             .map(|e| {
                 if e.score <= MATE_SCORE + MAX_PLY_DIFF {
-                    (e.score + ply as ValueScore, e.node_type)
+                    (e.score + ply as ValueScore, e.node_type())
                 } else if e.score >= -MATE_SCORE - MAX_PLY_DIFF {
-                    (e.score - ply as ValueScore, e.node_type)
+                    (e.score - ply as ValueScore, e.node_type())
                 } else {
-                    (e.score, e.node_type)
+                    (e.score, e.node_type())
                 }
             })
     }
@@ -95,23 +121,24 @@ impl ScoreTable {
         unsafe {
             match self.entries.get_unchecked_mut(index) {
                 Some(existing)
-                    if self.age == existing.age
-                        && (existing.depth > depth || (existing.depth == depth && node_type != NodeType::PVNode)) => {}
+                    if self.age == existing.age()
+                        && (existing.depth() > depth
+                            || (existing.depth() == depth && node_type != NodeType::PVNode)) => {}
                 slot => {
-                    *slot = Some(Entry {
-                        score: if score <= MATE_SCORE + MAX_PLY_DIFF {
+                    *slot = Some(Entry::new(
+                        if score <= MATE_SCORE + MAX_PLY_DIFF {
                             score - ply as ValueScore
                         } else if score >= -MATE_SCORE - MAX_PLY_DIFF {
                             score + ply as ValueScore
                         } else {
                             score
                         },
-                        depth,
-                        node_type,
-                        hash_ms16: position.hash().ms16(),
                         mov,
-                        age: self.age,
-                    });
+                        node_type,
+                        depth,
+                        position.hash().ms32(),
+                        self.age,
+                    ));
                 }
             }
         }
@@ -119,7 +146,7 @@ impl ScoreTable {
 
     pub fn hash_move(&self, position: &Position) -> Option<Move> {
         self.get_unsafe(self.index(position))
-            .filter(|e| e.hash_ms16 == position.hash().ms16() && e.mov.pseudo_legal(position))
+            .filter(|e| e.same_hash(position.hash().ms32()) && e.mov.pseudo_legal(position))
             .map(|m| m.mov)
     }
 
@@ -161,6 +188,24 @@ mod tests {
         position::{fen::START_POSITION, square::Square},
     };
     use std::str::FromStr;
+
+    #[test]
+    fn pack_unpack() {
+        let entry = Entry::new(
+            12345,
+            Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush),
+            NodeType::PVNode,
+            15,
+            0xABCDE000,
+            true,
+        );
+        assert_eq!(entry.score, 12345);
+        assert_eq!(entry.mov, Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush));
+        assert_eq!(entry.node_type(), NodeType::PVNode);
+        assert_eq!(entry.depth(), 15);
+        assert!(entry.age());
+        assert!(entry.same_hash(0xABCDE000));
+    }
 
     #[test]
     fn index_clear() {
