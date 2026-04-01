@@ -82,7 +82,7 @@ impl<'a> Searcher<'a> {
 
         let is_check = position.is_check();
 
-        let standing_path = if !is_check {
+        let standing_pat = if !is_check {
             let standing_pat = self.network.evaluate(position) * position.side_to_move().sign() as ValueScore;
             if matches!(window.feed(standing_pat, None), FeedResult::FailHigh) {
                 return (1, window.best());
@@ -96,9 +96,9 @@ impl<'a> Searcher<'a> {
         let picker = MovePicker::new(position, !is_check, None, [None, None]);
 
         for mov in picker {
-            if let Some(standing_path) = standing_path {
+            if let Some(standing_pat) = standing_pat {
                 let captured = position.piece_at(mov.to()).unwrap_or(Piece::Pawn);
-                if standing_path + (captured.value() as i16) * 100 + MAX_POSITIONAL_WEIGHT < window.best() {
+                if standing_pat + (captured.value() as i16) * 100 + MAX_POSITIONAL_WEIGHT < window.best() {
                     continue;
                 }
             }
