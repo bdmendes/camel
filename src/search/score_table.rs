@@ -17,48 +17,48 @@ const MAX_PLY_DIFF: ValueScore = Depth::MAX as ValueScore;
 struct Entry {
     score: ValueScore,
     mov: Move,
-    data: u32, // hash_ms (23 bits), depth (6 bits), node_type (2 bits), age (1 bit)
+    data: u32, // hash_ms (22 bits), depth (6 bits), node_type (2 bits), age (2 bit)
 }
 
 impl Entry {
-    fn new(score: ValueScore, mov: Move, node_type: NodeType, depth: Depth, hash_ms32: u32, age: bool) -> Self {
+    fn new(score: ValueScore, mov: Move, node_type: NodeType, depth: Depth, hash_ms32: u32, age: u8) -> Self {
         Self {
             score,
             mov,
-            data: (hash_ms32 & 0xFFFFFE00)
-                | ((depth as u32 & 0x3F) << 3)
-                | ((node_type as u32 & 0x3) << 1)
-                | (age as u32),
+            data: (hash_ms32 & 0xFFFFFC00)
+                | ((depth as u32 & 0x3F) << 4)
+                | ((node_type as u32 & 0x3) << 2)
+                | (age as u32 & 0x3),
         }
     }
 
-    fn age(&self) -> bool {
-        (self.data & 0x1) != 0
+    fn age(&self) -> u8 {
+        (self.data & 0x3) as u8
     }
 
     fn node_type(&self) -> NodeType {
-        unsafe { mem::transmute::<u8, NodeType>(((self.data >> 1) & 0x3) as u8) }
+        unsafe { mem::transmute::<u8, NodeType>(((self.data >> 2) & 0x3) as u8) }
     }
 
     fn depth(&self) -> Depth {
-        ((self.data >> 3) & 0x3F) as Depth
+        ((self.data >> 4) & 0x3F) as Depth
     }
 
     fn same_hash(&self, other_ms32: u32) -> bool {
-        (self.data & 0xFFFFFE00) == (other_ms32 & 0xFFFFFE00)
+        (self.data & 0xFFFFFC00) == (other_ms32 & 0xFFFFFC00)
     }
 }
 
 pub struct ScoreTable {
     entries: Vec<Option<Entry>>,
-    age: bool,
+    age: u8, // [0,3] (2 bits)
 }
 
 impl ScoreTable {
     pub fn new(size_mb: usize) -> Self {
         let mut table = Self {
             entries: Vec::new(),
-            age: false,
+            age: 0,
         };
         table.resize(size_mb);
         table
@@ -67,7 +67,7 @@ impl ScoreTable {
     pub fn new_no_elems(no_elems: usize) -> Self {
         let mut table = Self {
             entries: Vec::new(),
-            age: false,
+            age: 0,
         };
         table.entries.resize(no_elems, None);
         table
@@ -83,7 +83,7 @@ impl ScoreTable {
     }
 
     pub fn prepare_new_search(&mut self) {
-        self.age = !self.age;
+        self.age = self.age.wrapping_add(1) % 4;
     }
 
     fn index(&self, position: &Position) -> usize {
@@ -197,13 +197,13 @@ mod tests {
             NodeType::PVNode,
             15,
             0xABCDE000,
-            true,
+            3,
         );
         assert_eq!(entry.score, 12345);
         assert_eq!(entry.mov, Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush));
         assert_eq!(entry.node_type(), NodeType::PVNode);
         assert_eq!(entry.depth(), 15);
-        assert!(entry.age());
+        assert_eq!(entry.age(), 3);
         assert!(entry.same_hash(0xABCDE000));
     }
 
