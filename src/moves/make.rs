@@ -55,28 +55,52 @@ pub fn make_move<const UPDATE_META: bool>(position: &Position, mov: Move) -> Pos
     position.clear_square_low::<UPDATE_META>(mov.from());
 
     match mov.flag() {
-        MoveFlag::Quiet | MoveFlag::Capture
-            if UPDATE_META && piece == Piece::King && position.castling_rights().has_color(side_to_move) =>
+        MoveFlag::Quiet
+        | MoveFlag::Capture
+        | MoveFlag::KnightPromotionCapture
+        | MoveFlag::BishopPromotionCapture
+        | MoveFlag::RookPromotionCapture
+        | MoveFlag::QueenPromotionCapture
+            if UPDATE_META =>
         {
-            position.set_square(mov.to(), piece, side_to_move);
-            position.set_castling_rights(position.castling_rights().removed_color(side_to_move));
-        }
-        MoveFlag::Quiet | MoveFlag::Capture
-            if UPDATE_META
-                && piece == Piece::Rook
+            if piece == Piece::King && position.castling_rights().has_color(side_to_move) {
+                position.set_castling_rights(position.castling_rights().removed_color(side_to_move));
+            }
+
+            if piece == Piece::Rook
                 && position.castling_rights().has_color(side_to_move)
-                && COLOR_CASTLE_RANKS[side_to_move as usize].is_set(mov.from()) =>
-        {
-            position.set_square(mov.to(), piece, side_to_move);
-            let our_king = position.pieces_color_bb(Piece::King, side_to_move).lsb().unwrap();
-            position.set_castling_rights(position.castling_rights().removed_side(
-                side_to_move,
-                if mov.from().file() > our_king.file() {
-                    CastlingSide::Kingside
-                } else {
-                    CastlingSide::Queenside
-                },
-            ));
+                && COLOR_CASTLE_RANKS[side_to_move as usize].is_set(mov.from())
+            {
+                let our_king = position.pieces_color_bb(Piece::King, side_to_move).lsb().unwrap();
+                position.set_castling_rights(position.castling_rights().removed_side(
+                    side_to_move,
+                    if mov.from().file() > our_king.file() {
+                        CastlingSide::Kingside
+                    } else {
+                        CastlingSide::Queenside
+                    },
+                ));
+            }
+
+            if position.pieces_bb(Piece::Rook).is_set(mov.to())
+                && position.castling_rights().has_color(side_to_move.flipped())
+                && COLOR_CASTLE_RANKS[side_to_move.flipped() as usize].is_set(mov.to())
+            {
+                let their_king = position
+                    .pieces_color_bb(Piece::King, side_to_move.flipped())
+                    .lsb()
+                    .unwrap();
+                position.set_castling_rights(position.castling_rights().removed_side(
+                    side_to_move.flipped(),
+                    if mov.to().file() > their_king.file() {
+                        CastlingSide::Kingside
+                    } else {
+                        CastlingSide::Queenside
+                    },
+                ));
+            }
+
+            position.set_square(mov.to(), mov.promotion_piece().unwrap_or(piece), side_to_move);
         }
         MoveFlag::Quiet | MoveFlag::DoublePawnPush => {
             position.set_square_low::<UPDATE_META, false>(mov.to(), piece, side_to_move);
@@ -181,6 +205,9 @@ mod tests {
         "e2e4",
         "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
     )]
+    #[case("2rk4/8/8/3b4/8/8/8/4K2R b K - 0 1", "d5h1", "2rk4/8/8/8/8/8/8/4K2b w - - 0 2")]
+    #[case("4k2r/8/8/8/8/8/8/4K2R w Kk - 0 1", "h1h8", "4k2R/8/8/8/8/8/8/4K3 b - - 0 1")]
+    #[case("4k2r/6P1/8/8/8/8/8/4K3 w k - 0 1", "g7h8q", "4k2Q/8/8/8/8/8/8/4K3 b - - 0 1")]
     fn make(#[case] position: &str, #[case] mov: &str, #[case] expected: &str) {
         let position = Position::from_str(position).unwrap();
         let mov = position.get_move_str(mov).unwrap();
