@@ -12,7 +12,7 @@ use crate::{
     },
     position::{Position, fen::START_POSITION},
     search::{
-        Depth, Searcher,
+        Depth, MAX_DEPTH, Searcher,
         game_history::GameHistory,
         picker::MovePicker,
         score_table::{DEFAULT_TABLE_SIZE_MB, ScoreTable},
@@ -70,7 +70,7 @@ impl Engine {
 
             let mut searcher = Searcher::new(&mut history, &mut table, &mut net, status.clone(), duration);
 
-            for d in 1..=depth.unwrap_or(Depth::MAX) {
+            for d in 1..=depth.unwrap_or(MAX_DEPTH) {
                 let time = Instant::now();
                 let (nodes, score) = searcher.pvs(&position, d, 0, Window::default());
                 if searcher.should_stop() {
