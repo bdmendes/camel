@@ -199,6 +199,10 @@ impl TryFrom<Fen> for Position {
         let fullmove_number: u16 = words.next().unwrap_or("1").parse().map_err(|_| ())?;
         position.set_fullmove_number(fullmove_number);
 
+        if words.next().is_some() {
+            return Err(());
+        }
+
         Ok(position)
     }
 }
@@ -276,6 +280,7 @@ mod tests {
     #[case("r3r1k1/1pp2pp1/p4nbp/3qN3/3P2P1/1PP4P/1P1NQ3/R4RK1 - - 1 19")]
     #[case("rnbqkbnr/pp4pp/8/3pPp2/8/5N2/PPP2PPP/RNBQKB1R w KQkq 0 6")]
     #[case("rnbqkbnr/pp2pppp/8/1BpP4/8/8/PPPP1PPP/RNBQK1NR w KQkq - 1 3")]
+    #[case("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 dummy")]
     fn invalid(#[case] fen: Fen) {
         assert_eq!(Position::try_from(fen.clone()), Err(()));
     }
