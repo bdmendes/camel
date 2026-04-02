@@ -96,7 +96,9 @@ impl<'a> Searcher<'a> {
         let picker = MovePicker::new(position, !is_check, None, [None, None]);
 
         for mov in picker {
-            if let Some(standing_pat) = standing_pat {
+            if mov.promotion_piece().is_none()
+                && let Some(standing_pat) = standing_pat
+            {
                 let captured = position.piece_at(mov.to()).unwrap_or(Piece::Pawn);
                 if standing_pat + (captured.value() as i16) * 100 + MAX_POSITIONAL_WEIGHT < window.best() {
                     continue;
