@@ -87,7 +87,7 @@ impl Engine {
                     searcher.hashfull_millis(),
                     pv[..(d as usize).min(pv.len())].join(" ")
                 );
-                if pv.is_empty() {
+                if pv.is_empty() || elapsed > duration / 2 {
                     break;
                 }
             }
