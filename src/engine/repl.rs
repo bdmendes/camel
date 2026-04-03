@@ -38,19 +38,19 @@ pub enum Command {
 
         /// The remaining time for white, in milliseconds.
         #[arg(long)]
-        wtime: Option<u32>,
+        wtime: Option<u64>,
 
         /// The remaining time for black, in milliseconds.
         #[arg(long)]
-        btime: Option<u32>,
+        btime: Option<u64>,
 
         /// The increment set for white in this time control, in milliseconds.
         #[arg(long)]
-        winc: Option<u32>,
+        winc: Option<u64>,
 
         /// The increment set for black in this time control, in milliseconds.
         #[arg(long)]
-        binc: Option<u32>,
+        binc: Option<u64>,
 
         /// The moves to go until the next time control.
         #[arg(long)]
@@ -58,7 +58,7 @@ pub enum Command {
 
         /// The maximum time the engine should search for.
         #[arg(long)]
-        movetime: Option<u32>,
+        movetime: Option<u64>,
     },
     /// Set an engine option.
     Setoption {
