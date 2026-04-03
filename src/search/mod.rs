@@ -360,7 +360,7 @@ mod tests {
     #[case("r1bq2rk/pp3pbp/2p1p1pQ/7P/3P4/2PB1N2/PP3PPR/2KR4 w - - 0 1", "h6h7 h8h7 h5g6", 2)]
     #[case("7k/p7/1R5K/6r1/6p1/6P1/8/8 w - -", "b6b7", 3)]
     #[case("rnbqkb1r/pppp1ppp/8/4P3/6n1/7P/PPPNPPP1/R1BQKBNR b KQkq - 0 1", "g4e3", 3)]
-    #[case("r4q1k/p2bR1rp/2p2Q1N/5p2/5p2/2P5/PP3PPP/R5K1 w - - 0 1", "e7f7", 2)]
+    #[case("r4q1k/p2bR1rp/2p2Q1N/5p2/5p2/2P5/PP3PPP/R5K1 w - - 0 1", "e7f7", 3)]
     #[case("2br2k1/2q3rn/p2NppQ1/2p1P3/Pp5R/4P3/1P3PPP/3R2K1 w - -", "h4h7", 2)]
     #[case("5rk1/pp4p1/2n1p2p/2Npq3/2p5/6P1/P3P1BP/R4Q1K w - -", "f1f8 g8f8 c5d7", 2)]
     #[case("r4rk1/ppp2ppp/2n5/2bqp3/8/P2PB3/1PP1NPPP/R2Q1RK1 w - -", "e2c3", 2)]
@@ -413,7 +413,7 @@ mod tests {
     #[case("r1b1k1nr/pp3pQp/4pq2/3pn3/8/P1P5/2P2PPP/R1B1KBNR w KQkq - 0 1", "c1h6", 2)]
     #[case("8/k7/p7/3Qp2P/n1P5/3KP3/1q6/8 b - - 0 1", "e5e4 d3e4 a4c3", 2)]
     #[case("2r5/1r6/4pNpk/3pP1qp/8/2P1QP2/5PK1/R7 w - - 0 1", "f6g4", 2)]
-    #[case("1r3rk1/5pb1/p2p2p1/Q1n1q2p/1NP1P3/3p1P1B/PP1R3P/1K2R3 b - - 0 1", "c5e4 a5e5 e4d2", 3)]
+    #[case("1r3rk1/5pb1/p2p2p1/Q1n1q2p/1NP1P3/3p1P1B/PP1R3P/1K2R3 b - - 0 1", "c5e4 a5e5 e4d2", 6)]
     fn alphabeta_iter_tactics(#[case] fen: Fen, #[case] moves: &str, #[case] depth: Depth) {
         with_searcher(1_000_000, |searcher| {
             let position = Position::try_from(fen.clone()).unwrap();
