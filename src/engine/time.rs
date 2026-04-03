@@ -1,10 +1,10 @@
 use crate::position::Position;
-use std::time::Duration;
+use std::{ops::Sub, time::Duration};
 
 fn get_duration_based_on_moves(position: &Position, time: Duration) -> Duration {
     let parabole_function = |x: f32| 0.01 * (150.0 - (x - 20.0) * (x - 20.0));
     let parabole_factor = parabole_function(position.fullmove_number() as f32);
-    (time / 20).mul_f32(parabole_factor.clamp(0.7, 1.2))
+    (time / 20).mul_f32(parabole_factor.clamp(0.8, 1.4))
 }
 
 pub fn get_duration(position: &Position, time: Duration, increment: Option<Duration>, ponder: bool) -> Duration {
@@ -18,8 +18,8 @@ pub fn get_duration(position: &Position, time: Duration, increment: Option<Durat
         standard_move_time /= 2;
     }
 
-    if let Some(increment) = increment {
-        let new_move_time = standard_move_time + increment.mul_f32(0.9);
+    if let Some(increment) = increment.filter(|&inc| inc >= Duration::from_millis(100)) {
+        let new_move_time = standard_move_time + increment.sub(Duration::from_millis(100));
         if new_move_time < time {
             return new_move_time;
         }
