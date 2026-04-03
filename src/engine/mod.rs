@@ -14,7 +14,6 @@ use crate::{
     search::{
         Depth, MAX_DEPTH, Searcher,
         game_history::GameHistory,
-        picker::MovePicker,
         score_table::{DEFAULT_TABLE_SIZE_MB, ScoreTable},
         status::{SearchStatus, SearchStatusValue},
         window::Window,
@@ -68,6 +67,7 @@ impl Engine {
             table.prepare_new_search();
 
             let mut searcher = Searcher::new(&mut history, &mut table, &mut net, status.clone(), duration);
+            let mut pv = Vec::new();
 
             for d in 1..=depth.unwrap_or(MAX_DEPTH) {
                 let time = Instant::now();
@@ -75,7 +75,7 @@ impl Engine {
                 if d > 1 && searcher.should_stop() {
                     break;
                 }
-                let pv = searcher.pv(&position);
+                pv = searcher.pv(&position);
                 let elapsed = time.elapsed();
                 println!(
                     "info depth {} score cp {} time {} nodes {} nps {} hashfull {} pv {}",
@@ -94,11 +94,12 @@ impl Engine {
 
             status.set(SearchStatusValue::Stopped);
 
-            if let Some(best_move) = table.hash_move(&position).or_else(|| {
-                let mut picker = MovePicker::new(&position, false, None, [None, None]);
-                picker.next()
-            }) {
-                println!("bestmove {}", best_move);
+            if let Some(best_move) = pv.first() {
+                if let Some(ponder_move) = pv.get(1) {
+                    println!("bestmove {} ponder {}", best_move, ponder_move);
+                } else {
+                    println!("bestmove {}", best_move);
+                }
             } else {
                 println!("bestmove (none)");
             }
