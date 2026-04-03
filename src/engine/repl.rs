@@ -17,6 +17,7 @@ const UCI_FLAGS: &[&str] = &[
     "movetime",
 ];
 const OMITTED_FLAGS: &[&str] = &["infinite", "moves"];
+const NEGATIVE_ARG_HOLDERS: &[&str] = &["wtime", "btime"];
 
 #[derive(Parser, Debug)]
 #[command(name = "")]
@@ -129,7 +130,14 @@ fn parse(input: &String) -> Result<Command, Error> {
     let mut input = input.to_owned();
 
     for ommited in OMITTED_FLAGS {
-        input = input.replace(ommited, "");
+        input = input.replace(format!(" {}", ommited).as_str(), " ");
+    }
+
+    for negative_arg_holder in NEGATIVE_ARG_HOLDERS {
+        input = input.replace(
+            format!(" {} -", negative_arg_holder).as_str(),
+            format!(" {} ", negative_arg_holder).as_str(),
+        );
     }
 
     for relaxed in UCI_FLAGS {
@@ -175,12 +183,14 @@ mod tests {
     #[case("go ponder")]
     #[case("go depth 8 movetime 6000")]
     #[case("go wtime 53000 btime 50000 winc 3000 binc 3000")]
+    #[case("go wtime -53000 btime 50000 winc 3000 binc 3000")]
+    #[case("go wtime 53000 btime -50000 winc 3000 binc 3000")]
     #[case("stop")]
     #[case("ponderhit")]
     #[case("debug on")]
     #[case("quit")]
     fn uci_ok(#[case] input: String) {
-        assert!(parse(&input).is_ok());
+        assert!(parse(&input).is_ok(), "failed to parse input: {}", input);
     }
 
     #[rstest]
@@ -192,6 +202,6 @@ mod tests {
     #[case("go wtime infinite")]
     #[case("go depth -2")]
     fn uci_err(#[case] input: String) {
-        assert!(parse(&input).is_err());
+        assert!(parse(&input).is_err(), "unexpectedly invalid input: {}", input);
     }
 }
