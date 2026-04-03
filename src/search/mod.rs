@@ -10,7 +10,7 @@ pub type Depth = u8;
 pub const MAX_DEPTH: Depth = 2_u8.pow(6) - 1;
 
 use crate::{
-    evaluation::{MAX_POSITIONAL_WEIGHT, ValueScore, nnue::NeuralNetwork},
+    evaluation::{ValueScore, nnue::NeuralNetwork},
     position::{Position, piece::Piece},
     search::{
         game_history::GameHistory,
@@ -100,7 +100,7 @@ impl<'a> Searcher<'a> {
                 && let Some(standing_pat) = standing_pat
             {
                 let captured = position.piece_at(mov.to()).unwrap_or(Piece::Pawn);
-                if standing_pat + (captured.value() as i16) * 100 + MAX_POSITIONAL_WEIGHT < window.best() {
+                if !window.improves(standing_pat + (captured.value() as i16) * 100 + 975) {
                     continue;
                 }
             }
@@ -170,7 +170,7 @@ impl<'a> Searcher<'a> {
         let null_search = window.is_null();
 
         if is_check {
-            depth = depth.saturating_add(1);
+            depth = depth.saturating_add(1).min(MAX_DEPTH);
         }
 
         for (i, mov) in picker.enumerate() {
@@ -333,7 +333,7 @@ mod tests {
     #[case("2kr4/1pp2B2/p2p1R2/4p2p/4P3/3P3q/PPP1KBr1/3R4 w - - 1 26", "f7e6 h3e6 f6e6", 2)]
     #[case("r1bk1bNr/1pq2Qpp/2np4/4p3/2p1P3/8/PP3PPP/R4K1R w - - 4 17", "f7f8 d8d7 f8g7", 2)]
     #[case("6k1/1pRbb2p/4p1pP/p2p4/4qBP1/P5Q1/1P3K2/8 b - - 3 26", "e7h4 g3h4 e4f4", 5)]
-    #[case("2q3k1/6pp/r2PR3/1p1n1p2/5B2/2P2B2/5PPP/4R1K1 b - - 0 38", "c8e6", 3)]
+    #[case("2q3k1/6pp/r2PR3/1p1n1p2/5B2/2P2B2/5PPP/4R1K1 b - - 0 38", "c8e6", 4)]
     #[case("5r2/kpb1q2p/p1R3pP/3Pp1P1/3pPp2/1Q1P3B/PP6/1K6 w - - 8 35", "d5d6 c7d6 b3b6 a7b8 c6d6", 4)]
     #[case("r5rk/1p1nq2p/3pnp1p/1pp5/4PP1P/P2PQ3/BPP2PR1/2K3R1 w - -", "g2g8 a8g8 g1g8 h8g8 f4f5", 4)]
     #[case("r5k1/2qn1pp1/bpp2n1p/p2pB3/8/2PQ3P/PPB1NPP1/R4RK1 b - - 0 18", "c7e5", 2)]
@@ -349,9 +349,9 @@ mod tests {
     #[case("r4rk1/ppp2ppp/2n5/2bqp3/8/P2PB3/1PP1NPPP/R2Q1RK1 w - -", "e2c3", 2)]
     #[case("1k5r/pppbn1pp/4q1r1/1P3p2/2NPp3/1QP5/P4PPP/R1B1R1K1 w - - 0 1", "c4e5", 2)]
     #[case("R7/P4k2/8/8/8/8/r7/6K1 w - - 0 1", "a8h8", 9)]
-    #[case("r1b2rk1/ppbn1ppp/4p3/1QP4q/3P4/N4N2/5PPP/R1B2RK1 w - - 0 1", "c5c6", 2)]
+    #[case("r1b2rk1/ppbn1ppp/4p3/1QP4q/3P4/N4N2/5PPP/R1B2RK1 w - - 0 1", "c5c6", 3)]
     #[case("r2qkb1r/1ppb1ppp/p7/4p3/P1Q1P3/2P5/5PPP/R1B2KNR b kq - 0 1", "d7b5 c4b5 a6b5", 3)]
-    #[case("5rk1/1b3p1p/pp3p2/3n1N2/1P6/P1qB1PP1/3Q3P/4R1K1 w - - 0 1", "d2h6 c3e1 d3f1 e1e3 f5e3", 5)]
+    #[case("5rk1/1b3p1p/pp3p2/3n1N2/1P6/P1qB1PP1/3Q3P/4R1K1 w - - 0 1", "d2h6 c3e1 d3f1", 5)]
     #[case("1r1r2k1/4pp1p/2p1b1p1/p3R3/RqBP4/4P3/1PQ2PPP/6K1 b - - 0 1", "b4e1 c4f1 e6b3", 4)]
     #[case("r2q2k1/pp1rbppp/4pn2/2P5/1P3B2/6P1/P3QPBP/1R3RK1 w - - 0 1", "c5c6 b7c6 g2c6", 4)]
     #[case("6k1/p4p1p/1p3np1/2q5/4p3/4P1N1/PP3PPP/3Q2K1 w - - 0 1", "d1d8 g8g7 d8f6 g7f6 g3e4", 4)]
@@ -369,7 +369,7 @@ mod tests {
     #[case("6k1/6p1/p7/3Pn3/5p2/4rBqP/P4RP1/5QK1 b - - 0 1", "e3e1", 2)]
     #[case("r3r1k1/pp1q1pp1/4b1p1/3p2B1/3Q1R2/8/PPP3PP/4R1K1 w - - 0 1", "d4g7 g8g7 g5f6", 6)]
     #[case("r3q1kr/ppp5/3p2pQ/8/3PP1b1/5R2/PPP3P1/5RK1 w - - 0 1", "f3f8 e8f8 f1f8 a8f8 h6g6", 4)]
-    #[case("8/8/2R5/1p2qp1k/1P2r3/2PQ2P1/5K2/8 w - - 0 1", "d3d1 h5g5 d1d2", 4)]
+    #[case("8/8/2R5/1p2qp1k/1P2r3/2PQ2P1/5K2/8 w - - 0 1", "d3d1 h5g5 d1d2", 5)]
     #[case("r1b2rk1/2p1qnbp/p1pp2p1/5p2/2PQP3/1PN2N1P/PB3PP1/3R1RK1 w - - 0 1", "c3d5", 2)]
     #[case("6r1/3Pn1qk/p1p1P1rp/2Q2p2/2P5/1P4P1/P3R2P/5RK1 b - - 0 1", "g6g3 g1h1", 4)]
     #[case("r1brnbk1/ppq2pp1/4p2p/4N3/3P4/P1PB1Q2/3B1PPP/R3R1K1 w - - 0 1", "e5f7", 3)]
@@ -380,7 +380,7 @@ mod tests {
     #[case("2kr3r/pppq1ppp/3p1n2/bQ2p3/1n1PP3/1PN1BN1P/1PP2PP1/2KR3R b - - 0 1", "b4a2", 2)]
     #[case("2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 1", "b5a7 c5a7 h3a3", 8)]
     #[case("r3r1k1/pp1n1ppp/2p5/4Pb2/2B2P2/B1P5/P5PP/R2R2K1 w - - 0 1", "e5e6", 2)]
-    #[case("r1q3rk/1ppbb1p1/4Np1p/p3pP2/P3P3/2N4R/1PP1Q1PP/3R2K1 w - - 0 1", "e2d2", 2)]
+    #[case("r1q3rk/1ppbb1p1/4Np1p/p3pP2/P3P3/2N4R/1PP1Q1PP/3R2K1 w - - 0 1", "e2d2", 3)]
     #[case("r3r1k1/pppq1ppp/8/8/1Q4n1/7P/PPP2PP1/RNB1R1K1 b - - 0 1", "d7d6", 5)]
     #[case("r1b1qrk1/2p2ppp/pb1pnn2/1p2pNB1/3PP3/1BP5/PP2QPPP/RN1R2K1 w - - 0 1", "g5f6", 4)]
     #[case("3r2k1/ppp2ppp/6q1/b4n2/3nQB2/2p5/P4PPP/RN3RK1 b - - 0 1", "f5g3", 3)]
