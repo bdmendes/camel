@@ -19,7 +19,7 @@ impl KillerTable {
     }
 
     pub fn put(&mut self, ply: u8, mov: Move) {
-        let index = ply as usize * 2;
+        let index = ply.min(MAX_DEPTH) as usize * 2;
         if self.killers[index] != Some(mov) {
             self.killers[index + 1] = self.killers[index];
             self.killers[index] = Some(mov);
@@ -85,5 +85,20 @@ mod tests {
 
         assert_eq!(table.get(0), [Some(mov3), Some(mov1)]);
         assert_eq!(table.get(1), [Some(mov4), Some(mov2)]);
+    }
+
+    #[test]
+    fn max_ply_boundary() {
+        use crate::search::MAX_DEPTH;
+
+        let mut table = KillerTable::default();
+        let mov = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
+
+        table.put(MAX_DEPTH, mov);
+        assert_eq!(table.get(MAX_DEPTH), [Some(mov), None]);
+
+        let mov2 = Move::new(Square::D2, Square::D4, MoveFlag::DoublePawnPush);
+        table.put(MAX_DEPTH + 1, mov2);
+        assert_eq!(table.get(MAX_DEPTH + 1), [Some(mov2), Some(mov)]);
     }
 }
