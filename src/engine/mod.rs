@@ -72,7 +72,7 @@ impl Engine {
             for d in 1..=depth.unwrap_or(MAX_DEPTH) {
                 let time = Instant::now();
                 let (nodes, score) = searcher.pvs(&position, d, 0, Window::default());
-                if searcher.should_stop() {
+                if d > 1 && searcher.should_stop() {
                     break;
                 }
                 let pv = searcher.pv(&position);
@@ -87,6 +87,9 @@ impl Engine {
                     searcher.hashfull_millis(),
                     pv[..(d as usize).min(pv.len())].join(" ")
                 );
+                if pv.is_empty() {
+                    break;
+                }
             }
 
             status.set(SearchStatusValue::Stopped);
@@ -96,6 +99,8 @@ impl Engine {
                 picker.next()
             }) {
                 println!("bestmove {}", best_move);
+            } else {
+                println!("bestmove (none)");
             }
         });
     }
