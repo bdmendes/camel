@@ -89,8 +89,6 @@ mod tests {
 
     #[test]
     fn max_ply_boundary() {
-        use crate::search::MAX_DEPTH;
-
         let mut table = KillerTable::default();
         let mov = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
 
