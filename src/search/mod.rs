@@ -29,6 +29,7 @@ use std::time::{Duration, Instant};
 const MATE_SCORE: ValueScore = ValueScore::MIN + 2;
 const NULL_MOVE_MIN_DEPTH: Depth = 5;
 const NULL_MOVE_REDUCTION: Depth = 3;
+const FUTILITY_MARGIN: ValueScore = 975;
 
 primitive_enum! { NodeType u8;
     PVNode,
@@ -104,7 +105,7 @@ impl<'a> Searcher<'a> {
                 && let Some(standing_pat) = standing_pat
             {
                 let captured = position.piece_at(mov.to()).unwrap_or(Piece::Pawn);
-                if !window.improves(standing_pat + (captured.value() as i16) * 100 + 975) {
+                if !window.improves(standing_pat + (captured.value() as i16) * 100 + FUTILITY_MARGIN) {
                     continue;
                 }
             }
@@ -153,8 +154,9 @@ impl<'a> Searcher<'a> {
         }
 
         let is_check = position.is_check();
+        let may_be_zug = maybe_zug(position);
 
-        if ply > 0 && !is_check && depth > NULL_MOVE_MIN_DEPTH && !maybe_zug(position) {
+        if ply > 0 && !is_check && depth > NULL_MOVE_MIN_DEPTH && !may_be_zug {
             let next = position.make_null_move();
             let (nodes, score) = self.pvs(
                 &next,
@@ -185,6 +187,15 @@ impl<'a> Searcher<'a> {
             let (nodes, score) = if i == 0 {
                 self.pvs(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse())
             } else {
+                if depth == 1 && !is_check && !may_be_zug && !mov.is_capture() {
+                    let static_evaluation =
+                        100 * ((position.material() * position.side_to_move().sign()) as ValueScore);
+                    if !window.improves(static_evaluation + FUTILITY_MARGIN) {
+                        self.history.pop(next_position.side_to_move());
+                        continue;
+                    }
+                }
+
                 let (null_nodes, null_score) = self.pvs(
                     &next_position,
                     depth.saturating_sub(1),
@@ -390,7 +401,7 @@ mod tests {
     #[case("r1q3rk/1ppbb1p1/4Np1p/p3pP2/P3P3/2N4R/1PP1Q1PP/3R2K1 w - - 0 1", "e2d2", 3)]
     #[case("r3r1k1/pppq1ppp/8/8/1Q4n1/7P/PPP2PP1/RNB1R1K1 b - - 0 1", "d7d6", 5)]
     #[case("r1b1qrk1/2p2ppp/pb1pnn2/1p2pNB1/3PP3/1BP5/PP2QPPP/RN1R2K1 w - - 0 1", "g5f6", 4)]
-    #[case("3r2k1/ppp2ppp/6q1/b4n2/3nQB2/2p5/P4PPP/RN3RK1 b - - 0 1", "f5g3", 3)]
+    #[case("3r2k1/ppp2ppp/6q1/b4n2/3nQB2/2p5/P4PPP/RN3RK1 b - - 0 1", "f5g3", 4)]
     #[case("r2q3r/ppp2k2/4nbp1/5Q1p/2P1NB2/8/PP3P1P/3RR1K1 w - - 0 1", "e4g5 e6g5 d1d7", 2)]
     #[case("r4rk1/p1B1bpp1/1p2pn1p/8/2PP4/3B1P2/qP2QP1P/3R1RK1 w - - 0 1", "d1a1 a2b3 d3c2", 7)]
     #[case("r4rk1/1bR1bppp/4pn2/1p2N3/1P6/P3P3/4BPPP/3R2K1 b - - 0 1", "e7d6 d1d6 f6e8", 4)]
