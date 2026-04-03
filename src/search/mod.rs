@@ -27,7 +27,6 @@ use primitive_enum::primitive_enum;
 use std::time::{Duration, Instant};
 
 const MATE_SCORE: ValueScore = ValueScore::MIN + 2;
-const NULL_MOVE_MIN_DEPTH: Depth = 5;
 const NULL_MOVE_REDUCTION: Depth = 3;
 const FUTILITY_MARGIN: ValueScore = 975;
 
@@ -156,7 +155,7 @@ impl<'a> Searcher<'a> {
         let is_check = position.is_check();
         let may_be_zug = maybe_zug(position);
 
-        if ply > 0 && !is_check && depth > NULL_MOVE_MIN_DEPTH && !may_be_zug {
+        if ply > 0 && !is_check && depth > NULL_MOVE_REDUCTION + 1 && !may_be_zug {
             let next = position.make_null_move();
             let (nodes, score) = self.pvs(
                 &next,
