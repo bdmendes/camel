@@ -4,13 +4,15 @@ pub struct KillerTable {
     killers: [Option<Move>; 2 * (MAX_DEPTH + 1) as usize],
 }
 
-impl KillerTable {
-    pub fn new() -> Self {
+impl Default for KillerTable {
+    fn default() -> Self {
         Self {
             killers: [None; 2 * (MAX_DEPTH + 1) as usize],
         }
     }
+}
 
+impl KillerTable {
     pub fn get(&self, ply: u8) -> [Option<Move>; 2] {
         let index = ply.min(MAX_DEPTH) as usize * 2;
         [self.killers[index], self.killers[index + 1]]
@@ -32,7 +34,7 @@ mod tests {
 
     #[test]
     fn put_get() {
-        let mut table = KillerTable::new();
+        let mut table = KillerTable::default();
         let mov = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
         let mov2 = Move::new(Square::D2, Square::D4, MoveFlag::DoublePawnPush);
 
@@ -47,7 +49,7 @@ mod tests {
 
     #[test]
     fn repeated_put() {
-        let mut table = KillerTable::new();
+        let mut table = KillerTable::default();
         let mov = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
 
         table.put(0, mov);
@@ -57,7 +59,7 @@ mod tests {
 
     #[test]
     fn override_put() {
-        let mut table = KillerTable::new();
+        let mut table = KillerTable::default();
         let mov = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
         let mov2 = Move::new(Square::D2, Square::D4, MoveFlag::DoublePawnPush);
         let mov3 = Move::new(Square::C2, Square::C4, MoveFlag::DoublePawnPush);
@@ -70,7 +72,7 @@ mod tests {
 
     #[test]
     fn multiple_plies() {
-        let mut table = KillerTable::new();
+        let mut table = KillerTable::default();
         let mov1 = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
         let mov2 = Move::new(Square::D2, Square::D4, MoveFlag::DoublePawnPush);
         let mov3 = Move::new(Square::C2, Square::C4, MoveFlag::DoublePawnPush);

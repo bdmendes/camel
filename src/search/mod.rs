@@ -61,7 +61,7 @@ impl<'a> Searcher<'a> {
             network,
             initial: Instant::now(),
             duration,
-            killers: KillerTable::new(),
+            killers: KillerTable::default(),
         }
     }
 
