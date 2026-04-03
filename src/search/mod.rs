@@ -1,5 +1,6 @@
 pub mod game_history;
 pub mod heuristics;
+pub mod killer_table;
 pub mod perft;
 pub mod picker;
 pub mod score_table;
@@ -15,6 +16,7 @@ use crate::{
     search::{
         game_history::GameHistory,
         heuristics::maybe_zug,
+        killer_table::KillerTable,
         picker::MovePicker,
         score_table::ScoreTable,
         status::{SearchStatus, SearchStatusValue},
@@ -41,6 +43,7 @@ pub struct Searcher<'a> {
     status: SearchStatus,
     initial: Instant,
     duration: Duration,
+    killers: KillerTable,
 }
 
 impl<'a> Searcher<'a> {
@@ -58,6 +61,7 @@ impl<'a> Searcher<'a> {
             network,
             initial: Instant::now(),
             duration,
+            killers: KillerTable::default(),
         }
     }
 
@@ -163,7 +167,7 @@ impl<'a> Searcher<'a> {
             }
         }
 
-        let picker = MovePicker::new(position, false, self.table.hash_move(position), [None, None]);
+        let picker = MovePicker::new(position, false, self.table.hash_move(position), self.killers.get(ply));
 
         let mut count = 0;
         let mut node_type = NodeType::AllNode;
@@ -207,6 +211,9 @@ impl<'a> Searcher<'a> {
                 }
                 FeedResult::FailHigh => {
                     node_type = NodeType::CutNode;
+                    if mov.is_quiet() {
+                        self.killers.put(ply, mov);
+                    }
                     break;
                 }
                 _ => {}
