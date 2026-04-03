@@ -1,13 +1,20 @@
-use std::{process, str::FromStr, thread, time::Instant};
+use std::{
+    process,
+    str::FromStr,
+    thread,
+    time::{Duration, Instant},
+};
 
 use crate::{
     engine::{
         Engine,
         repl::{Command, DumpCommand, PositionCommand, repl},
+        time::get_duration,
     },
     moves::{Move, generate::magics::save_magics},
     position::{
         Position,
+        color::Color,
         fen::{KIWIPETE_POSITION, START_POSITION},
         hash::save_zobrist_numbers,
     },
@@ -67,9 +74,36 @@ fn main() {
                     *engine.game_history.lock().unwrap() = GameHistory::new(&position);
                 }
             },
-            Command::Go { depth, .. } => {
-                println!("Search is in alpha! Please use Camel 1.6.0 in the meantime!");
-                engine.go(depth);
+            Command::Go {
+                depth,
+                wtime,
+                btime,
+                winc,
+                binc,
+                ponder,
+                movetime,
+                ..
+            } => {
+                let status = engine.search_status.clone();
+                status.set(if ponder { SearchStatusValue::Pondering } else { SearchStatusValue::Searching });
+
+                let (time, increment) = match engine.position.side_to_move() {
+                    Color::White => (wtime, winc),
+                    Color::Black => (btime, binc),
+                };
+
+                let duration = movetime.map(Duration::from_millis).or_else(|| {
+                    time.map(|t| {
+                        get_duration(
+                            &engine.position,
+                            Duration::from_millis(t),
+                            increment.map(Duration::from_millis),
+                            ponder,
+                        )
+                    })
+                });
+
+                engine.go(depth, duration);
             }
             Command::Setoption { name, value } => match (name.as_str(), value) {
                 ("Hash", number) => {

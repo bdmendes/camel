@@ -22,6 +22,7 @@ use crate::{
 };
 
 pub mod repl;
+pub mod time;
 
 pub struct Engine {
     pub position: Position,
@@ -51,20 +52,18 @@ impl Default for Engine {
 }
 
 impl Engine {
-    pub fn go(&self, depth: Option<Depth>) {
+    pub fn go(&self, depth: Option<Depth>, duration: Option<Duration>) {
         let history = self.game_history.clone();
         let table = self.score_table.clone();
         let net = self.evaluator.clone();
         let status = self.search_status.clone();
         let position = self.position;
 
-        status.set(SearchStatusValue::Searching);
-
         thread::spawn(move || {
             let mut history = history.lock().unwrap();
             let mut table = table.lock().unwrap();
             let mut net = net.lock().unwrap();
-            let duration = Duration::from_hours(1);
+            let duration = duration.unwrap_or(Duration::from_hours(1));
 
             table.prepare_new_search();
 
