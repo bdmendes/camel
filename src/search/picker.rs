@@ -39,7 +39,7 @@ impl MovePicker {
             } else if mov.promotion_piece().is_some() {
                 -72
             } else if mov.is_capture() {
-                36 + position.piece_at(mov.to()).unwrap_or(Piece::Pawn).value()
+                48 + position.piece_at(mov.to()).unwrap_or(Piece::Pawn).value()
                     - position.piece_at(mov.from()).unwrap().value()
             } else if Some(mov) == killer_moves[0] || Some(mov) == killer_moves[1] {
                 0
@@ -51,14 +51,11 @@ impl MovePicker {
         };
 
         let generate = if captures_only { MoveStage::CapturesAndPromotions } else { MoveStage::All };
-        let mut moves = position
+        let moves = position
             .moves(generate)
             .iter()
             .map(|&mov| (mov, move_value(mov)))
             .collect::<ScoredMoveVec>();
-        if generate == MoveStage::CapturesAndPromotions {
-            moves.retain(|(_, score)| *score >= 0);
-        }
 
         Self { moves, current: 0 }
     }
@@ -204,5 +201,14 @@ mod tests {
             .position(|mov| mov.from() == Square::C4 && mov.to() == Square::D5)
             .unwrap();
         assert!(bishop_to_center_idx < bishop_retreat_idx);
+    }
+
+    #[test]
+    fn only_captures() {
+        let position = Position::from_str("3rrkR1/1p6/p5p1/2p5/1qb1B3/2N3P1/PP2PP2/2KR4 b - - 1 26").unwrap();
+        let mut picker = MovePicker::new(&position, true, None, [None, None]);
+        assert_eq!(picker.next(), Some(Move::new(Square::C4, Square::G8, MoveFlag::Capture)));
+        assert_eq!(picker.next(), Some(Move::new(Square::F8, Square::G8, MoveFlag::Capture)));
+        assert_eq!(picker.next(), None);
     }
 }
