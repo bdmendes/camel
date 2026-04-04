@@ -7,14 +7,14 @@ pub const MATE_SCORE: ValueScore = ValueScore::MIN + 2;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Score {
     Value(ValueScore),
-    Mate(u8),
+    Mate(i16),
 }
 
 impl From<ValueScore> for Score {
     fn from(value: ValueScore) -> Self {
         if Score::is_mate(value) {
             let mate_in = (MATE_SCORE.abs() - value.abs() + 1) / 2;
-            Score::Mate((mate_in & 0xFF) as u8)
+            Score::Mate(if value > 0 { mate_in } else { -mate_in })
         } else {
             Score::Value(value)
         }
@@ -43,9 +43,9 @@ mod tests {
 
     #[rstest]
     #[case(MATE_SCORE, Score::Mate(0))]
-    #[case(MATE_SCORE + 1, Score::Mate(1))]
-    #[case(MATE_SCORE + 2, Score::Mate(1))]
-    #[case(MATE_SCORE + 3, Score::Mate(2))]
+    #[case(MATE_SCORE + 1, Score::Mate(-1))]
+    #[case(MATE_SCORE + 2, Score::Mate(-1))]
+    #[case(MATE_SCORE + 3, Score::Mate(-2))]
     #[case(-MATE_SCORE, Score::Mate(0))]
     #[case(-MATE_SCORE - 1, Score::Mate(1))]
     #[case(-MATE_SCORE - 2, Score::Mate(1))]

@@ -79,9 +79,13 @@ impl Engine {
                     break;
                 }
 
-                pv = searcher.pv(&position);
                 let elapsed = time.elapsed();
                 let score = Score::from(score);
+                pv = searcher.pv(&position);
+                let is_mate = matches!(score, Score::Mate(_));
+                if !is_mate {
+                    pv.truncate(d as usize);
+                }
                 println!(
                     "info depth {} score {} time {} nodes {} nps {} hashfull {} pv {}",
                     d,
@@ -90,12 +94,12 @@ impl Engine {
                     nodes,
                     (nodes as f64 / elapsed.as_secs_f64()) as u64,
                     searcher.hashfull_millis(),
-                    pv[..(d as usize).min(pv.len())].join(" ")
+                    pv.join(" ")
                 );
 
                 if pv.is_empty()
                     || elapsed > duration / 2
-                    || matches!(score, Score::Mate(_))
+                    || is_mate
                     || (!matches!(score, Score::Value(v) if v.abs() > MAX_POSITIONAL_WEIGHT) && available_moves <= 1)
                 {
                     break;
