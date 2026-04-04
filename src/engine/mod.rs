@@ -11,7 +11,7 @@ use crate::{
         nnue::{NeuralNetwork, Parameters},
         score::Score,
     },
-    position::{Position, fen::START_POSITION},
+    position::{MoveStage, Position, fen::START_POSITION},
     search::{
         Depth, MAX_DEPTH, Searcher,
         game_history::GameHistory,
@@ -64,6 +64,7 @@ impl Engine {
             let mut table = table.lock().unwrap();
             let mut net = net.lock().unwrap();
             let duration = duration.unwrap_or(Duration::from_hours(1));
+            let available_moves = position.moves(MoveStage::All).len();
 
             table.prepare_new_search();
 
@@ -89,7 +90,7 @@ impl Engine {
                     searcher.hashfull_millis(),
                     pv[..(d as usize).min(pv.len())].join(" ")
                 );
-                if pv.is_empty() || elapsed > duration / 2 || matches!(score, Score::Mate(_)) {
+                if pv.is_empty() || elapsed > duration / 2 || matches!(score, Score::Mate(_)) || available_moves <= 1 {
                     break;
                 }
             }
