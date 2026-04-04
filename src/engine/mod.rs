@@ -9,6 +9,7 @@ use crate::{
     evaluation::{
         NNUE_PARAMS_BLOB,
         nnue::{NeuralNetwork, Parameters},
+        score::Score,
     },
     position::{Position, fen::START_POSITION},
     search::{
@@ -77,8 +78,9 @@ impl Engine {
                 }
                 pv = searcher.pv(&position);
                 let elapsed = time.elapsed();
+                let score = Score::from(score);
                 println!(
-                    "info depth {} score cp {} time {} nodes {} nps {} hashfull {} pv {}",
+                    "info depth {} score {} time {} nodes {} nps {} hashfull {} pv {}",
                     d,
                     score,
                     elapsed.as_millis(),
@@ -87,7 +89,7 @@ impl Engine {
                     searcher.hashfull_millis(),
                     pv[..(d as usize).min(pv.len())].join(" ")
                 );
-                if pv.is_empty() || elapsed > duration / 2 {
+                if pv.is_empty() || elapsed > duration / 2 || matches!(score, Score::Mate(_)) {
                     break;
                 }
             }

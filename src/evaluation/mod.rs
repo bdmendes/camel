@@ -1,9 +1,10 @@
+use crate::evaluation::score::ValueScore;
+
 pub mod nnue;
+pub mod score;
 
 pub static NNUE_PARAMS_BLOB: &str = include_str!("../../assets/dump/20260330-015436.nnue");
 pub const MAX_POSITIONAL_WEIGHT: ValueScore = 320;
-
-pub type ValueScore = i16;
 
 #[cfg(test)]
 mod tests {
