@@ -11,7 +11,10 @@ pub type Depth = u8;
 pub const MAX_DEPTH: Depth = 2_u8.pow(6) - 1;
 
 use crate::{
-    evaluation::{ValueScore, nnue::NeuralNetwork},
+    evaluation::{
+        nnue::NeuralNetwork,
+        score::{MATE_SCORE, ValueScore},
+    },
     position::{Position, piece::Piece},
     search::{
         game_history::GameHistory,
@@ -26,7 +29,6 @@ use crate::{
 use primitive_enum::primitive_enum;
 use std::time::{Duration, Instant};
 
-const MATE_SCORE: ValueScore = ValueScore::MIN + 2;
 const NULL_MOVE_REDUCTION: Depth = 3;
 const FUTILITY_MARGIN: ValueScore = 975;
 

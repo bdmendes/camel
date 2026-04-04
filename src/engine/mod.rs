@@ -7,10 +7,11 @@ use std::{
 
 use crate::{
     evaluation::{
-        NNUE_PARAMS_BLOB,
+        MAX_POSITIONAL_WEIGHT, NNUE_PARAMS_BLOB,
         nnue::{NeuralNetwork, Parameters},
+        score::Score,
     },
-    position::{Position, fen::START_POSITION},
+    position::{MoveStage, Position, fen::START_POSITION},
     search::{
         Depth, MAX_DEPTH, Searcher,
         game_history::GameHistory,
@@ -63,6 +64,7 @@ impl Engine {
             let mut table = table.lock().unwrap();
             let mut net = net.lock().unwrap();
             let duration = duration.unwrap_or(Duration::from_hours(1));
+            let available_moves = position.moves(MoveStage::All).len();
 
             table.prepare_new_search();
 
@@ -72,22 +74,34 @@ impl Engine {
             for d in 1..=depth.unwrap_or(MAX_DEPTH) {
                 let time = Instant::now();
                 let (nodes, score) = searcher.pvs(&position, d, 0, Window::default());
+
                 if d > 1 && searcher.should_stop() {
                     break;
                 }
-                pv = searcher.pv(&position);
+
                 let elapsed = time.elapsed();
+                let score = Score::from(score);
+                pv = searcher.pv(&position);
+                let is_mate = matches!(score, Score::Mate(_));
+                if !is_mate {
+                    pv.truncate(d as usize);
+                }
                 println!(
-                    "info depth {} score cp {} time {} nodes {} nps {} hashfull {} pv {}",
+                    "info depth {} score {} time {} nodes {} nps {} hashfull {} pv {}",
                     d,
                     score,
                     elapsed.as_millis(),
                     nodes,
                     (nodes as f64 / elapsed.as_secs_f64()) as u64,
                     searcher.hashfull_millis(),
-                    pv[..(d as usize).min(pv.len())].join(" ")
+                    pv.join(" ")
                 );
-                if pv.is_empty() || elapsed > duration / 2 {
+
+                if pv.is_empty()
+                    || elapsed > duration / 2
+                    || is_mate
+                    || (!matches!(score, Score::Value(v) if v.abs() > MAX_POSITIONAL_WEIGHT) && available_moves <= 1)
+                {
                     break;
                 }
             }

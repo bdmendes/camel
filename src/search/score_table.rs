@@ -1,7 +1,7 @@
 use std::{collections::HashMap, mem};
 
 use crate::{
-    evaluation::ValueScore,
+    evaluation::score::ValueScore,
     moves::Move,
     position::{MoveStage, Position},
     search::{Depth, MATE_SCORE, NodeType},
