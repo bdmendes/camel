@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     evaluation::{
-        NNUE_PARAMS_BLOB,
+        MAX_POSITIONAL_WEIGHT, NNUE_PARAMS_BLOB,
         nnue::{NeuralNetwork, Parameters},
         score::Score,
     },
@@ -74,9 +74,11 @@ impl Engine {
             for d in 1..=depth.unwrap_or(MAX_DEPTH) {
                 let time = Instant::now();
                 let (nodes, score) = searcher.pvs(&position, d, 0, Window::default());
+
                 if d > 1 && searcher.should_stop() {
                     break;
                 }
+
                 pv = searcher.pv(&position);
                 let elapsed = time.elapsed();
                 let score = Score::from(score);
@@ -90,7 +92,12 @@ impl Engine {
                     searcher.hashfull_millis(),
                     pv[..(d as usize).min(pv.len())].join(" ")
                 );
-                if pv.is_empty() || elapsed > duration / 2 || matches!(score, Score::Mate(_)) || available_moves <= 1 {
+
+                if pv.is_empty()
+                    || elapsed > duration / 2
+                    || matches!(score, Score::Mate(_))
+                    || (!matches!(score, Score::Value(v) if v.abs() > MAX_POSITIONAL_WEIGHT) && available_moves <= 1)
+                {
                     break;
                 }
             }
