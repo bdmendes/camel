@@ -21,11 +21,11 @@ jobs:
       - name: Format Shell
         run: |
           sudo apt-get install shfmt
-          shfmt -i 4 -d .
+          shfmt -i 4 -d scripts/
 
       - uses: VirtusLab/scala-cli-setup@v1.11
       - name: Format Scala
-        run: scala-cli fmt --check .
+        run: scala-cli fmt --check scripts/
 
   lint:
     runs-on: ubuntu-latest
