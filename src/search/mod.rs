@@ -147,6 +147,12 @@ impl<'a> Searcher<'a> {
             return (1, 0);
         }
 
+        if !window.improves(-MATE_SCORE - ply as ValueScore) {
+            return (1, -MATE_SCORE - ply as ValueScore);
+        } else if matches!(window.feed(MATE_SCORE + ply as ValueScore, None), FeedResult::FailHigh) {
+            return (1, MATE_SCORE + ply as ValueScore);
+        }
+
         if ply > 0
             && seen <= 1
             && let Some((score, node_type)) = self.table.probe(position, depth, ply)
