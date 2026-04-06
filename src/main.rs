@@ -48,25 +48,33 @@ fn main() {
         match cmd {
             Command::Position { subcommand } => match subcommand {
                 PositionCommand::Startpos { moves } => {
-                    if let Some((history, position)) = GameHistory::from_moves(
+                    let Some((history, position)) = GameHistory::from_moves(
                         &Position::from_str(START_POSITION).unwrap(),
                         &moves.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
-                    ) {
-                        engine.position = position;
-                        *engine.game_history.lock().unwrap() = history;
-                    } else {
+                    ) else {
                         println!("Invalid move sequence.");
-                    }
+                        return;
+                    };
+
+                    engine.position = position;
+                    *engine.game_history.lock().unwrap() = history;
                 }
-                PositionCommand::Fen { fen } => {
+                PositionCommand::Fen { fen, moves } => {
                     let flattened = fen.join(" ");
-                    match Position::from_str(&flattened) {
-                        Ok(position) => {
-                            engine.position = position;
-                            *engine.game_history.lock().unwrap() = GameHistory::new(&position);
-                        }
-                        Err(_) => println!("Invalid FEN: {}", flattened),
-                    }
+                    let Ok(position) = Position::from_str(&flattened) else {
+                        println!("Invalid FEN: {}", flattened);
+                        return;
+                    };
+
+                    let Some((history, position)) =
+                        GameHistory::from_moves(&position, &moves.iter().map(|s| s.as_str()).collect::<Vec<_>>())
+                    else {
+                        println!("Invalid move sequence.");
+                        return;
+                    };
+
+                    engine.position = position;
+                    *engine.game_history.lock().unwrap() = history;
                 }
                 PositionCommand::Kiwi => {
                     let position = Position::from_str(KIWIPETE_POSITION).unwrap();
