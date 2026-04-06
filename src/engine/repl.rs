@@ -16,7 +16,8 @@ const UCI_FLAGS: &[&str] = &[
     "movestogo",
     "movetime",
 ];
-const OMITTED_FLAGS: &[&str] = &["infinite", "moves"];
+const OMITTED_FLAGS: &[&str] = &["infinite"];
+const LAST_ARGS: &[&str] = &["moves"];
 const NEGATIVE_ARG_HOLDERS: &[&str] = &["wtime", "btime"];
 
 #[derive(Parser, Debug)]
@@ -111,9 +112,17 @@ pub enum PositionCommand {
     Fen {
         /// The Forsyth–Edwards Notation describing the position.
         fen: Vec<String>,
+
+        /// The moves to play from the position, in long algebraic notation.
+        #[arg(last = true)]
+        moves: Vec<String>,
     },
     /// From the starting position.
-    Startpos { moves: Vec<String> },
+    Startpos {
+        /// The moves to play from the starting position, in long algebraic notation.
+        #[arg(last = true)]
+        moves: Vec<String>,
+    },
     /// The Kiwipete position.
     Kiwi,
 }
@@ -131,6 +140,10 @@ fn parse(input: &String) -> Result<Command, Error> {
 
     for ommited in OMITTED_FLAGS {
         input = input.replace(format!(" {}", ommited).as_str(), " ");
+    }
+
+    for last_arg in LAST_ARGS {
+        input = input.replace(format!(" {}", last_arg).as_str(), " --");
     }
 
     for negative_arg_holder in NEGATIVE_ARG_HOLDERS {
@@ -177,6 +190,7 @@ mod tests {
     #[case("position startpos")]
     #[case("position startpos moves e2e4 d7d5")]
     #[case("position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")]
+    #[case("position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e4")]
     #[case("go")]
     #[case("go infinite")]
     #[case("go depth 6")]
