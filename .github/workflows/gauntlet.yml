@@ -12,7 +12,6 @@ env:
 
 jobs:
   gauntlet:
-    if: false # FIXME: Re-enable once v2 is ready to play.
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
