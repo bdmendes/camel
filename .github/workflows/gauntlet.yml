@@ -46,7 +46,7 @@ jobs:
 
       - uses: mshick/add-pr-comment@v2
         with:
-          message-path: fast-chess/message.txt
+          message-path: fastchess/message.txt
           message-id: ${{ matrix.target }}
 
       - name: Fail if gauntlet failed
