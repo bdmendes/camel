@@ -12,7 +12,6 @@ env:
 
 jobs:
   gauntlet:
-    if: false # FIXME: Re-enable once v2 is ready to play.
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -47,7 +46,7 @@ jobs:
 
       - uses: mshick/add-pr-comment@v2
         with:
-          message-path: fast-chess/message.txt
+          message-path: fastchess/message.txt
           message-id: ${{ matrix.target }}
 
       - name: Fail if gauntlet failed

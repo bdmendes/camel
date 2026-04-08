@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-readonly RUNNER=fast-chess
-readonly REPO_URL=https://github.com/Disservin/fast-chess.git
-readonly REPO_TAG=v0.7.0-alpha
+readonly RUNNER=fastchess
+readonly REPO_URL=https://github.com/Disservin/fastchess.git
+readonly REPO_TAG=v1.8.0-alpha
 readonly INSTALL_PATH=./$RUNNER
 readonly ENGINE_NAME=camel
 readonly BOOK_PATH=./assets/books

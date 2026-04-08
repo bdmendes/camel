@@ -8,7 +8,7 @@
 .metals
 
 # External tooling
-fast-chess/
+fastchess/
 lichess-bot/
 
 # Performance outputs
