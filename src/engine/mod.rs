@@ -81,7 +81,7 @@ impl Engine {
 
                 let elapsed = time.elapsed();
                 let score = Score::from(score);
-                pv = searcher.pv(&position);
+                pv = searcher.pv_str(&position);
                 let is_mate = matches!(score, Score::Mate(_));
                 if !is_mate {
                     pv.truncate(d as usize);

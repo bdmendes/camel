@@ -1,5 +1,6 @@
 use crate::position::{Position, color::Color, hash::ZobristHash};
 
+#[derive(Debug, Clone)]
 pub struct GameHistory {
     hashes: [Vec<ZobristHash>; 2],
     barriers: [Vec<usize>; 2],
