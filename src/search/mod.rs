@@ -15,7 +15,8 @@ use crate::{
         nnue::NeuralNetwork,
         score::{MATE_SCORE, ValueScore},
     },
-    position::{Position, piece::Piece},
+    moves::Move,
+    position::{MoveStage, Position, piece::Piece},
     search::{
         game_history::GameHistory,
         heuristics::maybe_zug,
@@ -67,8 +68,30 @@ impl<'a> Searcher<'a> {
         }
     }
 
-    pub fn pv(&self, position: &Position) -> Vec<String> {
-        self.table.pv(position).into_iter().map(|mov| mov.to_string()).collect()
+    pub fn pv(&self, position: &Position) -> Vec<Move> {
+        let mut moves = Vec::with_capacity(16);
+        let mut history = self.history.clone();
+        let mut position = *position;
+
+        while let Some(mov) = self
+            .table
+            .hash_move(&position)
+            .filter(|m| position.moves(MoveStage::All).contains(m))
+        {
+            moves.push(mov);
+            let next = position.make_move(mov);
+            history.push(&next, mov.is_reversible(&position));
+            position = next;
+            if history.seen(&position) >= 3 || position.halfmove_clock() >= 100 {
+                break;
+            }
+        }
+        moves
+    }
+
+    pub fn pv_str(&self, position: &Position) -> Vec<String> {
+        let pv = self.pv(position);
+        pv.iter().map(|m| m.to_string()).collect()
     }
 
     pub fn hashfull_millis(&self) -> usize {
@@ -258,7 +281,11 @@ mod tests {
     use super::*;
     use crate::{
         evaluation::{MAX_POSITIONAL_WEIGHT, NNUE_PARAMS_BLOB, nnue::Parameters},
-        position::fen::{Fen, START_POSITION},
+        moves::MoveFlag,
+        position::{
+            fen::{Fen, START_POSITION},
+            square::Square,
+        },
     };
     use rstest::rstest;
     use std::{str::FromStr, thread::sleep};
@@ -292,6 +319,70 @@ mod tests {
 
             searcher.status.set(SearchStatusValue::Stopped);
             assert!(searcher.should_stop());
+        });
+    }
+
+    #[test]
+    fn pv() {
+        with_searcher(100, |searcher| {
+            let position1 = Position::from_str(START_POSITION).unwrap();
+
+            assert_eq!(searcher.pv(&position1), vec![]);
+
+            searcher
+                .table
+                .put(&position1, 4, 0, NodeType::PVNode, 0, position1.get_move_str("e2e4").unwrap());
+            assert_eq!(searcher.pv_str(&position1), vec!["e2e4"]);
+
+            let position2 = position1.make_move_str("e2e4").unwrap();
+
+            searcher
+                .table
+                .put(&position2, 3, 1, NodeType::PVNode, 0, position2.get_move_str("d7d5").unwrap());
+            assert_eq!(searcher.pv_str(&position1), vec!["e2e4", "d7d5"]);
+            assert_eq!(searcher.pv_str(&position2), vec!["d7d5"]);
+        });
+    }
+
+    #[test]
+    fn pv_cycle() {
+        with_searcher(100, |searcher| {
+            let position1 = Position::from_str(START_POSITION).unwrap();
+            let position2 = position1.make_move_str("g1f3").unwrap();
+            let position3 = position2.make_move_str("g8f6").unwrap();
+            let position4 = position3.make_move_str("f3g1").unwrap();
+
+            searcher
+                .table
+                .put(&position1, 4, 0, NodeType::PVNode, 0, position1.get_move_str("g1f3").unwrap());
+            searcher
+                .table
+                .put(&position2, 3, 1, NodeType::PVNode, 0, position2.get_move_str("g8f6").unwrap());
+            searcher
+                .table
+                .put(&position3, 2, 2, NodeType::PVNode, 0, position3.get_move_str("f3g1").unwrap());
+            searcher
+                .table
+                .put(&position4, 1, 3, NodeType::PVNode, 0, position4.get_move_str("f6g8").unwrap());
+
+            assert_eq!(
+                searcher.pv_str(&position1),
+                vec!["g1f3", "g8f6", "f3g1", "f6g8", "g1f3", "g8f6", "f3g1", "f6g8"]
+            );
+        });
+    }
+
+    #[test]
+    fn pv_illegal_pseudo_legal() {
+        with_searcher(1, |searcher| {
+            let position = Position::from_str("r3k2r/ppp2pp1/1n2p1b1/6qp/8/1BNP1Q1P/PPP2P2/R4RK1 w kq - 0 17").unwrap();
+            let mov = Move::new(Square::G1, Square::G2, MoveFlag::Quiet);
+            assert!(mov.pseudo_legal(&position));
+
+            // Simulate a collision where the probed move is also pseudo-legal.
+            searcher.table.put(&position, 1, 0, NodeType::PVNode, 0, mov);
+            assert_eq!(searcher.table.hash_move(&position), Some(mov));
+            assert!(searcher.pv(&position).is_empty());
         });
     }
 
@@ -432,7 +523,6 @@ mod tests {
                 searcher.pvs(&position, d, 0, Window::default());
             }
             let pv = searcher
-                .table
                 .pv_str(&position)
                 .into_iter()
                 .take(moves.len())
