@@ -1,6 +1,6 @@
 use crate::{
     moves::Move,
-    position::{Position, piece::Piece},
+    position::{Position, color::Color, piece::Piece},
 };
 
 const MAX_SEE_DEPTH: usize = 8;
@@ -29,6 +29,12 @@ pub fn static_exchange(position: &Position, mov: Move) -> i8 {
         {
             gains[depth] += piece.value() - gains[depth - 1];
             piece = position.piece_at(attacker).unwrap();
+            if piece == Piece::Pawn
+                && (side_to_move == Color::White && attacker.rank() == 6
+                    || side_to_move == Color::Black && attacker.rank() == 1)
+            {
+                gains[depth] += Piece::Queen.value() - 1;
+            }
             position.clear_square_low::<false>(attacker);
         } else {
             break;
@@ -75,6 +81,7 @@ mod tests {
     #[case("1k1r4/1pp4p/p7/4p3/8/P5P1/1PP4P/2K1R3 w - -", "e1e5", 1)]
     #[case("1k1r3q/1ppn3p/p4b2/4p3/8/P2N2P1/1PP1R1BP/2K1Q3 w - -", "d3e5", -2)]
     #[case("r4R2/1P6/6K1/4k3/8/8/8/r7 w - - 0 1", "b7a8q", 9)]
+    #[case("Q7/1P5k/1n6/8/8/4K3/8/8 b - - 0 1", "b6a8", -2)]
     fn see_sequence(#[case] fen: Fen, #[case] mov: &str, #[case] value: i8) {
         let position = Position::try_from(fen).unwrap();
         let mov = *position
