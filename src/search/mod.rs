@@ -4,6 +4,7 @@ pub mod killer_table;
 pub mod perft;
 pub mod picker;
 pub mod score_table;
+pub mod see;
 pub mod status;
 pub mod window;
 
@@ -23,6 +24,7 @@ use crate::{
         killer_table::KillerTable,
         picker::MovePicker,
         score_table::ScoreTable,
+        see::static_exchange,
         status::{SearchStatus, SearchStatusValue},
         window::{FeedResult, Window},
     },
@@ -125,11 +127,14 @@ impl<'a> Searcher<'a> {
         let picker = MovePicker::new(position, !is_check, None, [None, None]);
 
         for mov in picker {
-            if mov.promotion_piece().is_none()
-                && let Some(standing_pat) = standing_pat
-            {
-                let captured = position.piece_at(mov.to()).unwrap_or(Piece::Pawn);
-                if !window.improves(standing_pat + (captured.value() as i16) * 100 + FUTILITY_MARGIN) {
+            if let Some(standing_pat) = standing_pat {
+                let captured_value = position.piece_at(mov.to()).unwrap_or(Piece::Pawn).value()
+                    + mov.promotion_piece().map_or(0, |p| p.value() - 1);
+                if !window.improves(standing_pat + (captured_value as i16) * 100 + FUTILITY_MARGIN) {
+                    continue;
+                }
+
+                if static_exchange(position, mov) < 0 {
                     continue;
                 }
             }
