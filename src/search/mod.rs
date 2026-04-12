@@ -24,6 +24,7 @@ use crate::{
         killer_table::KillerTable,
         picker::MovePicker,
         score_table::ScoreTable,
+        see::static_exchange,
         status::{SearchStatus, SearchStatusValue},
         window::{FeedResult, Window},
     },
@@ -131,6 +132,10 @@ impl<'a> Searcher<'a> {
             {
                 let captured = position.piece_at(mov.to()).unwrap_or(Piece::Pawn);
                 if !window.improves(standing_pat + (captured.value() as i16) * 100 + FUTILITY_MARGIN) {
+                    continue;
+                }
+
+                if static_exchange(position, mov) < 0 {
                     continue;
                 }
             }
