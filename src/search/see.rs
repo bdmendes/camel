@@ -9,9 +9,12 @@ pub fn static_exchange(position: &Position, mov: Move) -> i8 {
     let mut position = *position;
     let square = mov.to();
 
-    let mut piece = position.piece_at(mov.from()).unwrap();
+    let mut piece = mov
+        .promotion_piece()
+        .unwrap_or_else(|| position.piece_at(mov.from()).unwrap());
     let mut gains = [0i8; MAX_SEE_DEPTH];
-    gains[0] = position.piece_at(square).unwrap_or(Piece::Pawn).value();
+    gains[0] =
+        position.piece_at(square).unwrap_or(Piece::Pawn).value() + mov.promotion_piece().map_or(0, |p| p.value() - 1);
     let mut side_to_move = position.side_to_move();
     let mut depth = 0;
 
@@ -71,6 +74,7 @@ mod tests {
     #[case("2r1r1k1/1p2bppp/p3p1n1/q2pPP2/3P2P1/2NBRQ2/PP5P/5R1K b - - 0 19", "c8c3", -1)]
     #[case("1k1r4/1pp4p/p7/4p3/8/P5P1/1PP4P/2K1R3 w - -", "e1e5", 1)]
     #[case("1k1r3q/1ppn3p/p4b2/4p3/8/P2N2P1/1PP1R1BP/2K1Q3 w - -", "d3e5", -2)]
+    #[case("r4R2/1P6/6K1/4k3/8/8/8/r7 w - - 0 1", "b7a8q", 9)]
     fn see_sequence(#[case] fen: Fen, #[case] mov: &str, #[case] value: i8) {
         let position = Position::try_from(fen).unwrap();
         let mov = *position
