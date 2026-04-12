@@ -3,6 +3,7 @@ use smallvec::SmallVec;
 use crate::{
     moves::Move,
     position::{MoveStage, Position, piece::Piece},
+    search::see::static_exchange,
 };
 
 type ScoredMoveVec = SmallVec<[(Move, i8); 64]>;
@@ -34,13 +35,13 @@ impl MovePicker {
         let move_value = |mov: Move| -> i8 {
             if Some(mov) == hash_move {
                 i8::MAX
-            } else if mov.promotion_piece() == Some(Piece::Queen) {
-                72 + mov.is_capture() as i8
-            } else if mov.promotion_piece().is_some() {
-                -72
             } else if mov.is_capture() {
-                48 + position.piece_at(mov.to()).unwrap_or(Piece::Pawn).value()
-                    - position.piece_at(mov.from()).unwrap().value()
+                let see = static_exchange(position, mov) + mov.promotion_piece().map_or(0, |p| p.value());
+                9 + see
+            } else if mov.promotion_piece() == Some(Piece::Queen) {
+                18
+            } else if mov.promotion_piece().is_some() {
+                -18
             } else if Some(mov) == killer_moves[0] || Some(mov) == killer_moves[1] {
                 0
             } else if position.piece_at(mov.from()).unwrap().value() <= 3 {
@@ -207,8 +208,8 @@ mod tests {
     fn only_captures() {
         let position = Position::from_str("3rrkR1/1p6/p5p1/2p5/1qb1B3/2N3P1/PP2PP2/2KR4 b - - 1 26").unwrap();
         let mut picker = MovePicker::new(&position, true, None, [None, None]);
-        assert_eq!(picker.next(), Some(Move::new(Square::C4, Square::G8, MoveFlag::Capture)));
         assert_eq!(picker.next(), Some(Move::new(Square::F8, Square::G8, MoveFlag::Capture)));
+        assert_eq!(picker.next(), Some(Move::new(Square::C4, Square::G8, MoveFlag::Capture)));
         assert_eq!(picker.next(), None);
     }
 }
