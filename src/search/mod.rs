@@ -4,6 +4,7 @@ pub mod killer_table;
 pub mod perft;
 pub mod picker;
 pub mod score_table;
+pub mod see;
 pub mod status;
 pub mod window;
 
