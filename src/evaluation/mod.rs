@@ -3,7 +3,7 @@ use crate::evaluation::score::ValueScore;
 pub mod nnue;
 pub mod score;
 
-pub static NNUE_PARAMS_BLOB: &str = include_str!("../../assets/dump/20260330-015436.nnue");
+pub static NNUE_PARAMS_BLOB: &str = include_str!("../../assets/dump/20260414-000510.nnue");
 pub const MAX_POSITIONAL_WEIGHT: ValueScore = 320;
 
 #[cfg(test)]

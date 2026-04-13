@@ -26,8 +26,7 @@ import torch.nn.functional as F
 def toInput(fen: String): Tensor[Float64] =
   val position = new Position(fen)
   val input = mutable.ArraySeq.fill(768)(0.0d)
-  Seq(WP, WN, WB, WR, WQ, WK, BP, BN, BB, BR, BQ, BK)
-    .zipWithIndex
+  Seq(WP, WN, WB, WR, WQ, WK, BP, BN, BB, BR, BQ, BK).zipWithIndex
     .foreach: (piece, idx) =>
       val bb = position.getBitboard(piece)
       while bb.getValue() != 0 do
@@ -44,8 +43,8 @@ def toInputExpected(epdLine: String): (Tensor[Float64], Tensor[Float64]) =
   toInput(fen) -> torch.Tensor(Seq(eval.max(-1.0d).min(1.0d))).reshape(1, 1)
 
 class NNUE extends nn.Module:
-  private val layer1 = register(nn.Linear[Float64](768, 32))
-  private val layer2 = register(nn.Linear[Float64](32, 1))
+  private val layer1 = register(nn.Linear[Float64](768, 8))
+  private val layer2 = register(nn.Linear[Float64](8, 1))
 
   def optimizer(learningRate: Double) = optim.Adam(
     params = parameters,
@@ -78,7 +77,7 @@ end NNUE
 object NNUE:
   val LearningRate = 0.005
   val LearningRateDecay = 0.98
-  val Epochs = 150
+  val Epochs = 100
   val BatchSize = 512
 
   def mseLoss(pred: Tensor[Float64], target: Tensor[Float64]): Tensor[Float64] =
@@ -87,13 +86,15 @@ object NNUE:
     sq.mean
 
   def epdBatches(): Iterator[(Tensor[Float64], Tensor[Float64])] =
-    val src = Source.fromFile("./assets/books/quiet-evaluated-filtered-camelv1.epd")
+    val src =
+      Source.fromFile("./assets/books/quiet-evaluated-filtered-camelv1.epd")
 
     new Iterator[(Tensor[Float64], Tensor[Float64])]:
       private val it = src.getLines()
       private val xsBuf = ArrayBuffer.empty[Tensor[Float64]]
       private val ysBuf = ArrayBuffer.empty[Tensor[Float64]]
-      private var nextBatch: Option[(Tensor[Float64], Tensor[Float64])] = fetch()
+      private var nextBatch: Option[(Tensor[Float64], Tensor[Float64])] =
+        fetch()
 
       private def fetch(): Option[(Tensor[Float64], Tensor[Float64])] =
         xsBuf.clear()
@@ -148,9 +149,10 @@ for epoch <- 1 to NNUE.Epochs do
       println(f"[epoch $epoch%3d, batch $batchIdx%4d, lr $lr%2f] loss=$avg%.6f")
   end for
 
-  if epoch % 20 == 0 || epoch == NNUE.Epochs then
+  if epoch % 5 == 0 || epoch == NNUE.Epochs then
     val serialized = net.json.noSpaces
-    val now = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))
+    val now =
+      LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))
     Using.resource(new PrintWriter(s"./assets/dump/$now.nnue")): pw =>
       pw.write(serialized)
 end for

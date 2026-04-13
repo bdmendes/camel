@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 pub const INPUT_SIZE: usize = 768;
 
 // We have a single hidden layer in our network.
-pub const HIDDEN_LAYER_SIZE: usize = 32;
+pub const HIDDEN_LAYER_SIZE: usize = 8;
 
 // The actual NN output is cp / SCALE, clamped to [-1, 1].
 // 1200 is a reasonable "I'm more than a queen up", corresponding to a completely won position.
