@@ -44,8 +44,8 @@ def toInputExpected(epdLine: String): (Tensor[Float64], Tensor[Float64]) =
   toInput(fen) -> torch.Tensor(Seq(eval.max(-1.0d).min(1.0d))).reshape(1, 1)
 
 class NNUE extends nn.Module:
-  private val layer1 = register(nn.Linear[Float64](768, 32))
-  private val layer2 = register(nn.Linear[Float64](32, 1))
+  private val layer1 = register(nn.Linear[Float64](768, 64))
+  private val layer2 = register(nn.Linear[Float64](64, 1))
 
   def optimizer(learningRate: Double) = optim.Adam(
     params = parameters,
@@ -77,7 +77,7 @@ end NNUE
 
 object NNUE:
   val LearningRate = 0.005
-  val LearningRateDecay = 0.98
+  val LearningRateDecay = 0.95
   val Epochs = 150
   val BatchSize = 512
 
