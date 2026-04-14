@@ -25,5 +25,3 @@ opt-level = 1
 opt-level = 3
 panic = "abort"
 strip = "debuginfo"
-codegen-units = 1
-lto = "fat"
