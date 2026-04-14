@@ -32,7 +32,6 @@ use crate::{
 use primitive_enum::primitive_enum;
 use std::time::{Duration, Instant};
 
-const NULL_MOVE_REDUCTION: Depth = 3;
 const FUTILITY_MARGIN: ValueScore = 975;
 
 primitive_enum! { NodeType u8;
@@ -192,15 +191,12 @@ impl<'a> Searcher<'a> {
 
         let is_check = position.is_check();
         let may_be_zug = maybe_zug(position);
+        let static_evaluation = 100 * (position.material() * position.side_to_move().sign()) as ValueScore;
 
-        if ply > 0 && !is_check && depth > NULL_MOVE_REDUCTION + 1 && !may_be_zug {
+        if ply > 0 && !is_check && depth >= 5 && !may_be_zug && !window.cuts_off(static_evaluation - FUTILITY_MARGIN) {
             let next = position.make_null_move();
-            let (nodes, score) = self.pvs(
-                &next,
-                depth - NULL_MOVE_REDUCTION - 1,
-                ply.saturating_add(1),
-                window.reverse_null_around_beta(),
-            );
+            let (nodes, score) =
+                self.pvs(&next, depth - 4 - depth / 3, ply.saturating_add(1), window.reverse_null_around_beta());
             if window.cuts_off(-score) {
                 return (nodes + 1, -score);
             }
@@ -224,13 +220,14 @@ impl<'a> Searcher<'a> {
             let (nodes, score) = if i == 0 {
                 self.pvs(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse())
             } else {
-                if depth == 1 && !is_check && !may_be_zug && !mov.is_capture() {
-                    let static_evaluation =
-                        100 * ((position.material() * position.side_to_move().sign()) as ValueScore);
-                    if !window.improves(static_evaluation + FUTILITY_MARGIN) {
-                        self.history.pop(next_position.side_to_move());
-                        continue;
-                    }
+                if depth == 1
+                    && !is_check
+                    && !may_be_zug
+                    && !mov.is_capture()
+                    && !window.improves(static_evaluation + FUTILITY_MARGIN)
+                {
+                    self.history.pop(next_position.side_to_move());
+                    continue;
                 }
 
                 let (null_nodes, null_score) = self.pvs(
