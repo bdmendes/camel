@@ -193,7 +193,7 @@ impl<'a> Searcher<'a> {
         let may_be_zug = maybe_zug(position);
         let static_evaluation = 100 * (position.material() * position.side_to_move().sign()) as ValueScore;
 
-        if ply > 0 && !is_check && depth >= 5 && !may_be_zug && !window.cuts_off(static_evaluation - FUTILITY_MARGIN) {
+        if ply > 0 && !is_check && depth >= 5 && !may_be_zug {
             let next = position.make_null_move();
             let (nodes, score) =
                 self.pvs(&next, depth - 4 - depth / 3, ply.saturating_add(1), window.reverse_null_around_beta());
