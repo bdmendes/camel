@@ -194,7 +194,8 @@ impl<'a> Searcher<'a> {
 
         if ply > 0 && !is_check && depth > 2 && !may_be_zug {
             let next = position.make_null_move();
-            let (nodes, score) = self.pvs(&next, depth / 2, ply.saturating_add(1), window.reverse_null_around_beta());
+            let (nodes, score) =
+                self.pvs(&next, depth - 2 - depth / 6, ply.saturating_add(1), window.reverse_null_around_beta());
             if window.cuts_off(-score) {
                 return (nodes + 1, -score);
             }
