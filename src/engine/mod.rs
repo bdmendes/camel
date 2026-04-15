@@ -69,12 +69,13 @@ impl Engine {
 
             table.prepare_new_search();
 
+            let mut searcher = Searcher::new(&mut history, &mut table, &mut net, status.clone(), duration);
             let mut pv = Vec::new();
 
             for d in 1..=depth.unwrap_or(MAX_DEPTH) {
-                let mut searcher = Searcher::new(&mut history, &mut table, &mut net, status.clone(), duration);
-
                 let time = Instant::now();
+
+                searcher.reset_nodes();
                 let score = searcher.pvs(&position, d, 0, Window::default());
 
                 if d > 1 && searcher.should_stop() {
