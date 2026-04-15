@@ -101,6 +101,10 @@ impl<'a> Searcher<'a> {
         self.table.hashfull_millis()
     }
 
+    pub fn reset_nodes(&mut self) {
+        self.nodes = 0;
+    }
+
     pub fn nodes(&self) -> u64 {
         self.nodes
     }
