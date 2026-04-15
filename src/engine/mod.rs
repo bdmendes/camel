@@ -72,7 +72,7 @@ impl Engine {
             let mut searcher = Searcher::new(&mut history, &mut table, &mut net, status.clone(), duration);
             let mut pv = Vec::new();
 
-            for d in 1..=depth.unwrap_or(MAX_DEPTH) {
+            for d in 1..=depth.map_or(MAX_DEPTH, |d| d.min(MAX_DEPTH)) {
                 let time = Instant::now();
 
                 searcher.reset_nodes();
