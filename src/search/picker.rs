@@ -61,11 +61,11 @@ impl MovePicker {
     }
 
     pub fn len(&self) -> usize {
-        self.moves.len()
+        self.moves.len().saturating_sub(self.current)
     }
 
     pub fn is_empty(&self) -> bool {
-        self.moves.is_empty()
+        self.len() == 0
     }
 }
 
