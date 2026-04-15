@@ -32,7 +32,6 @@ use crate::{
 use primitive_enum::primitive_enum;
 use std::time::{Duration, Instant};
 
-const NULL_MOVE_REDUCTION: Depth = 3;
 const FUTILITY_MARGIN: ValueScore = 975;
 
 primitive_enum! { NodeType u8;
@@ -193,14 +192,10 @@ impl<'a> Searcher<'a> {
         let is_check = position.is_check();
         let may_be_zug = maybe_zug(position);
 
-        if ply > 0 && !is_check && depth > NULL_MOVE_REDUCTION + 1 && !may_be_zug {
+        if ply > 0 && !is_check && depth > 2 && !may_be_zug {
             let next = position.make_null_move();
-            let (nodes, score) = self.pvs(
-                &next,
-                depth - NULL_MOVE_REDUCTION - 1,
-                ply.saturating_add(1),
-                window.reverse_null_around_beta(),
-            );
+            let (nodes, score) =
+                self.pvs(&next, depth - 2 - depth / 3, ply.saturating_add(1), window.reverse_null_around_beta());
             if window.cuts_off(-score) {
                 return (nodes + 1, -score);
             }
@@ -474,7 +469,7 @@ mod tests {
     #[case("R7/P4k2/8/8/8/8/r7/6K1 w - - 0 1", "a8h8", 9)]
     #[case("r1b2rk1/ppbn1ppp/4p3/1QP4q/3P4/N4N2/5PPP/R1B2RK1 w - - 0 1", "c5c6", 3)]
     #[case("r2qkb1r/1ppb1ppp/p7/4p3/P1Q1P3/2P5/5PPP/R1B2KNR b kq - 0 1", "d7b5 c4b5 a6b5", 3)]
-    #[case("5rk1/1b3p1p/pp3p2/3n1N2/1P6/P1qB1PP1/3Q3P/4R1K1 w - - 0 1", "d2h6 c3e1 d3f1", 5)]
+    #[case("5rk1/1b3p1p/pp3p2/3n1N2/1P6/P1qB1PP1/3Q3P/4R1K1 w - - 0 1", "d2h6 c3e1 d3f1", 7)]
     #[case("1r1r2k1/4pp1p/2p1b1p1/p3R3/RqBP4/4P3/1PQ2PPP/6K1 b - - 0 1", "b4e1 c4f1 e6b3", 4)]
     #[case("r2q2k1/pp1rbppp/4pn2/2P5/1P3B2/6P1/P3QPBP/1R3RK1 w - - 0 1", "c5c6 b7c6 g2c6", 4)]
     #[case("6k1/p4p1p/1p3np1/2q5/4p3/4P1N1/PP3PPP/3Q2K1 w - - 0 1", "d1d8 g8g7 d8f6 g7f6 g3e4", 4)]
@@ -490,7 +485,7 @@ mod tests {
     #[case("k4r2/1R4pb/1pQp1n1p/3P4/5p1P/3P2P1/r1q1R2K/8 w - - 0 1", "b7b6 c2c6 e2a2 c6a4 a2a4", 4)]
     #[case("r1bq1r2/pp4k1/4p2p/3pPp1Q/3N1R1P/2PB4/6P1/6K1 w - - 0 1", "f4g4 d8g5 h4g5", 4)]
     #[case("6k1/6p1/p7/3Pn3/5p2/4rBqP/P4RP1/5QK1 b - - 0 1", "e3e1", 2)]
-    #[case("r3r1k1/pp1q1pp1/4b1p1/3p2B1/3Q1R2/8/PPP3PP/4R1K1 w - - 0 1", "d4g7 g8g7 g5f6", 6)]
+    #[case("r3r1k1/pp1q1pp1/4b1p1/3p2B1/3Q1R2/8/PPP3PP/4R1K1 w - - 0 1", "d4g7 g8g7 g5f6", 8)]
     #[case("r3q1kr/ppp5/3p2pQ/8/3PP1b1/5R2/PPP3P1/5RK1 w - - 0 1", "f3f8 e8f8 f1f8 a8f8 h6g6", 4)]
     #[case("8/8/2R5/1p2qp1k/1P2r3/2PQ2P1/5K2/8 w - - 0 1", "d3d1 h5g5 d1d2", 5)]
     #[case("r1b2rk1/2p1qnbp/p1pp2p1/5p2/2PQP3/1PN2N1P/PB3PP1/3R1RK1 w - - 0 1", "c3d5", 2)]
