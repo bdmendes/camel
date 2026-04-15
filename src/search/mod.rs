@@ -13,6 +13,7 @@ pub const MAX_DEPTH: Depth = 48;
 
 use crate::{
     evaluation::{
+        MAX_POSITIONAL_WEIGHT,
         nnue::NeuralNetwork,
         score::{MATE_SCORE, ValueScore},
     },
@@ -208,10 +209,16 @@ impl<'a> Searcher<'a> {
             return next;
         }
 
+        let static_evaluation = 100 * ((position.material() * position.side_to_move().sign()) as ValueScore);
         let is_check = position.is_check();
         let may_be_zug = maybe_zug(position);
 
-        if ply > 0 && !is_check && depth > 2 && !may_be_zug {
+        if ply > 0
+            && !is_check
+            && depth > 2
+            && !may_be_zug
+            && window.cuts_off(static_evaluation + MAX_POSITIONAL_WEIGHT)
+        {
             let next = position.make_null_move();
             let score = self.pvs_recurse(&next, depth - 2 - depth / 3, ply, window.reverse_null_around_beta(), true);
             if window.cuts_off(score) {
@@ -239,12 +246,13 @@ impl<'a> Searcher<'a> {
             let score = if i == 0 {
                 self.pvs_recurse(&next_position, depth.saturating_sub(1), ply, window.reverse(), reversible)
             } else {
-                if depth == 1 && !is_check && !may_be_zug && !mov.is_capture() {
-                    let static_evaluation =
-                        100 * ((position.material() * position.side_to_move().sign()) as ValueScore);
-                    if !window.improves(static_evaluation + FUTILITY_MARGIN) {
-                        continue;
-                    }
+                if depth == 1
+                    && !is_check
+                    && !may_be_zug
+                    && !mov.is_capture()
+                    && !window.improves(static_evaluation + FUTILITY_MARGIN)
+                {
+                    continue;
                 }
 
                 let null_score = self.pvs_recurse(
