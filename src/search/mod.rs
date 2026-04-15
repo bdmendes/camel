@@ -9,7 +9,7 @@ pub mod status;
 pub mod window;
 
 pub type Depth = u8;
-pub const MAX_DEPTH: Depth = 2_u8.pow(6) - 1;
+pub const MAX_DEPTH: Depth = 48;
 
 use crate::{
     evaluation::{
