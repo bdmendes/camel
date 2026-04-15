@@ -163,6 +163,20 @@ impl<'a> Searcher<'a> {
         window.best()
     }
 
+    fn pvs_recurse(
+        &mut self,
+        position: &Position,
+        next_depth: Depth,
+        ply: Depth,
+        window: Window,
+        reversible: bool,
+    ) -> ValueScore {
+        self.history.push(position, reversible);
+        let res = -self.pvs(position, next_depth, ply.saturating_add(1), window);
+        self.history.pop(position.side_to_move());
+        res
+    }
+
     pub fn pvs(&mut self, position: &Position, mut depth: Depth, ply: Depth, mut window: Window) -> ValueScore {
         if self.should_stop() {
             return window.best();
@@ -199,8 +213,7 @@ impl<'a> Searcher<'a> {
 
         if ply > 0 && seen <= 1 && !is_check && depth > 2 && !may_be_zug {
             let next = position.make_null_move();
-            let score =
-                -self.pvs(&next, depth - 2 - depth / 3, ply.saturating_add(1), window.reverse_null_around_beta());
+            let score = self.pvs_recurse(&next, depth - 2 - depth / 3, ply, window.reverse_null_around_beta(), true);
             if window.cuts_off(score) {
                 return score;
             }
@@ -221,36 +234,33 @@ impl<'a> Searcher<'a> {
 
         for (i, mov) in picker.enumerate() {
             let next_position = position.make_move(mov);
-
-            self.history.push(&next_position, mov.is_reversible(position));
+            let reversible = mov.is_reversible(position);
 
             let score = if i == 0 {
-                -self.pvs(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse())
+                self.pvs_recurse(&next_position, depth.saturating_sub(1), ply, window.reverse(), reversible)
             } else {
                 if depth == 1 && !is_check && !may_be_zug && !mov.is_capture() {
                     let static_evaluation =
                         100 * ((position.material() * position.side_to_move().sign()) as ValueScore);
                     if !window.improves(static_evaluation + FUTILITY_MARGIN) {
-                        self.history.pop(next_position.side_to_move());
                         continue;
                     }
                 }
 
-                let null_score = -self.pvs(
+                let null_score = self.pvs_recurse(
                     &next_position,
                     depth.saturating_sub(1),
-                    ply.saturating_add(1),
+                    ply,
                     window.reverse_null_around_alpha(),
+                    reversible,
                 );
 
                 if window.improves(null_score) && !window.cuts_off(null_score) {
-                    -self.pvs(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse())
+                    self.pvs_recurse(&next_position, depth.saturating_sub(1), ply, window.reverse(), reversible)
                 } else {
                     null_score
                 }
             };
-
-            self.history.pop(next_position.side_to_move());
 
             match window.feed(score, Some(mov)) {
                 FeedResult::Improvement if !null_search => {
