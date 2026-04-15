@@ -113,7 +113,12 @@ mod tests {
     #[test]
     fn no_moves() {
         let position = Position::from_str("8/k5K1/8/8/8/8/1Q6/Q7 b - - 16 65").unwrap();
-        let mut picker = MovePicker::new(&position, false, None, [None, None]).peekable();
+
+        let picker = MovePicker::new(&position, false, None, [None, None]);
+        assert_eq!(picker.len(), 0);
+        assert!(picker.is_empty());
+
+        let mut picker = picker.peekable();
         assert!(picker.peek().is_none());
         assert!(picker.next().is_none());
     }
@@ -123,7 +128,9 @@ mod tests {
         let position = Position::from_str(START_POSITION).unwrap();
         let hash_move = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
         let mut picker = MovePicker::new(&position, false, Some(hash_move), [None, None]);
+        assert_eq!(picker.len(), 20);
         assert_eq!(picker.next(), Some(hash_move));
+        assert_eq!(picker.len(), 19);
     }
 
     #[test]
