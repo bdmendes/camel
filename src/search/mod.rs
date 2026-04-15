@@ -48,6 +48,7 @@ pub struct Searcher<'a> {
     initial: Instant,
     duration: Duration,
     killers: KillerTable,
+    nodes: u64,
 }
 
 impl<'a> Searcher<'a> {
@@ -66,6 +67,7 @@ impl<'a> Searcher<'a> {
             initial: Instant::now(),
             duration,
             killers: KillerTable::default(),
+            nodes: 0,
         }
     }
 
@@ -99,31 +101,40 @@ impl<'a> Searcher<'a> {
         self.table.hashfull_millis()
     }
 
+    pub fn nodes(&self) -> u64 {
+        self.nodes
+    }
+
     pub fn should_stop(&self) -> bool {
         let status = self.status.get();
         status == SearchStatusValue::Stopped
             || (status != SearchStatusValue::Pondering && self.initial.elapsed() >= self.duration)
     }
 
-    pub fn quiesce(&mut self, position: &Position, ply: Depth, mut window: Window) -> (usize, ValueScore) {
+    pub fn quiesce(&mut self, position: &Position, ply: Depth, mut window: Window) -> ValueScore {
         if self.should_stop() {
-            return (1, window.best());
+            return window.best();
         }
+
+        self.nodes += 1;
 
         let is_check = position.is_check();
 
         let standing_pat = if !is_check {
             let standing_pat = self.network.evaluate(position) * position.side_to_move().sign() as ValueScore;
             if matches!(window.feed(standing_pat, None), FeedResult::FailHigh) {
-                return (1, window.best());
+                return window.best();
             }
             Some(standing_pat)
         } else {
             None
         };
 
-        let mut count = 0;
         let picker = MovePicker::new(position, !is_check, None, [None, None]);
+
+        if picker.is_empty() {
+            return if is_check { MATE_SCORE + ply as ValueScore } else { window.best() };
+        }
 
         for mov in picker {
             if let Some(standing_pat) = standing_pat {
@@ -139,45 +150,35 @@ impl<'a> Searcher<'a> {
             }
 
             let next_position = position.make_move(mov);
-            let (nodes, score) = self.quiesce(&next_position, ply.saturating_add(1), window.reverse());
-            count += nodes;
-            if matches!(window.feed(-score, None), FeedResult::FailHigh) {
+            let score = -self.quiesce(&next_position, ply.saturating_add(1), window.reverse());
+            if matches!(window.feed(score, None), FeedResult::FailHigh) {
                 break;
             }
         }
 
-        if count == 0 {
-            let score = if is_check { MATE_SCORE + ply as ValueScore } else { window.best() };
-            (1, score)
-        } else {
-            (count, window.best())
-        }
+        window.best()
     }
 
-    pub fn pvs(
-        &mut self,
-        position: &Position,
-        mut depth: Depth,
-        ply: Depth,
-        mut window: Window,
-    ) -> (usize, ValueScore) {
+    pub fn pvs(&mut self, position: &Position, mut depth: Depth, ply: Depth, mut window: Window) -> ValueScore {
         if self.should_stop() {
-            return (1, window.best());
+            return window.best();
         }
 
         if depth == 0 {
             return self.quiesce(position, ply, window);
         }
 
+        self.nodes += 1;
+
         let seen = self.history.seen(position);
         if ply > 0 && (seen >= 3 || position.is_draw()) {
-            return (1, 0);
+            return 0;
         }
 
         if !window.improves(-MATE_SCORE - ply as ValueScore) {
-            return (1, -MATE_SCORE - ply as ValueScore);
+            return -MATE_SCORE - ply as ValueScore;
         } else if matches!(window.feed(MATE_SCORE + ply as ValueScore, None), FeedResult::FailHigh) {
-            return (1, MATE_SCORE + ply as ValueScore);
+            return MATE_SCORE + ply as ValueScore;
         }
 
         if ply > 0
@@ -186,7 +187,7 @@ impl<'a> Searcher<'a> {
             && score != 0
             && let Some(next) = window.feed_cache(score, node_type)
         {
-            return (1, next);
+            return next;
         }
 
         let is_check = position.is_check();
@@ -194,16 +195,19 @@ impl<'a> Searcher<'a> {
 
         if ply > 0 && !is_check && depth > 2 && !may_be_zug {
             let next = position.make_null_move();
-            let (nodes, score) =
-                self.pvs(&next, depth - 2 - depth / 3, ply.saturating_add(1), window.reverse_null_around_beta());
-            if window.cuts_off(-score) {
-                return (nodes + 1, -score);
+            let score =
+                -self.pvs(&next, depth - 2 - depth / 3, ply.saturating_add(1), window.reverse_null_around_beta());
+            if window.cuts_off(score) {
+                return score;
             }
         }
 
         let picker = MovePicker::new(position, false, self.table.hash_move(position), self.killers.get(ply));
 
-        let mut count = 0;
+        if picker.is_empty() {
+            return if is_check { MATE_SCORE + ply as ValueScore } else { 0 };
+        }
+
         let mut node_type = NodeType::AllNode;
         let null_search = window.is_null();
 
@@ -216,8 +220,8 @@ impl<'a> Searcher<'a> {
 
             self.history.push(&next_position, mov.is_reversible(position));
 
-            let (nodes, score) = if i == 0 {
-                self.pvs(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse())
+            let score = if i == 0 {
+                -self.pvs(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse())
             } else {
                 if depth == 1 && !is_check && !may_be_zug && !mov.is_capture() {
                     let static_evaluation =
@@ -228,27 +232,23 @@ impl<'a> Searcher<'a> {
                     }
                 }
 
-                let (null_nodes, null_score) = self.pvs(
+                let null_score = -self.pvs(
                     &next_position,
                     depth.saturating_sub(1),
                     ply.saturating_add(1),
                     window.reverse_null_around_alpha(),
                 );
 
-                if window.improves(-null_score) && !window.cuts_off(-null_score) {
-                    let (full_nodes, full_score) =
-                        self.pvs(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse());
-                    (null_nodes + full_nodes, full_score)
+                if window.improves(null_score) && !window.cuts_off(null_score) {
+                    -self.pvs(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse())
                 } else {
-                    (null_nodes, null_score)
+                    null_score
                 }
             };
 
             self.history.pop(next_position.side_to_move());
 
-            count += nodes;
-
-            match window.feed(-score, Some(mov)) {
+            match window.feed(score, Some(mov)) {
                 FeedResult::Improvement if !null_search => {
                     node_type = NodeType::PVNode;
                 }
@@ -263,16 +263,12 @@ impl<'a> Searcher<'a> {
             }
         }
 
-        if count == 0 {
-            return (1, if is_check { MATE_SCORE + ply as ValueScore } else { 0 });
-        }
-
         if !self.should_stop() {
             self.table
                 .put(position, depth, ply, node_type, window.best(), window.best_move().unwrap());
         }
 
-        (count, window.best())
+        window.best()
     }
 }
 
@@ -401,7 +397,7 @@ mod tests {
         with_searcher(1, |searcher| {
             let position = Position::try_from(fen.clone()).unwrap();
             let score =
-                searcher.quiesce(&position, 0, Window::default()).1 * position.side_to_move().sign() as ValueScore;
+                searcher.quiesce(&position, 0, Window::default()) * position.side_to_move().sign() as ValueScore;
             assert!((100 * material - score).abs() <= MAX_POSITIONAL_WEIGHT);
         });
     }
@@ -413,7 +409,7 @@ mod tests {
     fn quiesce_mates_through_captures(#[case] fen: Fen, #[case] plies: u8) {
         with_searcher(1, |searcher| {
             let position = Position::try_from(fen.clone()).unwrap();
-            let score = searcher.quiesce(&position, 0, Window::default()).1;
+            let score = searcher.quiesce(&position, 0, Window::default());
             assert_eq!(score.abs(), (MATE_SCORE + plies as i16).abs());
         });
     }
@@ -428,7 +424,7 @@ mod tests {
             searcher.history.push(&position, true);
             searcher.history.push(&position, true);
 
-            let score = searcher.pvs(&position, 5, 0, Window::default()).1;
+            let score = searcher.pvs(&position, 5, 0, Window::default());
             assert_eq!(score, 0);
             assert_eq!(searcher.table.hash_move(&position), Some(position.get_move_str(mov).unwrap()));
         });

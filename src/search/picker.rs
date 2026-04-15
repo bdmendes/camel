@@ -59,6 +59,14 @@ impl MovePicker {
 
         Self { moves, current: 0 }
     }
+
+    pub fn len(&self) -> usize {
+        self.moves.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.moves.is_empty()
+    }
 }
 
 impl Iterator for MovePicker {
