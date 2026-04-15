@@ -72,9 +72,11 @@ impl Engine {
             let mut searcher = Searcher::new(&mut history, &mut table, &mut net, status.clone(), duration);
             let mut pv = Vec::new();
 
-            for d in 1..=depth.unwrap_or(MAX_DEPTH) {
+            for d in 1..=depth.map_or(MAX_DEPTH, |d| d.min(MAX_DEPTH)) {
                 let time = Instant::now();
-                let (nodes, score) = searcher.pvs(&position, d, 0, Window::default());
+
+                searcher.reset_nodes();
+                let score = searcher.pvs(&position, d, 0, Window::default());
 
                 if d > 1 && searcher.should_stop() {
                     break;
@@ -92,8 +94,8 @@ impl Engine {
                     d,
                     score,
                     elapsed.as_millis(),
-                    nodes,
-                    (nodes as f64 / elapsed.as_secs_f64()) as u64,
+                    searcher.nodes(),
+                    (searcher.nodes() as f64 / elapsed.as_secs_f64()) as u64,
                     searcher.hashfull_millis(),
                     pv.join(" ")
                 );
