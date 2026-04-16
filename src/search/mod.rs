@@ -211,9 +211,9 @@ impl<'a> Searcher<'a> {
         let is_check = position.is_check();
         let may_be_zug = maybe_zug(position);
 
-        if ply > 0 && seen <= 1 && !is_check && depth > 2 && !may_be_zug {
+        if ply > 0 && seen <= 1 && !is_check && depth > 3 && !may_be_zug {
             let next = position.make_null_move();
-            let score = self.pvs_recurse(&next, depth - 2 - depth / 3, ply, window.reverse_null_around_beta(), true);
+            let score = self.pvs_recurse(&next, depth - 2 - depth / 4, ply, window.reverse_null_around_beta(), true);
             if window.cuts_off(score) {
                 return score;
             }
