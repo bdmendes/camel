@@ -13,11 +13,12 @@ pub const MAX_DEPTH: Depth = 48;
 
 use crate::{
     evaluation::{
+        MAX_POSITIONAL_WEIGHT,
         nnue::NeuralNetwork,
         score::{MATE_SCORE, ValueScore},
     },
     moves::Move,
-    position::{MoveStage, Position, piece::Piece},
+    position::{MoveStage, Position},
     search::{
         game_history::GameHistory,
         heuristics::maybe_zug,
@@ -31,8 +32,6 @@ use crate::{
 };
 use primitive_enum::primitive_enum;
 use std::time::{Duration, Instant};
-
-const FUTILITY_MARGIN: ValueScore = 975;
 
 primitive_enum! { NodeType u8;
     PVNode,
@@ -124,15 +123,12 @@ impl<'a> Searcher<'a> {
 
         let is_check = position.is_check();
 
-        let standing_pat = if !is_check {
+        if !is_check {
             let standing_pat = self.network.evaluate(position) * position.side_to_move().sign() as ValueScore;
             if matches!(window.feed(standing_pat, None), FeedResult::FailHigh) {
                 return window.best();
             }
-            Some(standing_pat)
-        } else {
-            None
-        };
+        }
 
         let picker = MovePicker::new(position, !is_check, None, [None, None]);
 
@@ -141,16 +137,8 @@ impl<'a> Searcher<'a> {
         }
 
         for mov in picker {
-            if let Some(standing_pat) = standing_pat {
-                let captured_value = position.piece_at(mov.to()).unwrap_or(Piece::Pawn).value()
-                    + mov.promotion_piece().map_or(0, |p| p.value() - 1);
-                if !window.improves(standing_pat + (captured_value as i16) * 100 + FUTILITY_MARGIN) {
-                    continue;
-                }
-
-                if static_exchange(position, mov) < 0 {
-                    continue;
-                }
+            if !is_check && static_exchange(position, mov) < 0 {
+                continue;
             }
 
             let next_position = position.make_move(mov);
@@ -194,6 +182,7 @@ impl<'a> Searcher<'a> {
             return next;
         }
 
+        let static_evaluation = 100 * ((position.material() * position.side_to_move().sign()) as ValueScore);
         let is_check = position.is_check();
         let may_be_zug = maybe_zug(position);
 
@@ -227,13 +216,15 @@ impl<'a> Searcher<'a> {
             let score = if i == 0 {
                 -self.pvs(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse())
             } else {
-                if depth == 1 && !is_check && !may_be_zug && !mov.is_capture() {
-                    let static_evaluation =
-                        100 * ((position.material() * position.side_to_move().sign()) as ValueScore);
-                    if !window.improves(static_evaluation + FUTILITY_MARGIN) {
-                        self.history.pop(next_position.side_to_move());
-                        continue;
-                    }
+                if depth <= 2
+                    && !is_check
+                    && !may_be_zug
+                    && !mov.is_capture()
+                    && node_type == NodeType::PVNode
+                    && !window.improves(static_evaluation + MAX_POSITIONAL_WEIGHT / 2 * depth as ValueScore)
+                {
+                    self.history.pop(next_position.side_to_move());
+                    continue;
                 }
 
                 let null_score = -self.pvs(
