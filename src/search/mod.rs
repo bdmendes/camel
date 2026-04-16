@@ -213,7 +213,7 @@ impl<'a> Searcher<'a> {
 
         if ply > 0 && seen <= 1 && !is_check && depth > 3 && !may_be_zug {
             let next = position.make_null_move();
-            let score = self.pvs_recurse(&next, depth - 2 - depth / 4, ply, window.reverse_null_around_beta(), true);
+            let score = self.pvs_recurse(&next, depth - 2 - depth / 6, ply, window.reverse_null_around_beta(), false);
             if window.cuts_off(score) {
                 return score;
             }
