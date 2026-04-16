@@ -265,6 +265,34 @@ impl<'a> Searcher<'a> {
 
         window.best()
     }
+
+    pub fn pvs_aspiration(
+        &mut self,
+        position: &Position,
+        depth: Depth,
+        ply: Depth,
+        initial_guess: ValueScore,
+    ) -> ValueScore {
+        let mut guess = initial_guess;
+        let mut delta_low = 50;
+        let mut delta_high = 50;
+
+        loop {
+            let alpha = guess.saturating_sub(delta_low);
+            let beta = guess.saturating_add(delta_high);
+            let score = self.pvs(position, depth, ply, Window::new(alpha, beta));
+
+            if self.should_stop() || (score > alpha && score < beta) {
+                return score;
+            } else if score <= alpha {
+                delta_low = delta_low.saturating_mul(2);
+            } else {
+                delta_high = delta_high.saturating_mul(2);
+            }
+
+            guess = score;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -413,13 +441,13 @@ mod tests {
     #[case("6k1/6p1/8/6KQ/1r6/q2b4/8/8 w - - 0 1", "h5e8")]
     #[case("5rk1/2Q3pp/p7/3Pp3/1P2P1P1/8/P4qPK/R6R b - - 2 30", "f2h4")]
     #[case("2k5/pp2n2Q/8/P2p4/6q1/P1p5/2P2P1P/5R1K b - - 2 22", "g4f3")]
-    fn alphabeta_finds_perpetual(#[case] fen: Fen, #[case] mov: &str) {
+    fn pvs_finds_perpetual(#[case] fen: Fen, #[case] mov: &str) {
         with_searcher(10_000, |searcher| {
             let position = Position::try_from(fen.clone()).unwrap();
             searcher.history.push(&position, true);
             searcher.history.push(&position, true);
 
-            let score = searcher.pvs(&position, 5, 0, Window::default());
+            let score = searcher.pvs_aspiration(&position, 5, 0, 0);
             assert_eq!(score, 0);
             assert_eq!(searcher.table.hash_move(&position), Some(position.get_move_str(mov).unwrap()));
         });
@@ -506,12 +534,13 @@ mod tests {
     #[case("8/k7/p7/3Qp2P/n1P5/3KP3/1q6/8 b - - 0 1", "e5e4 d3e4 a4c3", 2)]
     #[case("2r5/1r6/4pNpk/3pP1qp/8/2P1QP2/5PK1/R7 w - - 0 1", "f6g4", 2)]
     #[case("1r3rk1/5pb1/p2p2p1/Q1n1q2p/1NP1P3/3p1P1B/PP1R3P/1K2R3 b - - 0 1", "c5e4 a5e5 e4d2", 6)]
-    fn alphabeta_iter_tactics(#[case] fen: Fen, #[case] moves: &str, #[case] depth: Depth) {
+    fn pvs_iter_tactics(#[case] fen: Fen, #[case] moves: &str, #[case] depth: Depth) {
         with_searcher(1_000_000, |searcher| {
             let position = Position::try_from(fen.clone()).unwrap();
             let moves = moves.split_whitespace().collect::<Vec<_>>();
+            let mut score = 0;
             for d in 1..=depth {
-                searcher.pvs(&position, d, 0, Window::default());
+                score = searcher.pvs_aspiration(&position, d, 0, score);
             }
             let pv = searcher
                 .pv_str(&position)
