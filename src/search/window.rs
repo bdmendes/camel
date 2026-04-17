@@ -27,6 +27,15 @@ impl Default for Window {
 }
 
 impl Window {
+    pub fn new(alpha: ValueScore, beta: ValueScore) -> Self {
+        Self {
+            alpha,
+            beta,
+            best_score: ValueScore::MIN + 1,
+            best_move: None,
+        }
+    }
+
     pub fn best(&self) -> ValueScore {
         self.best_score
     }

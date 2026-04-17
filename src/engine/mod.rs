@@ -18,7 +18,6 @@ use crate::{
         picker::MovePicker,
         score_table::{DEFAULT_TABLE_SIZE_MB, ScoreTable},
         status::{SearchStatus, SearchStatusValue},
-        window::Window,
     },
 };
 
@@ -71,12 +70,13 @@ impl Engine {
 
             let mut searcher = Searcher::new(&mut history, &mut table, &mut net, status.clone(), duration);
             let mut pv = Vec::new();
+            let mut score = 0;
 
             for d in 1..=depth.map_or(MAX_DEPTH, |d| d.min(MAX_DEPTH)) {
                 let time = Instant::now();
 
                 searcher.reset_nodes();
-                let score = searcher.pvs(&position, d, 0, Window::default());
+                score = searcher.pvs_aspiration(&position, d, 0, score);
 
                 if d > 1 && searcher.should_stop() {
                     break;
