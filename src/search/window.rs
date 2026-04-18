@@ -2,7 +2,7 @@ use crate::{evaluation::score::ValueScore, moves::Move, search::NodeType};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Window {
-    alpha: ValueScore,
+    pub alpha: ValueScore,
     beta: ValueScore,
     best_score: ValueScore,
     best_move: Option<Move>,

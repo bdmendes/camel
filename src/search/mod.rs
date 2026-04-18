@@ -220,7 +220,8 @@ impl<'a> Searcher<'a> {
                     && !is_check
                     && !may_be_zug
                     && !mov.is_capture()
-                    && node_type == NodeType::PVNode
+                    && null_search
+                    && window.alpha.abs() < 1000
                     && !window.improves(static_evaluation + MAX_POSITIONAL_WEIGHT / 2 * depth as ValueScore)
                 {
                     self.history.pop(next_position.side_to_move());
