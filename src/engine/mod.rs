@@ -7,11 +7,11 @@ use std::{
 
 use crate::{
     evaluation::{
-        MAX_POSITIONAL_WEIGHT, NNUE_PARAMS_BLOB,
+        NNUE_PARAMS_BLOB,
         nnue::{NeuralNetwork, Parameters},
         score::Score,
     },
-    position::{MoveStage, Position, fen::START_POSITION},
+    position::{Position, fen::START_POSITION},
     search::{
         Depth, MAX_DEPTH, Searcher,
         game_history::GameHistory,
@@ -64,7 +64,6 @@ impl Engine {
             let mut table = table.lock().unwrap();
             let mut net = net.lock().unwrap();
             let duration = duration.unwrap_or(Duration::from_hours(1));
-            let available_moves = position.moves(MoveStage::All).len();
 
             table.prepare_new_search();
 
@@ -85,8 +84,7 @@ impl Engine {
                 let elapsed = time.elapsed();
                 let score = Score::from(score);
                 pv = searcher.pv_str(&position);
-                let is_mate = matches!(score, Score::Mate(_));
-                if !is_mate {
+                if !matches!(score, Score::Mate(_)) {
                     pv.truncate(d as usize);
                 }
                 println!(
