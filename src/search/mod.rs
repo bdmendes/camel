@@ -185,8 +185,15 @@ impl<'a> Searcher<'a> {
         let static_evaluation = 100 * ((position.material() * position.side_to_move().sign()) as ValueScore);
         let is_check = position.is_check();
         let may_be_zug = maybe_zug(position);
+        let null_search = window.is_null();
 
-        if ply > 0 && seen <= 1 && !is_check && depth > 2 && !may_be_zug {
+        let interesting = is_check
+            || may_be_zug
+            || !null_search
+            || seen > 1
+            || window.alpha().abs() > Piece::Queen.value() as ValueScore * 200;
+
+        if ply > 0 && !interesting && depth > 2 {
             let next = position.make_null_move();
             let score =
                 -self.pvs(&next, depth - 2 - depth / 3, ply.saturating_add(1), window.reverse_null_around_beta());
@@ -202,14 +209,11 @@ impl<'a> Searcher<'a> {
         }
 
         let mut node_type = NodeType::AllNode;
-        let null_search = window.is_null();
-        let may_futility_prune = depth <= 3
-            && !is_check
-            && !may_be_zug
-            && null_search
-            && seen <= 1
-            && window.alpha().abs() < Piece::Queen.value() as ValueScore * 200
+        let is_frontier_node = depth <= 3;
+        let may_futility_prune = is_frontier_node
+            && !interesting
             && !window.improves(static_evaluation + MAX_POSITIONAL_WEIGHT * depth as ValueScore);
+        let may_late_move_reduce = !is_frontier_node && !interesting;
 
         if is_check {
             depth = depth.saturating_add(1).min(MAX_DEPTH);
@@ -226,9 +230,11 @@ impl<'a> Searcher<'a> {
             let score = if i == 0 {
                 -self.pvs(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse())
             } else {
+                let reduction = if mov.is_quiet() && i > 4 && may_late_move_reduce { 1 } else { 0 };
+
                 let null_score = -self.pvs(
                     &next_position,
-                    depth.saturating_sub(1),
+                    depth.saturating_sub(1).saturating_sub(reduction),
                     ply.saturating_add(1),
                     window.reverse_null_around_alpha(),
                 );
