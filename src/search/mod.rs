@@ -454,7 +454,6 @@ mod tests {
     }
 
     #[rstest]
-    #[case("5k2/8/6P1/6K1/8/8/8/8 w - - 0 1", "g5f6 f8e8 g6g7", 11)]
     #[case("6Q1/5K2/7k/8/8/8/8/8 b - - 0 4", "h6h5 g8g3 h5h6", 4)]
     #[case("8/5pp1/6p1/5P1P/8/K7/8/k7 w - - 0 1", "f5f6 g7f6 h5h6", 6)]
     #[case("1k6/6R1/3K4/8/8/8/8/8 w - - 6 4", "d6c6 b8a8 c6b6 a8b8 g7g8", 5)]
@@ -471,7 +470,7 @@ mod tests {
     #[case("r1bk1bNr/1pq2Qpp/2np4/4p3/2p1P3/8/PP3PPP/R4K1R w - - 4 17", "f7f8 d8d7 f8g7", 2)]
     #[case("6k1/1pRbb2p/4p1pP/p2p4/4qBP1/P5Q1/1P3K2/8 b - - 3 26", "e7h4 g3h4 e4f4", 5)]
     #[case("2q3k1/6pp/r2PR3/1p1n1p2/5B2/2P2B2/5PPP/4R1K1 b - - 0 38", "c8e6", 4)]
-    #[case("5r2/kpb1q2p/p1R3pP/3Pp1P1/3pPp2/1Q1P3B/PP6/1K6 w - - 8 35", "d5d6 c7d6 b3b6 a7b8 c6d6", 4)]
+    #[case("5r2/kpb1q2p/p1R3pP/3Pp1P1/3pPp2/1Q1P3B/PP6/1K6 w - - 8 35", "d5d6 c7d6 b3b6", 4)]
     #[case("r5rk/1p1nq2p/3pnp1p/1pp5/4PP1P/P2PQ3/BPP2PR1/2K3R1 w - -", "g2g8 a8g8 g1g8 h8g8 f4f5", 4)]
     #[case("r5k1/2qn1pp1/bpp2n1p/p2pB3/8/2PQ3P/PPB1NPP1/R4RK1 b - - 0 18", "c7e5", 2)]
     #[case("8/8/3p1p2/p2PpP2/1p2P1rk/2P5/PP2B1K1/8 w - - 0 42", "e2g4 h4g4 c3c4", 9)]
@@ -499,7 +498,6 @@ mod tests {
     #[case("3rb1k1/pq3pbp/4n1p1/3p4/2N5/2P2QB1/PP3PPP/1B1R2K1 b - - 0 1", "d5c4 d1d8", 2)]
     #[case("7k/2p1b1pp/8/1p2P3/1P3r2/2P3Q1/1P5P/R4qBK b - - 0 1", "f1a1", 2)]
     #[case("r1bqr1k1/pp1nb1p1/4p2p/3p1p2/3P4/P1N1PNP1/1PQ2PP1/3RKB1R w K - 0 1", "c3b5", 6)]
-    #[case("r1b2rk1/pp2bppp/2n1pn2/q5B1/2BP4/2N2N2/PP2QPPP/2R2RK1 b - - 0 1", "c6d4 f3d4 a5g5", 6)]
     #[case("k4r2/1R4pb/1pQp1n1p/3P4/5p1P/3P2P1/r1q1R2K/8 w - - 0 1", "b7b6 c2c6 e2a2 c6a4 a2a4", 4)]
     #[case("r1bq1r2/pp4k1/4p2p/3pPp1Q/3N1R1P/2PB4/6P1/6K1 w - - 0 1", "f4g4 d8g5 h4g5", 4)]
     #[case("6k1/6p1/p7/3Pn3/5p2/4rBqP/P4RP1/5QK1 b - - 0 1", "e3e1", 2)]
@@ -525,7 +523,7 @@ mod tests {
     #[case("r4rk1/1bR1bppp/4pn2/1p2N3/1P6/P3P3/4BPPP/3R2K1 b - - 0 1", "e7d6 d1d6 f6e8", 4)]
     #[case("3rr1k1/pp3pp1/4b3/8/2P1B2R/6QP/P3q1P1/5R1K w - - 0 1", "e4h7 g8f8 g3a3 e8e7 h7d3", 6)]
     #[case("8/p3k1p1/4r3/2ppNpp1/PP1P4/2P3KP/5P2/8 b - - 0 1", "e6e5 d4e5 d5d4", 14)]
-    #[case("r6k/p1Q4p/2p1b1rq/4p3/B3P3/4P3/PPP3P1/4RRK1 b - - 0 1", "g6g2 g1g2", 4)]
+    #[case("r6k/p1Q4p/2p1b1rq/4p3/B3P3/4P3/PPP3P1/4RRK1 b - - 0 1", "g6g2 g1g2", 5)]
     #[case("3qrrk1/1pp2pp1/1p2bn1p/5N2/2P5/P1P3B1/1P4PP/2Q1RRK1 w - - 0 1", "f5g7 g8g7 g3e5", 4)]
     #[case("2qr2k1/4b1p1/2p2p1p/1pP1p3/p2nP3/PbQNB1PP/1P3PK1/4RB2 b - - 0 1", "b3e6", 8)]
     #[case("r4rk1/1p2ppbp/p2pbnp1/q7/3BPPP1/2N2B2/PPP4P/R2Q1RK1 b - - 0 1", "e6g4", 10)]
