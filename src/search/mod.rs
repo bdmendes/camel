@@ -185,6 +185,7 @@ impl<'a> Searcher<'a> {
         let static_evaluation = 100 * ((position.material() * position.side_to_move().sign()) as ValueScore);
         let is_check = position.is_check();
         let may_be_zug = maybe_zug(position);
+        let null_search = window.is_null();
 
         if ply > 0 && seen <= 1 && !is_check && depth > 2 && !may_be_zug {
             let next = position.make_null_move();
@@ -195,7 +196,7 @@ impl<'a> Searcher<'a> {
             }
         }
 
-        if self.table.hash_move(position).is_none() && depth > 5 {
+        if depth > 5 && !null_search && self.table.hash_move(position).is_none() {
             self.pvs(position, depth - 2, ply, window);
         }
 
@@ -206,7 +207,6 @@ impl<'a> Searcher<'a> {
         }
 
         let mut node_type = NodeType::AllNode;
-        let null_search = window.is_null();
 
         if is_check {
             depth = depth.saturating_add(1).min(MAX_DEPTH);
