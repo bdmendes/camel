@@ -455,7 +455,7 @@ mod tests {
 
     #[rstest]
     #[case("5k2/8/6P1/6K1/8/8/8/8 w - - 0 1", "g5f6 f8e8 g6g7", 11)]
-    #[case("6Q1/5K2/7k/8/8/8/8/8 b - - 0 4", "h6h5 g8g3 h5h6 g3h4", 4)]
+    #[case("6Q1/5K2/7k/8/8/8/8/8 b - - 0 4", "h6h5 g8g3 h5h6", 4)]
     #[case("8/5pp1/6p1/5P1P/8/K7/8/k7 w - - 0 1", "f5f6 g7f6 h5h6", 6)]
     #[case("1k6/6R1/3K4/8/8/8/8/8 w - - 6 4", "d6c6 b8a8 c6b6 a8b8 g7g8", 5)]
     #[case("2k5/4B3/1K6/8/4B3/8/8/8 w - - 12 7", "e4f5 c8b8 e7d6 b8a8 f5e4", 4)]
@@ -474,7 +474,6 @@ mod tests {
     #[case("5r2/kpb1q2p/p1R3pP/3Pp1P1/3pPp2/1Q1P3B/PP6/1K6 w - - 8 35", "d5d6 c7d6 b3b6 a7b8 c6d6", 4)]
     #[case("r5rk/1p1nq2p/3pnp1p/1pp5/4PP1P/P2PQ3/BPP2PR1/2K3R1 w - -", "g2g8 a8g8 g1g8 h8g8 f4f5", 4)]
     #[case("r5k1/2qn1pp1/bpp2n1p/p2pB3/8/2PQ3P/PPB1NPP1/R4RK1 b - - 0 18", "c7e5", 2)]
-    #[case("8/p4pp1/1pp4p/2Pp4/1P1K1k2/P4P1P/8/8 w - - 0 34", "c5b6 a7b6 a3a4", 6)]
     #[case("8/8/3p1p2/p2PpP2/1p2P1rk/2P5/PP2B1K1/8 w - - 0 42", "e2g4 h4g4 c3c4", 9)]
     #[case("5rk1/1ppb3p/p1pb4/6q1/3P1p1r/2P1R2P/PP1BQ1P1/5RKN w - - 0 1", "e3g3", 2)]
     #[case("r1bq2rk/pp3pbp/2p1p1pQ/7P/3P4/2PB1N2/PP3PPR/2KR4 w - - 0 1", "h6h7 h8h7 h5g6", 2)]

@@ -114,8 +114,12 @@ impl NeuralNetwork {
         (color as usize) * 64 * 6 + (piece as usize) * 64 + square as usize
     }
 
-    fn transformed(square: Square, perspective: Perspective) -> Square {
+    fn transformed_square(square: Square, perspective: Perspective) -> Square {
         if perspective == Color::White { square } else { square.flip_vertically() }
+    }
+
+    fn transformed_color(color: Color, perspective: Perspective) -> Color {
+        if perspective == Color::White { color } else { color.flipped() }
     }
 
     fn relu(value: f64) -> f64 {
@@ -123,7 +127,11 @@ impl NeuralNetwork {
     }
 
     fn set(&mut self, piece: Piece, color: Color, square: Square, perspective: Perspective) {
-        let input_idx = Self::input_index(piece, color, Self::transformed(square, perspective));
+        let input_idx = Self::input_index(
+            piece,
+            Self::transformed_color(color, perspective),
+            Self::transformed_square(square, perspective),
+        );
         let perspective_idx = Self::perspective_index(perspective);
         for i in 0..HIDDEN_LAYER_SIZE {
             self.acc[perspective_idx][i] += self.params.acc_weights[i * INPUT_SIZE + input_idx];
@@ -131,7 +139,11 @@ impl NeuralNetwork {
     }
 
     fn clear(&mut self, piece: Piece, color: Color, square: Square, perspective: Perspective) {
-        let input_idx = Self::input_index(piece, color, Self::transformed(square, perspective));
+        let input_idx = Self::input_index(
+            piece,
+            Self::transformed_color(color, perspective),
+            Self::transformed_square(square, perspective),
+        );
         let perspective_idx = Self::perspective_index(perspective);
         for i in 0..HIDDEN_LAYER_SIZE {
             self.acc[perspective_idx][i] -= self.params.acc_weights[i * INPUT_SIZE + input_idx];
@@ -171,7 +183,7 @@ impl NeuralNetwork {
     }
 
     pub fn evaluate(&mut self, position: &Position) -> ValueScore {
-        (self.evaluate_unscaled(position) * SCALE).round() as ValueScore
+        (self.evaluate_unscaled(position) * SCALE).round() as ValueScore * position.side_to_move().sign() as ValueScore
     }
 }
 
@@ -217,25 +229,25 @@ mod tests {
 
     #[test]
     fn accumulator_perspective() {
-        // Set all accumulator weights to 1, except for the White Queen on E4, mirrored as E5.
+        // Set all accumulator weights to 1, except for the Black Queen in E5, mirrored as White in E4.
         let mut params = Parameters::filled(1.0, 0.0, 0.0, 0.0);
 
-        let queen_e4_index_black = NeuralNetwork::input_index(Piece::Queen, Color::White, Square::E5);
+        let queen_e5_index = NeuralNetwork::input_index(Piece::Queen, Color::White, Square::E4);
         for i in 0..HIDDEN_LAYER_SIZE {
-            params.acc_weights[i * INPUT_SIZE + queen_e4_index_black] = 2.0;
+            params.acc_weights[i * INPUT_SIZE + queen_e5_index] = 2.0;
         }
         let mut net = NeuralNetwork::new_raw(params, Position::default());
 
-        net.set(Piece::Queen, Color::White, Square::E4, Color::Black);
+        net.set(Piece::Queen, Color::Black, Square::E5, Color::Black);
         net.acc[1].iter().for_each(|&x| assert_eq!(x, 2.0));
 
-        net.set(Piece::Rook, Color::White, Square::E4, Color::Black);
+        net.set(Piece::Rook, Color::Black, Square::E5, Color::Black);
         net.acc[1].iter().for_each(|&x| assert_eq!(x, 3.0));
 
-        net.clear(Piece::Queen, Color::White, Square::E4, Color::Black);
+        net.clear(Piece::Queen, Color::Black, Square::E5, Color::Black);
         net.acc[1].iter().for_each(|&x| assert_eq!(x, 1.0));
 
-        net.clear(Piece::Rook, Color::White, Square::E4, Color::Black);
+        net.clear(Piece::Rook, Color::Black, Square::E5, Color::Black);
         net.acc[1].iter().for_each(|&x| assert_eq!(x, 0.0));
     }
 
@@ -298,17 +310,17 @@ mod tests {
 
     #[test]
     fn evaluate_perspective() {
-        // Set all weights to 1, except for the White Queen on E4.
+        // Set all accumulator weights to 1, except for the Black Queen in E5, mirrored as White in E4.
         let mut params = Parameters::filled(1.0, 0.0, 1.0, 0.0);
 
-        let queen_e4_index_black = NeuralNetwork::input_index(Piece::Queen, Color::White, Square::E5);
+        let queen_e5_index = NeuralNetwork::input_index(Piece::Queen, Color::White, Square::E4);
         for i in 0..HIDDEN_LAYER_SIZE {
-            params.acc_weights[i * INPUT_SIZE + queen_e4_index_black] = 2.0;
+            params.acc_weights[i * INPUT_SIZE + queen_e5_index] = 2.0;
         }
         let mut net = NeuralNetwork::new_raw(params, Position::default());
 
         let mut position = Position::default().make_null_move();
-        position.set_square(Square::E4, Piece::Queen, Color::White);
+        position.set_square(Square::E5, Piece::Queen, Color::Black);
 
         assert_eq!(net.evaluate_unscaled(&position), 2.0 * HIDDEN_LAYER_SIZE as f64);
 
@@ -316,10 +328,10 @@ mod tests {
 
         assert_eq!(net.evaluate_unscaled(&position), 2.0 * HIDDEN_LAYER_SIZE as f64);
 
-        position.clear_square(Square::E4);
+        position.clear_square(Square::E5);
         assert_eq!(net.evaluate_unscaled(&position), 0.0);
 
-        position.set_square(Square::E4, Piece::Rook, Color::White);
+        position.set_square(Square::E5, Piece::Rook, Color::Black);
         assert_eq!(net.evaluate_unscaled(&position), HIDDEN_LAYER_SIZE as f64);
     }
 }
