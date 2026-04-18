@@ -115,7 +115,7 @@ impl NeuralNetwork {
     }
 
     fn transformed_square(square: Square, perspective: Perspective) -> Square {
-        if perspective == Color::White { square } else { square.flip_vertically() }
+        if perspective == Color::White { square } else { square.flipped_vertically() }
     }
 
     fn transformed_color(color: Color, perspective: Perspective) -> Color {
