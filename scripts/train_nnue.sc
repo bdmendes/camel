@@ -12,6 +12,7 @@
 
 import chessapi4j.Piece.*
 import chessapi4j.Position
+import chessapi4j.Side.*
 import io.circe.Json
 import java.io.PrintWriter
 import java.time.LocalDateTime
@@ -23,8 +24,7 @@ import scala.util.Using
 import torch.*
 import torch.nn.functional as F
 
-def toInput(fen: String): Tensor[Float64] =
-  val position = new Position(fen)
+def toInput(position: Position): Tensor[Float64] =
   val input = mutable.ArraySeq.fill(768)(0.0d)
   Seq(WP, WN, WB, WR, WQ, WK, BP, BN, BB, BR, BQ, BK)
     .zipWithIndex
@@ -33,15 +33,33 @@ def toInput(fen: String): Tensor[Float64] =
       while bb.getValue() != 0 do
         val sq = bb.trailingZeros()
         bb.popLastBit()
-        input.update(idx * 64 + sq, 1.0d)
+        val transformedSq =
+          if position.sideToMove() == WHITE then
+            sq
+          else
+            sq ^ 56
+        val transformedIdx =
+          if position.sideToMove() == WHITE then
+            idx
+          else
+            (idx + 6) % 12
+        input.update(transformedIdx * 64 + transformedSq, 1.0d)
+      end while
   torch.Tensor(input.toSeq)
 end toInput
 
 def toInputExpected(epdLine: String): (Tensor[Float64], Tensor[Float64]) =
   val parts = epdLine.split(" ")
   val fen = parts.take(6).mkString(" ")
+  val position = new Position(fen)
   val eval = parts.last.drop(1).dropRight(2).toDouble / 1200.0d
-  toInput(fen) -> torch.Tensor(Seq(eval.max(-1.0d).min(1.0d))).reshape(1, 1)
+  val transformedEval =
+    if position.sideToMove() == WHITE then
+      eval
+    else
+      -eval
+  toInput(position) -> torch.Tensor(Seq(transformedEval.max(-1.0d).min(1.0d))).reshape(1, 1)
+end toInputExpected
 
 class NNUE extends nn.Module:
   private val layer1 = register(nn.Linear[Float64](768, 32))
