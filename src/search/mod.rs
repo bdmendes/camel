@@ -209,7 +209,7 @@ impl<'a> Searcher<'a> {
         }
 
         let mut node_type = NodeType::AllNode;
-        let is_frontier_node = depth <= 3;
+        let is_frontier_node = depth < 3;
         let may_futility_prune = is_frontier_node
             && !interesting
             && !window.improves(static_evaluation + MAX_POSITIONAL_WEIGHT * depth as ValueScore);
