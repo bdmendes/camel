@@ -69,7 +69,7 @@ impl Square {
         }
     }
 
-    pub fn mirror(self) -> Self {
+    pub fn flipped_vertically(self) -> Self {
         Square::from_unsafe(self as u8 ^ 0b111000)
     }
 }
@@ -187,14 +187,14 @@ mod tests {
     }
 
     #[test]
-    fn mirror() {
-        assert_eq!(Square::E4.mirror(), Square::E5);
-        assert_eq!(Square::E5.mirror(), Square::E4);
-        assert_eq!(Square::E2.mirror(), Square::E7);
-        assert_eq!(Square::E7.mirror(), Square::E2);
-        assert_eq!(Square::C3.mirror(), Square::C6);
-        assert_eq!(Square::A1.mirror(), Square::A8);
-        assert_eq!(Square::H1.mirror(), Square::H8);
+    fn flip_vertically() {
+        assert_eq!(Square::E4.flipped_vertically(), Square::E5);
+        assert_eq!(Square::E5.flipped_vertically(), Square::E4);
+        assert_eq!(Square::E2.flipped_vertically(), Square::E7);
+        assert_eq!(Square::E7.flipped_vertically(), Square::E2);
+        assert_eq!(Square::C3.flipped_vertically(), Square::C6);
+        assert_eq!(Square::A1.flipped_vertically(), Square::A8);
+        assert_eq!(Square::H1.flipped_vertically(), Square::H8);
     }
 
     #[test]
