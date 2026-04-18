@@ -195,7 +195,13 @@ impl<'a> Searcher<'a> {
             }
         }
 
-        let picker = MovePicker::new(position, false, self.table.hash_move(position), self.killers.get(ply));
+        let hash_move = self.table.hash_move(position);
+
+        if depth >= 5 && hash_move.is_none() {
+            depth -= 1;
+        }
+
+        let picker = MovePicker::new(position, false, hash_move, self.killers.get(ply));
 
         if picker.is_empty() {
             return if is_check { MATE_SCORE + ply as ValueScore } else { 0 };
