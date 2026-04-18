@@ -195,6 +195,10 @@ impl<'a> Searcher<'a> {
             }
         }
 
+        if self.table.hash_move(position).is_none() && depth > 5 {
+            self.pvs(position, depth - 2, ply, window);
+        }
+
         let picker = MovePicker::new(position, false, self.table.hash_move(position), self.killers.get(ply));
 
         if picker.is_empty() {
