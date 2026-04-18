@@ -100,11 +100,7 @@ impl Engine {
                     pv.join(" ")
                 );
 
-                if pv.is_empty()
-                    || elapsed > duration / 2
-                    || is_mate
-                    || (!matches!(score, Score::Value(v) if v.abs() > MAX_POSITIONAL_WEIGHT) && available_moves <= 1)
-                {
+                if pv.is_empty() || elapsed > duration / 2 {
                     break;
                 }
             }
