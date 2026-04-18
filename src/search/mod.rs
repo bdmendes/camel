@@ -195,7 +195,7 @@ impl<'a> Searcher<'a> {
             }
         }
 
-        if self.table.hash_move(position).is_none() && depth > 5 {
+        if depth > 5 && self.table.hash_move(position).is_none() {
             self.pvs(position, depth - 2, ply, window);
         }
 
