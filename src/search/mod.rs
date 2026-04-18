@@ -213,7 +213,6 @@ impl<'a> Searcher<'a> {
         let may_futility_prune = is_frontier_node
             && !interesting
             && !window.improves(static_evaluation + MAX_POSITIONAL_WEIGHT * depth as ValueScore);
-        let may_late_move_reduce = !is_frontier_node && !interesting;
 
         if is_check {
             depth = depth.saturating_add(1).min(MAX_DEPTH);
@@ -230,11 +229,9 @@ impl<'a> Searcher<'a> {
             let score = if i == 0 {
                 -self.pvs(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse())
             } else {
-                let reduction = if mov.is_quiet() && i > 4 && may_late_move_reduce { 1 } else { 0 };
-
                 let null_score = -self.pvs(
                     &next_position,
-                    depth.saturating_sub(1).saturating_sub(reduction),
+                    depth.saturating_sub(1),
                     ply.saturating_add(1),
                     window.reverse_null_around_alpha(),
                 );
