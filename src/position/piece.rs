@@ -14,7 +14,7 @@ primitive_enum! { Piece u8;
 }
 
 impl Piece {
-    pub fn value(&self) -> i8 {
+    pub const fn value(&self) -> i8 {
         PIECE_VALUES[*self as usize]
     }
 }

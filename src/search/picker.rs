@@ -3,6 +3,7 @@ use smallvec::SmallVec;
 use crate::{
     moves::Move,
     position::{MoveStage, Position, piece::Piece},
+    search::see::static_exchange,
 };
 
 type ScoredMoveVec = SmallVec<[(Move, i8); 64]>;
@@ -39,8 +40,14 @@ impl MovePicker {
             } else if mov.promotion_piece().is_some() {
                 -72
             } else if mov.is_capture() {
-                48 + position.piece_at(mov.to()).unwrap_or(Piece::Pawn).value()
-                    - position.piece_at(mov.from()).unwrap().value()
+                let see = static_exchange(position, mov);
+                if see >= 0 {
+                    let mvv_lva = position.piece_at(mov.to()).unwrap_or(Piece::Pawn).value()
+                        - position.piece_at(mov.from()).unwrap().value();
+                    32 + see + mvv_lva
+                } else {
+                    -16 + see
+                }
             } else if Some(mov) == killer_moves[0] || Some(mov) == killer_moves[1] {
                 0
             } else if position.piece_at(mov.from()).unwrap().value() <= 3 {
@@ -97,6 +104,7 @@ mod tests {
     use crate::{
         moves::{Move, MoveFlag},
         position::{MoveStage, Position, fen::START_POSITION, square::Square},
+        search::see::static_exchange,
     };
     use std::str::FromStr;
 
@@ -180,16 +188,22 @@ mod tests {
     }
 
     #[test]
-    fn killers_after_captures() {
-        let (_, mut picker, killers) = mocks();
-        assert!(picker.next().unwrap().is_capture());
-        assert!(picker.next().unwrap().is_capture());
-        assert!(picker.next().unwrap().is_capture());
-        assert!(picker.next().unwrap().is_capture());
-        assert!(picker.next().unwrap().is_capture());
-        assert!(killers.contains(&picker.next()));
-        assert!(killers.contains(&picker.next()));
-        assert!(!picker.next().unwrap().is_capture());
+    fn good_captures_then_killers_then_bad_captures() {
+        let (position, picker, killers) = mocks();
+        let moves = picker.collect::<Vec<_>>();
+
+        let first_killer_idx = moves.iter().position(|mov| killers.contains(&Some(*mov))).unwrap();
+        let last_good_capture_idx = moves
+            .iter()
+            .rposition(|mov| mov.is_capture() && static_exchange(&position, *mov) >= 0)
+            .unwrap();
+        assert!(last_good_capture_idx < first_killer_idx);
+
+        let first_bad_capture_idx = moves
+            .iter()
+            .position(|mov| mov.is_capture() && static_exchange(&position, *mov) < 0)
+            .unwrap();
+        assert!(first_killer_idx < first_bad_capture_idx);
     }
 
     #[test]
