@@ -29,11 +29,15 @@ impl Default for Window {
 impl Window {
     pub fn new(alpha: ValueScore, beta: ValueScore) -> Self {
         Self {
-            alpha,
-            beta,
+            alpha: alpha.max(ValueScore::MIN + 1),
+            beta: beta.max(ValueScore::MIN + 1),
             best_score: ValueScore::MIN + 1,
             best_move: None,
         }
+    }
+
+    pub fn alpha(&self) -> ValueScore {
+        self.alpha
     }
 
     pub fn best(&self) -> ValueScore {
@@ -121,6 +125,22 @@ mod tests {
     use crate::{moves::MoveFlag, position::square::Square};
 
     use super::*;
+
+    #[test]
+    fn new() {
+        let window = Window::new(-100, 100);
+        assert_eq!(window.alpha, -100);
+        assert_eq!(window.beta, 100);
+        assert_eq!(window.best(), ValueScore::MIN + 1);
+    }
+
+    #[test]
+    fn new_edges() {
+        let window = Window::new(ValueScore::MIN, ValueScore::MAX);
+        assert_eq!(window.alpha, ValueScore::MIN + 1);
+        assert_eq!(window.beta, ValueScore::MAX);
+        assert_eq!(window.best(), ValueScore::MIN + 1);
+    }
 
     #[test]
     fn feed_reverse() {
