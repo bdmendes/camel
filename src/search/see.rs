@@ -1,9 +1,43 @@
 use crate::{
-    moves::Move,
-    position::{Position, color::Color, piece::Piece},
+    moves::{
+        Move,
+        generate::{
+            leapers::{king_attackers, knight_attackers},
+            pawns::pawn_attackers,
+            sliders::{diagonal_attackers, file_attackers},
+        },
+    },
+    position::{Position, color::Color, piece::Piece, square::Square},
 };
 
 const MAX_SEE_DEPTH: usize = 8;
+const QUEEN_VALUE: i8 = Piece::Queen.value();
+
+fn least_valuable_attacker(position: &Position, square: Square, color: Color) -> Option<Square> {
+    if let Some(attacker) = pawn_attackers(position, color, square).lsb() {
+        return Some(attacker);
+    }
+
+    if let Some(attacker) = knight_attackers(position, color, square).lsb() {
+        return Some(attacker);
+    }
+
+    let diagonal_attacks = diagonal_attackers(position, color, square);
+    if let Some(attacker) = (diagonal_attacks & position.pieces_bb(Piece::Bishop)).lsb() {
+        return Some(attacker);
+    }
+
+    let file_attacks = file_attackers(position, color, square);
+    if let Some(attacker) = (file_attacks & position.pieces_bb(Piece::Rook)).lsb() {
+        return Some(attacker);
+    }
+
+    if let Some(attacker) = ((diagonal_attacks | file_attacks) & position.pieces_bb(Piece::Queen)).lsb() {
+        return Some(attacker);
+    }
+
+    king_attackers(position, color, square).lsb()
+}
 
 pub fn static_exchange(position: &Position, mov: Move) -> i8 {
     let mut position = *position;
@@ -20,26 +54,20 @@ pub fn static_exchange(position: &Position, mov: Move) -> i8 {
 
     position.clear_square_low::<false>(mov.from());
 
-    loop {
+    while depth < MAX_SEE_DEPTH - 1 {
         depth += 1;
         side_to_move = side_to_move.flipped();
-        if let Some(attacker) = position
-            .attackers(square, side_to_move)
-            .min_by_key(|&sq| position.piece_at(sq).unwrap().value())
-        {
-            gains[depth] += piece.value() - gains[depth - 1];
+        if let Some(attacker) = least_valuable_attacker(&position, square, side_to_move) {
+            gains[depth] = piece.value() - gains[depth - 1];
             piece = position.piece_at(attacker).unwrap();
             if piece == Piece::Pawn
                 && (side_to_move == Color::White && attacker.rank() == 6
                     || side_to_move == Color::Black && attacker.rank() == 1)
             {
-                gains[depth] += Piece::Queen.value() - 1;
+                gains[depth] += QUEEN_VALUE - 1;
             }
             position.clear_square_low::<false>(attacker);
         } else {
-            break;
-        }
-        if depth == MAX_SEE_DEPTH - 1 {
             break;
         }
     }
