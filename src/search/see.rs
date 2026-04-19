@@ -13,30 +13,32 @@ use crate::{
 const MAX_SEE_DEPTH: usize = 8;
 const QUEEN_VALUE: i8 = Piece::Queen.value();
 
-fn least_valuable_attacker(position: &Position, square: Square, color: Color) -> Option<Square> {
+fn least_valuable_attacker(position: &Position, square: Square, color: Color) -> Option<(Square, Piece)> {
     if let Some(attacker) = pawn_attackers(position, color, square).lsb() {
-        return Some(attacker);
+        return Some((attacker, Piece::Pawn));
     }
 
     if let Some(attacker) = knight_attackers(position, color, square).lsb() {
-        return Some(attacker);
+        return Some((attacker, Piece::Knight));
     }
 
     let diagonal_attacks = diagonal_attackers(position, color, square);
     if let Some(attacker) = (diagonal_attacks & position.pieces_bb(Piece::Bishop)).lsb() {
-        return Some(attacker);
+        return Some((attacker, Piece::Bishop));
     }
 
     let file_attacks = file_attackers(position, color, square);
     if let Some(attacker) = (file_attacks & position.pieces_bb(Piece::Rook)).lsb() {
-        return Some(attacker);
+        return Some((attacker, Piece::Rook));
     }
 
     if let Some(attacker) = ((diagonal_attacks | file_attacks) & position.pieces_bb(Piece::Queen)).lsb() {
-        return Some(attacker);
+        return Some((attacker, Piece::Queen));
     }
 
-    king_attackers(position, color, square).lsb()
+    king_attackers(position, color, square)
+        .lsb()
+        .map(|attacker| (attacker, Piece::King))
 }
 
 pub fn static_exchange(position: &Position, mov: Move) -> i8 {
@@ -57,9 +59,9 @@ pub fn static_exchange(position: &Position, mov: Move) -> i8 {
     while depth < MAX_SEE_DEPTH - 1 {
         depth += 1;
         side_to_move = side_to_move.flipped();
-        if let Some(attacker) = least_valuable_attacker(&position, square, side_to_move) {
+        if let Some((attacker, p)) = least_valuable_attacker(&position, square, side_to_move) {
             gains[depth] = piece.value() - gains[depth - 1];
-            piece = position.piece_at(attacker).unwrap();
+            piece = p;
             if piece == Piece::Pawn
                 && (side_to_move == Color::White && attacker.rank() == 6
                     || side_to_move == Color::Black && attacker.rank() == 1)
