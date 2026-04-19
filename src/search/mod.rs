@@ -219,7 +219,7 @@ impl<'a> Searcher<'a> {
         }
 
         for (i, mov) in picker.enumerate() {
-            if i > 0 && !mov.is_capture() && may_futility_prune {
+            if i > 0 && mov.is_quiet() && may_futility_prune {
                 continue;
             }
 
