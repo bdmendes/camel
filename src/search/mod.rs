@@ -240,7 +240,7 @@ impl<'a> Searcher<'a> {
                     window.reverse_null_around_alpha(),
                 );
 
-                if window.improves(null_score) && !window.cuts_off(null_score) {
+                if window.improves(null_score) {
                     -self.pvs(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse())
                 } else {
                     null_score
