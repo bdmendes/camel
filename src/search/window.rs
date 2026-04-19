@@ -36,6 +36,10 @@ impl Window {
         }
     }
 
+    pub fn alpha(&self) -> ValueScore {
+        self.alpha
+    }
+
     pub fn best(&self) -> ValueScore {
         self.best_score
     }
