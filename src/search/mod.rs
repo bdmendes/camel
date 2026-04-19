@@ -214,7 +214,7 @@ impl<'a> Searcher<'a> {
             && !interesting
             && !window.improves(static_evaluation + MAX_POSITIONAL_WEIGHT * depth as ValueScore);
 
-        if is_check {
+        if is_check || picker.len() == 1 {
             depth = depth.saturating_add(1).min(MAX_DEPTH);
         }
 
