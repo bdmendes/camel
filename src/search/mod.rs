@@ -18,7 +18,7 @@ use crate::{
         score::{MATE_SCORE, ValueScore},
     },
     moves::Move,
-    position::{MoveStage, Position},
+    position::{MoveStage, Position, piece::Piece},
     search::{
         game_history::GameHistory,
         heuristics::maybe_zug,
@@ -127,6 +127,9 @@ impl<'a> Searcher<'a> {
             let standing_pat = self.network.evaluate(position) * position.side_to_move().sign() as ValueScore;
             if matches!(window.feed(standing_pat, None), FeedResult::FailHigh) {
                 return window.best();
+            }
+            if !window.improves(standing_pat + Piece::Queen.value() as ValueScore * 100 + MAX_POSITIONAL_WEIGHT) {
+                return window.alpha();
             }
         }
 
