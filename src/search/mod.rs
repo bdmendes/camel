@@ -202,6 +202,7 @@ impl<'a> Searcher<'a> {
             }
         }
 
+        let hash_move = self.table.hash_move(position);
         let picker = MovePicker::new(position, false, self.table.hash_move(position), self.killers.get(ply));
 
         if picker.is_empty() {
@@ -213,6 +214,7 @@ impl<'a> Searcher<'a> {
         let may_futility_prune = is_frontier_node
             && !interesting
             && !window.improves(static_evaluation + MAX_POSITIONAL_WEIGHT * depth as ValueScore);
+        let may_late_move_reduce = !is_frontier_node && !interesting && hash_move.is_some_and(|m| m.is_capture());
 
         if is_check {
             depth = depth.saturating_add(1).min(MAX_DEPTH);
@@ -229,9 +231,11 @@ impl<'a> Searcher<'a> {
             let score = if i == 0 {
                 -self.pvs(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse())
             } else {
+                let reduction = if may_late_move_reduce && mov.is_quiet() && i > 5 { 1 } else { 0 };
+
                 let null_score = -self.pvs(
                     &next_position,
-                    depth.saturating_sub(1),
+                    depth.saturating_sub(1).saturating_sub(reduction),
                     ply.saturating_add(1),
                     window.reverse_null_around_alpha(),
                 );
