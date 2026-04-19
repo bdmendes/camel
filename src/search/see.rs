@@ -13,30 +13,32 @@ use crate::{
 const MAX_SEE_DEPTH: usize = 8;
 const QUEEN_VALUE: i8 = Piece::Queen.value();
 
-fn least_valuable_attacker(position: &Position, square: Square, color: Color) -> Option<Square> {
+fn least_valuable_attacker(position: &Position, square: Square, color: Color) -> Option<(Square, Piece)> {
     if let Some(attacker) = pawn_attackers(position, color, square).lsb() {
-        return Some(attacker);
+        return Some((attacker, Piece::Pawn));
     }
 
     if let Some(attacker) = knight_attackers(position, color, square).lsb() {
-        return Some(attacker);
+        return Some((attacker, Piece::Knight));
     }
 
     let diagonal_attacks = diagonal_attackers(position, color, square);
     if let Some(attacker) = (diagonal_attacks & position.pieces_bb(Piece::Bishop)).lsb() {
-        return Some(attacker);
+        return Some((attacker, Piece::Bishop));
     }
 
     let file_attacks = file_attackers(position, color, square);
     if let Some(attacker) = (file_attacks & position.pieces_bb(Piece::Rook)).lsb() {
-        return Some(attacker);
+        return Some((attacker, Piece::Rook));
     }
 
     if let Some(attacker) = ((diagonal_attacks | file_attacks) & position.pieces_bb(Piece::Queen)).lsb() {
-        return Some(attacker);
+        return Some((attacker, Piece::Queen));
     }
 
-    king_attackers(position, color, square).lsb()
+    king_attackers(position, color, square)
+        .lsb()
+        .map(|attacker| (attacker, Piece::King))
 }
 
 pub fn static_exchange(position: &Position, mov: Move) -> i8 {
@@ -57,14 +59,15 @@ pub fn static_exchange(position: &Position, mov: Move) -> i8 {
     while depth < MAX_SEE_DEPTH - 1 {
         depth += 1;
         side_to_move = side_to_move.flipped();
-        if let Some(attacker) = least_valuable_attacker(&position, square, side_to_move) {
+        if let Some((attacker, p)) = least_valuable_attacker(&position, square, side_to_move) {
             gains[depth] = piece.value() - gains[depth - 1];
-            piece = position.piece_at(attacker).unwrap();
+            piece = p;
             if piece == Piece::Pawn
                 && (side_to_move == Color::White && attacker.rank() == 6
                     || side_to_move == Color::Black && attacker.rank() == 1)
             {
                 gains[depth] += QUEEN_VALUE - 1;
+                piece = Piece::Queen;
             }
             position.clear_square_low::<false>(attacker);
         } else {
@@ -110,6 +113,7 @@ mod tests {
     #[case("1k1r3q/1ppn3p/p4b2/4p3/8/P2N2P1/1PP1R1BP/2K1Q3 w - -", "d3e5", -2)]
     #[case("r4R2/1P6/6K1/4k3/8/8/8/r7 w - - 0 1", "b7a8q", 9)]
     #[case("Q7/1P5k/1n6/8/8/4K3/8/8 b - - 0 1", "b6a8", -2)]
+    #[case("Q7/1P5k/1n6/8/8/4K3/8/r7 b - - 0 1", "b6a8", 7)]
     fn see_sequence(#[case] fen: Fen, #[case] mov: &str, #[case] value: i8) {
         let position = Position::try_from(fen).unwrap();
         let mov = *position
