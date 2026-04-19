@@ -203,7 +203,7 @@ impl<'a> Searcher<'a> {
         }
 
         let hash_move = self.table.hash_move(position);
-        let picker = MovePicker::new(position, false, self.table.hash_move(position), self.killers.get(ply));
+        let picker = MovePicker::new(position, false, hash_move, self.killers.get(ply));
 
         if picker.is_empty() {
             return if is_check { MATE_SCORE + ply as ValueScore } else { 0 };
