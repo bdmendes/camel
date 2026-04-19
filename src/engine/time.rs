@@ -4,7 +4,7 @@ use std::time::Duration;
 fn get_duration_based_on_moves(position: &Position, time: Duration) -> Duration {
     let parabole_function = |x: f32| 0.01 * (150.0 - (x - 20.0) * (x - 20.0));
     let parabole_factor = parabole_function(position.fullmove_number() as f32);
-    (time / 20).mul_f32(parabole_factor.clamp(0.8, 1.4))
+    (time / 16).mul_f32(parabole_factor.clamp(0.9, 1.3))
 }
 
 pub fn get_duration(position: &Position, time: Duration, increment: Option<Duration>, ponder: bool) -> Duration {
