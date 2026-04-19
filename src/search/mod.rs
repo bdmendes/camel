@@ -193,7 +193,7 @@ impl<'a> Searcher<'a> {
             || seen > 1
             || window.alpha().abs() > Piece::Queen.value() as ValueScore * 200;
 
-        if ply > 0 && !interesting && depth > 2 {
+        if ply > 0 && !interesting && depth > 2 && window.cuts_off(static_evaluation + MAX_POSITIONAL_WEIGHT) {
             let next = position.make_null_move();
             let score =
                 -self.pvs(&next, depth - 2 - depth / 3, ply.saturating_add(1), window.reverse_null_around_beta());
@@ -202,7 +202,8 @@ impl<'a> Searcher<'a> {
             }
         }
 
-        let picker = MovePicker::new(position, false, self.table.hash_move(position), self.killers.get(ply));
+        let hash_move = self.table.hash_move(position);
+        let picker = MovePicker::new(position, false, hash_move, self.killers.get(ply));
 
         if picker.is_empty() {
             return if is_check { MATE_SCORE + ply as ValueScore } else { 0 };
@@ -213,6 +214,7 @@ impl<'a> Searcher<'a> {
         let may_futility_prune = is_frontier_node
             && !interesting
             && !window.improves(static_evaluation + MAX_POSITIONAL_WEIGHT * depth as ValueScore);
+        let may_late_move_reduce = !is_frontier_node && !interesting && hash_move.is_none_or(|m| m.is_quiet());
 
         if is_check {
             depth = depth.saturating_add(1).min(MAX_DEPTH);
@@ -229,14 +231,16 @@ impl<'a> Searcher<'a> {
             let score = if i == 0 {
                 -self.pvs(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse())
             } else {
+                let reduction = if may_late_move_reduce && mov.is_quiet() && i > 5 { 1 } else { 0 };
+
                 let null_score = -self.pvs(
                     &next_position,
-                    depth.saturating_sub(1),
+                    depth.saturating_sub(1).saturating_sub(reduction),
                     ply.saturating_add(1),
                     window.reverse_null_around_alpha(),
                 );
 
-                if window.improves(null_score) && !window.cuts_off(null_score) {
+                if window.improves(null_score) {
                     -self.pvs(&next_position, depth.saturating_sub(1), ply.saturating_add(1), window.reverse())
                 } else {
                     null_score
