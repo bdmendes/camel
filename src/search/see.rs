@@ -65,6 +65,7 @@ pub fn static_exchange(position: &Position, mov: Move) -> i8 {
                     || side_to_move == Color::Black && attacker.rank() == 1)
             {
                 gains[depth] += QUEEN_VALUE - 1;
+                piece = Piece::Queen;
             }
             position.clear_square_low::<false>(attacker);
         } else {
@@ -110,6 +111,7 @@ mod tests {
     #[case("1k1r3q/1ppn3p/p4b2/4p3/8/P2N2P1/1PP1R1BP/2K1Q3 w - -", "d3e5", -2)]
     #[case("r4R2/1P6/6K1/4k3/8/8/8/r7 w - - 0 1", "b7a8q", 9)]
     #[case("Q7/1P5k/1n6/8/8/4K3/8/8 b - - 0 1", "b6a8", -2)]
+    #[case("Q7/1P5k/1n6/8/8/4K3/8/r7 b - - 0 1", "b6a8", 7)]
     fn see_sequence(#[case] fen: Fen, #[case] mov: &str, #[case] value: i8) {
         let position = Position::try_from(fen).unwrap();
         let mov = *position
