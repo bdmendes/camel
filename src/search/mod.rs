@@ -193,7 +193,7 @@ impl<'a> Searcher<'a> {
             || seen > 1
             || window.alpha().abs() > Piece::Queen.value() as ValueScore * 200;
 
-        if ply > 0 && !interesting && depth > 2 {
+        if ply > 0 && !interesting && depth > 2 && window.cuts_off(static_evaluation + MAX_POSITIONAL_WEIGHT) {
             let next = position.make_null_move();
             let score =
                 -self.pvs(&next, depth - 2 - depth / 3, ply.saturating_add(1), window.reverse_null_around_beta());
