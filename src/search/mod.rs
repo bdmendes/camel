@@ -214,7 +214,7 @@ impl<'a> Searcher<'a> {
         let may_futility_prune = is_frontier_node
             && !interesting
             && !window.improves(static_evaluation + MAX_POSITIONAL_WEIGHT * depth as ValueScore);
-        let may_late_move_reduce = !is_frontier_node && !interesting && hash_move.is_some_and(|m| m.is_capture());
+        let may_late_move_reduce = !is_frontier_node && !interesting && hash_move.is_some_and(|m| m.is_quiet());
 
         if is_check {
             depth = depth.saturating_add(1).min(MAX_DEPTH);
