@@ -1,11 +1,10 @@
-use std::{array, str::FromStr};
-
 use crate::{
     evaluation::ValueScore,
     position::{Position, PositionDiffEntry, color::Color, fen::START_POSITION, piece::Piece, square::Square},
 };
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 // 2 sides, 6 pieces, 64 squares.
 pub const INPUT_SIZE: usize = 768;
@@ -82,8 +81,8 @@ impl FromStr for Parameters {
 
 pub struct NeuralNetwork {
     params: Parameters,
-    acc: [Vec<f64>; 2],
-    last_seen: [Position; 2],
+    acc: Vec<f64>,
+    last_seen: Position,
 }
 
 impl NeuralNetwork {
@@ -94,20 +93,15 @@ impl NeuralNetwork {
     pub fn new_raw(params: Parameters, start_position: Position) -> Self {
         let mut nnue = Self {
             params,
-            acc: array::from_fn(|_| vec![0.0; HIDDEN_LAYER_SIZE]),
-            last_seen: [start_position; 2],
+            acc: vec![0.0; HIDDEN_LAYER_SIZE * 2],
+            last_seen: start_position,
         };
         for square in Square::list() {
             if let Some((piece, color)) = start_position.piece_color_at(*square) {
-                nnue.set(piece, color, *square, Color::White);
-                nnue.set(piece, color, *square, Color::Black);
+                nnue.set(piece, color, *square);
             }
         }
         nnue
-    }
-
-    fn perspective_index(perspective: Perspective) -> usize {
-        perspective as usize
     }
 
     fn input_index(piece: Piece, color: Color, square: Square) -> usize {
@@ -126,36 +120,46 @@ impl NeuralNetwork {
         value.max(0.0)
     }
 
-    fn set(&mut self, piece: Piece, color: Color, square: Square, perspective: Perspective) {
+    fn set_low(&mut self, piece: Piece, color: Color, square: Square, perspective: Perspective) {
         let input_idx = Self::input_index(
             piece,
             Self::transformed_color(color, perspective),
             Self::transformed_square(square, perspective),
         );
-        let perspective_idx = Self::perspective_index(perspective);
+        let start = (perspective as usize) * HIDDEN_LAYER_SIZE;
         for i in 0..HIDDEN_LAYER_SIZE {
-            self.acc[perspective_idx][i] += self.params.acc_weights[i * INPUT_SIZE + input_idx];
+            self.acc[start + i] += self.params.acc_weights[i * INPUT_SIZE + input_idx];
         }
     }
 
-    fn clear(&mut self, piece: Piece, color: Color, square: Square, perspective: Perspective) {
+    fn clear_low(&mut self, piece: Piece, color: Color, square: Square, perspective: Perspective) {
         let input_idx = Self::input_index(
             piece,
             Self::transformed_color(color, perspective),
             Self::transformed_square(square, perspective),
         );
-        let perspective_idx = Self::perspective_index(perspective);
+        let start = (perspective as usize) * HIDDEN_LAYER_SIZE;
         for i in 0..HIDDEN_LAYER_SIZE {
-            self.acc[perspective_idx][i] -= self.params.acc_weights[i * INPUT_SIZE + input_idx];
+            self.acc[start + i] -= self.params.acc_weights[i * INPUT_SIZE + input_idx];
         }
+    }
+
+    fn set(&mut self, piece: Piece, color: Color, square: Square) {
+        self.set_low(piece, color, square, Color::White);
+        self.set_low(piece, color, square, Color::Black);
+    }
+
+    fn clear(&mut self, piece: Piece, color: Color, square: Square) {
+        self.clear_low(piece, color, square, Color::White);
+        self.clear_low(piece, color, square, Color::Black);
     }
 
     fn forward(&self, perspective: Perspective) -> f64 {
         let mut eval: f64 = 0.0;
-        let perspective_idx = Self::perspective_index(perspective);
+        let start = (perspective as usize) * HIDDEN_LAYER_SIZE;
 
         for i in 0..HIDDEN_LAYER_SIZE {
-            let hidden_out = Self::relu(self.acc[perspective_idx][i] + self.params.acc_biases[i]);
+            let hidden_out = Self::relu(self.acc[start + i] + self.params.acc_biases[i]);
             eval += hidden_out * self.params.out_weights[i];
         }
 
@@ -165,18 +169,16 @@ impl NeuralNetwork {
     fn forward_and_cache(&mut self, position: &Position) -> f64 {
         let perspective = position.side_to_move();
         let res = self.forward(perspective);
-        self.last_seen[Self::perspective_index(perspective)] = *position;
+        self.last_seen = *position;
         res
     }
 
     fn evaluate_unscaled(&mut self, position: &Position) -> f64 {
-        let perspective = position.side_to_move();
-        let perspective_idx = Self::perspective_index(perspective);
-        let diff = position.diff(&self.last_seen[perspective_idx]);
+        let diff = position.diff(&self.last_seen);
         for e in diff {
             match e {
-                PositionDiffEntry::Set(square, piece, color) => self.set(piece, color, square, perspective),
-                PositionDiffEntry::Clear(square, piece, color) => self.clear(piece, color, square, perspective),
+                PositionDiffEntry::Set(square, piece, color) => self.set(piece, color, square),
+                PositionDiffEntry::Clear(square, piece, color) => self.clear(piece, color, square),
             }
         }
         self.forward_and_cache(position)
@@ -198,9 +200,9 @@ mod tests {
         let mut net = NeuralNetwork::new_raw(params, Position::default());
 
         // Independently of the square, all accumulator nodes will be fed with 1.
-        net.set(Piece::Queen, Color::White, Square::E4, Color::White);
+        net.set(Piece::Queen, Color::White, Square::E4);
 
-        net.acc[0].iter().for_each(|&x| assert_eq!(x, 1.0));
+        net.acc[..HIDDEN_LAYER_SIZE].iter().for_each(|&x| assert_eq!(x, 1.0));
     }
 
     #[test]
@@ -214,17 +216,17 @@ mod tests {
         }
         let mut net = NeuralNetwork::new_raw(params, Position::default());
 
-        net.set(Piece::Queen, Color::White, Square::E4, Color::White);
-        net.acc[0].iter().for_each(|&x| assert_eq!(x, 2.0));
+        net.set(Piece::Queen, Color::White, Square::E4);
+        net.acc[..HIDDEN_LAYER_SIZE].iter().for_each(|&x| assert_eq!(x, 2.0));
 
-        net.set(Piece::Rook, Color::White, Square::E4, Color::White);
-        net.acc[0].iter().for_each(|&x| assert_eq!(x, 3.0));
+        net.set(Piece::Rook, Color::White, Square::E4);
+        net.acc[..HIDDEN_LAYER_SIZE].iter().for_each(|&x| assert_eq!(x, 3.0));
 
-        net.clear(Piece::Queen, Color::White, Square::E4, Color::White);
-        net.acc[0].iter().for_each(|&x| assert_eq!(x, 1.0));
+        net.clear(Piece::Queen, Color::White, Square::E4);
+        net.acc[..HIDDEN_LAYER_SIZE].iter().for_each(|&x| assert_eq!(x, 1.0));
 
-        net.clear(Piece::Rook, Color::White, Square::E4, Color::White);
-        net.acc[0].iter().for_each(|&x| assert_eq!(x, 0.0));
+        net.clear(Piece::Rook, Color::White, Square::E4);
+        net.acc[..HIDDEN_LAYER_SIZE].iter().for_each(|&x| assert_eq!(x, 0.0));
     }
 
     #[test]
@@ -238,17 +240,17 @@ mod tests {
         }
         let mut net = NeuralNetwork::new_raw(params, Position::default());
 
-        net.set(Piece::Queen, Color::Black, Square::E5, Color::Black);
-        net.acc[1].iter().for_each(|&x| assert_eq!(x, 2.0));
+        net.set(Piece::Queen, Color::Black, Square::E5);
+        net.acc[HIDDEN_LAYER_SIZE..].iter().for_each(|&x| assert_eq!(x, 2.0));
 
-        net.set(Piece::Rook, Color::Black, Square::E5, Color::Black);
-        net.acc[1].iter().for_each(|&x| assert_eq!(x, 3.0));
+        net.set(Piece::Rook, Color::Black, Square::E5);
+        net.acc[HIDDEN_LAYER_SIZE..].iter().for_each(|&x| assert_eq!(x, 3.0));
 
-        net.clear(Piece::Queen, Color::Black, Square::E5, Color::Black);
-        net.acc[1].iter().for_each(|&x| assert_eq!(x, 1.0));
+        net.clear(Piece::Queen, Color::Black, Square::E5);
+        net.acc[HIDDEN_LAYER_SIZE..].iter().for_each(|&x| assert_eq!(x, 1.0));
 
-        net.clear(Piece::Rook, Color::Black, Square::E5, Color::Black);
-        net.acc[1].iter().for_each(|&x| assert_eq!(x, 0.0));
+        net.clear(Piece::Rook, Color::Black, Square::E5);
+        net.acc[HIDDEN_LAYER_SIZE..].iter().for_each(|&x| assert_eq!(x, 0.0));
     }
 
     #[test]
@@ -258,11 +260,11 @@ mod tests {
         let mut net = NeuralNetwork::new_raw(params, Position::default());
 
         // Set the Queen on E4, which will set all accumulators to 1.
-        net.set(Piece::Queen, Color::White, Square::E4, Color::White);
+        net.set(Piece::Queen, Color::White, Square::E4);
         assert_eq!(net.forward(Color::White), HIDDEN_LAYER_SIZE as f64 * 3.0 + 10.0);
 
         // Set the Rook on E4, which will add 1 to all accumulators.
-        net.set(Piece::Rook, Color::White, Square::E4, Color::White);
+        net.set(Piece::Rook, Color::White, Square::E4);
         assert_eq!(net.forward(Color::White), HIDDEN_LAYER_SIZE as f64 * 4.0 + 10.0);
     }
 
@@ -273,11 +275,11 @@ mod tests {
         let mut net = NeuralNetwork::new_raw(params, Position::default());
 
         // Set a mirrored Knight on F3, which will set all accumulators to 1 for the Black perspective.
-        net.set(Piece::Knight, Color::White, Square::F3, Color::Black);
+        net.set(Piece::Knight, Color::White, Square::F3);
         assert_eq!(net.forward(Color::Black), HIDDEN_LAYER_SIZE as f64 * 3.0 + 10.0);
 
         // Set a mirrored Bishop on F3, which will add 1 to all accumulators for the Black perspective.
-        net.set(Piece::Bishop, Color::White, Square::F3, Color::Black);
+        net.set(Piece::Bishop, Color::White, Square::F3);
         assert_eq!(net.forward(Color::Black), HIDDEN_LAYER_SIZE as f64 * 4.0 + 10.0);
     }
 
@@ -297,7 +299,7 @@ mod tests {
 
         assert_eq!(net.evaluate_unscaled(&position), 2.0 * HIDDEN_LAYER_SIZE as f64);
 
-        assert_eq!(net.last_seen[0], position);
+        assert_eq!(net.last_seen, position);
 
         assert_eq!(net.evaluate_unscaled(&position), 2.0 * HIDDEN_LAYER_SIZE as f64);
 
@@ -324,7 +326,7 @@ mod tests {
 
         assert_eq!(net.evaluate_unscaled(&position), 2.0 * HIDDEN_LAYER_SIZE as f64);
 
-        assert_eq!(net.last_seen[1], position);
+        assert_eq!(net.last_seen, position);
 
         assert_eq!(net.evaluate_unscaled(&position), 2.0 * HIDDEN_LAYER_SIZE as f64);
 
