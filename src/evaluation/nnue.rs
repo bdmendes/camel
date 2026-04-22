@@ -1,11 +1,10 @@
-use std::{array, str::FromStr};
-
 use crate::{
     evaluation::ValueScore,
     position::{Position, PositionDiffEntry, color::Color, fen::START_POSITION, piece::Piece, square::Square},
 };
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 // 2 sides, 6 pieces, 64 squares.
 pub const INPUT_SIZE: usize = 768;
@@ -82,7 +81,7 @@ impl FromStr for Parameters {
 
 pub struct NeuralNetwork {
     params: Parameters,
-    acc: [Vec<f64>; 2],
+    acc: [[f64; HIDDEN_LAYER_SIZE]; 2],
     last_seen: [Position; 2],
 }
 
@@ -94,7 +93,7 @@ impl NeuralNetwork {
     pub fn new_raw(params: Parameters, start_position: Position) -> Self {
         let mut nnue = Self {
             params,
-            acc: array::from_fn(|_| vec![0.0; HIDDEN_LAYER_SIZE]),
+            acc: [[0.0; HIDDEN_LAYER_SIZE]; 2],
             last_seen: [start_position; 2],
         };
         for square in Square::list() {
@@ -104,10 +103,6 @@ impl NeuralNetwork {
             }
         }
         nnue
-    }
-
-    fn perspective_index(perspective: Perspective) -> usize {
-        perspective as usize
     }
 
     fn input_index(piece: Piece, color: Color, square: Square) -> usize {
@@ -132,9 +127,8 @@ impl NeuralNetwork {
             Self::transformed_color(color, perspective),
             Self::transformed_square(square, perspective),
         );
-        let perspective_idx = Self::perspective_index(perspective);
         for i in 0..HIDDEN_LAYER_SIZE {
-            self.acc[perspective_idx][i] += self.params.acc_weights[i * INPUT_SIZE + input_idx];
+            self.acc[perspective as usize][i] += self.params.acc_weights[i * INPUT_SIZE + input_idx];
         }
     }
 
@@ -144,18 +138,16 @@ impl NeuralNetwork {
             Self::transformed_color(color, perspective),
             Self::transformed_square(square, perspective),
         );
-        let perspective_idx = Self::perspective_index(perspective);
         for i in 0..HIDDEN_LAYER_SIZE {
-            self.acc[perspective_idx][i] -= self.params.acc_weights[i * INPUT_SIZE + input_idx];
+            self.acc[perspective as usize][i] -= self.params.acc_weights[i * INPUT_SIZE + input_idx];
         }
     }
 
     fn forward(&self, perspective: Perspective) -> f64 {
         let mut eval: f64 = 0.0;
-        let perspective_idx = Self::perspective_index(perspective);
 
         for i in 0..HIDDEN_LAYER_SIZE {
-            let hidden_out = Self::relu(self.acc[perspective_idx][i] + self.params.acc_biases[i]);
+            let hidden_out = Self::relu(self.acc[perspective as usize][i] + self.params.acc_biases[i]);
             eval += hidden_out * self.params.out_weights[i];
         }
 
@@ -165,14 +157,13 @@ impl NeuralNetwork {
     fn forward_and_cache(&mut self, position: &Position) -> f64 {
         let perspective = position.side_to_move();
         let res = self.forward(perspective);
-        self.last_seen[Self::perspective_index(perspective)] = *position;
+        self.last_seen[perspective as usize] = *position;
         res
     }
 
     fn evaluate_unscaled(&mut self, position: &Position) -> f64 {
         let perspective = position.side_to_move();
-        let perspective_idx = Self::perspective_index(perspective);
-        let diff = position.diff(&self.last_seen[perspective_idx]);
+        let diff = position.diff(&self.last_seen[perspective as usize]);
         for e in diff {
             match e {
                 PositionDiffEntry::Set(square, piece, color) => self.set(piece, color, square, perspective),
