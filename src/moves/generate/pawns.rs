@@ -1,5 +1,5 @@
 use crate::{
-    moves::{Move, MoveFlag},
+    moves::{Move, MoveFlag, vec::MoveVec},
     position::{
         MoveStage, Position,
         bitboard::Bitboard,
@@ -9,10 +9,7 @@ use crate::{
     },
 };
 
-use super::{
-    MoveVec,
-    leapers::{LeaperAttackMap, init_leaper_attacks},
-};
+use super::leapers::{LeaperAttackMap, init_leaper_attacks};
 
 const PAWN_DIRECTIONS: [Direction; 2] = [Square::NORTH, Square::SOUTH];
 

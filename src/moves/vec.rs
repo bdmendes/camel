@@ -1,34 +1,34 @@
 use crate::moves::Move;
 
-pub struct MoveList {
-    data: [(Option<Move>, i8); 256],
+pub struct MoveVec {
+    data: [(Option<Move>, i8); 128],
     raw_size: usize,
     length: usize,
 }
 
-impl Default for MoveList {
+impl Default for MoveVec {
     fn default() -> Self {
         Self {
-            data: [(None, i8::MIN); 256],
+            data: [(None, i8::MIN); 128],
             raw_size: 0,
             length: 0,
         }
     }
 }
 
-pub struct MoveListIterator<'a> {
-    move_list: &'a mut MoveList,
+pub struct MoveVecIterator<'a> {
+    move_list: &'a mut MoveVec,
     index: usize,
 }
 
-impl<'a> Iterator for MoveListIterator<'a> {
+impl<'a> Iterator for MoveVecIterator<'a> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut best_score = self.move_list.data[self.index].1;
         let mut curr_idx = self.index + 1;
 
-        // Put the best move at the front without sorting the entire list.
+        // Put the best move at the front without sorting the entire vector.
         // This laziness fits the minimax model where most moves can be discarded.
         while curr_idx < self.move_list.raw_size {
             let score = self.move_list.data[curr_idx].1;
@@ -44,16 +44,20 @@ impl<'a> Iterator for MoveListIterator<'a> {
     }
 }
 
-impl<'a> IntoIterator for &'a mut MoveList {
+impl<'a> IntoIterator for &'a mut MoveVec {
     type Item = Move;
-    type IntoIter = MoveListIterator<'a>;
+    type IntoIter = MoveVecIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
     }
 }
 
-impl MoveList {
+impl MoveVec {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     pub fn len(&self) -> usize {
         self.length
     }
@@ -81,14 +85,17 @@ impl MoveList {
         self.push_internal(mov, Some(score));
     }
 
-    pub fn iter_mut<'a>(&'a mut self) -> MoveListIterator<'a> {
-        MoveListIterator {
+    pub fn iter_mut<'a>(&'a mut self) -> MoveVecIterator<'a> {
+        MoveVecIterator {
             move_list: self,
             index: 0,
         }
     }
 
-    pub fn retain(&mut self, f: fn(Move) -> bool) {
+    pub fn retain<F>(&mut self, f: F)
+    where
+        F: Fn(Move) -> bool,
+    {
         for i in 0..self.raw_size {
             if let Some(mov) = self.data[i].0
                 && !f(mov)
@@ -99,25 +106,39 @@ impl MoveList {
         }
     }
 
-    pub fn evaluate(&mut self, f: fn(Move) -> i8) {
+    pub fn evaluate<F>(&mut self, f: F)
+    where
+        F: Fn(Move) -> i8,
+    {
         for i in 0..self.raw_size {
             if let Some(mov) = self.data[i].0 {
                 self.data[i].1 = f(mov);
             }
         }
     }
+
+    pub fn contains(&self, mov: Move) -> bool {
+        for i in 0..self.raw_size {
+            if let Some(m) = self.data[i].0
+                && m == mov
+            {
+                return true;
+            }
+        }
+        false
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        moves::{Move, MoveFlag, list::MoveList},
+        moves::{Move, MoveFlag, vec::MoveVec},
         position::square::Square,
     };
 
     #[test]
     fn push_len_clear() {
-        let mut list = MoveList::default();
+        let mut list = MoveVec::default();
         assert_eq!(list.len(), 0);
         list.push(Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush));
         list.push(Move::new(Square::E7, Square::E5, MoveFlag::DoublePawnPush));
@@ -130,7 +151,7 @@ mod tests {
 
     #[test]
     fn iter() {
-        let mut list = MoveList::default();
+        let mut list = MoveVec::default();
         list.push_scored(Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush), 0);
         list.push_scored(Move::new(Square::E7, Square::E5, MoveFlag::DoublePawnPush), 2);
         assert_eq!(list.data[0].0, Some(Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush)));
@@ -149,7 +170,7 @@ mod tests {
 
     #[test]
     pub fn retain_iter() {
-        let mut list = MoveList::default();
+        let mut list = MoveVec::default();
         list.push_scored(Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush), 0);
         list.push_scored(Move::new(Square::G1, Square::F3, MoveFlag::Quiet), 2);
         list.push_scored(Move::new(Square::E7, Square::E5, MoveFlag::DoublePawnPush), 4);
@@ -177,7 +198,7 @@ mod tests {
 
     #[test]
     fn evaluate_iter() {
-        let mut list = MoveList::default();
+        let mut list = MoveVec::default();
         list.push(Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush));
         list.push(Move::new(Square::G1, Square::F3, MoveFlag::Quiet));
 
@@ -196,5 +217,18 @@ mod tests {
         assert_eq!(iter.next(), Some(Move::new(Square::G1, Square::F3, MoveFlag::Quiet)));
         assert_eq!(iter.next(), Some(Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush)));
         assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn contains() {
+        let mut list = MoveVec::default();
+        let mov1 = Move::new(Square::E2, Square::E4, MoveFlag::DoublePawnPush);
+        let mov2 = Move::new(Square::G1, Square::F3, MoveFlag::Quiet);
+        list.push(mov1);
+        list.push(mov2);
+
+        assert!(list.contains(mov1));
+        assert!(list.contains(mov2));
+        assert!(!list.contains(Move::new(Square::E7, Square::E5, MoveFlag::DoublePawnPush)));
     }
 }

@@ -15,7 +15,6 @@ use crate::{
     search::{
         Depth, MAX_DEPTH, Searcher,
         game_history::GameHistory,
-        picker::MovePicker,
         score_table::{DEFAULT_TABLE_SIZE_MB, ScoreTable},
         status::{SearchStatus, SearchStatusValue},
     },
@@ -111,10 +110,11 @@ impl Engine {
 
             status.set(SearchStatusValue::Stopped);
 
-            if let Some(best_move) = pv.first().cloned().or_else(|| {
-                let mut picker = MovePicker::new(&position, false, None, [None, None]);
-                picker.next().map(|mov| mov.to_string())
-            }) {
+            if let Some(best_move) = pv
+                .first()
+                .cloned()
+                .or_else(|| position.moves(MoveStage::All).into_iter().next().map(|m| m.to_string()))
+            {
                 if let Some(ponder_move) = pv.get(1) {
                     println!("bestmove {} ponder {}", best_move, ponder_move);
                 } else {

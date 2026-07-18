@@ -4,9 +4,11 @@ use std::{
     str::FromStr,
 };
 
+use crate::moves::vec::MoveVec;
+
 use super::moves::{
     Move,
-    generate::{MoveVec, generate_moves, square_attackers},
+    generate::{generate_moves, square_attackers},
     make::make_move,
 };
 use bitboard::Bitboard;
@@ -15,7 +17,6 @@ use color::Color;
 use fen::Fen;
 use hash::ZobristHash;
 use piece::Piece;
-use smallvec::SmallVec;
 use square::Square;
 
 pub mod bitboard;
@@ -38,8 +39,6 @@ pub enum PositionDiffEntry {
     Set(Square, Piece, Color),
     Clear(Square, Piece, Color),
 }
-
-pub type PositionDiffVec = SmallVec<[PositionDiffEntry; 16]>;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Position {
@@ -272,7 +271,9 @@ impl Position {
     }
 
     pub fn moves(&self, stage: MoveStage) -> MoveVec {
-        generate_moves(self, stage)
+        let mut move_vec = MoveVec::new();
+        generate_moves(self, stage, &mut move_vec);
+        move_vec
     }
 
     pub fn make_move(&self, mov: Move) -> Self {
@@ -284,8 +285,9 @@ impl Position {
     }
 
     pub fn get_move_str(&self, mov: &str) -> Option<Move> {
-        let moves = generate_moves(self, MoveStage::All);
-        moves.iter().find(|&m| m.to_string().as_str() == mov).copied()
+        let mut move_vec = MoveVec::new();
+        generate_moves(self, MoveStage::All, &mut move_vec);
+        move_vec.into_iter().find(|&m| m.to_string().as_str() == mov)
     }
 
     pub fn is_check(&self) -> bool {
@@ -305,8 +307,9 @@ impl Position {
         self.material
     }
 
-    pub fn diff(&self, other: &Self) -> PositionDiffVec {
-        let mut diff = PositionDiffVec::new();
+    pub fn diff(&self, other: &Self) -> Vec<PositionDiffEntry> {
+        // TODO: Force single instance.
+        let mut diff = Vec::with_capacity(16);
 
         let occ_new_white = self.occupancy_bb(Color::White);
         let occ_old_white = other.occupancy_bb(Color::White);
@@ -362,8 +365,8 @@ mod tests {
     use crate::{
         moves::{Move, MoveFlag},
         position::{
-            Piece, PositionDiffEntry, PositionDiffVec, bitboard::Bitboard, castling_rights::CastlingSide, color::Color,
-            fen::Fen, square::Square,
+            Piece, PositionDiffEntry, bitboard::Bitboard, castling_rights::CastlingSide, color::Color, fen::Fen,
+            square::Square,
         },
     };
 
@@ -659,7 +662,7 @@ mod tests {
         let position2 = position.make_move_str("e2e4").unwrap().make_move_str("d7d5").unwrap();
         assert_eq!(
             position2.diff(&position),
-            PositionDiffVec::from_iter([
+            Vec::from_iter([
                 PositionDiffEntry::Clear(Square::E2, Piece::Pawn, Color::White),
                 PositionDiffEntry::Clear(Square::D7, Piece::Pawn, Color::Black),
                 PositionDiffEntry::Set(Square::E4, Piece::Pawn, Color::White),
@@ -670,7 +673,7 @@ mod tests {
         let position3 = position2.make_move_str("e4d5").unwrap();
         assert_eq!(
             position3.diff(&position2),
-            PositionDiffVec::from_iter([
+            Vec::from_iter([
                 PositionDiffEntry::Clear(Square::E4, Piece::Pawn, Color::White),
                 PositionDiffEntry::Clear(Square::D5, Piece::Pawn, Color::Black),
                 PositionDiffEntry::Set(Square::D5, Piece::Pawn, Color::White),
@@ -680,7 +683,7 @@ mod tests {
         let position4 = position3.make_move_str("g8f6").unwrap();
         assert_eq!(
             position4.diff(&position2),
-            PositionDiffVec::from_iter([
+            Vec::from_iter([
                 PositionDiffEntry::Clear(Square::E4, Piece::Pawn, Color::White),
                 PositionDiffEntry::Clear(Square::D5, Piece::Pawn, Color::Black),
                 PositionDiffEntry::Set(Square::D5, Piece::Pawn, Color::White),

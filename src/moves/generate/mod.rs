@@ -1,11 +1,13 @@
-use super::{Move, MoveFlag, make::make_move};
-use crate::position::{MoveStage, Position, bitboard::Bitboard, color::Color, piece::Piece, square::Square};
+use super::{MoveFlag, make::make_move};
+use crate::{
+    moves::vec::MoveVec,
+    position::{MoveStage, Position, bitboard::Bitboard, color::Color, piece::Piece, square::Square},
+};
 use castle::castle_moves;
 use leapers::{king_attackers, king_regular_moves, knight_attackers, knight_moves};
 use magics::queen_attacks;
 use pawns::{pawn_attackers, pawn_moves};
 use sliders::{bishop_moves, diagonal_attackers, file_attackers, queen_moves, rook_moves};
-use smallvec::SmallVec;
 
 pub mod castle;
 pub mod leapers;
@@ -13,10 +15,8 @@ pub mod magics;
 pub mod pawns;
 pub mod sliders;
 
-pub type MoveVec = SmallVec<[Move; 64]>;
-
-pub fn generate_moves(position: &Position, stage: MoveStage) -> MoveVec {
-    let mut moves = MoveVec::new();
+pub fn generate_moves(position: &Position, stage: MoveStage, mut moves: &mut MoveVec) {
+    moves.clear();
 
     let our_king = position
         .pieces_color_bb(Piece::King, position.side_to_move())
@@ -62,11 +62,9 @@ pub fn generate_moves(position: &Position, stage: MoveStage) -> MoveVec {
             _ => {}
         };
 
-        let new_position = make_move::<false>(position, *mov);
+        let new_position = make_move::<false>(position, mov);
         !new_position.is_check()
     });
-
-    moves
 }
 
 pub fn square_attackers(position: &Position, square: Square, color: Color) -> Bitboard {
@@ -81,17 +79,16 @@ pub fn square_attackers(position: &Position, square: Square, color: Color) -> Bi
 mod tests {
     use std::str::FromStr;
 
-    use crate::{moves::Move, position::Position};
+    use crate::position::Position;
 
     use super::{MoveStage, MoveVec};
 
-    fn assert_eq_vec_move(moves: &[Move], expected: &[&str]) {
+    fn assert_eq_vec_move(moves: &mut MoveVec, expected: &[&str]) {
         assert_eq!(moves.len(), expected.len());
-        let mov_strs = moves.iter().map(|m| m.to_string()).collect::<Vec<String>>();
-        moves
+        let move_vec = moves.into_iter().map(|m| m.to_string()).collect::<Vec<String>>();
+        move_vec
             .iter()
-            .map(|m| m.to_string())
-            .for_each(|m| assert!(expected.contains(&m.as_str()), "got: {:?}, expected: {:?}", mov_strs, expected));
+            .for_each(|m| assert!(expected.contains(&m.as_str()), "got: {:?}, expected: {:?}", move_vec, expected));
     }
 
     pub fn assert_staged_moves(
@@ -103,14 +100,14 @@ mod tests {
 
         let mut moves1 = MoveVec::new();
         function(&position, MoveStage::All, &mut moves1);
-        assert_eq_vec_move(&moves1, &expected[0]);
+        assert_eq_vec_move(&mut moves1, &expected[0]);
 
         let mut moves2 = MoveVec::new();
         function(&position, MoveStage::CapturesAndPromotions, &mut moves2);
-        assert_eq_vec_move(&moves2, &expected[1]);
+        assert_eq_vec_move(&mut moves2, &expected[1]);
 
         let mut moves3 = MoveVec::new();
         function(&position, MoveStage::Quiet, &mut moves3);
-        assert_eq_vec_move(&moves3, &expected[2]);
+        assert_eq_vec_move(&mut moves3, &expected[2]);
     }
 }

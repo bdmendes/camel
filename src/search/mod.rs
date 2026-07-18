@@ -1,8 +1,8 @@
 pub mod game_history;
 pub mod heuristics;
 pub mod killer_table;
+pub mod move_evaluator;
 pub mod perft;
-pub mod picker;
 pub mod score_table;
 pub mod see;
 pub mod status;
@@ -17,13 +17,13 @@ use crate::{
         nnue::NeuralNetwork,
         score::{MATE_SCORE, ValueScore},
     },
-    moves::Move,
+    moves::{Move, vec::MoveVec},
     position::{MoveStage, Position, piece::Piece},
     search::{
         game_history::GameHistory,
         heuristics::maybe_zug,
         killer_table::KillerTable,
-        picker::MovePicker,
+        move_evaluator::MoveEvaluator,
         score_table::ScoreTable,
         see::static_exchange,
         status::{SearchStatus, SearchStatusValue},
@@ -71,14 +71,14 @@ impl<'a> Searcher<'a> {
     }
 
     pub fn pv(&self, position: &Position) -> Vec<Move> {
-        let mut moves = Vec::with_capacity(16);
+        let mut moves = MoveVec::new();
         let mut history = self.history.clone();
         let mut position = *position;
 
         while let Some(mov) = self
             .table
             .hash_move(&position)
-            .filter(|m| position.moves(MoveStage::All).contains(m))
+            .filter(|m| position.moves(MoveStage::All).contains(*m))
         {
             moves.push(mov);
             let next = position.make_move(mov);
@@ -88,7 +88,7 @@ impl<'a> Searcher<'a> {
                 break;
             }
         }
-        moves
+        moves.into_iter().collect()
     }
 
     pub fn pv_str(&self, position: &Position) -> Vec<String> {
@@ -130,13 +130,16 @@ impl<'a> Searcher<'a> {
             }
         }
 
-        let picker = MovePicker::new(position, !is_check, None, [None, None]);
+        let mut moves = position.moves(MoveStage::CapturesAndPromotions);
 
-        if picker.is_empty() {
+        if moves.is_empty() {
             return if is_check { MATE_SCORE + ply as ValueScore } else { window.best() };
         }
 
-        for mov in picker {
+        let evaluator = MoveEvaluator::new(position, None, [None, None]);
+        moves.evaluate(|m| evaluator.evaluate(m));
+
+        for mov in moves.iter_mut() {
             if !is_check && static_exchange(position, mov) < 0 {
                 continue;
             }
@@ -203,11 +206,14 @@ impl<'a> Searcher<'a> {
         }
 
         let hash_move = self.table.hash_move(position);
-        let picker = MovePicker::new(position, false, hash_move, self.killers.get(ply));
+        let mut moves = position.moves(MoveStage::All);
 
-        if picker.is_empty() {
+        if moves.is_empty() {
             return if is_check { MATE_SCORE + ply as ValueScore } else { 0 };
         }
+
+        let evaluator = MoveEvaluator::new(position, hash_move, self.killers.get(ply));
+        moves.evaluate(|m| evaluator.evaluate(m));
 
         let mut node_type = NodeType::AllNode;
         let is_frontier_node = depth < 3;
@@ -220,7 +226,7 @@ impl<'a> Searcher<'a> {
             depth = depth.saturating_add(1).min(MAX_DEPTH);
         }
 
-        for (i, mov) in picker.enumerate() {
+        for (i, mov) in moves.into_iter().enumerate() {
             if i > 0 && mov.is_quiet() && may_futility_prune {
                 continue;
             }

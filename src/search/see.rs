@@ -116,9 +116,9 @@ mod tests {
     #[case("Q7/1P5k/1n6/8/8/4K3/8/r7 b - - 0 1", "b6a8", 7)]
     fn see_sequence(#[case] fen: Fen, #[case] mov: &str, #[case] value: i8) {
         let position = Position::try_from(fen).unwrap();
-        let mov = *position
+        let mov = position
             .moves(MoveStage::CapturesAndPromotions)
-            .iter()
+            .into_iter()
             .find(|m| m.to_string() == mov)
             .unwrap();
         assert_eq!(static_exchange(&position, mov), value);

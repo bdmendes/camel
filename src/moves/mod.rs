@@ -4,8 +4,8 @@ use primitive_enum::primitive_enum;
 use std::{fmt::Display, mem};
 
 pub mod generate;
-pub mod list;
 pub mod make;
+pub mod vec;
 
 primitive_enum! { MoveFlag u8;
     Quiet,
@@ -105,6 +105,7 @@ impl Display for Move {
 mod tests {
     use super::{Move, MoveFlag};
     use crate::moves::MoveFlag::*;
+    use crate::moves::vec::MoveVec;
     use crate::position::fen::{Fen, KIWIPETE_POSITION, START_POSITION};
     use crate::position::piece::Piece::*;
     use crate::position::square::Square::*;
@@ -206,9 +207,7 @@ mod tests {
     #[case("8/8/4k3/8/2p5/8/B2P2K1/8 w - - 0 1")]
     fn legal_are_pseudo_legal(#[case] fen: Fen) {
         let position = Position::try_from(fen.clone()).unwrap();
-        position
-            .moves(MoveStage::All)
-            .iter()
-            .for_each(|m| assert!(m.pseudo_legal(&position)));
+        let mut moves = position.moves(MoveStage::All);
+        moves.into_iter().for_each(|m| assert!(m.pseudo_legal(&position)));
     }
 }

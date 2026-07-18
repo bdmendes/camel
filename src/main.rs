@@ -13,7 +13,7 @@ use crate::{
     },
     moves::{Move, generate::magics::save_magics},
     position::{
-        Position,
+        MoveStage, Position,
         color::Color,
         fen::{KIWIPETE_POSITION, START_POSITION},
         hash::save_zobrist_numbers,
@@ -21,7 +21,6 @@ use crate::{
     search::{
         game_history::GameHistory,
         perft::perft,
-        picker::MovePicker,
         score_table::{DEFAULT_TABLE_SIZE_MB, MAX_TABLE_SIZE_MB, MIN_TABLE_SIZE_MB},
         status::SearchStatusValue,
     },
@@ -157,14 +156,13 @@ fn main() {
                 engine.score_table.lock().unwrap().clear();
             }
             Command::List => {
-                let picker = MovePicker::new(&engine.position, false, None, [None, None]);
-                let moves = picker.into_iter().collect::<Vec<Move>>();
-                let fmt = moves.iter().map(|m| format!("{} ", m)).collect::<String>();
+                let mut moves = engine.position.moves(MoveStage::All);
+                let fmt = moves.into_iter().map(|m| format!("{} ", m)).collect::<String>();
                 println!("{}\n{} moves", fmt, moves.len());
             }
             Command::Move { r#move } => {
-                let picker = MovePicker::new(&engine.position, false, None, [None, None]);
-                if let Some(mov) = picker.into_iter().find(|&m| m.to_string() == r#move) {
+                let mut moves = engine.position.moves(MoveStage::All);
+                if let Some(mov) = moves.into_iter().find(|&m| m.to_string() == r#move) {
                     let reversible = mov.is_reversible(&engine.position);
                     engine.position = engine.position.make_move(mov);
                     engine.game_history.lock().unwrap().push(&engine.position, reversible);

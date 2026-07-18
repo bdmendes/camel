@@ -1,5 +1,5 @@
 use crate::{
-    moves::{Move, MoveFlag},
+    moves::{Move, MoveFlag, vec::MoveVec},
     position::{
         Position,
         bitboard::Bitboard,
@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-use super::{MoveStage, MoveVec};
+use super::MoveStage;
 
 pub type LeaperAttackMap = [Bitboard; 64];
 

@@ -1,9 +1,10 @@
+use crate::moves::vec::MoveVec;
 use crate::moves::{Move, MoveFlag};
 use crate::position::{
     MoveStage, Position, bitboard::Bitboard, castling_rights::CastlingSide, piece::Piece, square::Square,
 };
 
-use super::{MoveVec, square_attackers};
+use super::square_attackers;
 
 const COLOR_CASTLE_RANKS: [Bitboard; 2] = [Bitboard::rank_mask(0), Bitboard::rank_mask(7)];
 const FINAL_KING_SQUARES: [Square; 4] = [Square::G1, Square::C1, Square::G8, Square::C8];
@@ -90,7 +91,7 @@ pub fn castle_moves(position: &Position, stage: MoveStage, moves: &mut MoveVec) 
 mod tests {
     use super::castle_moves;
     use crate::{
-        moves::generate::MoveVec,
+        moves::vec::MoveVec,
         position::{MoveStage, Position},
     };
     use std::str::FromStr;
@@ -102,7 +103,7 @@ mod tests {
 
         assert_eq!(buf.len(), moves.len());
 
-        for m in buf {
+        for m in buf.into_iter() {
             assert!(moves.contains(&m.to_string().as_str()));
         }
     }
