@@ -4,6 +4,7 @@ use primitive_enum::primitive_enum;
 use std::{fmt::Display, mem};
 
 pub mod generate;
+pub mod list;
 pub mod make;
 
 primitive_enum! { MoveFlag u8;
