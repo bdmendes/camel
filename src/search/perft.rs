@@ -1,5 +1,5 @@
 use crate::{
-    moves::{Move, generate::generate_moves, make::make_move, vec::MoveVec},
+    moves::{Move, make::make_move},
     position::{MoveStage, Position},
     search::{
         Depth,
@@ -12,12 +12,12 @@ pub fn perft(position: &Position, depth: Depth, status: &SearchStatus) -> (usize
         if depth == 0 || status.get() == SearchStatusValue::Stopped {
             return 1;
         }
-        let mut vec = MoveVec::new();
-        generate_moves(position, MoveStage::All, &mut vec);
+        let mut moves = position.moves(MoveStage::All);
         if depth == 1 {
-            vec.len()
+            moves.len()
         } else {
-            vec.into_iter()
+            moves
+                .into_iter()
                 .map(|m| go(&make_move::<true>(position, m), depth - 1, status))
                 .sum()
         }
@@ -27,10 +27,9 @@ pub fn perft(position: &Position, depth: Depth, status: &SearchStatus) -> (usize
         return (1, vec![]);
     }
     let mut divided = Vec::with_capacity(64);
-    let mut move_vec = MoveVec::new();
-    generate_moves(position, MoveStage::All, &mut move_vec);
+    let mut moves = position.moves(MoveStage::All);
     let mut count = 0;
-    for m in &mut move_vec {
+    for m in &mut moves {
         let branch = go(&make_move::<true>(position, m), depth - 1, status);
         println!("{}: {}", m, branch);
         divided.push((m, branch));

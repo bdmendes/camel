@@ -1,7 +1,9 @@
 use crate::moves::Move;
 
+const MAX_SIZE: usize = 128;
+
 pub struct MoveVec {
-    data: [(Option<Move>, i8); 128],
+    data: [(Option<Move>, i8); MAX_SIZE],
     raw_size: usize,
     length: usize,
 }
@@ -9,7 +11,7 @@ pub struct MoveVec {
 impl Default for MoveVec {
     fn default() -> Self {
         Self {
-            data: [(None, i8::MIN); 128],
+            data: [(None, i8::MIN); MAX_SIZE],
             raw_size: 0,
             length: 0,
         }
@@ -26,15 +28,17 @@ impl<'a> Iterator for MoveVecIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut best_score = self.move_list.data[self.index].1;
+        let mut currently_empty = self.move_list.data[self.index].0.is_none();
         let mut curr_idx = self.index + 1;
 
         // Put the best move at the front without sorting the entire vector.
         // This laziness fits the minimax model where most moves can be discarded.
         while curr_idx < self.move_list.raw_size {
-            let score = self.move_list.data[curr_idx].1;
-            if score > best_score {
+            let (mov, score) = self.move_list.data[curr_idx];
+            if mov.is_some() && (score > best_score || currently_empty) {
                 best_score = score;
                 self.move_list.data.swap(self.index, curr_idx);
+                currently_empty = false;
             }
             curr_idx += 1;
         }
@@ -71,18 +75,16 @@ impl MoveVec {
         self.length = 0;
     }
 
-    fn push_internal(&mut self, mov: Move, score: Option<i8>) {
-        self.data[self.raw_size] = (Some(mov), score.unwrap_or(i8::MIN));
-        self.raw_size += 1;
-        self.length += 1;
-    }
-
     pub fn push(&mut self, mov: Move) {
-        self.push_internal(mov, None);
+        self.push_scored(mov, i8::MIN);
     }
 
     pub fn push_scored(&mut self, mov: Move, score: i8) {
-        self.push_internal(mov, Some(score));
+        if self.raw_size < MAX_SIZE {
+            self.data[self.raw_size] = (Some(mov), score);
+            self.raw_size += 1;
+            self.length += 1;
+        }
     }
 
     pub fn iter_mut<'a>(&'a mut self) -> MoveVecIterator<'a> {

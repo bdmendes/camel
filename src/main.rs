@@ -11,7 +11,7 @@ use crate::{
         repl::{Command, DumpCommand, PositionCommand, repl},
         time::get_duration,
     },
-    moves::{Move, generate::magics::save_magics},
+    moves::generate::magics::save_magics,
     position::{
         MoveStage, Position,
         color::Color,

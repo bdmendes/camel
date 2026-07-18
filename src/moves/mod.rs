@@ -105,7 +105,6 @@ impl Display for Move {
 mod tests {
     use super::{Move, MoveFlag};
     use crate::moves::MoveFlag::*;
-    use crate::moves::vec::MoveVec;
     use crate::position::fen::{Fen, KIWIPETE_POSITION, START_POSITION};
     use crate::position::piece::Piece::*;
     use crate::position::square::Square::*;

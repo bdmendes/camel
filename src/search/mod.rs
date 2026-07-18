@@ -17,7 +17,7 @@ use crate::{
         nnue::NeuralNetwork,
         score::{MATE_SCORE, ValueScore},
     },
-    moves::{Move, vec::MoveVec},
+    moves::Move,
     position::{MoveStage, Position, piece::Piece},
     search::{
         game_history::GameHistory,
@@ -71,7 +71,7 @@ impl<'a> Searcher<'a> {
     }
 
     pub fn pv(&self, position: &Position) -> Vec<Move> {
-        let mut moves = MoveVec::new();
+        let mut moves = Vec::with_capacity(16);
         let mut history = self.history.clone();
         let mut position = *position;
 
@@ -88,7 +88,7 @@ impl<'a> Searcher<'a> {
                 break;
             }
         }
-        moves.into_iter().collect()
+        moves
     }
 
     pub fn pv_str(&self, position: &Position) -> Vec<String> {
@@ -130,7 +130,7 @@ impl<'a> Searcher<'a> {
             }
         }
 
-        let mut moves = position.moves(MoveStage::CapturesAndPromotions);
+        let mut moves = position.moves(if !is_check { MoveStage::CapturesAndPromotions } else { MoveStage::All });
 
         if moves.is_empty() {
             return if is_check { MATE_SCORE + ply as ValueScore } else { window.best() };

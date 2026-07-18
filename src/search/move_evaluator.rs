@@ -60,7 +60,7 @@ impl<'a> MoveEvaluator<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        moves::{Move, MoveFlag, vec::MoveVec},
+        moves::{Move, MoveFlag},
         position::{MoveStage, Position, fen::START_POSITION, square::Square},
         search::{move_evaluator::MoveEvaluator, see::static_exchange},
     };

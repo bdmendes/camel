@@ -285,9 +285,9 @@ impl Position {
     }
 
     pub fn get_move_str(&self, mov: &str) -> Option<Move> {
-        let mut move_vec = MoveVec::new();
-        generate_moves(self, MoveStage::All, &mut move_vec);
-        move_vec.into_iter().find(|&m| m.to_string().as_str() == mov)
+        self.moves(MoveStage::All)
+            .into_iter()
+            .find(|&m| m.to_string().as_str() == mov)
     }
 
     pub fn is_check(&self) -> bool {
